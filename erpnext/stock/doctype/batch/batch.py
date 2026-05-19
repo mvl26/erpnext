@@ -95,6 +95,7 @@ class Batch(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		batch_bar_code: DF.Barcode | None
 		batch_id: DF.Data
 		batch_qty: DF.Float
 		description: DF.SmallText | None
@@ -102,6 +103,7 @@ class Batch(Document):
 		expiry_date: DF.Date | None
 		image: DF.AttachImage | None
 		item: DF.Link
+		item_bar_code: DF.Barcode | None
 		item_name: DF.Data | None
 		manufacturing_date: DF.Date | None
 		parent_batch: DF.Link | None

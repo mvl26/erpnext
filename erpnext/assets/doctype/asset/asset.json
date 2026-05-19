@@ -549,7 +549,7 @@
   },
   {
    "fieldname": "purchase_invoice_item",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "hidden": 1,
    "label": "Purchase Invoice Item",
    "options": "Purchase Invoice Item"
@@ -596,8 +596,8 @@
    "link_fieldname": "target_asset"
   }
  ],
- "modified": "2025-05-20 00:44:06.229177",
- "modified_by": "Administrator",
+ "modified": "2026-03-31 13:56:18.923417",
+ "modified_by": "hieu.cv2@miyano.com.vn",
  "module": "Assets",
  "name": "Asset",
  "naming_rule": "By \"Naming Series\" field",

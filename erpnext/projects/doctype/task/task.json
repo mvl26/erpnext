@@ -9,6 +9,7 @@
  "field_order": [
   "subject",
   "project",
+  "department",
   "issue",
   "type",
   "color",
@@ -48,7 +49,6 @@
   "review_date",
   "closing_date",
   "column_break_22",
-  "department",
   "company",
   "lft",
   "rgt",
@@ -58,13 +58,17 @@
  "fields": [
   {
    "allow_in_quick_entry": 1,
+   "bold": 1,
    "fieldname": "subject",
    "fieldtype": "Data",
    "in_global_search": 1,
    "in_standard_filter": 1,
    "label": "Subject",
+   "length": 140,
+   "print_width": "300",
    "reqd": 1,
-   "search_index": 1
+   "search_index": 1,
+   "width": "300"
   },
   {
    "allow_in_quick_entry": 1,
@@ -150,13 +154,13 @@
    "collapsible_depends_on": "eval:doc.__islocal",
    "fieldname": "sb_timeline",
    "fieldtype": "Section Break",
-   "label": "Timeline"
+   "label": "B\u1ea3ng c\u00f4ng"
   },
   {
    "bold": 1,
    "fieldname": "exp_start_date",
    "fieldtype": "Date",
-   "label": "Expected Start Date",
+   "label": "Ng\u00e0y d\u1ef1 ki\u1ebfn b\u1eaft \u0111\u1ea7u",
    "oldfieldname": "exp_start_date",
    "oldfieldtype": "Date"
   },
@@ -164,7 +168,7 @@
    "default": "0",
    "fieldname": "expected_time",
    "fieldtype": "Float",
-   "label": "Expected Time (in hours)",
+   "label": "Th\u1eddi gian d\u1ef1 ki\u1ebfn (t\u00ednh theo gi\u1edd)",
    "oldfieldname": "exp_total_hrs",
    "oldfieldtype": "Data"
   },
@@ -182,7 +186,7 @@
    "bold": 1,
    "fieldname": "exp_end_date",
    "fieldtype": "Date",
-   "label": "Expected End Date",
+   "label": "Ng\u00e0y d\u1ef1 ki\u1ebfn k\u1ebft th\u00fac",
    "oldfieldname": "exp_end_date",
    "oldfieldtype": "Date",
    "search_index": 1
@@ -213,6 +217,7 @@
    "oldfieldname": "description",
    "oldfieldtype": "Text Editor",
    "print_width": "300px",
+   "reqd": 1,
    "width": "300px"
   },
   {
@@ -222,9 +227,10 @@
    "oldfieldtype": "Section Break"
   },
   {
+   "depends_on": "eval:doc.is_group==1",
    "fieldname": "depends_on",
    "fieldtype": "Table",
-   "label": "Dependent Tasks",
+   "label": "C\u00e1c c\u00f4ng vi\u1ec7c ph\u1ee5 thu\u1ed9c",
    "options": "Task Depends On"
   },
   {
@@ -359,6 +365,7 @@
    "fieldname": "completed_by",
    "fieldtype": "Link",
    "label": "Completed By",
+   "mandatory_depends_on": "eval: doc.status == \"Completed\"",
    "no_copy": 1,
    "options": "User"
   },
@@ -366,7 +373,7 @@
    "default": "0",
    "fieldname": "is_template",
    "fieldtype": "Check",
-   "label": "Is Template"
+   "label": "L\u00e0 m\u1eabu"
   },
   {
    "depends_on": "is_template",
@@ -398,9 +405,9 @@
  "idx": 1,
  "is_tree": 1,
  "links": [],
- "max_attachments": 5,
- "modified": "2024-01-08 16:00:41.296203",
- "modified_by": "Administrator",
+ "max_attachments": 20,
+ "modified": "2026-03-31 10:12:45.366195",
+ "modified_by": "hieu.cv2@miyano.com.vn",
  "module": "Projects",
  "name": "Task",
  "naming_rule": "Expression (old style)",
@@ -420,6 +427,7 @@
   }
  ],
  "quick_entry": 1,
+ "row_format": "Dynamic",
  "search_fields": "subject",
  "show_name_in_global_search": 1,
  "show_preview_popup": 1,
@@ -428,5 +436,6 @@
  "states": [],
  "timeline_field": "project",
  "title_field": "subject",
+ "track_changes": 1,
  "track_seen": 1
 }

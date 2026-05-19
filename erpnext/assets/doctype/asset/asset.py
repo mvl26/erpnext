@@ -47,9 +47,8 @@ class Asset(AccountsController):
 	from typing import TYPE_CHECKING
 
 	if TYPE_CHECKING:
-		from frappe.types import DF
-
 		from erpnext.assets.doctype.asset_finance_book.asset_finance_book import AssetFinanceBook
+		from frappe.types import DF
 
 		additional_asset_cost: DF.Currency
 		amended_from: DF.Link | None
@@ -95,24 +94,11 @@ class Asset(AccountsController):
 		purchase_amount: DF.Currency
 		purchase_date: DF.Date
 		purchase_invoice: DF.Link | None
-		purchase_invoice_item: DF.Data | None
+		purchase_invoice_item: DF.Link | None
 		purchase_receipt: DF.Link | None
 		purchase_receipt_item: DF.Data | None
 		split_from: DF.Link | None
-		status: DF.Literal[
-			"Draft",
-			"Submitted",
-			"Partially Depreciated",
-			"Fully Depreciated",
-			"Sold",
-			"Scrapped",
-			"In Maintenance",
-			"Out of Order",
-			"Issue",
-			"Receipt",
-			"Capitalized",
-			"Work In Progress",
-		]
+		status: DF.Literal["Draft", "Submitted", "Partially Depreciated", "Fully Depreciated", "Sold", "Scrapped", "In Maintenance", "Out of Order", "Issue", "Receipt", "Capitalized", "Work In Progress"]
 		supplier: DF.Link | None
 		total_asset_cost: DF.Currency
 		total_number_of_depreciations: DF.Int

@@ -144,7 +144,7 @@
    "no_copy": 1,
    "oldfieldname": "status",
    "oldfieldtype": "Select",
-   "options": "Lead\nOpen\nReplied\nOpportunity\nQuotation\nLost Quotation\nInterested\nConverted\nDo Not Contact",
+   "options": "\nLead\nOpen\nReplied\nOpportunity\nQuotation\nLost Quotation\nInterested\nConverted\nDo Not Contact",
    "reqd": 1,
    "search_index": 1
   },
@@ -238,6 +238,7 @@
    "oldfieldtype": "Data"
   },
   {
+   "default": "Client",
    "fieldname": "type",
    "fieldtype": "Select",
    "label": "Lead Type",
@@ -262,6 +263,7 @@
    "options": "Industry Type"
   },
   {
+   "default": "Product Enquiry",
    "fieldname": "request_type",
    "fieldtype": "Select",
    "label": "Request Type",
@@ -517,8 +519,8 @@
  "idx": 5,
  "image_field": "image",
  "links": [],
- "modified": "2025-06-26 11:02:01.158901",
- "modified_by": "Administrator",
+ "modified": "2025-11-11 13:44:13.398595",
+ "modified_by": "chuvanhieu357@gmail.com",
  "module": "CRM",
  "name": "Lead",
  "naming_rule": "By \"Naming Series\" field",

@@ -10,24 +10,40 @@
  "field_order": [
   "party_type",
   "is_signed",
+  "contract_manager",
+  "contract_manager_name",
+  "reminder_10d_sent_on",
   "cb_party",
   "party_name",
+  "party_full_name",
+  "custom_party_tax_code",
   "party_user",
+  "contact_person",
+  "phone_number",
+  "email",
   "status",
   "fulfilment_status",
-  "party_full_name",
-  "sb_terms",
-  "start_date",
-  "cb_date",
-  "end_date",
   "sb_signee",
   "signee",
   "signed_on",
   "cb_user",
   "ip_address",
+  "sb_terms",
+  "start_date",
+  "cb_date",
+  "end_date",
   "sb_contract",
+  "custom_contract_type",
+  "depend_on_contract",
+  "contract_number",
+  "contract_title",
   "contract_template",
   "contract_terms",
+  "contract_value",
+  "vat_included",
+  "is_paid",
+  "period",
+  "note",
   "sb_fulfilment",
   "requires_fulfilment",
   "fulfilment_deadline",
@@ -39,7 +55,12 @@
   "document_type",
   "cb_links",
   "document_name",
-  "amended_from"
+  "amended_from",
+  "lft",
+  "rgt",
+  "is_group",
+  "old_parent",
+  "parent_contract"
  ],
  "fields": [
   {
@@ -73,6 +94,7 @@
   {
    "fieldname": "party_user",
    "fieldtype": "Link",
+   "hidden": 1,
    "label": "Party User",
    "options": "User"
   },
@@ -174,6 +196,7 @@
   {
    "fieldname": "sb_fulfilment",
    "fieldtype": "Section Break",
+   "hidden": 1,
    "label": "Fulfilment Details"
   },
   {
@@ -252,16 +275,141 @@
    "fieldtype": "Data",
    "label": "Party Full Name",
    "read_only": 1
+  },
+  {
+   "fieldname": "contact_person",
+   "fieldtype": "Data",
+   "label": "Contact person"
+  },
+  {
+   "fieldname": "phone_number",
+   "fieldtype": "Data",
+   "label": "Phone number"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "contract_manager",
+   "fieldtype": "Link",
+   "label": "Contract manager",
+   "options": "Employee"
+  },
+  {
+   "fetch_from": "contract_manager.employee_name",
+   "fieldname": "contract_manager_name",
+   "fieldtype": "Data",
+   "label": "Contract manager name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contract_title",
+   "fieldtype": "Data",
+   "label": "Contract title"
+  },
+  {
+   "fieldname": "reminder_10d_sent_on",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Reminder 10D Sent On"
+  },
+  {
+   "fieldname": "contract_number",
+   "fieldtype": "Data",
+   "label": "Contract number"
+  },
+  {
+   "fieldname": "custom_party_tax_code",
+   "fieldtype": "Data",
+   "label": "Party TaxID"
+  },
+  {
+   "default": "H\u1ee3p \u0111\u1ed3ng d\u1ecbch v\u1ee5",
+   "fieldname": "custom_contract_type",
+   "fieldtype": "Select",
+   "label": "Contract type",
+   "options": "H\u1ee3p \u0111\u1ed3ng d\u1ecbch v\u1ee5\nH\u1ee3p \u0111\u1ed3ng mua b\u00e1n\nPh\u1ee5 l\u1ee5c h\u1ee3p \u0111\u1ed3ng\nBi\u00ean b\u1ea3n\nH\u1ee3p \u0111\u1ed3ng nguy\u00ean t\u1eafc\nKh\u00e1c"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_paid",
+   "fieldtype": "Check",
+   "label": "Is paid"
+  },
+  {
+   "fieldname": "contract_value",
+   "fieldtype": "Float",
+   "label": "Contract Value"
+  },
+  {
+   "fieldname": "vat_included",
+   "fieldtype": "Float",
+   "label": "Vat Included"
+  },
+  {
+   "fieldname": "period",
+   "fieldtype": "Small Text",
+   "label": "Period"
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note"
+  },
+  {
+   "fieldname": "depend_on_contract",
+   "fieldtype": "Link",
+   "label": "Depend On Contract",
+   "options": "Contract"
+  },
+  {
+   "fieldname": "lft",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Left",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "rgt",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Right",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_group",
+   "fieldtype": "Check",
+   "label": "Is Group"
+  },
+  {
+   "fieldname": "old_parent",
+   "fieldtype": "Link",
+   "label": "Old Parent",
+   "options": "Contract"
+  },
+  {
+   "fieldname": "parent_contract",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "label": "Parent Contract",
+   "options": "Contract"
   }
  ],
  "grid_page_length": 50,
  "is_submittable": 1,
+ "is_tree": 1,
  "links": [],
- "modified": "2025-06-19 17:48:45.049007",
- "modified_by": "Administrator",
+ "modified": "2026-03-16 16:30:11.587246",
+ "modified_by": "viet.bh@miyano.com.vn",
  "module": "CRM",
  "name": "Contract",
  "naming_rule": "Expression (old style)",
+ "nsm_parent_field": "parent_contract",
  "owner": "Administrator",
  "permissions": [
   {

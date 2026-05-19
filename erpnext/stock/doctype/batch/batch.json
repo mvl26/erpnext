@@ -12,7 +12,9 @@
   "column_break_24",
   "use_batchwise_valuation",
   "sb_batch",
+  "batch_bar_code",
   "batch_id",
+  "item_bar_code",
   "item",
   "item_name",
   "image",
@@ -201,6 +203,16 @@
    "label": "Use Batch-wise Valuation",
    "read_only": 1,
    "set_only_once": 1
+  },
+  {
+   "fieldname": "batch_bar_code",
+   "fieldtype": "Barcode",
+   "label": "Batch Bar Code"
+  },
+  {
+   "fieldname": "item_bar_code",
+   "fieldtype": "Barcode",
+   "label": "Item Bar Code"
   }
  ],
  "icon": "fa fa-archive",
@@ -208,7 +220,7 @@
  "image_field": "image",
  "links": [],
  "max_attachments": 5,
- "modified": "2023-11-09 12:17:28.339975",
+ "modified": "2025-12-29 15:54:01.269799",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Batch",
@@ -225,12 +237,12 @@
    "read": 1,
    "report": 1,
    "role": "Item Manager",
-   "set_user_permissions": 1,
    "share": 1,
    "write": 1
   }
  ],
  "quick_entry": 1,
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

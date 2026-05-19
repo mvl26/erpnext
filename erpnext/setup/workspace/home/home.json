@@ -1,25 +1,35 @@
 {
  "charts": [],
- "content": "[{\"id\":\"aCk49ShVRs\",\"type\":\"onboarding\",\"data\":{\"onboarding_name\":\"Home\",\"col\":12}},{\"id\":\"kb3XPLg8lb\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"id\":\"nWd2KJPW8l\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"snrzfbFr5Y\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer\",\"col\":3}},{\"id\":\"SHJKakmLLf\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Supplier\",\"col\":3}},{\"id\":\"CPxEyhaf3G\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Invoice\",\"col\":3}},{\"id\":\"WU4F-HUcIQ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Leaderboard\",\"col\":3}},{\"id\":\"d_KVM1gsf9\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"JVu8-FJZCu\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"JiuSi0ubOg\",\"type\":\"card\",\"data\":{\"card_name\":\"Accounting\",\"col\":4}},{\"id\":\"ji2Jlm3Q8i\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock\",\"col\":4}},{\"id\":\"N61oiXpuwK\",\"type\":\"card\",\"data\":{\"card_name\":\"CRM\",\"col\":4}},{\"id\":\"6J0CVl1mPo\",\"type\":\"card\",\"data\":{\"card_name\":\"Data Import and Settings\",\"col\":4}}]",
+ "content": "[{\"id\":\"bqSU1Or4L5\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Bi\u1ec3u \u0111\u1ed3 ch\u1ea5m c\u00f4ng c\u1ee7a t\u00f4i\",\"col\":12}},{\"id\":\"S1WJqOQefm\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Attendance\",\"col\":12}},{\"id\":\"Rxb6QWOLtp\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Ch\u01b0a ch\u1ea5m c\u00f4ng h\u00f4m nay + ngh\u1ec9 h\u00f4m nay + c\u00f4ng t\u00e1c tu\u1ea7n + sinh nh\u1eadt th\u00e1ng\",\"col\":12}},{\"id\":\"6H8FpveZ-k\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Ph\u1ea7n d\u01b0\u1edbi module nh\u00e2n s\u1ef1\",\"col\":12}}]",
  "creation": "2020-01-23 13:46:38.833076",
- "custom_blocks": [],
+ "custom_blocks": [
+  {
+   "custom_block_name": "Bi\u1ec3u \u0111\u1ed3 ch\u1ea5m c\u00f4ng c\u1ee7a t\u00f4i",
+   "label": "Bi\u1ec3u \u0111\u1ed3 ch\u1ea5m c\u00f4ng c\u1ee7a t\u00f4i"
+  },
+  {
+   "custom_block_name": "Attendance",
+   "label": "Attendance"
+  },
+  {
+   "custom_block_name": "Ch\u01b0a ch\u1ea5m c\u00f4ng h\u00f4m nay + ngh\u1ec9 h\u00f4m nay + c\u00f4ng t\u00e1c tu\u1ea7n + sinh nh\u1eadt th\u00e1ng",
+   "label": "Ch\u01b0a ch\u1ea5m c\u00f4ng h\u00f4m nay + ngh\u1ec9 h\u00f4m nay + c\u00f4ng t\u00e1c tu\u1ea7n + sinh nh\u1eadt th\u00e1ng"
+  },
+  {
+   "custom_block_name": "Ph\u1ea7n d\u01b0\u1edbi module nh\u00e2n s\u1ef1",
+   "label": "Ph\u1ea7n d\u01b0\u1edbi module nh\u00e2n s\u1ef1"
+  }
+ ],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
  "hide_custom": 0,
- "icon": "getting-started",
- "idx": 0,
+ "icon": "share-people",
+ "idx": 2,
+ "indicator_color": "",
  "is_hidden": 0,
  "label": "Home",
  "links": [
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Accounting",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
-  },
   {
    "dependencies": "",
    "hidden": 0,
@@ -63,14 +73,6 @@
    "link_type": "DocType",
    "onboard": 1,
    "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Stock",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
   },
   {
    "dependencies": "",
@@ -128,14 +130,6 @@
    "type": "Link"
   },
   {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "CRM",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
    "dependencies": "",
    "hidden": 0,
    "is_query_report": 0,
@@ -167,14 +161,6 @@
    "link_type": "DocType",
    "onboard": 1,
    "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Data Import and Settings",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
   },
   {
    "dependencies": "",
@@ -232,8 +218,8 @@
    "type": "Link"
   }
  ],
- "modified": "2023-05-24 14:47:18.765388",
- "modified_by": "Administrator",
+ "modified": "2026-03-12 15:18:33.179255",
+ "modified_by": "viet.bh@miyano.com.vn",
  "module": "Setup",
  "name": "Home",
  "number_cards": [],
@@ -242,34 +228,12 @@
  "public": 1,
  "quick_lists": [],
  "restrict_to_domain": "",
- "roles": [],
- "sequence_id": 1.0,
- "shortcuts": [
+ "roles": [
   {
-   "label": "Item",
-   "link_to": "Item",
-   "type": "DocType"
-  },
-  {
-   "label": "Customer",
-   "link_to": "Customer",
-   "type": "DocType"
-  },
-  {
-   "label": "Supplier",
-   "link_to": "Supplier",
-   "type": "DocType"
-  },
-  {
-   "label": "Sales Invoice",
-   "link_to": "Sales Invoice",
-   "type": "DocType"
-  },
-  {
-   "label": "Leaderboard",
-   "link_to": "leaderboard",
-   "type": "Page"
+   "role": "System Manager"
   }
  ],
+ "sequence_id": 1.0,
+ "shortcuts": [],
  "title": "Home"
 }

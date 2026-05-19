@@ -99,7 +99,7 @@
   {
    "fieldname": "is_active",
    "fieldtype": "Select",
-   "label": "Is Active",
+   "label": "\u0110ang ho\u1ea1t \u0111\u1ed9ng",
    "oldfieldname": "is_active",
    "oldfieldtype": "Select",
    "options": "Yes\nNo"
@@ -135,7 +135,7 @@
    "bold": 1,
    "fieldname": "expected_start_date",
    "fieldtype": "Date",
-   "label": "Expected Start Date",
+   "label": "Ng\u00e0y d\u1ef1 ki\u1ebfn b\u1eaft \u0111\u1ea7u",
    "oldfieldname": "project_start_date",
    "oldfieldtype": "Date"
   },
@@ -144,7 +144,7 @@
    "fieldname": "expected_end_date",
    "fieldtype": "Date",
    "in_list_view": 1,
-   "label": "Expected End Date",
+   "label": "Ng\u00e0y d\u1ef1 ki\u1ebfn k\u1ebft th\u00fac",
    "oldfieldname": "completion_date",
    "oldfieldtype": "Date"
   },
@@ -152,7 +152,7 @@
    "fieldname": "priority",
    "fieldtype": "Select",
    "in_standard_filter": 1,
-   "label": "Priority",
+   "label": "M\u1ee9c \u0111\u1ed9 \u01b0u ti\u00ean",
    "oldfieldname": "priority",
    "oldfieldtype": "Select",
    "options": "Medium\nLow\nHigh"
@@ -160,14 +160,14 @@
   {
    "fieldname": "department",
    "fieldtype": "Link",
-   "label": "Department",
+   "label": "Khoa/ph\u00f2ng",
    "options": "Department"
   },
   {
    "collapsible": 1,
    "fieldname": "customer_details",
    "fieldtype": "Section Break",
-   "label": "Customer Details",
+   "label": "Th\u00f4ng tin chi ti\u1ebft v\u1ec1 kh\u00e1ch h\u00e0ng",
    "oldfieldtype": "Section Break",
    "options": "fa fa-user"
   },
@@ -196,10 +196,10 @@
    "collapsible": 1,
    "fieldname": "users_section",
    "fieldtype": "Section Break",
-   "label": "Users"
+   "label": "Ng\u01b0\u1eddi d\u00f9ng"
   },
   {
-   "description": "Project will be accessible on the website to these users",
+   "description": "D\u1ef1 \u00e1n s\u1ebd hi\u1ec3n th\u1ecb tr\u00ean website cho nh\u1eefng ng\u01b0\u1eddi d\u00f9ng n\u00e0y\n",
    "fieldname": "users",
    "fieldtype": "Table",
    "label": "Users",
@@ -325,7 +325,7 @@
   {
    "fieldname": "cost_center",
    "fieldtype": "Link",
-   "label": "Default Cost Center",
+   "label": "Trung t\u00e2m chi ph\u00ed m\u1eb7c \u0111\u1ecbnh",
    "options": "Cost Center"
   },
   {
@@ -462,8 +462,8 @@
  "index_web_pages_for_search": 1,
  "links": [],
  "max_attachments": 4,
- "modified": "2025-08-21 17:57:58.314809",
- "modified_by": "Administrator",
+ "modified": "2025-10-24 11:46:54.321559",
+ "modified_by": "buiviet9802@gmail.com",
  "module": "Projects",
  "name": "Project",
  "naming_rule": "By \"Naming Series\" field",

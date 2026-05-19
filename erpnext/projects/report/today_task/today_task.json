@@ -1,0 +1,32 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [],
+ "creation": "2025-11-04 09:23:43.354830",
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letterhead": null,
+ "modified": "2025-11-04 09:38:48.376999",
+ "modified_by": "Administrator",
+ "module": "Projects",
+ "name": "Today task",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "query": "SELECT\r\n    t.name                                                 AS \"Task ID:Link/Task:140\",\r\n    t.subject                                              AS \"Subject::300\",\r\n    COALESCE(p.project_name, t.project)                    AS \"Project::220\",\r\n    GROUP_CONCAT(DISTINCT COALESCE(u.full_name, td.allocated_to)\r\n                 SEPARATOR ', ')                           AS \"Assigned To::250\",\r\n    COALESCE(o.full_name, t.owner)                         AS \"Owner::200\",\r\n    COALESCE(c.full_name, t.completed_by)                  AS \"Completed By::200\",\r\n    t.completed_on                                         AS \"Completed On:Datetime:160\",\r\n    t.status                                               AS \"Status::120\",\r\n    t.priority                                             AS \"Priority::100\",\r\n    t.exp_start_date                                       AS \"Expected Start:Date:130\",\r\n    t.exp_end_date                                         AS \"Expected End:Date:130\"\r\nFROM `tabTask` t\r\nLEFT JOIN `tabProject` p\r\n       ON p.name = t.project\r\nLEFT JOIN `tabToDo` td\r\n       ON td.reference_type = 'Task'\r\n      AND td.reference_name = t.name\r\n      AND IFNULL(td.status,'') != 'Cancelled'\r\nLEFT JOIN `tabUser` u\r\n       ON u.name = td.allocated_to\r\nLEFT JOIN `tabUser` o\r\n       ON o.name = t.owner\r\nLEFT JOIN `tabUser` c\r\n       ON c.name = t.completed_by\r\nWHERE\r\n      (\r\n        (t.exp_start_date IS NOT NULL AND DATE(t.exp_start_date) = CURDATE())\r\n        OR\r\n        (t.exp_end_date   IS NOT NULL AND DATE(t.exp_end_date)   = CURDATE())\r\n      )\r\nGROUP BY t.name\r\nORDER BY\r\n    COALESCE(t.exp_start_date, t.exp_end_date) ASC,\r\n    t.exp_end_date ASC;\r\n",
+ "ref_doctype": "Task",
+ "report_name": "Today task",
+ "report_type": "Query Report",
+ "roles": [
+  {
+   "role": "Projects User"
+  },
+  {
+   "role": "Employee Self Service"
+  }
+ ],
+ "timeout": 0
+}

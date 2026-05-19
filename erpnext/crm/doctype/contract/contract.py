@@ -15,35 +15,51 @@ class Contract(Document):
 	from typing import TYPE_CHECKING
 
 	if TYPE_CHECKING:
+		from erpnext.crm.doctype.contract_fulfilment_checklist.contract_fulfilment_checklist import ContractFulfilmentChecklist
 		from frappe.types import DF
 
-		from erpnext.crm.doctype.contract_fulfilment_checklist.contract_fulfilment_checklist import (
-			ContractFulfilmentChecklist,
-		)
-
 		amended_from: DF.Link | None
+		contact_person: DF.Data | None
+		contract_manager: DF.Link | None
+		contract_manager_name: DF.Data | None
+		contract_number: DF.Data | None
 		contract_template: DF.Link | None
 		contract_terms: DF.TextEditor
+		contract_title: DF.Data | None
+		contract_value: DF.Float
+		custom_contract_type: DF.Literal["H\u1ee3p \u0111\u1ed3ng d\u1ecbch v\u1ee5", "H\u1ee3p \u0111\u1ed3ng mua b\u00e1n", "Ph\u1ee5 l\u1ee5c h\u1ee3p \u0111\u1ed3ng", "Bi\u00ean b\u1ea3n", "H\u1ee3p \u0111\u1ed3ng nguy\u00ean t\u1eafc", "Kh\u00e1c"]
+		custom_party_tax_code: DF.Data | None
+		depend_on_contract: DF.Link | None
 		document_name: DF.DynamicLink | None
-		document_type: DF.Literal[
-			"", "Quotation", "Project", "Sales Order", "Purchase Order", "Sales Invoice", "Purchase Invoice"
-		]
+		document_type: DF.Literal["", "Quotation", "Project", "Sales Order", "Purchase Order", "Sales Invoice", "Purchase Invoice"]
+		email: DF.Data | None
 		end_date: DF.Date | None
 		fulfilment_deadline: DF.Date | None
 		fulfilment_status: DF.Literal["N/A", "Unfulfilled", "Partially Fulfilled", "Fulfilled", "Lapsed"]
 		fulfilment_terms: DF.Table[ContractFulfilmentChecklist]
 		ip_address: DF.Data | None
+		is_group: DF.Check
+		is_paid: DF.Check
 		is_signed: DF.Check
+		lft: DF.Int
+		note: DF.SmallText | None
+		old_parent: DF.Link | None
+		parent_contract: DF.Link | None
 		party_full_name: DF.Data | None
 		party_name: DF.DynamicLink
 		party_type: DF.Literal["Customer", "Supplier", "Employee"]
 		party_user: DF.Link | None
+		period: DF.SmallText | None
+		phone_number: DF.Data | None
+		reminder_10d_sent_on: DF.Datetime | None
 		requires_fulfilment: DF.Check
+		rgt: DF.Int
 		signed_by_company: DF.Link | None
 		signed_on: DF.Datetime | None
 		signee: DF.Data | None
 		start_date: DF.Date | None
 		status: DF.Literal["Unsigned", "Active", "Inactive"]
+		vat_included: DF.Float
 	# end: auto-generated types
 
 	def validate(self):

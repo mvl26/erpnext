@@ -23,12 +23,14 @@ class Warehouse(NestedSet):
 		account: DF.Link | None
 		address_line_1: DF.Data | None
 		address_line_2: DF.Data | None
+		barcode_nxld: DF.Barcode | None
 		city: DF.Data | None
 		company: DF.Link
 		default_in_transit_warehouse: DF.Link | None
 		disabled: DF.Check
 		email_id: DF.Data | None
 		is_group: DF.Check
+		is_rejected_warehouse: DF.Check
 		lft: DF.Int
 		mobile_no: DF.Data | None
 		old_parent: DF.Link | None

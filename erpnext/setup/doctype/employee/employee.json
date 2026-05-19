@@ -3,7 +3,7 @@
  "allow_events_in_timeline": 1,
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "naming_series:",
+ "autoname": "naming_series:employee_number",
  "creation": "2022-02-21 11:54:09.632218",
  "doctype": "DocType",
  "document_type": "Setup",
@@ -76,8 +76,12 @@
   "ctc",
   "salary_currency",
   "salary_mode",
+  "so_nguoi_phu_thuoc",
+  "luong_dong_bhxh",
+  "ma_chinh_sach_bhxh",
   "bank_details_section",
   "bank_name",
+  "tax_id",
   "column_break_heye",
   "bank_ac_no",
   "iban",
@@ -538,7 +542,7 @@
    "fieldname": "marital_status",
    "fieldtype": "Select",
    "label": "Marital Status",
-   "options": "\nSingle\nMarried\nDivorced\nWidowed"
+   "options": "\nSingle\nMarried"
   },
   {
    "fieldname": "blood_group",
@@ -815,6 +819,27 @@
    "fieldname": "iban",
    "fieldtype": "Data",
    "label": "IBAN"
+  },
+  {
+   "fieldname": "so_nguoi_phu_thuoc",
+   "fieldtype": "Int",
+   "label": "S\u1ed1 ng\u01b0\u1eddi ph\u1ee5 thu\u1ed9c"
+  },
+  {
+   "fieldname": "luong_dong_bhxh",
+   "fieldtype": "Currency",
+   "label": "L\u01b0\u01a1ng \u0111\u00f3ng BHXH"
+  },
+  {
+   "fieldname": "ma_chinh_sach_bhxh",
+   "fieldtype": "Select",
+   "label": "M\u00e3 ch\u00ednh s\u00e1ch BHXH",
+   "options": "vn-standard-gross\nvn-net-to-gross"
+  },
+  {
+   "fieldname": "tax_id",
+   "fieldtype": "Data",
+   "label": "Tax ID"
   }
  ],
  "icon": "fa fa-user",
@@ -822,8 +847,8 @@
  "image_field": "image",
  "is_tree": 1,
  "links": [],
- "modified": "2025-07-04 08:29:34.347269",
- "modified_by": "Administrator",
+ "modified": "2026-03-31 16:19:02.245690",
+ "modified_by": "hieu.cv2@miyano.com.vn",
  "module": "Setup",
  "name": "Employee",
  "naming_rule": "By \"Naming Series\" field",
@@ -864,6 +889,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "search_fields": "employee_name",
  "show_name_in_global_search": 1,
  "sort_field": "modified",
