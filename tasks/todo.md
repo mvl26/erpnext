@@ -18,7 +18,7 @@ acceptance criteria, verification, files, and dependencies. Execute in order.
 
 ## Phase 4 — Tax declarations
 - [x] Task 15 — Tờ khai thuế GTGT (01/GTGT)
-- [ ] Task 16 — Quyết toán thuế TNCN
+- [x] Task 16 — Quyết toán thuế TNCN
 - [ ] Task 17 — Quyết toán thuế TNDN
 
 ## Phase 5 — Import & foreign currency
