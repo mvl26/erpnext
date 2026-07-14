@@ -51,7 +51,7 @@ company currency default, standard-report compatibility. Shipped & committed.
   - Acceptance: reconciles to GL for the account + filters.
   - Files: 3. Size S/M. Deps: 6.
 
-- [ ] **Task 10 — Sổ Nhật ký chung (general journal).**
+- [x] **Task 10 — Sổ Nhật ký chung (general journal).**
   Chronological Dr/Cr of all vouchers for the period.
   - Acceptance: Σ Nợ == Σ Có; line count matches GL.
   - Files: 3. Size S/M. Deps: 6.
