@@ -44,9 +44,15 @@ posting rules and TT-99 compliance reports remain candidates for `mvl_accounting
   covering both 33311 and 1331) and Tax Categories. End-to-end test confirms a
   VN company creates them on the real TT99 accounts.
 
-- [ ] **Task 4 — Company/region defaults.**
-  Regional hook so a Vietnam company defaults to VND, VN number format, and the
-  TT99 chart selected automatically in the setup wizard.
+- [x] **Task 4 — Company/region defaults.** ✅ Done
+  Currency (VND) and number format (`#.###`) already come from Frappe's
+  country_info, and Task 1's chart makes `get_charts_for_country("Vietnam")`
+  return exactly the TT99 chart so the wizard auto-selects it. Closed the one
+  real gap: `default_currency` is mandatory, so a company created without it
+  (e.g. programmatically) failed — `Company.validate` now defaults the currency
+  from the country's currency when unset (Vietnam → VND). Number format stays a
+  wizard/global concern (not forced on company creation, to respect multi-company
+  sites).
 
 - [ ] **Task 5 — TT99 financial statements.**
   Report mappings for Bảng cân đối kế toán (B01-DN) and Báo cáo KQHĐKD (B02-DN).
