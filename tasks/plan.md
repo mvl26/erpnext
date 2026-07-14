@@ -46,7 +46,7 @@ company currency default, standard-report compatibility. Shipped & committed.
   - Acceptance: ending balance == GL balance for that account.
   - Files: 3. Size S/M. Deps: 6.
 
-- [ ] **Task 9 — Sổ chi tiết tài khoản.**
+- [x] **Task 9 — Sổ chi tiết tài khoản.**
   Detailed ledger with party/voucher for a selected account.
   - Acceptance: reconciles to GL for the account + filters.
   - Files: 3. Size S/M. Deps: 6.

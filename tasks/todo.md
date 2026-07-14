@@ -7,7 +7,7 @@ acceptance criteria, verification, files, and dependencies. Execute in order.
 - [x] Task 6 — VN regional module + shared report utils (GL/balance helpers, số-thành-chữ)
 - [x] Task 7 — Bảng cân đối số phát sinh (trial balance)
 - [x] Task 8 — Sổ Cái
-- [ ] Task 9 — Sổ chi tiết tài khoản
+- [x] Task 9 — Sổ chi tiết tài khoản
 - [ ] Task 10 — Sổ Nhật ký chung
 
 ## Phase 3 — Statutory financial statements
