@@ -54,7 +54,15 @@ posting rules and TT-99 compliance reports remain candidates for `mvl_accounting
   wizard/global concern (not forced on company creation, to respect multi-company
   sites).
 
-- [ ] **Task 5 — TT99 financial statements.**
-  Report mappings for Bảng cân đối kế toán (B01-DN) and Báo cáo KQHĐKD (B02-DN).
+- [x] **Task 5 — TT99 financial statements.** ✅ Done (scoped to standard reports)
+  Decision (user): ERPNext's built-in Balance Sheet & Profit and Loss are enough;
+  the statutory B01-DN/B02-DN forms are deferred until their TT99 report templates
+  (Mẫu biểu, with Mã số + account ranges) are provided — the chart-of-accounts PDF
+  does not contain them, and inventing statutory mappings risks non-compliant
+  filings. Added a regression test that locks the standard reports' compatibility
+  with the VN chart (both render real VN accounts after a posting).
+
+  Follow-up (needs source): build B01-DN/B02-DN Script Reports once the TT99
+  statutory report forms are supplied.
 
 Tasks are ordered by dependency: Task 1 is the foundation; 2–5 build on it.
