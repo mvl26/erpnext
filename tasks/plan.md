@@ -70,7 +70,7 @@ company currency default, standard-report compatibility. Shipped & committed.
   - Acceptance: Mã số 270 (Tổng tài sản) == 440 (Tổng nguồn vốn).
   - Files: 3. Size M. Deps: 6, 11 (current-year profit).
 
-- [ ] **Task 13 — B03-DN Lưu chuyển tiền tệ (indirect method).**
+- [x] **Task 13 — B03-DN Lưu chuyển tiền tệ (indirect method).**
   - Acceptance: net cash flow == change in 111+112+113.
   - Files: 3. Size M. Deps: 6, 11.
 
