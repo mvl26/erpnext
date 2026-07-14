@@ -37,9 +37,12 @@ posting rules and TT-99 compliance reports remain candidates for `mvl_accounting
   Asset Disposal). End-to-end test confirms a VN company now populates all 9
   operational default-account fields.
 
-- [ ] **Task 3 — Vietnam default tax templates.**
-  Sales/Purchase Taxes and Charges Templates + Item Tax Templates + Tax Category
-  for GTGT 0% / 5% / 8% / 10%, wired to accounts 33311 (đầu ra) and 1331 (khấu trừ).
+- [x] **Task 3 — Vietnam default tax templates.** ✅ Done
+  Replaced the stub Vietnam entry in `country_wise_tax.json` with detailed GTGT
+  setup: Sales templates (GTGT bán ra 10/8/5/0% → 33311), Purchase templates
+  (GTGT mua vào 10/8/5/0% → 1331), Item Tax Templates (GTGT 10/8/5/0%, each
+  covering both 33311 and 1331) and Tax Categories. End-to-end test confirms a
+  VN company creates them on the real TT99 accounts.
 
 - [ ] **Task 4 — Company/region defaults.**
   Regional hook so a Vietnam company defaults to VND, VN number format, and the
