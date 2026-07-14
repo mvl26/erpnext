@@ -26,7 +26,9 @@ class TestVietnamChartAutoSelection(unittest.TestCase):
 
 
 class TestVietnamRegionalDefaults(FrappeTestCase):
-	def test_company_defaults_currency_to_vnd(self):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
 		company = frappe.get_doc(
 			{
 				"doctype": "Company",
@@ -39,7 +41,20 @@ class TestVietnamRegionalDefaults(FrappeTestCase):
 		)
 		company.flags.ignore_permissions = True
 		company.insert()
-		self.assertEqual(company.default_currency, "VND")
+		cls.company = company.name
+
+	def test_company_defaults_currency_to_vnd(self):
+		self.assertEqual(frappe.db.get_value("Company", self.company, "default_currency"), "VND")
+
+	def test_company_wires_unrealized_fx_to_413(self):
+		# TT99: đánh giá lại tỷ giá cuối kỳ posts to TK 413 (Chênh lệch tỷ giá hối đoái).
+		acc_413 = frappe.db.get_value(
+			"Account", {"company": self.company, "account_number": "413", "is_group": 0}, "name"
+		)
+		self.assertEqual(
+			frappe.db.get_value("Company", self.company, "unrealized_exchange_gain_loss_account"),
+			acc_413,
+		)
 
 
 if __name__ == "__main__":
