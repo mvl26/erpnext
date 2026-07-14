@@ -45,6 +45,14 @@ class TestSoThanhChu(unittest.TestCase):
 		self.assertTrue(so_thanh_chu(123).startswith("M"))
 
 
+class TestSoThanhChuJinja(unittest.TestCase):
+	"""so_thanh_chu must be callable from print formats (registered jinja method)."""
+
+	def test_available_in_print_templates(self):
+		rendered = frappe.render_template("{{ so_thanh_chu(amount) }}", {"amount": 1_500_000})
+		self.assertEqual(rendered, "Một triệu năm trăm nghìn đồng")
+
+
 class TestAccountBalances(FrappeTestCase):
 	def test_balances_and_prefix_sums(self):
 		company = frappe.get_doc(

@@ -22,6 +22,6 @@ acceptance criteria, verification, files, and dependencies. Execute in order.
 - [x] Task 17 — Quyết toán thuế TNDN
 
 ## Phase 5 — Import & foreign currency
-- [ ] Task 18 — Số-thành-chữ trên chứng từ
+- [x] Task 18 — Số-thành-chữ trên chứng từ
 - [ ] Task 19 — Import purchase tax templates (thuế NK / TTĐB / GTGT NK)
 - [ ] Task 20 — Đánh giá lại tỷ giá (→ 413)

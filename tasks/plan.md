@@ -102,7 +102,7 @@ company currency default, standard-report compatibility. Shipped & committed.
 
 ## Phase 5 — Import & foreign currency
 
-- [ ] **Task 18 — Số-thành-chữ trên chứng từ.**
+- [x] **Task 18 — Số-thành-chữ trên chứng từ.**
   Jinja/whitelisted method wrapping `so_thanh_chu`; wire into a voucher print format.
   - Acceptance: method returns VN words for an amount; usable from a print format.
   - Files: 2–3 (hooks jinja method + print format + test). Size S. Deps: 6.
