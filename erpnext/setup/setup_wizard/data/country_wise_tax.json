@@ -5026,10 +5026,223 @@
 	},
 
 	"Vietnam": {
-		"Vietnam Tax": {
-			"account_name": "VAT",
-			"tax_rate": 10.00
-		}
+		"chart_of_accounts": {
+			"*": {
+				"sales_tax_templates": [
+					{
+						"title": "GTGT bán ra 10%",
+						"is_default": 1,
+						"taxes": [
+							{
+								"account_head": {
+									"account_name": "Thuế GTGT đầu ra",
+									"account_number": "33311",
+									"root_type": "Liability",
+									"tax_rate": 10.0
+								}
+							}
+						]
+					},
+					{
+						"title": "GTGT bán ra 8%",
+						"taxes": [
+							{
+								"account_head": {
+									"account_name": "Thuế GTGT đầu ra",
+									"account_number": "33311",
+									"root_type": "Liability",
+									"tax_rate": 8.0
+								}
+							}
+						]
+					},
+					{
+						"title": "GTGT bán ra 5%",
+						"taxes": [
+							{
+								"account_head": {
+									"account_name": "Thuế GTGT đầu ra",
+									"account_number": "33311",
+									"root_type": "Liability",
+									"tax_rate": 5.0
+								}
+							}
+						]
+					},
+					{
+						"title": "GTGT bán ra 0%",
+						"taxes": [
+							{
+								"account_head": {
+									"account_name": "Thuế GTGT đầu ra",
+									"account_number": "33311",
+									"root_type": "Liability",
+									"tax_rate": 0.0
+								}
+							}
+						]
+					}
+				],
+				"purchase_tax_templates": [
+					{
+						"title": "GTGT mua vào 10%",
+						"is_default": 1,
+						"taxes": [
+							{
+								"account_head": {
+									"account_name": "Thuế GTGT được khấu trừ của hàng hóa, dịch vụ",
+									"account_number": "1331",
+									"root_type": "Asset",
+									"tax_rate": 10.0
+								}
+							}
+						]
+					},
+					{
+						"title": "GTGT mua vào 8%",
+						"taxes": [
+							{
+								"account_head": {
+									"account_name": "Thuế GTGT được khấu trừ của hàng hóa, dịch vụ",
+									"account_number": "1331",
+									"root_type": "Asset",
+									"tax_rate": 8.0
+								}
+							}
+						]
+					},
+					{
+						"title": "GTGT mua vào 5%",
+						"taxes": [
+							{
+								"account_head": {
+									"account_name": "Thuế GTGT được khấu trừ của hàng hóa, dịch vụ",
+									"account_number": "1331",
+									"root_type": "Asset",
+									"tax_rate": 5.0
+								}
+							}
+						]
+					},
+					{
+						"title": "GTGT mua vào 0%",
+						"taxes": [
+							{
+								"account_head": {
+									"account_name": "Thuế GTGT được khấu trừ của hàng hóa, dịch vụ",
+									"account_number": "1331",
+									"root_type": "Asset",
+									"tax_rate": 0.0
+								}
+							}
+						]
+					}
+				],
+				"item_tax_templates": [
+					{
+						"title": "GTGT 10%",
+						"taxes": [
+							{
+								"tax_type": {
+									"account_name": "Thuế GTGT đầu ra",
+									"account_number": "33311",
+									"root_type": "Liability",
+									"tax_rate": 10.0
+								}
+							},
+							{
+								"tax_type": {
+									"account_name": "Thuế GTGT được khấu trừ của hàng hóa, dịch vụ",
+									"account_number": "1331",
+									"root_type": "Asset",
+									"tax_rate": 10.0
+								}
+							}
+						]
+					},
+					{
+						"title": "GTGT 8%",
+						"taxes": [
+							{
+								"tax_type": {
+									"account_name": "Thuế GTGT đầu ra",
+									"account_number": "33311",
+									"root_type": "Liability",
+									"tax_rate": 8.0
+								}
+							},
+							{
+								"tax_type": {
+									"account_name": "Thuế GTGT được khấu trừ của hàng hóa, dịch vụ",
+									"account_number": "1331",
+									"root_type": "Asset",
+									"tax_rate": 8.0
+								}
+							}
+						]
+					},
+					{
+						"title": "GTGT 5%",
+						"taxes": [
+							{
+								"tax_type": {
+									"account_name": "Thuế GTGT đầu ra",
+									"account_number": "33311",
+									"root_type": "Liability",
+									"tax_rate": 5.0
+								}
+							},
+							{
+								"tax_type": {
+									"account_name": "Thuế GTGT được khấu trừ của hàng hóa, dịch vụ",
+									"account_number": "1331",
+									"root_type": "Asset",
+									"tax_rate": 5.0
+								}
+							}
+						]
+					},
+					{
+						"title": "GTGT 0%",
+						"taxes": [
+							{
+								"tax_type": {
+									"account_name": "Thuế GTGT đầu ra",
+									"account_number": "33311",
+									"root_type": "Liability",
+									"tax_rate": 0.0
+								}
+							},
+							{
+								"tax_type": {
+									"account_name": "Thuế GTGT được khấu trừ của hàng hóa, dịch vụ",
+									"account_number": "1331",
+									"root_type": "Asset",
+									"tax_rate": 0.0
+								}
+							}
+						]
+					}
+				]
+			}
+		},
+		"tax_categories": [
+			{
+				"title": "GTGT 10%"
+			},
+			{
+				"title": "GTGT 8%"
+			},
+			{
+				"title": "GTGT 5%"
+			},
+			{
+				"title": "GTGT 0%"
+			},
+			{
+				"title": "Không chịu thuế GTGT"
+			}
+		]
 	},
 
 	"Yemen": {
