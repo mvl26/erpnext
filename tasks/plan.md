@@ -29,11 +29,13 @@ posting rules and TT-99 compliance reports remain candidates for `mvl_accounting
   `get_charts_for_country("Vietnam")`; the tree parses via
   `build_tree_from_json`; key accounts carry the expected root_type/account_type.
 
-- [ ] **Task 2 — Operational accounts + item/warehouse defaults.**
-  Ensure a company created on the VN chart fills every default-account field
-  ERPNext needs for stock & assets (Round Off, Stock Received But Not Billed,
-  Stock Adjustment, Expenses Included In Valuation, Write Off, Exchange
-  Gain/Loss, Gain/Loss on Asset Disposal), mapped to sensible TT99 parents.
+- [x] **Task 2 — Operational accounts + item/warehouse defaults.** ✅ Done
+  Added 9 unnumbered operational accounts to the VN chart (6 by account_type:
+  Round Off, Stock Received But Not Billed, Stock Adjustment, Expenses Included
+  In Valuation, Asset Received But Not Billed, Expenses Included In Asset
+  Valuation; 3 by canonical name: Write Off, Exchange Gain/Loss, Gain/Loss on
+  Asset Disposal). End-to-end test confirms a VN company now populates all 9
+  operational default-account fields.
 
 - [ ] **Task 3 — Vietnam default tax templates.**
   Sales/Purchase Taxes and Charges Templates + Item Tax Templates + Tax Category
