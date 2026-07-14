@@ -25,7 +25,7 @@ company currency default, standard-report compatibility. Shipped & committed.
 
 ## Phase 2 — Report engine + accounting books
 
-- [ ] **Task 6 — VN regional module + shared report utils.**
+- [x] **Task 6 — VN regional module + shared report utils.**
   Create `erpnext/regional/vietnam/{__init__,utils,constants}.py`. `utils.py`:
   `get_gl_entries(...)`, `get_account_balances(company, from, to)` (opening /
   movement / closing Dr-Cr per account & by number-prefix), `so_thanh_chu(amount)`
