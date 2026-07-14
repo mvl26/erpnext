@@ -12,7 +12,7 @@ acceptance criteria, verification, files, and dependencies. Execute in order.
 
 ## Phase 3 — Statutory financial statements
 - [x] Task 11 — B02-DN Báo cáo KQHĐKD
-- [ ] Task 12 — B01-DN Báo cáo tình hình tài chính
+- [x] Task 12 — B01-DN Báo cáo tình hình tài chính
 - [ ] Task 13 — B03-DN Lưu chuyển tiền tệ
 - [ ] Task 14 — B09-DN Thuyết minh BCTC
 
