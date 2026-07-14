@@ -583,6 +583,15 @@ class Company(NestedSet):
 
 			self.db_set("disposal_account", disposal_acct)
 
+		if not self.unrealized_exchange_gain_loss_account:
+			# VN (TT99): đánh giá lại tỷ giá cuối kỳ hạch toán vào TK 413. Only the
+			# Vietnam chart defines account 413, so this is naturally VN-scoped.
+			unrealized_fx_acct = frappe.db.get_value(
+				"Account", {"account_number": "413", "company": self.name, "is_group": 0}
+			)
+			if unrealized_fx_acct:
+				self.db_set("unrealized_exchange_gain_loss_account", unrealized_fx_acct)
+
 	def _set_default_account(self, fieldname, account_type):
 		if self.get(fieldname):
 			return

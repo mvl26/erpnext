@@ -113,7 +113,7 @@ company currency default, standard-report compatibility. Shipped & committed.
   - Acceptance: a VN company gets these templates on the correct TT99 accounts.
   - Files: 2 (json + test). Size S/M. Deps: none (extends Task 3).
 
-- [ ] **Task 20 — Đánh giá lại tỷ giá (exchange difference → 413).**
+- [x] **Task 20 — Đánh giá lại tỷ giá (exchange difference → 413).**
   Ensure a VN company's unrealized/realized FX difference is wired to 413/515/635.
   - Acceptance: VN company has an exchange-difference account set; test asserts wiring.
   - Files: 2–3. Size M. Deps: 1 (413 in chart).
