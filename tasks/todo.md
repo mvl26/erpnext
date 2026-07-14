@@ -23,5 +23,5 @@ acceptance criteria, verification, files, and dependencies. Execute in order.
 
 ## Phase 5 — Import & foreign currency
 - [x] Task 18 — Số-thành-chữ trên chứng từ
-- [ ] Task 19 — Import purchase tax templates (thuế NK / TTĐB / GTGT NK)
+- [x] Task 19 — Import purchase tax templates (thuế NK / TTĐB / GTGT NK)
 - [ ] Task 20 — Đánh giá lại tỷ giá (→ 413)
