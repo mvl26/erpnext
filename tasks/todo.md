@@ -8,7 +8,7 @@ acceptance criteria, verification, files, and dependencies. Execute in order.
 - [x] Task 7 — Bảng cân đối số phát sinh (trial balance)
 - [x] Task 8 — Sổ Cái
 - [x] Task 9 — Sổ chi tiết tài khoản
-- [ ] Task 10 — Sổ Nhật ký chung
+- [x] Task 10 — Sổ Nhật ký chung
 
 ## Phase 3 — Statutory financial statements
 - [ ] Task 11 — B02-DN Báo cáo KQHĐKD
