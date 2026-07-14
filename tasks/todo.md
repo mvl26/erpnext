@@ -4,7 +4,7 @@ Phase 1 (Tasks 1–5) complete. Remaining work below; see `tasks/plan.md` for
 acceptance criteria, verification, files, and dependencies. Execute in order.
 
 ## Phase 2 — Report engine + accounting books
-- [ ] Task 6 — VN regional module + shared report utils (GL/balance helpers, số-thành-chữ)
+- [x] Task 6 — VN regional module + shared report utils (GL/balance helpers, số-thành-chữ)
 - [ ] Task 7 — Bảng cân đối số phát sinh (trial balance)
 - [ ] Task 8 — Sổ Cái
 - [ ] Task 9 — Sổ chi tiết tài khoản
