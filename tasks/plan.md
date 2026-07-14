@@ -41,7 +41,7 @@ company currency default, standard-report compatibility. Shipped & committed.
   - Verify: post JEs, assert balanced.
   - Files: 3 (report json + py + test). Size M. Deps: 6.
 
-- [ ] **Task 8 — Sổ Cái (general ledger, per account).**
+- [x] **Task 8 — Sổ Cái (general ledger, per account).**
   Entries for one account with running balance, TT99 layout.
   - Acceptance: ending balance == GL balance for that account.
   - Files: 3. Size S/M. Deps: 6.
