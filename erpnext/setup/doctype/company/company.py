@@ -138,6 +138,8 @@ class Company(NestedSet):
 		return exists
 
 	def validate(self):
+		self.set_default_currency_from_country()
+
 		self.update_default_account = False
 		if self.is_new():
 			self.update_default_account = True
@@ -153,6 +155,26 @@ class Company(NestedSet):
 		self.check_parent_changed()
 		self.set_chart_of_accounts()
 		self.validate_parent_company()
+
+	def set_default_currency_from_country(self):
+		"""Default the company currency from its country when unset.
+
+		``default_currency`` is mandatory, so a localized company (e.g. a Vietnam
+		company -> VND) would otherwise fail to insert without a manual currency.
+		Only runs when the field is empty, so it never overrides an explicit choice.
+		"""
+		if self.default_currency or not self.country:
+			return
+
+		from frappe.geo.country_info import get_country_info
+
+		try:
+			currency = (get_country_info(self.country) or {}).get("currency")
+		except Exception:
+			currency = None
+
+		if currency and frappe.db.exists("Currency", currency):
+			self.default_currency = currency
 
 	def validate_abbr(self):
 		if not self.abbr:
