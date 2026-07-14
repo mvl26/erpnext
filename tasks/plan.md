@@ -107,7 +107,7 @@ company currency default, standard-report compatibility. Shipped & committed.
   - Acceptance: method returns VN words for an amount; usable from a print format.
   - Files: 2–3 (hooks jinja method + print format + test). Size S. Deps: 6.
 
-- [ ] **Task 19 — Import purchase tax templates.**
+- [x] **Task 19 — Import purchase tax templates.**
   Add "Thuế nhập khẩu" (3333), "Thuế TTĐB nhập khẩu" (3332), "GTGT hàng nhập khẩu"
   (33312) purchase templates to the Vietnam entry in country_wise_tax.json.
   - Acceptance: a VN company gets these templates on the correct TT99 accounts.

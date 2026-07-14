@@ -5136,6 +5136,45 @@
 								}
 							}
 						]
+					},
+					{
+						"title": "Thuế nhập khẩu",
+						"taxes": [
+							{
+								"account_head": {
+									"account_name": "Thuế xuất, nhập khẩu",
+									"account_number": "3333",
+									"tax_rate": 0.0,
+									"root_type": "Liability"
+								}
+							}
+						]
+					},
+					{
+						"title": "Thuế TTĐB hàng nhập khẩu",
+						"taxes": [
+							{
+								"account_head": {
+									"account_name": "Thuế tiêu thụ đặc biệt",
+									"account_number": "3332",
+									"tax_rate": 0.0,
+									"root_type": "Liability"
+								}
+							}
+						]
+					},
+					{
+						"title": "Thuế GTGT hàng nhập khẩu",
+						"taxes": [
+							{
+								"account_head": {
+									"account_name": "Thuế GTGT hàng nhập khẩu",
+									"account_number": "33312",
+									"tax_rate": 10.0,
+									"root_type": "Liability"
+								}
+							}
+						]
 					}
 				],
 				"item_tax_templates": [

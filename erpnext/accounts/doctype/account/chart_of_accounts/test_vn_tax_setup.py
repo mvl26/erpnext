@@ -58,10 +58,23 @@ class TestVietnamTaxJson(unittest.TestCase):
 
 	def test_purchase_templates(self):
 		purchase = self._templates("purchase_tax_templates")
-		self.assertEqual([t["title"] for t in purchase], PURCHASE_TEMPLATES)
-		for t in purchase:
+		gtgt = [t for t in purchase if t["title"] in PURCHASE_TEMPLATES]
+		self.assertEqual([t["title"] for t in gtgt], PURCHASE_TEMPLATES)
+		for t in gtgt:
 			self.assertEqual(t["taxes"][0]["account_head"]["account_number"], INPUT_VAT_NUMBER)
 		self.assertEqual(sum(1 for t in purchase if t.get("is_default")), 1)
+
+	def test_import_purchase_templates(self):
+		purchase = self._templates("purchase_tax_templates")
+		by_title = {t["title"]: t for t in purchase}
+		expected = {
+			"Thuế nhập khẩu": "3333",
+			"Thuế TTĐB hàng nhập khẩu": "3332",
+			"Thuế GTGT hàng nhập khẩu": "33312",
+		}
+		for title, number in expected.items():
+			self.assertIn(title, by_title, f"missing import template {title!r}")
+			self.assertEqual(by_title[title]["taxes"][0]["account_head"]["account_number"], number)
 
 	def test_item_tax_templates_cover_both_accounts(self):
 		items = self._templates("item_tax_templates")
