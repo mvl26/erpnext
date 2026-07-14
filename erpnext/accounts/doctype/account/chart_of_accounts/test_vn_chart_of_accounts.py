@@ -12,6 +12,9 @@ import json
 import os
 import unittest
 
+import frappe
+from frappe.tests.utils import FrappeTestCase
+
 from erpnext.accounts.doctype.account.chart_of_accounts import chart_of_accounts
 
 RESERVED_KEYS = {
@@ -55,6 +58,34 @@ EXPECTED_ROOT_TYPES = {
 	"642": "Expense",
 }
 
+# TT99 has no dedicated accounts for these ERPNext operational needs, so the chart
+# adds them (unnumbered) and ERPNext wires them to company defaults by account_type.
+OPERATIONAL_ACCOUNT_TYPES = {
+	"Hàng mua chưa có hóa đơn": "Stock Received But Not Billed",
+	"Tài sản mua chưa có hóa đơn": "Asset Received But Not Billed",
+	"Chênh lệch làm tròn": "Round Off",
+	"Chi phí điều chỉnh hàng tồn kho": "Stock Adjustment",
+	"Chi phí thu mua tính vào giá trị hàng tồn kho": "Expenses Included In Valuation",
+	"Chi phí tính vào nguyên giá tài sản": "Expenses Included In Asset Valuation",
+}
+
+# These three are wired by ERPNext via translated account NAME, not account_type,
+# so the account name must match the canonical string exactly.
+OPERATIONAL_NAMED_ACCOUNTS = ("Write Off", "Exchange Gain/Loss", "Gain/Loss on Asset Disposal")
+
+# Company fields that must be populated after creating a company on the VN chart.
+COMPANY_OPERATIONAL_DEFAULT_FIELDS = (
+	"round_off_account",
+	"write_off_account",
+	"exchange_gain_loss_account",
+	"disposal_account",
+	"asset_received_but_not_billed",
+	"expenses_included_in_asset_valuation",
+	"stock_received_but_not_billed",
+	"stock_adjustment_account",
+	"expenses_included_in_valuation",
+)
+
 
 def _chart_path():
 	return os.path.join(
@@ -77,12 +108,25 @@ def _flatten(tree, root_type=None, by_number=None):
 	return by_number
 
 
+def _flatten_by_name(tree, by_name=None):
+	"""Return {account_name: node} for every account in the tree."""
+	if by_name is None:
+		by_name = {}
+	for name, node in tree.items():
+		if name in RESERVED_KEYS or not isinstance(node, dict):
+			continue
+		by_name[name] = node
+		_flatten_by_name(node, by_name)
+	return by_name
+
+
 class TestVietnamChartOfAccounts(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls):
 		with open(_chart_path(), encoding="utf-8") as f:
 			cls.chart = json.load(f)
 		cls.by_number = _flatten(cls.chart["tree"])
+		cls.by_name = _flatten_by_name(cls.chart["tree"])
 
 	def test_metadata(self):
 		self.assertEqual(self.chart["country_code"], "vn")
@@ -159,6 +203,59 @@ class TestVietnamChartOfAccounts(unittest.TestCase):
 			if '"account_number"' in line
 		]
 		self.assertEqual(len(numbers), len(set(numbers)), "duplicate account_number in chart")
+
+	def test_operational_accounts_present(self):
+		# Type-based operational accounts must exist with the right account_type so
+		# ERPNext auto-wires the stock/asset default fields.
+		for name, expected_type in OPERATIONAL_ACCOUNT_TYPES.items():
+			self.assertIn(name, self.by_name, f"operational account {name!r} missing")
+			self.assertEqual(
+				self.by_name[name].get("account_type"),
+				expected_type,
+				f"{name!r} should be account_type {expected_type!r}",
+			)
+
+	def test_operational_named_accounts_present(self):
+		# Write Off / Exchange Gain/Loss / Gain-Loss on Asset Disposal are matched by
+		# name, so the canonical English name must be present verbatim.
+		for name in OPERATIONAL_NAMED_ACCOUNTS:
+			self.assertIn(name, self.by_name, f"named operational account {name!r} missing")
+
+	def test_operational_types_are_single(self):
+		by_number_and_name = list(self.by_number.values()) + [
+			{"node": n} for n in self.by_name.values()
+		]
+		for account_type in OPERATIONAL_ACCOUNT_TYPES.values():
+			tagged = [i for i in by_number_and_name if i["node"].get("account_type") == account_type]
+			self.assertEqual(
+				len(tagged), 1, f"expected exactly one {account_type} account, got {len(tagged)}"
+			)
+
+
+class TestVietnamCompanyDefaults(FrappeTestCase):
+	"""End-to-end: a company created on the VN chart must fill every operational
+	default-account field ERPNext needs for stock and asset accounting."""
+
+	def test_company_wires_operational_defaults(self):
+		company = frappe.get_doc(
+			{
+				"doctype": "Company",
+				"company_name": "_Test VN TT99 Defaults",
+				"abbr": "TVND",
+				"default_currency": "VND",
+				"country": "Vietnam",
+				"chart_of_accounts": CHART_NAME,
+				"enable_perpetual_inventory": 1,
+			}
+		)
+		company.flags.ignore_permissions = True
+		company.insert()
+
+		for field in COMPANY_OPERATIONAL_DEFAULT_FIELDS:
+			self.assertTrue(
+				company.get(field),
+				f"company default field {field!r} was not populated by the VN chart",
+			)
 
 
 if __name__ == "__main__":

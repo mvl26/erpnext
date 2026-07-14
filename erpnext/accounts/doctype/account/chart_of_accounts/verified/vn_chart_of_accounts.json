@@ -395,6 +395,12 @@
    },
    "Quỹ bình ổn giá": {
     "account_number": "357"
+   },
+   "Hàng mua chưa có hóa đơn": {
+    "account_type": "Stock Received But Not Billed"
+   },
+   "Tài sản mua chưa có hóa đơn": {
+    "account_type": "Asset Received But Not Billed"
    }
   },
   "Vốn chủ sở hữu": {
@@ -471,7 +477,8 @@
    },
    "Thu nhập khác": {
     "account_number": "711"
-   }
+   },
+   "Gain/Loss on Asset Disposal": {}
   },
   "Chi phí": {
    "root_type": "Expense",
@@ -639,7 +646,21 @@
    },
    "Xác định kết quả kinh doanh": {
     "account_number": "911"
-   }
+   },
+   "Chênh lệch làm tròn": {
+    "account_type": "Round Off"
+   },
+   "Chi phí điều chỉnh hàng tồn kho": {
+    "account_type": "Stock Adjustment"
+   },
+   "Chi phí thu mua tính vào giá trị hàng tồn kho": {
+    "account_type": "Expenses Included In Valuation"
+   },
+   "Chi phí tính vào nguyên giá tài sản": {
+    "account_type": "Expenses Included In Asset Valuation"
+   },
+   "Write Off": {},
+   "Exchange Gain/Loss": {}
   }
  }
 }
