@@ -14,7 +14,10 @@ posting rules and TT-99 compliance reports remain candidates for `mvl_accounting
 
 ## Tasks
 
-- [ ] **Task 1 — Default TT99 Chart of Accounts template.**
+- [x] **Task 1 — Default TT99 Chart of Accounts template.** ✅ Done
+      (`verified/vn_chart_of_accounts.json`, 184 accounts; test
+      `test_vn_chart_of_accounts.py`, 8 tests; company smoke wired all 10
+      default accounts to the correct TT99 numbers).
   Add `verified/vn_chart_of_accounts.json` reproducing the full TT99 account
   tree (Cấp 1 → Cấp 4) under 5 `root_type` roots, with `account_number` on every
   account and `account_type` on the accounts ERPNext auto-wires to company
