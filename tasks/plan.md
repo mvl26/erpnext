@@ -35,7 +35,7 @@ company currency default, standard-report compatibility. Shipped & committed.
   - Verify: `run-tests --module erpnext.regional.vietnam.test_utils`.
   - Files: 4. Size M. Deps: none.
 
-- [ ] **Task 7 — Bảng cân đối số phát sinh (trial balance).**
+- [x] **Task 7 — Bảng cân đối số phát sinh (trial balance).**
   Per account: opening Dr/Cr, phát sinh Dr/Cr, closing Dr/Cr.
   - Acceptance: Σ phát sinh Nợ == Σ phát sinh Có; per-account closing = opening ± movement.
   - Verify: post JEs, assert balanced.
