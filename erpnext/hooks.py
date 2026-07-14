@@ -98,6 +98,7 @@ demo_transaction_doctypes = [
 jinja = {
 	"methods": [
 		"erpnext.stock.serial_batch_bundle.get_serial_or_batch_nos",
+		"erpnext.regional.vietnam.utils.so_thanh_chu",
 	],
 }
 
