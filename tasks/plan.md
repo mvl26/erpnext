@@ -88,7 +88,7 @@ company currency default, standard-report compatibility. Shipped & committed.
   - Acceptance: totals match posted GTGT; số thuế phải nộp = đầu ra − khấu trừ.
   - Files: 3. Size M. Deps: 6.
 
-- [ ] **Task 16 — Quyết toán thuế TNCN.**
+- [x] **Task 16 — Quyết toán thuế TNCN.**
   PIT finalization from 3335 / payroll (hrms) where available.
   - Acceptance: renders; totals tie to 3335/334. (Flag: PIT source depends on payroll data.)
   - Files: 3. Size M. Deps: 6.
