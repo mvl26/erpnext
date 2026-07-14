@@ -60,7 +60,7 @@ company currency default, standard-report compatibility. Shipped & committed.
 
 ## Phase 3 — Statutory financial statements
 
-- [ ] **Task 11 — B02-DN Báo cáo KQHĐKD (P&L).**
+- [x] **Task 11 — B02-DN Báo cáo KQHĐKD (P&L).**
   Mã số from 5xx/6xx/7xx/8xx with computed subtotals (10/20/30/40/50/60).
   - Acceptance: 10=01−02, 20=10−11, 60=net; ties to TK 911 result.
   - Files: 3. Size M. Deps: 6.
