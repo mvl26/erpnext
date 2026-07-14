@@ -83,7 +83,7 @@ company currency default, standard-report compatibility. Shipped & committed.
 
 ## Phase 4 — Tax declarations
 
-- [ ] **Task 15 — Tờ khai thuế GTGT (01/GTGT).**
+- [x] **Task 15 — Tờ khai thuế GTGT (01/GTGT).**
   Output VAT (33311) vs deductible input VAT (1331) for a period.
   - Acceptance: totals match posted GTGT; số thuế phải nộp = đầu ra − khấu trừ.
   - Files: 3. Size M. Deps: 6.

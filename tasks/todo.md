@@ -17,7 +17,7 @@ acceptance criteria, verification, files, and dependencies. Execute in order.
 - [x] Task 14 — B09-DN Thuyết minh BCTC
 
 ## Phase 4 — Tax declarations
-- [ ] Task 15 — Tờ khai thuế GTGT (01/GTGT)
+- [x] Task 15 — Tờ khai thuế GTGT (01/GTGT)
 - [ ] Task 16 — Quyết toán thuế TNCN
 - [ ] Task 17 — Quyết toán thuế TNDN
 
