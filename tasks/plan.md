@@ -93,7 +93,7 @@ company currency default, standard-report compatibility. Shipped & committed.
   - Acceptance: renders; totals tie to 3335/334. (Flag: PIT source depends on payroll data.)
   - Files: 3. Size M. Deps: 6.
 
-- [ ] **Task 17 — Quyết toán thuế TNDN.**
+- [x] **Task 17 — Quyết toán thuế TNDN.**
   CIT finalization; reads mvl_accounting CIT data if present, else 3334/8211/821.
   - Acceptance: renders; ties to 821/3334.
   - Files: 3. Size M. Deps: 6, 11.
