@@ -5,7 +5,7 @@ acceptance criteria, verification, files, and dependencies. Execute in order.
 
 ## Phase 2 — Report engine + accounting books
 - [x] Task 6 — VN regional module + shared report utils (GL/balance helpers, số-thành-chữ)
-- [ ] Task 7 — Bảng cân đối số phát sinh (trial balance)
+- [x] Task 7 — Bảng cân đối số phát sinh (trial balance)
 - [ ] Task 8 — Sổ Cái
 - [ ] Task 9 — Sổ chi tiết tài khoản
 - [ ] Task 10 — Sổ Nhật ký chung
