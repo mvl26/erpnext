@@ -74,7 +74,7 @@ company currency default, standard-report compatibility. Shipped & committed.
   - Acceptance: net cash flow == change in 111+112+113.
   - Files: 3. Size M. Deps: 6, 11.
 
-- [ ] **Task 14 — B09-DN Thuyết minh BCTC.**
+- [x] **Task 14 — B09-DN Thuyết minh BCTC.**
   Required note sections referencing B01/B02 key figures.
   - Acceptance: renders required sections; figures tie to B01/B02.
   - Files: 3. Size M. Deps: 11, 12.
