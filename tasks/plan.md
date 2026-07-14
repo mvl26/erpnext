@@ -65,7 +65,7 @@ company currency default, standard-report compatibility. Shipped & committed.
   - Acceptance: 10=01−02, 20=10−11, 60=net; ties to TK 911 result.
   - Files: 3. Size M. Deps: 6.
 
-- [ ] **Task 12 — B01-DN Báo cáo tình hình tài chính (balance sheet).**
+- [x] **Task 12 — B01-DN Báo cáo tình hình tài chính (balance sheet).**
   Tài sản (100…270) and Nguồn vốn (300/400/440); full form.
   - Acceptance: Mã số 270 (Tổng tài sản) == 440 (Tổng nguồn vốn).
   - Files: 3. Size M. Deps: 6, 11 (current-year profit).
