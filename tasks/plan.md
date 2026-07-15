@@ -63,7 +63,7 @@ TT99-wired end-to-end. This plan adds the **operational + go-live** layer.
 
 ## Phase 11 — Opening balances (FY-start)
 
-- [ ] **Task 30 — Opening-balance tooling + `validate_opening_balances(company)`.**
+- [x] **Task 30 — Opening-balance tooling + `validate_opening_balances(company)`.**
   Helper to post an **Opening Journal Entry** from a `{TT99 number: (dr, cr)}` mapping
   (resolved via `_acct`, `is_opening=Yes`). Validator asserts: the opening TB **nets to
   zero**; **every** opening entry uses a TT99-numbered account; control totals tie —
