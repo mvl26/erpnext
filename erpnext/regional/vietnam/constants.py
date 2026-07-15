@@ -19,3 +19,14 @@ INPUT_VAT_ACCOUNT = "1331"  # thuế GTGT được khấu trừ
 # Root-type → statement.
 BALANCE_SHEET_ROOT_TYPES = ("Asset", "Liability", "Equity")
 PROFIT_AND_LOSS_ROOT_TYPES = ("Income", "Expense")
+
+# VN document naming series, added as *additional* options at go-live (never
+# replacing the shipped defaults). Prefix + ".YYYY.-" yields e.g. HDB-2027-00001.
+VN_NAMING_SERIES = (
+	("Sales Invoice", "HDB-.YYYY.-"),  # hóa đơn bán
+	("Purchase Invoice", "HDM-.YYYY.-"),  # hóa đơn mua
+	("Journal Entry", "PKT-.YYYY.-"),  # phiếu kế toán
+	("Payment Entry", "TT-.YYYY.-"),  # thanh toán (thu/chi)
+	("Delivery Note", "PXK-.YYYY.-"),  # phiếu xuất kho
+	("Stock Entry", "PK-.YYYY.-"),  # phiếu kho
+)

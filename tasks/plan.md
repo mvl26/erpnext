@@ -29,7 +29,7 @@ TT99-wired end-to-end. This plan adds the **operational + go-live** layer.
 
 ## Phase 8 — Company & module configuration (config, low code)
 
-- [ ] **Task 27 — `configure_go_live(company)`: fiscal periods, stock policy, naming, formats.**
+- [x] **Task 27 — `configure_go_live(company)`: fiscal periods, stock policy, naming, formats.**
   Idempotent, VN-guarded helper that ensures: a Fiscal Year covering the go-live year
   (parameterized, open); perpetual inventory ON + a valuation method; VN naming series
   on Sales Invoice / Purchase Invoice / Journal Entry / Payment Entry / Delivery Note /

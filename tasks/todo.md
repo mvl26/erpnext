@@ -7,7 +7,7 @@ full trading ERP (greenfield, opening balances at FY start, minimal code + runbo
 See `SPEC.md` and `tasks/plan.md` for acceptance criteria and dependencies.
 
 ## Phase 8 — Company & module configuration
-- [ ] Task 27 — `configure_go_live(company)`: Fiscal Year + periods, perpetual inventory + valuation, VN naming series (SI/PI/JE/PE/DN/Stock Entry), VND formats — idempotent, VN-guarded
+- [x] Task 27 — `configure_go_live(company)`: Fiscal Year + periods, perpetual inventory + valuation, VN naming series (SI/PI/JE/PE/DN/Stock Entry), VND formats — idempotent, VN-guarded
 
 ## Phase 9 — Users & permissions
 - [ ] Task 28 — `ensure_vn_role_profiles()`: six VN Role Profiles (kế toán, kế toán trưởng, thủ kho, bán hàng, mua hàng, quản lý) → ERPNext roles, idempotent
