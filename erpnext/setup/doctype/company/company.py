@@ -592,6 +592,24 @@ class Company(NestedSet):
 			if unrealized_fx_acct:
 				self.db_set("unrealized_exchange_gain_loss_account", unrealized_fx_acct)
 
+		# VN (TT99) HR/Payroll defaults: tạm ứng -> 141, phải trả người lao động
+		# (lương + hoàn ứng chi phí) -> 334. Accounts 141/334 exist only on the
+		# Vietnam chart, so this is naturally VN-scoped. Uses db_set so the value
+		# survives the rest of the insert flow; re-points stale links too.
+		for fieldname, account_number in (
+			("default_employee_advance_account", "141"),
+			("default_expense_claim_payable_account", "334"),
+			("default_payroll_payable_account", "334"),
+		):
+			current = self.get(fieldname)
+			if current and frappe.db.get_value("Account", current, "company") == self.name:
+				continue
+			hr_account = frappe.db.get_value(
+				"Account", {"account_number": account_number, "company": self.name, "is_group": 0}
+			)
+			if hr_account:
+				self.db_set(fieldname, hr_account)
+
 	def _set_default_account(self, fieldname, account_type):
 		if self.get(fieldname):
 			return

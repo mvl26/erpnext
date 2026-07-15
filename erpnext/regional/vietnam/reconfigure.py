@@ -54,6 +54,9 @@ _COMPANY_ACCOUNT_FIELDS = (
 	"default_deferred_revenue_account",
 	"default_deferred_expense_account",
 	"default_discount_account",
+	"default_employee_advance_account",
+	"default_expense_claim_payable_account",
+	"default_payroll_payable_account",
 )
 
 
