@@ -47,7 +47,7 @@ số-thành-chữ, unrealized FX → 413.
   - Acceptance: the GL entries hit the expected TT99 accounts.
   - Files: test_setup.py (+ fixes if needed). Size M. Deps: 21, 22, 23.
 
-- [ ] **Task 25 — Idempotency + auto-dispatch.**
+- [x] **Task 25 — Idempotency + auto-dispatch.**
   `setup(company)` run twice → no duplicates/errors; and it fires automatically for
   a newly-created VN company (not only when called explicitly).
   - Acceptance: second run is a no-op; a fresh VN company already has MoP/asset
