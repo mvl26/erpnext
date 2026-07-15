@@ -1,15 +1,26 @@
-# TODO — Make TT99 the Default Accounting Everywhere (Miyano)
+# TODO — Miyano Go-Live Readiness (Full Trading ERP on TT99)
 
-Prior phases (Tasks 1–20) complete. This phase wires module/master-data account
-links to TT99 and switches the Miyano company onto the TT99 chart. See
-`tasks/plan.md` for acceptance criteria and dependencies.
+Prior phases (Tasks 1–26) shipped: TT99 chart, operational defaults, GTGT/import
+tax, VND default, statutory reports, số-thành-chữ, VN `setup()` hook, Miyano
+reconfigured onto TT99. This phase makes site `miyano` **ready to go live** on the
+full trading ERP (greenfield, opening balances at FY start, minimal code + runbook).
+See `SPEC.md` and `tasks/plan.md` for acceptance criteria and dependencies.
 
-## Phase 6 — Default module wiring (reusable hook)
-- [x] Task 21 — VN setup hook + Mode of Payment accounts (Cash 111, Bank 112)
-- [x] Task 22 — Default Asset Categories on TT99 (211/2141/6424/2411, 213/2143)
-- [x] Task 23 — Item accounts resolve to 511/632 via Company defaults (no separate wiring; verified in Task 24)
-- [x] Task 24 — End-to-end invoice posting on TT99 (SI → 131/511/33311; PI → 331/632/1331)
-- [x] Task 25 — Idempotency + auto-dispatch on VN company creation
+## Phase 8 — Company & module configuration
+- [ ] Task 27 — `configure_go_live(company)`: Fiscal Year + periods, perpetual inventory + valuation, VN naming series (SI/PI/JE/PE/DN/Stock Entry), VND formats — idempotent, VN-guarded
 
-## Phase 7 — Reconfigure Miyano
-- [x] Task 26 — Switch empty Miyano to TT99 (guarded patch; confirm before applying to real Miyano)
+## Phase 9 — Users & permissions
+- [ ] Task 28 — `ensure_vn_role_profiles()`: six VN Role Profiles (kế toán, kế toán trưởng, thủ kho, bán hàng, mua hàng, quản lý) → ERPNext roles, idempotent
+
+## Phase 10 — Master-data scaffolding (greenfield)
+- [ ] Task 29 — Item Group taxonomy (thiết bị & vật tư y tế) + default kho/UOM/price list/tax categories; `master_data_completeness()` report; CSV import templates
+
+## Phase 11 — Opening balances (FY start)
+- [ ] Task 30 — Opening JE tooling + `validate_opening_balances(company)` (nets to zero, 100% TT99, AR=131/AP=331/stock=156 control totals)
+
+## Phase 12 — Go-live readiness & cutover
+- [ ] Task 31 — `go_live_readiness(company)` command (whitelisted + CLI): full precondition checklist → structured pass/fail
+- [ ] Task 32 — `docs/go_live_runbook.md` end-to-end VN cutover + one-page checklist + import templates
+
+## Go-live gate (not a code task)
+- [ ] Real Miyano cutover: verified backup + all-green readiness + **explicit user confirmation** before any real opening balance / config is entered on the live company
