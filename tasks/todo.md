@@ -20,7 +20,7 @@ See `SPEC.md` and `tasks/plan.md` for acceptance criteria and dependencies.
 
 ## Phase 12 — Go-live readiness & cutover
 - [x] Task 31 — `go_live_readiness(company)` command (whitelisted + CLI): full precondition checklist → structured pass/fail
-- [ ] Task 32 — `docs/go_live_runbook.md` end-to-end VN cutover + one-page checklist + import templates
+- [x] Task 32 — `docs/go_live_runbook.md` end-to-end VN cutover + one-page checklist + import templates
 
 ## Go-live gate (not a code task)
 - [ ] Real Miyano cutover: verified backup + all-green readiness + **explicit user confirmation** before any real opening balance / config is entered on the live company

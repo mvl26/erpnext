@@ -86,7 +86,7 @@ TT99-wired end-to-end. This plan adds the **operational + go-live** layer.
     any one flips exactly that check to fail.
   - Files: `go_live.py`, `test_go_live.py`. Size M. Deps: 27–30.
 
-- [ ] **Task 32 — Go-live runbook + checklist (docs).**
+- [x] **Task 32 — Go-live runbook + checklist (docs).**
   `docs/go_live_runbook.md`: end-to-end VN cutover — pre-go-live **backup & verify**;
   `configure_go_live`; seed + import master data; enter opening balances (GL / AR / AP
   / stock / assets); `validate_opening_balances`; create users + assign role profiles;
