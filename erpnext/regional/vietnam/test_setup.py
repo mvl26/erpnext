@@ -37,6 +37,11 @@ def acct(company, number):
 	)
 
 
+def company_account_number(company, field):
+	account = frappe.db.get_value("Company", company, field)
+	return frappe.db.get_value("Account", account, "account_number") if account else None
+
+
 def mode_of_payment_account(mode, company):
 	if not frappe.db.exists("Mode of Payment", mode):
 		return None
@@ -110,6 +115,14 @@ class TestVietnamCompanySetup(FrappeTestCase):
 	def test_mode_of_payment_wired_to_tt99(self):
 		self.assertEqual(mode_of_payment_account("Cash", self.company), acct(self.company, "111"))
 		self.assertEqual(mode_of_payment_account("Bank", self.company), acct(self.company, "112"))
+
+	def test_hr_payroll_accounts_wired_to_tt99(self):
+		# tạm ứng -> 141, phải trả người lao động (lương + hoàn ứng chi phí) -> 334
+		self.assertEqual(company_account_number(self.company, "default_employee_advance_account"), "141")
+		self.assertEqual(
+			company_account_number(self.company, "default_expense_claim_payable_account"), "334"
+		)
+		self.assertEqual(company_account_number(self.company, "default_payroll_payable_account"), "334")
 
 	def test_setup_is_idempotent(self):
 		from erpnext.regional.vietnam.setup import setup
