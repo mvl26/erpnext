@@ -1,27 +1,15 @@
-# TODO — Miyano Complete VN Accounting (TT99/2025)
+# TODO — Make TT99 the Default Accounting Everywhere (Miyano)
 
-Phase 1 (Tasks 1–5) complete. Remaining work below; see `tasks/plan.md` for
-acceptance criteria, verification, files, and dependencies. Execute in order.
+Prior phases (Tasks 1–20) complete. This phase wires module/master-data account
+links to TT99 and switches the Miyano company onto the TT99 chart. See
+`tasks/plan.md` for acceptance criteria and dependencies.
 
-## Phase 2 — Report engine + accounting books
-- [x] Task 6 — VN regional module + shared report utils (GL/balance helpers, số-thành-chữ)
-- [x] Task 7 — Bảng cân đối số phát sinh (trial balance)
-- [x] Task 8 — Sổ Cái
-- [x] Task 9 — Sổ chi tiết tài khoản
-- [x] Task 10 — Sổ Nhật ký chung
+## Phase 6 — Default module wiring (reusable hook)
+- [ ] Task 21 — VN setup hook + Mode of Payment accounts (Cash 111, Bank 112)
+- [ ] Task 22 — Default Asset Categories on TT99 (211/2141/6424/2411, 213/2143)
+- [ ] Task 23 — Item Group defaults resolve to TT99 (income 511, expense 632)
+- [ ] Task 24 — End-to-end invoice posting on TT99 (SI → 131/511/33311; PI → 331/632/1331)
+- [ ] Task 25 — Idempotency + auto-dispatch on VN company creation
 
-## Phase 3 — Statutory financial statements
-- [x] Task 11 — B02-DN Báo cáo KQHĐKD
-- [x] Task 12 — B01-DN Báo cáo tình hình tài chính
-- [x] Task 13 — B03-DN Lưu chuyển tiền tệ
-- [x] Task 14 — B09-DN Thuyết minh BCTC
-
-## Phase 4 — Tax declarations
-- [x] Task 15 — Tờ khai thuế GTGT (01/GTGT)
-- [x] Task 16 — Quyết toán thuế TNCN
-- [x] Task 17 — Quyết toán thuế TNDN
-
-## Phase 5 — Import & foreign currency
-- [x] Task 18 — Số-thành-chữ trên chứng từ
-- [x] Task 19 — Import purchase tax templates (thuế NK / TTĐB / GTGT NK)
-- [x] Task 20 — Đánh giá lại tỷ giá (→ 413)
+## Phase 7 — Reconfigure Miyano
+- [ ] Task 26 — Switch empty Miyano to TT99 (guarded patch; confirm before applying to real Miyano)

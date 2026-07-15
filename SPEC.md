@@ -1,230 +1,179 @@
-# Spec: Miyano ERP — Complete Vietnamese Accounting (Thông tư 99/2025/TT-BTC)
+# Spec: Make TT99 the Default Accounting Everywhere (Miyano)
 
 > Status: **DRAFT — awaiting approval.** Phase 1 (Specify) of spec-driven development.
-> Once approved, the plan is regenerated into `tasks/plan.md` + `tasks/todo.md`.
+> Supersedes the previous SPEC (VN chart + statutory reports, now shipped — see git).
 
 ## Objective
 
-Turn ERPNext into a complete, Vietnam-compliant accounting system for **Công ty
-TNHH Miyano Việt Nam** — a medical-equipment / vật tư y tế trading business —
-conforming to **Thông tư 99/2025/TT-BTC**. Building on the delivered foundation
-(TT99 chart of accounts, operational accounts, GTGT tax templates, VND defaults,
-standard-report compatibility), this phase adds the statutory outputs and the
-import / foreign-currency handling a real VN business needs to close its books
-and file with the authorities.
+Make the **Thông tư 99/2025/TT-BTC** chart the *operative* accounting for Công ty
+TNHH Miyano Việt Nam — not just an available template, but the wiring every module
+actually uses. Concretely:
 
-**Users**
-- Kế toán viên / kế toán trưởng (accountants) — daily entry, month/quarter/year close, filing.
-- Giám đốc (management) — financial statements, KQKD.
-- medcons.vn dev team — maintainers.
+1. **Switch the existing `Miyano` company onto the TT99 chart.** It currently runs
+   the English "Standard" chart (Debtors/Cash/Stock In Hand…, no TT99 numbers) but
+   is **empty** — 0 GL entries, 0 invoices, 0 stock ledger, 0 items/customers/
+   suppliers/asset-categories — so the switch is safe (nothing references the old
+   accounts). Rebuild its chart and re-wire all defaults to TT99 numbers.
+2. **A reusable VN company-setup hook** so *any* Vietnam company auto-wires every
+   module/master-data account link to the correct TT99 account number — assets,
+   stock/items, buying/selling parties, invoices, tax, mode of payment, warehouses.
+3. **Revise all accounting defaults/logic to resolve to TT99 accounts** — the goal
+   is that no default anywhere still points at a non-TT99 (English) account.
 
-**What success looks like** — from ERPNext alone, a Miyano accountant can:
-1. Produce TT99 **statutory financial statements**: B01-DN (Bảng CĐKT), B02-DN
-   (Báo cáo KQHĐKD), B03-DN (Lưu chuyển tiền tệ), B09-DN (Thuyết minh BCTC).
-2. Generate **tax declarations**: Tờ khai thuế GTGT (01/GTGT), quyết toán thuế
-   TNCN, quyết toán thuế TNDN.
-3. Print **statutory accounting books**: Sổ Nhật ký chung, Sổ Cái, Sổ chi tiết
-   tài khoản, Bảng cân đối số phát sinh.
-4. Correctly account for **imports & foreign currency**: USD/foreign-currency
-   purchases, thuế nhập khẩu & TTĐB on imported equipment, đánh giá lại tỷ giá
-   (TK 413), and Vietnamese số-thành-chữ on printed vouchers.
+**Users:** Miyano's kế toán and the medcons.vn dev team.
 
-All amounts in **VND**; all GTGT via the TT99 accounts (33311 đầu ra / 1331 khấu trừ).
+**Success = ** on a VN company, every account a transaction touches by default is a
+TT99-numbered account: bán hàng → 131/511/33311, mua hàng → 331/632/1331, nhập kho
+→ 156, khấu hao → 211/2141/6424, thu/chi tiền → 111/112.
 
-## Scope & Placement
+## Prior work (done, on this branch)
 
-**Everything is built in `erpnext` core** (this hard-forked app), consistent with
-the fork philosophy ("ERPNext itself becomes Miyano's product") and the user's
-explicit direction. VN-specific artifacts follow ERPNext's regional pattern under
-`erpnext/regional/vietnam/`.
+TT99 chart of accounts; operational default accounts wired to Company defaults
+(Cash 111, Bank 112, Receivable 131, Payable 331, COGS 632, Stock 156, Round Off,
+SRBNB, Stock Adjustment, Accumulated Depreciation 2141, Depreciation 6424, CWIP
+2411, Write Off, Exchange Gain/Loss, Disposal, Unrealized FX 413…); GTGT + import
+tax templates; VND default; statutory reports (B01/B02/B03/B09, tax declarations,
+sổ kế toán); số-thành-chữ. **So Company-level defaults are already TT99.** This
+phase extends wiring to master data / modules and to the Miyano company itself.
 
-**Coordination with `mvl_accounting`** (shares the site DB). That app already
-implements: period close via TK 911, CIT provisional / loss carryforward / offset,
-VAT input allocation, consignment reconciliation, opening balances, MVL master
-overlays, payroll mapping, related-party log. Therefore:
-- This spec's reports/declarations/books are **read-only over the shared GL**
-  (Account / GL Entry), so they do **not** reimplement mvl_accounting's compute
-  logic. Where a declaration needs CIT/VAT-allocation results (e.g. quyết toán
-  TNDN, tờ khai GTGT), it **consumes** mvl_accounting's data if present rather
-  than recomputing. (See Open Questions.)
-- We do **not** rebuild period-close / CIT / VAT-allocation / consignment.
+## Wiring surface (what must resolve to TT99)
 
-**Out of scope (this phase):** e-invoice / Hóa đơn điện tử (separate integration
-project); payroll computation; the mvl_accounting-owned compute logic above.
+| Area | Where the link lives | Target TT99 account(s) |
+|------|----------------------|------------------------|
+| Company defaults | `Company.*_account` | done (111/112/131/331/632/156/2141/6424/2411/413/…) |
+| Cash/Bank payments | `Mode of Payment Account.default_account` | Cash → 111, Bank → 112 |
+| Fixed assets | `Asset Category Account` (per company) | fixed 211/213, accum dep 2141/2143, dep exp 6424, CWIP 2411 |
+| Stock / warehouses | `Warehouse.account` (else Company default) | 156 |
+| Item accounts | `Item Default` → `Item Group` default → Company default | income 511, expense/giá vốn 632 |
+| Party accounts | `Party Account` (else Company default) | Customer → 131, Supplier → 331 |
+| Sales/Purchase invoice | resolved from item/party/company + tax template | 131/511/33311, 331/632/1331 |
+| Round-off / write-off / FX / disposal | Company defaults | done |
+
+Most flow from Company defaults (already TT99). The genuinely new wiring: **Asset
+Categories**, **Mode of Payment** accounts, and explicit **Item Group / Warehouse /
+Party** defaults for robustness.
 
 ## Tech Stack
 
-- Frappe Framework **v15** + ERPNext **v15**, site `miyano` (shared DB).
-- **Python 3.12** — TABS for indentation, line length 110, double-quoted strings
-  (ruff), enforced by pre-commit (ruff + prettier + eslint).
-- Reports: Frappe **Script Report** (statutory statements/declarations/books need
-  computed line items) and Query Report where a plain query suffices.
-- Client: `frappe.ui.form.on` JS; print formats (Jinja) for voucher số-thành-chữ.
-- Data model changes: DocType JSON + Custom Fields via fixtures/patches.
-- Tests: `frappe.tests.utils.FrappeTestCase` / `unittest`, transaction-rolled-back.
+Frappe v15 + ERPNext v15, site `miyano`, Python 3.12 (TABS, 110 cols, ruff),
+`FrappeTestCase`. The reusable hook uses ERPNext's regional dispatch
+(`install_country_fixtures` → `erpnext.regional.<country>.setup.setup`).
 
 ## Commands
 
-Run from the bench root `/home/miyano/frappe-bench`, site `miyano`:
-
 ```bash
-bench --site miyano migrate                 # apply DocType/patch changes
-bench build --app erpnext                   # rebuild JS/CSS bundles
-bench --site miyano clear-cache
-bench --site miyano console                 # Frappe shell
-
-# Tests
-bench --site miyano run-tests --app erpnext
-bench --site miyano run-tests --module erpnext.regional.vietnam.report.<report>.test_<report>
-bench --site miyano run-tests --doctype "Account"
-
-# Lint / format (gate = pre-commit)
+bench --site miyano migrate
+bench --site miyano console
+bench --site miyano run-tests --module erpnext.regional.vietnam.test_setup
+bench --site miyano run-tests --module erpnext.setup.doctype.company.test_company
 pre-commit run --all-files
-ruff check erpnext/ ; ruff format erpnext/
 ```
 
 ## Project Structure
 
-New and touched locations (all under `erpnext/`):
-
 ```
-erpnext/regional/vietnam/                         → NEW VN regional module
-  __init__.py
-  setup.py                                        → update_regional_tax_settings, VN custom fields
-  utils.py                                        → shared: number-to-VND-words, account-range helpers
-  vietnam.py / constants.py                       → Mã-số → account-range mapping tables
-  report/
-    bao_cao_tinh_hinh_tai_chinh_b01/              → B01-DN Bảng CĐKT (Script Report)
-    bao_cao_kqhdkd_b02/                           → B02-DN KQHĐKD
-    bao_cao_luu_chuyen_tien_te_b03/               → B03-DN LCTT
-    thuyet_minh_bctc_b09/                          → B09-DN Thuyết minh
-    to_khai_thue_gtgt_01/                          → Tờ khai GTGT 01/GTGT
-    quyet_toan_tncn/                               → Quyết toán TNCN
-    quyet_toan_tndn/                               → Quyết toán TNDN
-    so_nhat_ky_chung/                              → Sổ Nhật ký chung
-    so_cai/                                        → Sổ Cái (per account)
-    so_chi_tiet_tai_khoan/                         → Sổ chi tiết tài khoản
-    bang_can_doi_so_phat_sinh/                     → Bảng cân đối số phát sinh
-    test_*.py                                      → tests colocated per report
-erpnext/accounts/ ...                             → import/FX: extend controllers/doctypes as needed
-erpnext/setup/setup_wizard/data/country_wise_tax.json → additional import-duty/TTĐB templates
-tasks/plan.md, tasks/todo.md                      → regenerated after approval
-SPEC.md                                           → this file
+erpnext/regional/vietnam/
+  setup.py            → setup(company): dispatch on VN company creation;
+                        wires Asset Categories, Mode of Payment, Warehouse,
+                        Item Group defaults, party defaults to TT99 numbers.
+  constants.py        → TT99 account-number constants (extend existing).
+  test_setup.py       → hook tests (create VN company, assert every link → TT99).
+erpnext/patches/v15_xx/reconfigure_miyano_to_tt99.py
+                      → one-time, guarded: only if company empty; backs up old
+                        account list; rebuilds chart on TT99; re-wires; verifies.
+erpnext/patches.txt   → register the patch.
+erpnext/setup/doctype/company/company.py
+                      → extend set_default_accounts / regional dispatch as needed.
 ```
-
-Each statutory report ships as a folder with `<name>.json` (Report doc, `report_type:
-Script Report`), `<name>.py` (`execute(filters)`), and `test_<name>.py`.
 
 ## Code Style
 
-Match surrounding ERPNext code: tabs, 110 cols, double quotes, `frappe._()` for
-user-facing strings. Statutory reports map **Mã số → account balances** via an
-explicit, reviewable table (never hard-coded magic in the query):
+TT99 account numbers referenced by **number**, resolved to the company's account
+name at runtime — never hard-code company-suffixed names:
 
 ```python
-# erpnext/regional/vietnam/report/bao_cao_kqhdkd_b02/bao_cao_kqhdkd_b02.py
-import frappe
-from frappe import _
+def _acct(company, number):
+	return frappe.db.get_value(
+		"Account", {"company": company, "account_number": number, "is_group": 0}, "name"
+	)
 
-from erpnext.regional.vietnam.utils import get_account_balances
-
-# TT99 B02-DN — each line: (mã số, chỉ tiêu, account-number prefixes, sign).
-# RESEARCH-DERIVED from TT99/TT200 lineage — VERIFY Mã số with kế toán before filing.
-B02_LINES = (
-	("01", "Doanh thu bán hàng và cung cấp dịch vụ", ["511"], +1),
-	("02", "Các khoản giảm trừ doanh thu", ["521"], +1),
-	("10", "Doanh thu thuần", ["511"], ["521"]),  # 01 - 02 (computed)
-	("11", "Giá vốn hàng bán", ["632"], +1),
-	# ...
-)
-
-
-def execute(filters=None):
-	filters = frappe._dict(filters or {})
-	balances = get_account_balances(filters.company, filters.from_date, filters.to_date)
-	columns = [
-		{"label": _("Mã số"), "fieldname": "ma_so", "fieldtype": "Data", "width": 70},
-		{"label": _("Chỉ tiêu"), "fieldname": "chi_tieu", "fieldtype": "Data", "width": 360},
-		{"label": _("Số tiền"), "fieldname": "so_tien", "fieldtype": "Currency", "width": 160},
-	]
-	data = [build_line(line, balances) for line in B02_LINES]
-	return columns, data
+def setup(company):
+	"""Wire a Vietnam company's module accounts to TT99 numbers (idempotent)."""
+	if frappe.db.get_value("Company", company, "country") != "Vietnam":
+		return
+	_wire_mode_of_payment(company)      # Cash -> 111, Bank -> 112
+	_create_asset_categories(company)   # 211/2141/6424/2411, 213/2143
+	_wire_item_group_defaults(company)  # income 511, expense 632
+	# ... each step idempotent (skip if already set)
 ```
 
-Mapping tables live as module constants so an accountant can review them in one place.
+Every step is **idempotent** (safe to re-run) and **guarded** (only for VN companies).
 
 ## Testing Strategy
 
-- **Framework:** `FrappeTestCase` (DB, rolled back) for report integration;
-  `unittest` for pure mapping-table structure.
-- **Location:** `test_<report>.py` colocated with each report.
-- **Per-report integration test** (the core proof): create a VN company, post
-  representative Journal Entries / Invoices, run the report, assert specific
-  **Mã số lines carry the expected totals** and that the statement balances
-  (e.g. B01 Tổng tài sản == Tổng nguồn vốn; B02 lợi nhuận ties to TK 911).
-- **Structure tests:** every Mã số referenced maps to real TT99 accounts; no
-  account is double-counted or orphaned across a statement.
-- **Regression:** `run-tests --module erpnext.accounts...` and the Company suite
-  stay green (foundation unchanged).
-- **Test sizing:** majority small/structural; a few medium integration tests per
-  report. Reuse the existing VN test helpers under
-  `erpnext/accounts/doctype/account/chart_of_accounts/`.
+- **Hook test** (`FrappeTestCase`): create a VN company, then assert:
+  Mode of Payment Cash → 111 & Bank → 112; an Asset Category exists with
+  fixed 211 / accum-dep 2141 / dep-exp 6424 / CWIP 2411; a new **Item** resolves
+  income 511 / expense 632; a new **Customer/Supplier** posts to 131/331 (via a
+  test Sales/Purchase Invoice or party-account resolution).
+- **Idempotency test**: running setup twice creates no duplicates.
+- **Miyano reconfigure test / dry-run**: after the patch, `Miyano.chart_of_accounts`
+  is the TT99 chart, defaults resolve to TT99 numbers, and **no English account
+  remains** — asserted against a scratch copy so the real company isn't a test
+  fixture.
+- **Regression**: Company suite + all VN suites stay green.
 
 ## Boundaries
 
 **Always**
-- Work on a feature branch; TDD (RED→GREEN); one commit per task; tabs / 110 cols.
-- Compute reports from the shared GL (Account / GL Entry); keep VND as company currency.
-- Mark every statutory output **"draft — verify Mã số against TT99 before filing"**
-  (in report description + a header note), per the "you research, I verify" decision.
-- Run the accounts + company regression suites before each commit.
+- Feature branch; TDD; idempotent, VN-guarded wiring.
+- Reference accounts by **number**, resolve at runtime.
+- Before reconfiguring Miyano: **assert it is empty** (0 GL, 0 stock, 0 party/item),
+  **back up** the old account list to a file, and **confirm with the user** before
+  the destructive delete/rebuild.
 
 **Ask first**
-- Changing shared GL / controller behavior that affects **all** companies on the site.
-- Adding Custom Fields or DocTypes that **overlap** anything mvl_accounting defines.
-- Any declaration that needs CIT / VAT-allocation numbers — confirm whether to read
-  mvl_accounting's tables or compute independently.
-- Adding a third-party dependency.
+- Reconfiguring ANY company that is not empty (has GL/stock/master data).
+- Touching `mvl_accounting`'s customer/supplier/account overlays.
+- Adding new default DocTypes (Asset Category names, Item Groups) that overlap
+  existing master data.
 
 **Never**
-- Reimplement mvl_accounting's period-close / CIT / VAT-allocation / consignment logic.
-- Commit to `develop`; commit secrets; touch the pre-existing uncommitted local changes.
-- Present a statutory report as filing-ready without the verification flag.
-- Remove or skip existing ERPNext tests to make the suite pass.
+- Swap the chart of a company that has GL entries or stock ledger entries.
+- Delete an account referenced by any GL entry / transaction.
+- Commit to `develop`; touch pre-existing uncommitted local changes.
+- Leave a default pointing at a non-TT99 account after this phase.
 
 ## Success Criteria (specific, testable)
 
-1. **B01-DN** renders in TT99 format; for a company with postings, **Tổng cộng
-   tài sản == Tổng cộng nguồn vốn** (a test asserts equality) and key Mã số
-   (100/200/270/300/400/440) carry correct account-range totals.
-2. **B02-DN** renders; Mã số 10 (DT thuần), 20 (LN gộp), 50 (LN trước thuế),
-   60 (LN sau thuế) compute correctly from 5xx/6xx/8xx and tie to TK 911.
-3. **B03-DN** renders (direct or indirect method — chosen in plan) and net cash
-   change ties to the movement of 111/112/113.
-4. **B09-DN** renders the required note sections referencing the above.
-5. **Tờ khai GTGT 01/GTGT**: output VAT (33311) and deductible input VAT (1331)
-   totals for a period match the posted GTGT; số thuế phải nộp computed.
-6. **Quyết toán TNCN / TNDN**: render with the expected líne items (TNDN reads
-   CIT results per the resolved Open Question).
-7. **Sổ Nhật ký chung / Sổ Cái / Sổ chi tiết / Bảng CĐSPS**: reconcile to GL
-   Entry totals (a test asserts Sổ Cái balance == GL balance per account; Bảng
-   CĐSPS debit total == credit total).
-8. **Import & FX**: a USD purchase invoice with import duty + GTGT posts correct
-   VND GL entries; tỷ giá revaluation posts to 413; vouchers print VND số-thành-chữ.
-9. All new reports pass their tests; existing ERPNext accounts + company suites
-   remain green; pre-commit clean.
+1. Creating a VN company auto-creates **Asset Categories** whose per-company
+   accounts are 211/2141/6424/2411 (hữu hình) and 213/2143 (vô hình).
+2. VN company **Mode of Payment**: Cash.default_account → 111, Bank → 112.
+3. A new **Item** on a VN company resolves income → 511, expense → 632 (via
+   Item Group / Company defaults).
+4. A new **Customer** → Receivable 131; new **Supplier** → Payable 331 (a test
+   invoice posts to those accounts).
+5. A test **Sales Invoice** posts Dr 131 / Cr 511 / Cr 33311; a test **Purchase
+   Invoice** posts Dr 632(or 156)/Dr 1331 / Cr 331.
+6. **Miyano** ends up on the TT99 chart: `chart_of_accounts` = the VN chart,
+   default_receivable → 131, default_payable → 331, default_inventory → 156,
+   default_expense → 632, default_income → 511; **zero** English (numberless)
+   accounts remain; old list backed up.
+7. `setup(company)` is **idempotent** (second run = no duplicates, no errors).
+8. Company suite + all VN suites remain green.
 
-## Open Questions
+## Open Questions (defaults; correct anytime)
 
-1. **B01-DN form:** TT99 uses "Báo cáo tình hình tài chính" — confirm whether
-   Miyano files the full form or the SME (doanh nghiệp nhỏ và vừa) variant, as it
-   changes the Mã số set. (Default assumption: full form.)
-2. **B03-DN method:** direct (trực tiếp) vs indirect (gián tiếp) cash-flow. (Default: indirect.)
-3. **TNDN finalization:** read CIT provisional / loss data from mvl_accounting
-   (`mvl_cit_provisional`, `cit_loss_*`) or compute in the report? Affects coupling.
-4. **Tờ khai GTGT** deduction: does Miyano use full deduction (khấu trừ toàn bộ)
-   or need VAT input allocation (mvl `vat_input_allocation`) for mixed
-   taxable/non-taxable sales of vật tư y tế?
-5. **Exact Mã số tables** for every statement are research-derived (TT99/TT200
-   lineage) pending accountant sign-off — the primary verification gate.
-```
+1. **Asset Categories to create**: default set = "Tài sản cố định hữu hình" (211),
+   "Tài sản cố định vô hình" (213). Add medical-equipment-specific categories
+   (thiết bị y tế) mapped to 211? (Default: the two generic ones.)
+2. **Warehouse accounts**: set each warehouse's account to 156, or leave to fall
+   back to Company default_inventory? (Default: leave fallback; don't override.)
+3. **Party accounts**: rely on Company default_receivable/payable (131/331) for all
+   parties, or also write per-group `Party Account` rows? (Default: rely on Company
+   defaults; no per-party overrides.)
+4. **mvl_accounting**: its `mvl_customer`/`mvl_supplier` overlays are left untouched;
+   confirm they don't set conflicting party accounts.
+5. **Miyano switch mechanism**: delete-and-rebuild the empty chart vs. delete the
+   company and recreate. (Default: delete accounts + rebuild on TT99 in place,
+   preserving the company record and its name/settings.)
