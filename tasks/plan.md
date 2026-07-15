@@ -40,7 +40,7 @@ TT99-wired end-to-end. This plan adds the **operational + go-live** layer.
 
 ## Phase 9 — Users & permissions (minimal fixture code)
 
-- [ ] **Task 28 — `ensure_vn_role_profiles()`: VN Role Profiles.**
+- [x] **Task 28 — `ensure_vn_role_profiles()`: VN Role Profiles.**
   Idempotently create six Role Profiles — Kế toán, Kế toán trưởng, Thủ kho, Bán hàng,
   Mua hàng, Quản lý — each mapped to the appropriate standard ERPNext roles (Accounts
   User/Manager, Stock User, Sales User, Purchase User, etc.). No real user accounts

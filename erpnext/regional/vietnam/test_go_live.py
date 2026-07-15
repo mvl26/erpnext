@@ -61,3 +61,29 @@ class TestVietnamGoLiveConfig(FrappeTestCase):
 		self.assertEqual(frappe.db.count("Fiscal Year", {"year": str(GO_LIVE_YEAR)}), 1)
 		for doctype, series in VN_NAMING_SERIES:
 			self.assertEqual(_series_options(doctype).count(series), 1, f"{series} duplicated in {doctype}")
+
+
+class TestVietnamRoleProfiles(FrappeTestCase):
+	def test_creates_all_profiles(self):
+		from erpnext.regional.vietnam.role_profiles import VN_ROLE_PROFILES, ensure_vn_role_profiles
+
+		ensure_vn_role_profiles()
+		for name in VN_ROLE_PROFILES:
+			self.assertTrue(frappe.db.exists("Role Profile", name), f"missing Role Profile {name}")
+
+	def test_profiles_have_expected_roles(self):
+		from erpnext.regional.vietnam.role_profiles import ensure_vn_role_profiles
+
+		ensure_vn_role_profiles()
+		ketoan = [r.role for r in frappe.get_doc("Role Profile", "Kế toán").roles]
+		self.assertIn("Accounts User", ketoan)
+		truong = [r.role for r in frappe.get_doc("Role Profile", "Kế toán trưởng").roles]
+		self.assertIn("Accounts Manager", truong)
+
+	def test_is_idempotent(self):
+		from erpnext.regional.vietnam.role_profiles import ensure_vn_role_profiles
+
+		ensure_vn_role_profiles()
+		ensure_vn_role_profiles()
+		roles = [r.role for r in frappe.get_doc("Role Profile", "Kế toán trưởng").roles]
+		self.assertEqual(len(roles), len(set(roles)), "duplicate roles after re-run")
