@@ -204,3 +204,51 @@ class TestVietnamOpeningBalances(FrappeTestCase):
 		# No opening entries: nets to zero, nothing non-TT99, no orphan parties.
 		company = make_vn_company("_Test VN Open Emp", "TOE3")
 		self.assertTrue(validate_opening_balances(company)["ok"])
+
+
+def _check_named(result, name):
+	return next(c for c in result["checks"] if c["name"] == name)
+
+
+class TestVietnamGoLiveReadiness(FrappeTestCase):
+	def test_fully_configured_is_all_green(self):
+		from erpnext.regional.vietnam.go_live import (
+			configure_go_live,
+			go_live_readiness,
+			mark_backup_verified,
+		)
+		from erpnext.regional.vietnam.role_profiles import ensure_vn_role_profiles
+
+		company = make_vn_company("_Test VN Ready", "TVRD")
+		configure_go_live(company, fiscal_year=GO_LIVE_YEAR)
+		ensure_vn_role_profiles()
+		mark_backup_verified(company)
+
+		result = go_live_readiness(company)
+		self.assertTrue(result["ok"], [c for c in result["checks"] if not c["ok"]])
+
+	def test_missing_backup_marker_flips_that_check(self):
+		from erpnext.regional.vietnam.go_live import configure_go_live, go_live_readiness
+		from erpnext.regional.vietnam.role_profiles import ensure_vn_role_profiles
+
+		company = make_vn_company("_Test VN Ready NB", "TVN2")
+		configure_go_live(company, fiscal_year=GO_LIVE_YEAR)
+		ensure_vn_role_profiles()
+		# Deliberately no backup marker.
+		result = go_live_readiness(company)
+		self.assertFalse(result["ok"])
+		self.assertFalse(_check_named(result, "backup_verified")["ok"])
+
+	def test_cleared_default_flips_company_defaults(self):
+		from erpnext.regional.vietnam.go_live import go_live_readiness, mark_backup_verified
+
+		company = make_vn_company("_Test VN Ready CD", "TVN3")
+		mark_backup_verified(company)
+		frappe.db.set_value("Company", company, "default_income_account", None)
+		result = go_live_readiness(company)
+		self.assertFalse(_check_named(result, "company_defaults")["ok"])
+
+	def test_non_vn_company_not_ready(self):
+		from erpnext.regional.vietnam.go_live import go_live_readiness
+
+		self.assertFalse(go_live_readiness("_Nonexistent Co")["ok"])
