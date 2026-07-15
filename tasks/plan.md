@@ -41,7 +41,7 @@ số-thành-chữ, unrealized FX → 413.
   - Acceptance: a new Item on the VN company resolves income 511 / expense 632.
   - Files: setup.py, test_setup.py. Size M. Deps: 21.
 
-- [ ] **Task 24 — End-to-end invoice posting on TT99.**
+- [x] **Task 24 — End-to-end invoice posting on TT99.**
   Integration proof (fix any gaps): a Sales Invoice posts Dr 131 / Cr 511 / Cr
   33311 (GTGT đầu ra); a Purchase Invoice posts Dr 632|156 / Dr 1331 / Cr 331.
   - Acceptance: the GL entries hit the expected TT99 accounts.
