@@ -58,7 +58,7 @@ số-thành-chữ, unrealized FX → 413.
 
 ## Phase 7 — Reconfigure Miyano
 
-- [ ] **Task 26 — Switch the empty Miyano company to TT99 (guarded patch).**
+- [x] **Task 26 — Switch the empty Miyano company to TT99 (guarded patch).**
   `erpnext/patches/.../reconfigure_miyano_to_tt99.py`: guard that the company is
   empty (0 GL/stock/party/item/asset); **back up** the old account list to a file;
   delete the English accounts; rebuild the chart on the VN template; re-run

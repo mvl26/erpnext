@@ -12,4 +12,4 @@ links to TT99 and switches the Miyano company onto the TT99 chart. See
 - [x] Task 25 — Idempotency + auto-dispatch on VN company creation
 
 ## Phase 7 — Reconfigure Miyano
-- [ ] Task 26 — Switch empty Miyano to TT99 (guarded patch; confirm before applying to real Miyano)
+- [x] Task 26 — Switch empty Miyano to TT99 (guarded patch; confirm before applying to real Miyano)
