@@ -21,7 +21,7 @@ số-thành-chữ, unrealized FX → 413.
 
 ## Phase 6 — Default module wiring (reusable hook)
 
-- [ ] **Task 21 — VN setup hook + Mode of Payment accounts.**
+- [x] **Task 21 — VN setup hook + Mode of Payment accounts.**
   Create `erpnext/regional/vietnam/setup.py` `setup(company)`; wire Mode of Payment
   Cash.default_account → 111, Bank → 112. Confirm dispatch on VN company creation.
   - Acceptance: after creating a VN company, Cash MoP → 111 and Bank MoP → 112.
