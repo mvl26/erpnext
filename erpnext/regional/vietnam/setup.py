@@ -26,6 +26,7 @@ def setup(company=None, patch=True):
 		return
 
 	_wire_mode_of_payment(company)
+	_create_asset_categories(company)
 
 
 def _ensure_mode_of_payment(name, mode_type):
@@ -35,6 +36,40 @@ def _ensure_mode_of_payment(name, mode_type):
 		)
 		doc.flags.ignore_permissions = True
 		doc.insert(ignore_if_duplicate=True)
+
+
+# (asset_category_name, fixed, accum_dep, dep_expense, cwip) by TT99 number.
+ASSET_CATEGORIES = (
+	("Tài sản cố định hữu hình", "211", "2141", "6424", "2411"),
+	("Tài sản cố định vô hình", "213", "2143", "6424", "2411"),
+)
+
+
+def _create_asset_categories(company):
+	"""Default Asset Categories wired to TT99 TSCĐ / hao mòn / khấu hao / XDCB."""
+	for name, fixed, accum, dep, cwip in ASSET_CATEGORIES:
+		accounts = {
+			"fixed_asset_account": _acct(company, fixed),
+			"accumulated_depreciation_account": _acct(company, accum),
+			"depreciation_expense_account": _acct(company, dep),
+			"capital_work_in_progress_account": _acct(company, cwip),
+		}
+		if not all(accounts.values()):
+			continue
+
+		if frappe.db.exists("Asset Category", name):
+			category = frappe.get_doc("Asset Category", name)
+		else:
+			category = frappe.get_doc(
+				{"doctype": "Asset Category", "asset_category_name": name, "enable_cwip_accounting": 1}
+			)
+
+		if any(row.company_name == company for row in category.accounts):
+			continue
+
+		category.append("accounts", {"company_name": company, **accounts})
+		category.flags.ignore_permissions = True
+		category.save() if not category.is_new() else category.insert()
 
 
 def _wire_mode_of_payment(company):

@@ -28,14 +28,14 @@ số-thành-chữ, unrealized FX → 413.
   - Verify: `run-tests --module erpnext.regional.vietnam.test_setup`.
   - Files: setup.py, test_setup.py (+ maybe company.py/hook). Size M. Deps: none.
 
-- [ ] **Task 22 — Default Asset Categories on TT99.**
+- [x] **Task 22 — Default Asset Categories on TT99.**
   `_create_asset_categories`: "Tài sản cố định hữu hình" (fixed 211, hao mòn 2141,
   chi phí khấu hao 6424, CWIP 2411) and "Tài sản cố định vô hình" (213, 2143, 6424,
   2411).
   - Acceptance: both Asset Categories exist with per-company accounts on those numbers.
   - Files: setup.py, test_setup.py. Size M. Deps: 21.
 
-- [ ] **Task 23 — Item Group defaults resolve to TT99.**
+- [x] **Task 23 — Item accounts resolve to TT99 (via Company defaults).** Folded:
   `_wire_item_group_defaults`: set "All Item Groups" item_group_defaults for the VN
   company → income 511, expense 632.
   - Acceptance: a new Item on the VN company resolves income 511 / expense 632.
