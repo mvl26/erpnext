@@ -1,138 +1,90 @@
-# Implementation Plan — Miyano Complete VN Accounting (TT99/2025)
+# Implementation Plan — Make TT99 the Default Accounting Everywhere (Miyano)
 
-Source of truth: `SPEC.md`. Built **in `erpnext` core** under `erpnext/regional/vietnam/`.
-Statutory Mã-số mappings are **research-derived and flagged for accountant
-verification** (per the approved spec). Every statement/book ships with a
-reconciliation test that proves the *engine* is correct (totals balance / tie to
-the GL) even where exact line labels await sign-off.
+Source of truth: `SPEC.md`. Built **in `erpnext` core**. A reusable, idempotent,
+VN-guarded `setup(company)` hook wires every module/master-data account link to
+the correct TT99 account number; then a guarded patch switches the empty Miyano
+company onto TT99.
 
 ## Architecture Decisions
 
-- New VN regional module `erpnext/regional/vietnam/` (mirrors italy/uae pattern).
-- All reports are **Script Reports** computed **read-only over the shared GL**
-  (GL Entry / Account) — no reimplementation of mvl_accounting's period-close /
-  CIT / VAT-allocation. Where a declaration needs CIT/VAT-allocation results it
-  *reads* mvl_accounting data if present.
-- Mã-số → account-range mappings live as **reviewable module constants**, not
-  buried in queries, so a kế toán can audit them in one place.
-- Shared helpers (GL fetch, per-account balances, số-thành-chữ) built once in
-  `utils.py` and reused by every report.
+- Hook lives at `erpnext/regional/vietnam/setup.py` (`setup(company)`), dispatched
+  by ERPNext's `install_country_fixtures` on VN company creation and callable
+  standalone (used by the Miyano patch).
+- Every wiring step is **idempotent** (skip if already set) and **VN-guarded**.
+- Accounts referenced by **number**, resolved to the company's account at runtime.
+- Company-level defaults are already TT99 (prior phase); this phase adds the
+  master-data layer + reconfigures Miyano.
 
-## Phase 1 — Foundation (DONE, Tasks 1–5)
+## Prior phases (done): TT99 chart, operational defaults, GTGT/import tax, VND
+default, statutory reports (B01/B02/B03/B09, tax declarations, sổ kế toán),
+số-thành-chữ, unrealized FX → 413.
 
-TT99 chart of accounts, operational default accounts, GTGT tax templates,
-company currency default, standard-report compatibility. Shipped & committed.
+## Phase 6 — Default module wiring (reusable hook)
 
-## Phase 2 — Report engine + accounting books
+- [ ] **Task 21 — VN setup hook + Mode of Payment accounts.**
+  Create `erpnext/regional/vietnam/setup.py` `setup(company)`; wire Mode of Payment
+  Cash.default_account → 111, Bank → 112. Confirm dispatch on VN company creation.
+  - Acceptance: after creating a VN company, Cash MoP → 111 and Bank MoP → 112.
+  - Verify: `run-tests --module erpnext.regional.vietnam.test_setup`.
+  - Files: setup.py, test_setup.py (+ maybe company.py/hook). Size M. Deps: none.
 
-- [x] **Task 6 — VN regional module + shared report utils.**
-  Create `erpnext/regional/vietnam/{__init__,utils,constants}.py`. `utils.py`:
-  `get_gl_entries(...)`, `get_account_balances(company, from, to)` (opening /
-  movement / closing Dr-Cr per account & by number-prefix), `so_thanh_chu(amount)`
-  (VND amount → Vietnamese words).
-  - Acceptance: `so_thanh_chu(1_000_000) == "Một triệu đồng"` (and 0, lẻ, tỷ cases);
-    `get_account_balances` returns correct Dr/Cr per account after a posting.
-  - Verify: `run-tests --module erpnext.regional.vietnam.test_utils`.
-  - Files: 4. Size M. Deps: none.
+- [ ] **Task 22 — Default Asset Categories on TT99.**
+  `_create_asset_categories`: "Tài sản cố định hữu hình" (fixed 211, hao mòn 2141,
+  chi phí khấu hao 6424, CWIP 2411) and "Tài sản cố định vô hình" (213, 2143, 6424,
+  2411).
+  - Acceptance: both Asset Categories exist with per-company accounts on those numbers.
+  - Files: setup.py, test_setup.py. Size M. Deps: 21.
 
-- [x] **Task 7 — Bảng cân đối số phát sinh (trial balance).**
-  Per account: opening Dr/Cr, phát sinh Dr/Cr, closing Dr/Cr.
-  - Acceptance: Σ phát sinh Nợ == Σ phát sinh Có; per-account closing = opening ± movement.
-  - Verify: post JEs, assert balanced.
-  - Files: 3 (report json + py + test). Size M. Deps: 6.
+- [ ] **Task 23 — Item Group defaults resolve to TT99.**
+  `_wire_item_group_defaults`: set "All Item Groups" item_group_defaults for the VN
+  company → income 511, expense 632.
+  - Acceptance: a new Item on the VN company resolves income 511 / expense 632.
+  - Files: setup.py, test_setup.py. Size M. Deps: 21.
 
-- [x] **Task 8 — Sổ Cái (general ledger, per account).**
-  Entries for one account with running balance, TT99 layout.
-  - Acceptance: ending balance == GL balance for that account.
-  - Files: 3. Size S/M. Deps: 6.
+- [ ] **Task 24 — End-to-end invoice posting on TT99.**
+  Integration proof (fix any gaps): a Sales Invoice posts Dr 131 / Cr 511 / Cr
+  33311 (GTGT đầu ra); a Purchase Invoice posts Dr 632|156 / Dr 1331 / Cr 331.
+  - Acceptance: the GL entries hit the expected TT99 accounts.
+  - Files: test_setup.py (+ fixes if needed). Size M. Deps: 21, 22, 23.
 
-- [x] **Task 9 — Sổ chi tiết tài khoản.**
-  Detailed ledger with party/voucher for a selected account.
-  - Acceptance: reconciles to GL for the account + filters.
-  - Files: 3. Size S/M. Deps: 6.
+- [ ] **Task 25 — Idempotency + auto-dispatch.**
+  `setup(company)` run twice → no duplicates/errors; and it fires automatically for
+  a newly-created VN company (not only when called explicitly).
+  - Acceptance: second run is a no-op; a fresh VN company already has MoP/asset
+    categories/item-group defaults without an explicit setup() call.
+  - Files: setup.py, test_setup.py. Size S/M. Deps: 21-23.
 
-- [x] **Task 10 — Sổ Nhật ký chung (general journal).**
-  Chronological Dr/Cr of all vouchers for the period.
-  - Acceptance: Σ Nợ == Σ Có; line count matches GL.
-  - Files: 3. Size S/M. Deps: 6.
+### Checkpoint: a fresh VN company is fully TT99-wired end-to-end.
 
-### Checkpoint: books reconcile to the GL
+## Phase 7 — Reconfigure Miyano
 
-## Phase 3 — Statutory financial statements
+- [ ] **Task 26 — Switch the empty Miyano company to TT99 (guarded patch).**
+  `erpnext/patches/.../reconfigure_miyano_to_tt99.py`: guard that the company is
+  empty (0 GL/stock/party/item/asset); **back up** the old account list to a file;
+  delete the English accounts; rebuild the chart on the VN template; re-run
+  set_default_accounts + `setup(company)`; verify no numberless account remains.
+  **Build and test on a scratch company first; apply to the real Miyano only after
+  explicit user confirmation** (irreversible DB change).
+  - Acceptance: Miyano.chart_of_accounts = VN chart; default_receivable 131,
+    default_payable 331, default_inventory 156, default_expense 632, default_income
+    511; zero numberless accounts; backup file written.
+  - Files: patch + patches.txt + test. Size M. Deps: 21-25.
 
-- [x] **Task 11 — B02-DN Báo cáo KQHĐKD (P&L).**
-  Mã số from 5xx/6xx/7xx/8xx with computed subtotals (10/20/30/40/50/60).
-  - Acceptance: 10=01−02, 20=10−11, 60=net; ties to TK 911 result.
-  - Files: 3. Size M. Deps: 6.
-
-- [x] **Task 12 — B01-DN Báo cáo tình hình tài chính (balance sheet).**
-  Tài sản (100…270) and Nguồn vốn (300/400/440); full form.
-  - Acceptance: Mã số 270 (Tổng tài sản) == 440 (Tổng nguồn vốn).
-  - Files: 3. Size M. Deps: 6, 11 (current-year profit).
-
-- [x] **Task 13 — B03-DN Lưu chuyển tiền tệ (indirect method).**
-  - Acceptance: net cash flow == change in 111+112+113.
-  - Files: 3. Size M. Deps: 6, 11.
-
-- [x] **Task 14 — B09-DN Thuyết minh BCTC.**
-  Required note sections referencing B01/B02 key figures.
-  - Acceptance: renders required sections; figures tie to B01/B02.
-  - Files: 3. Size M. Deps: 11, 12.
-
-### Checkpoint: B01 balances; B02 ties to 911
-
-## Phase 4 — Tax declarations
-
-- [x] **Task 15 — Tờ khai thuế GTGT (01/GTGT).**
-  Output VAT (33311) vs deductible input VAT (1331) for a period.
-  - Acceptance: totals match posted GTGT; số thuế phải nộp = đầu ra − khấu trừ.
-  - Files: 3. Size M. Deps: 6.
-
-- [x] **Task 16 — Quyết toán thuế TNCN.**
-  PIT finalization from 3335 / payroll (hrms) where available.
-  - Acceptance: renders; totals tie to 3335/334. (Flag: PIT source depends on payroll data.)
-  - Files: 3. Size M. Deps: 6.
-
-- [x] **Task 17 — Quyết toán thuế TNDN.**
-  CIT finalization; reads mvl_accounting CIT data if present, else 3334/8211/821.
-  - Acceptance: renders; ties to 821/3334.
-  - Files: 3. Size M. Deps: 6, 11.
-
-### Checkpoint: GTGT totals match posted VAT
-
-## Phase 5 — Import & foreign currency
-
-- [x] **Task 18 — Số-thành-chữ trên chứng từ.**
-  Jinja/whitelisted method wrapping `so_thanh_chu`; wire into a voucher print format.
-  - Acceptance: method returns VN words for an amount; usable from a print format.
-  - Files: 2–3 (hooks jinja method + print format + test). Size S. Deps: 6.
-
-- [x] **Task 19 — Import purchase tax templates.**
-  Add "Thuế nhập khẩu" (3333), "Thuế TTĐB nhập khẩu" (3332), "GTGT hàng nhập khẩu"
-  (33312) purchase templates to the Vietnam entry in country_wise_tax.json.
-  - Acceptance: a VN company gets these templates on the correct TT99 accounts.
-  - Files: 2 (json + test). Size S/M. Deps: none (extends Task 3).
-
-- [x] **Task 20 — Đánh giá lại tỷ giá (exchange difference → 413).**
-  Ensure a VN company's unrealized/realized FX difference is wired to 413/515/635.
-  - Acceptance: VN company has an exchange-difference account set; test asserts wiring.
-  - Files: 2–3. Size M. Deps: 1 (413 in chart).
-
-### Checkpoint: Complete — all reports pass; accounts + company suites green
+### Checkpoint: Complete — Miyano on TT99; all defaults & suites green.
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Exact TT99 Mã số differ from research | High | Ship as draft + reconciliation tests + verification flag; mappings in one reviewable table |
-| Overlap with mvl_accounting (CIT/VAT) | Med | Reports read-only over GL; consume mvl data, never recompute |
-| PIT data lives in hrms/payroll | Med | Task 16 renders from available GL (3335); flag payroll dependency |
-| Heavy company-creation tests slow suite | Low | Reuse one company per test class; keep integration tests few |
+| Destructive chart swap on a real company | High | Guard on emptiness; back up; test on scratch; confirm before apply |
+| install_country_fixtures dispatch differs | Med | Verify mechanism in Task 21; fall back to explicit call in company setup |
+| Overlap with mvl_accounting party/master | Med | Don't touch mvl overlays; rely on company defaults |
+| Idempotency (dup asset categories / MoP rows) | Med | Skip-if-exists guards + Task 25 test |
 
-## Open Questions (defaults from SPEC.md; correct anytime)
+## Open Questions (defaults from SPEC.md)
 
-1. B01 full form vs SME — default full.
-2. B03 indirect vs direct — default indirect.
-3. TNDN reads mvl_accounting CIT vs recompute — default read.
-4. GTGT full deduction vs input allocation — default full deduction.
-5. Exact Mã số tables — research-derived, accountant verifies before filing.
+1. Asset Categories: generic hữu hình (211) + vô hình (213) — default.
+2. Warehouse accounts: leave fallback to 156 — default.
+3. Party accounts: rely on company 131/331 — default.
+4. mvl_accounting overlays untouched.
+5. Miyano switch: delete-accounts-and-rebuild in place — default.
