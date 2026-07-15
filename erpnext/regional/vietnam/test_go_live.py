@@ -87,3 +87,49 @@ class TestVietnamRoleProfiles(FrappeTestCase):
 		ensure_vn_role_profiles()
 		roles = [r.role for r in frappe.get_doc("Role Profile", "Kế toán trưởng").roles]
 		self.assertEqual(len(roles), len(set(roles)), "duplicate roles after re-run")
+
+
+def _make_customer(name, tax_id=None):
+	return frappe.get_doc(
+		{
+			"doctype": "Customer",
+			"customer_name": name,
+			"customer_group": "All Customer Groups",
+			"territory": "All Territories",
+			"tax_id": tax_id,
+		}
+	).insert(ignore_permissions=True)
+
+
+class TestVietnamMasterData(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		from erpnext.regional.vietnam.master_data import seed_master_data
+
+		cls.company = make_vn_company("_Test VN MData", "TVMD")
+		seed_master_data(cls.company)
+
+	def test_item_group_taxonomy_created(self):
+		for group in ("Thiết bị y tế", "Vật tư y tế", "Thiết bị xét nghiệm"):
+			self.assertTrue(frappe.db.exists("Item Group", group), f"missing Item Group {group}")
+
+	def test_completeness_flags_customer_missing_mst(self):
+		from erpnext.regional.vietnam.master_data import master_data_completeness
+
+		cust = _make_customer("_Test VN NoMST")
+		flagged = {(i["doctype"], i["name"]) for i in master_data_completeness(self.company)["issues"]}
+		self.assertIn(("Customer", cust.name), flagged)
+
+	def test_completeness_passes_complete_customer(self):
+		from erpnext.regional.vietnam.master_data import master_data_completeness
+
+		cust = _make_customer("_Test VN WithMST", tax_id="0312345678")
+		flagged = {(i["doctype"], i["name"]) for i in master_data_completeness(self.company)["issues"]}
+		self.assertNotIn(("Customer", cust.name), flagged)
+
+	def test_seed_is_idempotent(self):
+		from erpnext.regional.vietnam.master_data import seed_master_data
+
+		seed_master_data(self.company)
+		self.assertEqual(frappe.db.count("Item Group", {"item_group_name": "Thiết bị y tế"}), 1)
