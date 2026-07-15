@@ -50,7 +50,7 @@ TT99-wired end-to-end. This plan adds the **operational + go-live** layer.
 
 ## Phase 10 — Master-data scaffolding (greenfield: seed tree + validate)
 
-- [ ] **Task 29 — Master-data taxonomy + completeness report + import templates.**
+- [x] **Task 29 — Master-data taxonomy + completeness report + import templates.**
   `seed_item_group_taxonomy(company)`: create a thiết bị y tế / vật tư y tế Item Group
   tree (leaf groups inherit income 511 / expense 632 via existing defaults). Seed one
   default Warehouse, base UOMs, a default Price List, VN tax categories.
