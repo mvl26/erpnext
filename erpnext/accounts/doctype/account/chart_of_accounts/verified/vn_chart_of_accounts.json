@@ -125,13 +125,16 @@
      "account_type": "Accumulated Depreciation"
     },
     "Hao mòn TSCĐ thuê tài chính": {
-     "account_number": "2142"
+     "account_number": "2142",
+     "account_type": "Accumulated Depreciation"
     },
     "Hao mòn TSCĐ vô hình": {
-     "account_number": "2143"
+     "account_number": "2143",
+     "account_type": "Accumulated Depreciation"
     },
     "Hao mòn BĐSĐT": {
-     "account_number": "2147"
+     "account_number": "2147",
+     "account_type": "Accumulated Depreciation"
     }
    },
    "Tài sản sinh học": {

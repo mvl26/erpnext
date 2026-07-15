@@ -596,8 +596,12 @@ class Company(NestedSet):
 		if self.get(fieldname):
 			return
 
+		# Order by account_number so the chosen default is deterministic when several
+		# accounts share a type (e.g. VN hao mòn 2141/2142/2143/2147 -> picks 2141).
 		account = frappe.db.get_value(
-			"Account", {"account_type": account_type, "is_group": 0, "company": self.name}
+			"Account",
+			{"account_type": account_type, "is_group": 0, "company": self.name},
+			order_by="account_number asc, name asc",
 		)
 
 		if account:

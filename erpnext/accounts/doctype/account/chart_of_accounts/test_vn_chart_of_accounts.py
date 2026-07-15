@@ -173,10 +173,12 @@ class TestVietnamChartOfAccounts(unittest.TestCase):
 			"Cost of Goods Sold",  # default_expense_account
 			"Stock",  # default_inventory_account
 			"Income Account",  # default_income_account
-			"Accumulated Depreciation",  # accumulated_depreciation_account
 			"Depreciation",  # depreciation_expense_account
 			"Capital Work in Progress",  # capital_work_in_progress_account
 		)
+		# Accumulated Depreciation is intentionally multiple (2141/2142/2143/2147 —
+		# Asset Categories need per-category hao mòn accounts); the company default is
+		# made deterministic via order_by in set_default_accounts, not by uniqueness.
 		for account_type in single_default_types:
 			tagged = [
 				n
