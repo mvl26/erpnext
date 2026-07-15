@@ -133,3 +133,74 @@ class TestVietnamMasterData(FrappeTestCase):
 
 		seed_master_data(self.company)
 		self.assertEqual(frappe.db.count("Item Group", {"item_group_name": "Thiết bị y tế"}), 1)
+
+
+def _acct(company, number):
+	return frappe.db.get_value(
+		"Account", {"company": company, "account_number": number, "is_group": 0}, "name"
+	)
+
+
+def _make_numberless_account(company):
+	parent = frappe.db.get_value(
+		"Account", {"company": company, "is_group": 1, "root_type": "Equity"}, "name"
+	)
+	return frappe.get_doc(
+		{
+			"doctype": "Account",
+			"account_name": "_Test Numberless Equity",
+			"company": company,
+			"parent_account": parent,
+			"root_type": "Equity",
+			"is_group": 0,
+		}
+	).insert(ignore_permissions=True).name
+
+
+def _post_opening_je_by_account(company, lines):
+	je = frappe.new_doc("Journal Entry")
+	je.company = company
+	je.voucher_type = "Opening Entry"
+	je.is_opening = "Yes"
+	je.posting_date = frappe.utils.nowdate()
+	for account, dr, cr in lines:
+		je.append("accounts", {"account": account, "debit_in_account_currency": dr, "credit_in_account_currency": cr})
+	je.flags.ignore_permissions = True
+	je.insert()
+	je.submit()
+	return je.name
+
+
+class TestVietnamOpeningBalances(FrappeTestCase):
+	# A fresh company per test: submitting an Opening JE releases the test savepoint,
+	# so opening entries stay visible across methods within a run — isolate by company.
+
+	def test_balanced_tt99_opening_with_receivable_passes(self):
+		from erpnext.regional.vietnam.go_live import post_opening_journal_entry, validate_opening_balances
+
+		company = make_vn_company("_Test VN Open Bal", "TOB1")
+		customer = _make_customer("_Test VN Open Cust", tax_id="0311111111")
+		post_opening_journal_entry(company, [("111", 1_000_000, 0), ("4211", 0, 1_000_000)])
+		post_opening_journal_entry(
+			company, [("131", 500_000, 0, "Customer", customer.name), ("4211", 0, 500_000)]
+		)
+		result = validate_opening_balances(company)
+		self.assertTrue(result["ok"], result["checks"])
+		self.assertEqual(result["totals"]["receivable_131"], 500_000)
+
+	def test_non_tt99_account_fails(self):
+		from erpnext.regional.vietnam.go_live import validate_opening_balances
+
+		company = make_vn_company("_Test VN Open Num", "TON2")
+		numberless = _make_numberless_account(company)
+		_post_opening_je_by_account(company, [(_acct(company, "111"), 100, 0), (numberless, 0, 100)])
+		result = validate_opening_balances(company)
+		self.assertFalse(result["ok"])
+		self.assertFalse(next(c for c in result["checks"] if c["name"] == "all_tt99")["ok"])
+
+	def test_empty_opening_is_trivially_balanced(self):
+		from erpnext.regional.vietnam.go_live import validate_opening_balances
+
+		# No opening entries: nets to zero, nothing non-TT99, no orphan parties.
+		company = make_vn_company("_Test VN Open Emp", "TOE3")
+		self.assertTrue(validate_opening_balances(company)["ok"])

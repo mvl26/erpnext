@@ -16,7 +16,7 @@ See `SPEC.md` and `tasks/plan.md` for acceptance criteria and dependencies.
 - [x] Task 29 — Item Group taxonomy (thiết bị & vật tư y tế) + default kho/UOM/price list/tax categories; `master_data_completeness()` report; CSV import templates
 
 ## Phase 11 — Opening balances (FY start)
-- [ ] Task 30 — Opening JE tooling + `validate_opening_balances(company)` (nets to zero, 100% TT99, AR=131/AP=331/stock=156 control totals)
+- [x] Task 30 — Opening JE tooling + `validate_opening_balances(company)` (nets to zero, 100% TT99, AR=131/AP=331/stock=156 control totals)
 
 ## Phase 12 — Go-live readiness & cutover
 - [ ] Task 31 — `go_live_readiness(company)` command (whitelisted + CLI): full precondition checklist → structured pass/fail
