@@ -13,7 +13,8 @@ import frappe
 from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 from frappe.utils import flt, getdate, nowdate
 
-from erpnext.regional.vietnam.constants import VN_NAMING_SERIES
+from erpnext.regional.vietnam.constants import CHART_NAME, VN_NAMING_SERIES
+from erpnext.regional.vietnam.role_profiles import VN_ROLE_PROFILES
 from erpnext.regional.vietnam.setup import _acct
 
 # TT99 inventory account prefixes (hàng tồn kho: nguyên vật liệu … hàng gửi bán).
@@ -187,3 +188,139 @@ def validate_opening_balances(company):
 		},
 	]
 	return {"ok": all(c["ok"] for c in checks), "checks": checks, "totals": totals}
+
+
+def _backup_key(company):
+	return f"vn_go_live_backup:{frappe.scrub(company)}"
+
+
+def mark_backup_verified(company, verified=True):
+	"""Operator marker set once a production backup has been taken AND verified."""
+	frappe.db.set_default(_backup_key(company), "1" if verified else "0")
+
+
+def _check(name, ok, detail):
+	return {"name": name, "ok": bool(ok), "detail": detail}
+
+
+def _check_on_tt99(company):
+	chart = frappe.db.get_value("Company", company, "chart_of_accounts")
+	return _check("on_tt99", chart == CHART_NAME, chart or "chưa đặt biểu đồ tài khoản")
+
+
+def _check_fiscal_year_open(company):
+	fy = frappe.db.sql(
+		"""select name from `tabFiscal Year`
+		where %s between year_start_date and year_end_date and disabled = 0 limit 1""",
+		(nowdate(),),
+	)
+	return _check("fiscal_year_open", bool(fy), fy[0][0] if fy else "không có năm tài chính cho hôm nay")
+
+
+def _check_company_defaults(company):
+	comp = frappe.get_doc("Company", company)
+	expected = {
+		"default_receivable_account": "131",
+		"default_payable_account": "331",
+		"default_inventory_account": "156",
+		"default_expense_account": "632",
+		"default_income_account": "511",
+	}
+	bad = []
+	for field, number in expected.items():
+		acc = comp.get(field)
+		if (frappe.db.get_value("Account", acc, "account_number") if acc else None) != number:
+			bad.append(f"{field}→{number}")
+	return _check("company_defaults", not bad, "; ".join(bad) or "131/331/156/632/511 OK")
+
+
+def _check_naming_series(company):
+	missing = [
+		s
+		for dt, s in VN_NAMING_SERIES
+		if s not in (frappe.get_meta(dt).get_field("naming_series").options or "").split("\n")
+	]
+	return _check("naming_series", not missing, "; ".join(missing) or "đủ số hiệu chứng từ VN")
+
+
+def _check_perpetual_inventory(company):
+	on = frappe.db.get_value("Company", company, "enable_perpetual_inventory")
+	return _check("perpetual_inventory", bool(on), "bật" if on else "chưa bật kế toán kho liên tục")
+
+
+def _check_has_warehouse(company):
+	n = frappe.db.count("Warehouse", {"company": company, "is_group": 0})
+	return _check("has_warehouse", n > 0, f"{n} kho")
+
+
+def _check_role_profiles(company):
+	missing = [name for name in VN_ROLE_PROFILES if not frappe.db.exists("Role Profile", name)]
+	return _check("role_profiles", not missing, "; ".join(missing) or "đủ nhóm quyền VN")
+
+
+def _check_no_numberless_accounts(company):
+	# ERPNext creates a handful of numberless utility accounts (Round Off, SRBNB,
+	# Stock Adjustment, Disposal…) that the Company references as defaults — those are
+	# legitimate. Only a numberless account the Company does NOT reference is rogue
+	# (e.g. an English/Standard-chart leftover the TT99 switch missed).
+	comp = frappe.get_doc("Company", company)
+	account_fields = frappe.get_meta("Company").get("fields", {"fieldtype": "Link", "options": "Account"})
+	referenced = {comp.get(df.fieldname) for df in account_fields if comp.get(df.fieldname)}
+	numberless = frappe.get_all(
+		"Account",
+		filters={"company": company, "is_group": 0, "account_number": ["in", ["", None]]},
+		pluck="name",
+	)
+	rogue = [a for a in numberless if a not in referenced]
+	return _check(
+		"no_rogue_numberless_accounts",
+		not rogue,
+		f"{len(rogue)} tài khoản lạ chưa có số hiệu: {'; '.join(rogue[:5])}"
+		if rogue
+		else "chỉ còn tài khoản tiện ích hệ thống (hợp lệ)",
+	)
+
+
+def _check_opening_balanced(company):
+	r = validate_opening_balances(company)
+	bad = "; ".join(c["detail"] for c in r["checks"] if not c["ok"])
+	return _check("opening_balanced", r["ok"], bad or "số dư đầu kỳ hợp lệ")
+
+
+def _check_backup_verified(company):
+	val = frappe.db.get_value("DefaultValue", {"defkey": _backup_key(company)}, "defvalue")
+	ok = val == "1"
+	return _check("backup_verified", ok, "đã sao lưu & xác minh" if ok else "chưa đánh dấu đã sao lưu")
+
+
+@frappe.whitelist()
+def go_live_readiness(company):
+	"""Full go-live precondition checklist for a VN company (read-only)."""
+	if not _is_vn(company):
+		return {"ok": False, "checks": [_check("vietnam", False, "không phải công ty Việt Nam")]}
+
+	checks = [
+		_check_on_tt99(company),
+		_check_fiscal_year_open(company),
+		_check_company_defaults(company),
+		_check_naming_series(company),
+		_check_perpetual_inventory(company),
+		_check_has_warehouse(company),
+		_check_role_profiles(company),
+		_check_no_numberless_accounts(company),
+		_check_opening_balanced(company),
+		_check_backup_verified(company),
+	]
+	return {"ok": all(c["ok"] for c in checks), "checks": checks}
+
+
+@frappe.whitelist()
+def print_go_live_readiness(company):
+	"""Human-readable go-live checklist for ``bench execute``."""
+	result = go_live_readiness(company)
+	header = "✅ SẴN SÀNG GO-LIVE" if result["ok"] else "❌ CHƯA SẴN SÀNG"
+	lines = [f"{header} — {company}"]
+	lines += [f"  [{'✓' if c['ok'] else '✗'}] {c['name']}: {c['detail']}" for c in result["checks"]]
+	msg = "\n".join(lines)
+	print(msg)
+	return msg

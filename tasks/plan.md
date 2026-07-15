@@ -76,7 +76,7 @@ TT99-wired end-to-end. This plan adds the **operational + go-live** layer.
 
 ## Phase 12 — Go-live readiness & cutover runbook
 
-- [ ] **Task 31 — `go_live_readiness(company)` command (whitelisted + CLI).**
+- [x] **Task 31 — `go_live_readiness(company)` command (whitelisted + CLI).**
   Run all preconditions → structured checklist: on TT99, fiscal year open, Company
   defaults set, naming series present, perpetual inventory on, ≥1 warehouse, VN role
   profiles exist, opening TB balanced (delegates to Task 30), no numberless accounts,
