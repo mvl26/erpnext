@@ -111,6 +111,22 @@ class TestVietnamCompanySetup(FrappeTestCase):
 		self.assertEqual(mode_of_payment_account("Cash", self.company), acct(self.company, "111"))
 		self.assertEqual(mode_of_payment_account("Bank", self.company), acct(self.company, "112"))
 
+	def test_setup_is_idempotent(self):
+		from erpnext.regional.vietnam.setup import setup
+
+		# The hook already ran on company creation; running it again must not duplicate.
+		setup(self.company)
+		setup(self.company)
+
+		for mode in ("Cash", "Bank"):
+			rows = [r for r in frappe.get_doc("Mode of Payment", mode).accounts if r.company == self.company]
+			self.assertEqual(len(rows), 1, f"duplicate {mode} MoP row")
+		for category in (HUU_HINH, VO_HINH):
+			rows = [
+				r for r in frappe.get_doc("Asset Category", category).accounts if r.company_name == self.company
+			]
+			self.assertEqual(len(rows), 1, f"duplicate {category} row")
+
 	def _gl_by_number(self, voucher_no):
 		result = {}
 		for r in frappe.get_all(
