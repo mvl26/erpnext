@@ -19,7 +19,7 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 ### Checkpoint A — regression + pre-commit green; day-1 paper needs covered
 
 ## Phase 15 — Hóa đơn điện tử (WS-B)
-- [ ] Task 40 — E-invoice settings + custom fields (Company + Sales Invoice, setup hook)
+- [x] Task 40 — E-invoice settings + custom fields (Company + Sales Invoice, setup hook)
 - [x] Task 41 — DocType `Vietnam E Invoice Log`
 - [ ] Task 42 — Payload builder + adapter registry + mock adapter
 - [ ] Task 43 — Issuance orchestration on SI submit (opt-in, non-blocking, retry)
