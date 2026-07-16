@@ -30,6 +30,10 @@ def setup(company=None, patch=True):
 	_create_asset_categories(company)
 	_make_e_invoice_custom_fields()
 
+	from erpnext.regional.vietnam.tt45 import apply_tt45_useful_life
+
+	apply_tt45_useful_life()
+
 
 def _ensure_mode_of_payment(name, mode_type):
 	if not frappe.db.exists("Mode of Payment", name):
