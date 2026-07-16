@@ -157,12 +157,31 @@ def _make_numberless_account(company):
 	).insert(ignore_permissions=True).name
 
 
-def _post_opening_je_by_account(company, lines):
+def _make_misnumbered_account(company, number):
+	# A Balance-Sheet account carrying a P&L-range TT99 number: core's report_type
+	# gate lets its opening entries through, only the number-prefix gate catches it.
+	parent = frappe.db.get_value(
+		"Account", {"company": company, "is_group": 1, "root_type": "Equity"}, "name"
+	)
+	return frappe.get_doc(
+		{
+			"doctype": "Account",
+			"account_name": f"_Test Misnumbered {number}",
+			"account_number": number,
+			"company": company,
+			"parent_account": parent,
+			"root_type": "Equity",
+			"is_group": 0,
+		}
+	).insert(ignore_permissions=True).name
+
+
+def _post_opening_je_by_account(company, lines, posting_date=None):
 	je = frappe.new_doc("Journal Entry")
 	je.company = company
 	je.voucher_type = "Opening Entry"
 	je.is_opening = "Yes"
-	je.posting_date = frappe.utils.nowdate()
+	je.posting_date = posting_date or frappe.utils.nowdate()
 	for account, dr, cr in lines:
 		je.append("accounts", {"account": account, "debit_in_account_currency": dr, "credit_in_account_currency": cr})
 	je.flags.ignore_permissions = True
@@ -203,6 +222,49 @@ class TestVietnamOpeningBalances(FrappeTestCase):
 
 		# No opening entries: nets to zero, nothing non-TT99, no orphan parties.
 		company = make_vn_company("_Test VN Open Emp", "TOE3")
+		self.assertTrue(validate_opening_balances(company)["ok"])
+
+	def test_midyear_balanced_bs_only_on_date_passes(self):
+		from erpnext.regional.vietnam.go_live import (
+			go_live_readiness,
+			post_opening_journal_entry,
+			validate_opening_balances,
+		)
+
+		company = make_vn_company("_Test VN Open Mid", "TOM4")
+		as_of = "2026-06-30"
+		# Mid-year cutover: BS-only TB, the H1 result sits in equity (4212).
+		post_opening_journal_entry(company, [("111", 800_000, 0), ("4212", 0, 800_000)], posting_date=as_of)
+		result = validate_opening_balances(company, as_of=as_of)
+		self.assertTrue(result["ok"], result["checks"])
+		# go_live_readiness threads as_of through to the opening check.
+		ready = go_live_readiness(company, as_of=as_of)
+		self.assertTrue(_check_named(ready, "opening_balanced")["ok"])
+
+	def test_midyear_pnl_numbered_account_fails(self):
+		from erpnext.regional.vietnam.go_live import validate_opening_balances
+
+		company = make_vn_company("_Test VN Open Mis", "TOM5")
+		as_of = "2026-06-30"
+		mis = _make_misnumbered_account(company, "5999")
+		_post_opening_je_by_account(
+			company, [(_acct(company, "111"), 100, 0), (mis, 0, 100)], posting_date=as_of
+		)
+		result = validate_opening_balances(company, as_of=as_of)
+		self.assertFalse(result["ok"])
+		self.assertFalse(_check_named(result, "bs_only")["ok"])
+		# FY-start mode (no as_of) does not apply the mid-year gates.
+		self.assertNotIn("bs_only", [c["name"] for c in validate_opening_balances(company)["checks"]])
+
+	def test_midyear_off_date_opening_fails(self):
+		from erpnext.regional.vietnam.go_live import post_opening_journal_entry, validate_opening_balances
+
+		company = make_vn_company("_Test VN Open Dat", "TOM6")
+		post_opening_journal_entry(company, [("112", 300, 0), ("4211", 0, 300)], posting_date="2026-01-01")
+		result = validate_opening_balances(company, as_of="2026-06-30")
+		self.assertFalse(result["ok"])
+		self.assertFalse(_check_named(result, "on_cutover_date")["ok"])
+		# The same data is a valid FY-start opening when no as_of is given.
 		self.assertTrue(validate_opening_balances(company)["ok"])
 
 

@@ -6,7 +6,7 @@ early cutover on erpnext-only, HĐĐT, sổ sách/chứng từ in, kết chuyể
 export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 
 ## Phase 13 — Mid-year cutover support (WS-A)
-- [ ] Task 33 — `as_of` mid-year mode: opening tooling + validator (BS-only, P&L rejected, 4212)
+- [x] Task 33 — `as_of` mid-year mode: opening tooling + validator (BS-only, P&L rejected, 4212)
 - [ ] Task 34 — Runbook addendum: cutover giữa năm (docs)
 
 ## Phase 14 — Chứng từ in & sổ sách (WS-C1)

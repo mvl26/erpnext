@@ -20,6 +20,10 @@ INPUT_VAT_ACCOUNT = "1331"  # thuế GTGT được khấu trừ
 BALANCE_SHEET_ROOT_TYPES = ("Asset", "Liability", "Equity")
 PROFIT_AND_LOSS_ROOT_TYPES = ("Income", "Expense")
 
+# TT99 P&L account-number prefixes (loại 5–9: doanh thu, chi phí, thu nhập/chi phí
+# khác, xác định KQKD) — excluded from a mid-year (BS-only) opening trial balance.
+PL_ACCOUNT_PREFIXES = ("5", "6", "7", "8", "9")
+
 # VN document naming series, added as *additional* options at go-live (never
 # replacing the shipped defaults). Prefix + ".YYYY.-" yields e.g. HDB-2027-00001.
 VN_NAMING_SERIES = (
