@@ -130,11 +130,44 @@ số dư bằng các tài khoản vốn chủ sở hữu thật (411x/421x), **k
 
 ---
 
+## Bước 4B — Cutover GIỮA NĂM (số dư tại ngày chốt, ví dụ 30/06)
+
+Dùng khi go-live không rơi vào đầu năm tài chính. Mặc định của phương án này
+(kế toán trưởng xác nhận trước khi nhập thật):
+
+- **Ngày chốt** (`as_of`): mặc định **30/06/2026** — số dư lấy theo bảng cân đối
+  tại cuối ngày chốt; nghiệp vụ từ 01/07 nhập trực tiếp vào ERPNext (kể cả nhập
+  bù các ngày đã qua).
+- **Chỉ tài khoản Bảng cân đối (loại 1–4).** KHÔNG đưa số dư/lũy kế các tài khoản
+  loại 5–9 vào bút toán mở sổ (hệ thống cũng chặn tài khoản P&L trong Opening
+  Entry). **Kết quả kinh doanh lũy kế nửa đầu năm đưa vào 4212** (LNST chưa phân
+  phối năm nay).
+- **Mọi bút toán mở sổ hạch toán đúng ngày chốt** (`posting_date = as_of`) — kể cả
+  Opening Invoice, Stock Reconciliation, Asset.
+- **Hệ quả cần biết:** B02/B03 in từ ERPNext cho năm cutover chỉ phủ từ sau ngày
+  chốt; BCTC **cả năm** phải cộng thủ công số liệu nửa đầu năm từ hệ thống/sổ cũ.
+  Kế toán trưởng ghi nhận điểm này khi lập BCTC năm.
+
+Các bước nhập giống Bước 4 (GL / Opening Invoice / Stock Reconciliation / Asset)
+nhưng thay ngày đầu năm bằng ngày chốt:
+
+```bash
+bench --site miyano execute erpnext.regional.vietnam.go_live.post_opening_journal_entry \
+  --kwargs "{'company':'<CTY>','posting_date':'2026-06-30','lines':[['111',500000000,0],['156',300000000,0],['4212',0,800000000]]}"
+```
+
+---
+
 ## Bước 5 — Kiểm tra số dư đầu kỳ (`validate_opening_balances`)
 
 ```bash
+# Đầu năm tài chính (Bước 4)
 bench --site miyano execute erpnext.regional.vietnam.go_live.validate_opening_balances \
   --kwargs "{'company':'<CTY>'}"
+
+# Cutover giữa năm (Bước 4B) — truyền ngày chốt
+bench --site miyano execute erpnext.regional.vietnam.go_live.validate_opening_balances \
+  --kwargs "{'company':'<CTY>','as_of':'2026-06-30'}"
 ```
 
 Yêu cầu **tất cả** đạt (`ok = true`):
@@ -142,6 +175,12 @@ Yêu cầu **tất cả** đạt (`ok = true`):
 - `balanced` — tổng Nợ = tổng Có (bảng cân đối thử nghiệm về 0).
 - `all_tt99` — mọi bút toán mở sổ dùng tài khoản có **số hiệu TT99**.
 - `ar_ap_has_party` — các bút toán 131/331 đều có **đối tượng** (khớp sổ chi tiết).
+
+Riêng chế độ giữa năm (`as_of`) thêm hai điều kiện:
+
+- `bs_only` — không có tài khoản **số hiệu loại 5–9** trong số dư đầu kỳ (kết quả
+  H1 nằm ở 4212).
+- `on_cutover_date` — mọi bút toán mở sổ hạch toán **đúng ngày chốt**.
 
 Báo cáo cũng trả các control total 131/331/15x để đối chiếu với sổ chi tiết công
 nợ và bảng kê tồn kho.
@@ -200,7 +239,9 @@ bench --site miyano migrate
 [ ] 3. seed_master_data → import CSV khách/NCC/hàng → master_data_completeness = ok
 [ ] 4. Số dư đầu kỳ: GL (Opening Entry) · 131/331 (Opening Invoice Tool) ·
        tồn kho (Stock Reconciliation) · TSCĐ (Asset)
-[ ] 5. validate_opening_balances = ok (balanced · all_tt99 · ar_ap_has_party)
+       — giữa năm (4B): chỉ TK loại 1–4, KQKD H1 vào 4212, đúng ngày chốt
+[ ] 5. validate_opening_balances = ok (balanced · all_tt99 · ar_ap_has_party;
+       giữa năm thêm as_of: bs_only · on_cutover_date)
 [ ] 6. print_go_live_readiness = ✅ SẴN SÀNG (mọi mục ✓)
 [ ] 7. Chốt ngày go-live · smoke test SI/PI/Payment/Kho · kiểm tra B01/B02/Sổ Cái
 [ ] (dự phòng) Quy trình rollback bằng bench restore đã sẵn sàng
