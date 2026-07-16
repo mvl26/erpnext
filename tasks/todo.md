@@ -7,7 +7,7 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 
 ## Phase 13 — Mid-year cutover support (WS-A)
 - [x] Task 33 — `as_of` mid-year mode: opening tooling + validator (BS-only, P&L rejected, 4212)
-- [ ] Task 34 — Runbook addendum: cutover giữa năm (docs)
+- [x] Task 34 — Runbook addendum: cutover giữa năm (docs)
 
 ## Phase 14 — Chứng từ in & sổ sách (WS-C1)
 - [ ] Task 35 — Print formats Phiếu thu 01-TT + Phiếu chi 02-TT (Payment Entry, số-thành-chữ)
