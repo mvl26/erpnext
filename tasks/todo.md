@@ -1,26 +1,51 @@
-# TODO — Miyano Go-Live Readiness (Full Trading ERP on TT99)
+# TODO — Miyano VN Accounting: Live Operation on ERPNext Core (Phase 13+)
 
-Prior phases (Tasks 1–26) shipped: TT99 chart, operational defaults, GTGT/import
-tax, VND default, statutory reports, số-thành-chữ, VN `setup()` hook, Miyano
-reconfigured onto TT99. This phase makes site `miyano` **ready to go live** on the
-full trading ERP (greenfield, opening balances at FY start, minimal code + runbook).
-See `SPEC.md` and `tasks/plan.md` for acceptance criteria and dependencies.
+Prior phases (Tasks 1–32) shipped: TT99 foundation + statutory reports + go-live
+tooling/runbook; 34 VN tests green. This phase (see `SPEC.md`, `tasks/plan.md`):
+early cutover on erpnext-only, HĐĐT, sổ sách/chứng từ in, kết chuyển 911, tax
+export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 
-## Phase 8 — Company & module configuration
-- [x] Task 27 — `configure_go_live(company)`: Fiscal Year + periods, perpetual inventory + valuation, VN naming series (SI/PI/JE/PE/DN/Stock Entry), VND formats — idempotent, VN-guarded
+## Phase 13 — Mid-year cutover support (WS-A)
+- [ ] Task 33 — `as_of` mid-year mode: opening tooling + validator (BS-only, P&L rejected, 4212)
+- [ ] Task 34 — Runbook addendum: cutover giữa năm (docs)
 
-## Phase 9 — Users & permissions
-- [x] Task 28 — `ensure_vn_role_profiles()`: six VN Role Profiles (kế toán, kế toán trưởng, thủ kho, bán hàng, mua hàng, quản lý) → ERPNext roles, idempotent
+## Phase 14 — Chứng từ in & sổ sách (WS-C1)
+- [ ] Task 35 — Print formats Phiếu thu 01-TT + Phiếu chi 02-TT (Payment Entry, số-thành-chữ)
+- [ ] Task 36 — Print formats Phiếu nhập kho 01-VT + Phiếu xuất kho 02-VT
+- [ ] Task 37 — Report Sổ quỹ tiền mặt (S07-DN, 111*)
+- [ ] Task 38 — Report Sổ tiền gửi ngân hàng (S08-DN, 112*)
+- [ ] Task 39 — Report Sổ chi tiết công nợ theo đối tượng (131/331)
 
-## Phase 10 — Master-data scaffolding (greenfield)
-- [x] Task 29 — Item Group taxonomy (thiết bị & vật tư y tế) + default kho/UOM/price list/tax categories; `master_data_completeness()` report; CSV import templates
+### Checkpoint A — regression + pre-commit green; day-1 paper needs covered
 
-## Phase 11 — Opening balances (FY start)
-- [x] Task 30 — Opening JE tooling + `validate_opening_balances(company)` (nets to zero, 100% TT99, AR=131/AP=331/stock=156 control totals)
+## Phase 15 — Hóa đơn điện tử (WS-B)
+- [ ] Task 40 — E-invoice settings + custom fields (Company + Sales Invoice, setup hook)
+- [ ] Task 41 — DocType `Vietnam E Invoice Log`
+- [ ] Task 42 — Payload builder + adapter registry + mock adapter
+- [ ] Task 43 — Issuance orchestration on SI submit (opt-in, non-blocking, retry)
+- [ ] Task 44 — Điều chỉnh / thay thế flows (lineage on log)
+- [ ] Task 45 — Real provider adapter + sandbox **[BLOCKED: OQ-1 — provider choice]**
 
-## Phase 12 — Go-live readiness & cutover
-- [x] Task 31 — `go_live_readiness(company)` command (whitelisted + CLI): full precondition checklist → structured pass/fail
-- [x] Task 32 — `docs/go_live_runbook.md` end-to-end VN cutover + one-page checklist + import templates
+### Checkpoint B — mock end-to-end green; only Task 45 remains for legal issuance
 
-## Go-live gate (not a code task)
-- [ ] Real Miyano cutover: verified backup + all-green readiness + **explicit user confirmation** before any real opening balance / config is entered on the live company
+## Phase 16 — Khóa sổ & kết chuyển 911 (WS-D)
+- [ ] Task 46 — `period_close.py`: kết chuyển preview (pure, no writes)
+- [ ] Task 47 — Kết chuyển execute + Accounting Period lock (idempotent)
+- [ ] Task 48 — Runbook: month-end close section (docs)
+
+## Phase 17 — Kê khai & export (WS-C2)
+- [ ] Task 49 — Bảng kê bán ra / mua vào export (CSV/XLSX)
+- [ ] Task 50 — 01/GTGT XML export (HTKK/eTax, golden file)
+
+## Phase 18 — GĐ2 remainder (WS-E)
+- [ ] Task 51 — TT45 khung khấu hao defaults on Asset Categories
+- [ ] Task 52 — Report Sổ chi tiết nguyên tệ + TK 007-style FX view
+- [ ] Task 53 — Per-employee TNCN surface (HRMS soft dependency, graceful degrade)
+
+### Checkpoint C — all suites + 34 shipped VN tests green; migrate + pre-commit clean
+
+## Gates (not code tasks)
+- [ ] OQ-1: user chooses HĐĐT provider + provides sandbox credentials → unblocks Task 45
+- [ ] OQ-2/OQ-3: kế toán trưởng confirms mid-year opening method + cutover date
+- [ ] Real Miyano cutover actions (opening balances, period lock, live issuance):
+      verified backup + explicit user confirmation — never automatic

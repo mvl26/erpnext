@@ -1,122 +1,264 @@
-# Implementation Plan — Miyano Go-Live Readiness (Full Trading ERP on TT99)
+# Implementation Plan — Miyano VN Accounting: Live Operation on ERPNext Core (Phase 13+)
 
-Source of truth: `SPEC.md`. Built **in `erpnext` core**, extending
-`erpnext/regional/vietnam/`. **Minimal, idempotent, VN-guarded** helpers +
-validation/readiness commands, **plus a detailed VN go-live runbook**. Every helper
-is built & tested on a **scratch** company first; every destructive step on the real
-Miyano is gated behind a **verified backup + explicit user confirmation**.
+Source of truth: `SPEC.md` (Phase 13+, supersedes the shipped go-live spec). Direction
+decided by the user 2026-07-16: build **in `erpnext` core**; `mvl_accounting` stays
+**parked** (reference-only, never installed, never imported at runtime); **early
+cutover** on erpnext-only with **mid-year opening balances**.
+
+Prior phases (Tasks 1–32, shipped): TT99 chart + defaults + GTGT/import tax; statutory
+reports (draft-flagged); số-thành-chữ; VN setup hook; go-live tooling + runbook. All
+34 VN tests green at plan time.
 
 ## Architecture Decisions
 
-- New module `erpnext/regional/vietnam/go_live.py` for config + validation +
-  readiness; `role_profiles.py` and `master_data.py` for the fixture/seed helpers.
-- Reuse the shipped `setup.py` `_acct(company, number)` resolver and `CHART_NAME`;
-  reference every account by **TT99 number**, resolved at runtime.
-- Every helper: **idempotent** (skip-if-set), **VN-guarded** (no-op unless
-  `country == "Vietnam"`), callable via `bench execute`, key ones `@frappe.whitelist()`.
-- Readiness/validation **return structured pass/fail** results — never raise on a
-  "not ready" state.
-- Greenfield: no migration code. Master data is entered manually per the runbook;
-  code only **scaffolds** (taxonomy tree, import templates) and **validates**
-  (completeness, opening-balance integrity).
+- All new code in `erpnext/regional/vietnam/` (+ `erpnext/regional/doctype|report|
+  print_format/` for artifacts), reusing `_acct(company, number)` / `CHART_NAME`.
+- Every helper: **idempotent**, **VN-guarded**, TT99 accounts by **number**, structured
+  results, `bench execute`-callable; key entry points `@frappe.whitelist()`.
+- E-invoice: **adapter registry**; the `mock` adapter ships first and is the only one
+  tests use; network I/O only inside adapters; credentials only in `site_config.json`.
+  The real provider adapter (Task 45) is **blocked on OQ-1** (provider choice).
+- Kết chuyển 911 **integrates with** (never replaces) Period Closing Voucher /
+  Accounting Period; preview is pure computation, execute posts JEs.
+- Mid-year opening default (OQ-2): **BS-only TB, H1 result in 4212**; the `as_of`
+  parameter keeps FY-start behavior intact (backward compatible).
+- No task in this plan touches the **real Miyano** company — code + scratch-company
+  tests + docs only. Real cutover actions remain gated (backup + explicit confirm).
 
-## Prior phases (shipped, Tasks 1–26)
+## Task List
 
-TT99 chart; operational Company defaults; GTGT/import tax; VND default; statutory
-reports (B01/B02/B03/B09, tax declarations, sổ kế toán); số-thành-chữ; reusable VN
-`setup(company)` hook; empty **Miyano** reconfigured onto TT99. A VN company is fully
-TT99-wired end-to-end. This plan adds the **operational + go-live** layer.
+### Phase 13 — Mid-year cutover support (WS-A)
 
-## Phase 8 — Company & module configuration (config, low code)
+- [ ] **Task 33 — Mid-year `as_of` mode for opening tooling + validator.**
+  Extend `post_opening_journal_entry` / `validate_opening_balances` with optional
+  `as_of` (posting date ≠ FY start): BS-only mode — any P&L (5xx–8xx) account in the
+  opening TB fails validation with a specific reason; H1 result expected in 4212;
+  control totals unchanged; `go_live_readiness` passes `as_of` through.
+  - Acceptance: SPEC success #1 — balanced BS-only TB as of 2026-06-30 passes;
+    unbalanced / non-TT99 / P&L-account input fails with the reason; FY-start
+    behavior (no `as_of`) unchanged — all 34 existing tests stay green.
+  - Verify: `run-tests --module erpnext.regional.vietnam.test_go_live`
+  - Files: `go_live.py`, `constants.py`, `test_go_live.py`. Size M. Deps: none.
 
-- [x] **Task 27 — `configure_go_live(company)`: fiscal periods, stock policy, naming, formats.**
-  Idempotent, VN-guarded helper that ensures: a Fiscal Year covering the go-live year
-  (parameterized, open); perpetual inventory ON + a valuation method; VN naming series
-  on Sales Invoice / Purchase Invoice / Journal Entry / Payment Entry / Delivery Note /
-  Stock Entry; VND number/date format on the company. No hard-coded year.
-  - Acceptance: SPEC success #1 — after run, all four config areas set; second run is a no-op.
-  - Verify: `run-tests --module erpnext.regional.vietnam.test_go_live` (config + idempotency).
-  - Files: `go_live.py`, `constants.py`, `test_go_live.py`. Size M. Deps: none (Tasks 21–26).
+- [ ] **Task 34 — Runbook addendum: mid-year cutover.**
+  `docs/go_live_runbook.md` gains a "Cutover giữa năm" section: what the kế toán
+  enters (BS-only TB, số dư 30/06), July backfill, what H1 reporting stays manual
+  (per OQ-2 default), exact commands with `as_of`.
+  - Acceptance: section exists, commands copy-paste runnable, OQ-2/OQ-3 defaults stated.
+  - Verify: manual review (docs-only).
+  - Files: `docs/go_live_runbook.md`. Size S. Deps: 33.
 
-## Phase 9 — Users & permissions (minimal fixture code)
+### Phase 14 — Chứng từ in & sổ sách (WS-C, part 1 — needed day 1)
 
-- [x] **Task 28 — `ensure_vn_role_profiles()`: VN Role Profiles.**
-  Idempotently create six Role Profiles — Kế toán, Kế toán trưởng, Thủ kho, Bán hàng,
-  Mua hàng, Quản lý — each mapped to the appropriate standard ERPNext roles (Accounts
-  User/Manager, Stock User, Sales User, Purchase User, etc.). No real user accounts
-  created (those are runbook steps, gated on user confirmation).
-  - Acceptance: SPEC success #2 — six profiles exist with expected role sets; re-run no-op.
-  - Files: `role_profiles.py`, `test_go_live.py`. Size S/M. Deps: none.
+- [ ] **Task 35 — Print formats Phiếu thu 01-TT + Phiếu chi 02-TT.**
+  Jinja print formats on Payment Entry (receive → thu, pay → chi), Phụ lục I TT99
+  layout: company header, số phiếu, người nộp/nhận, lý do, amount + **số-thành-chữ**
+  (first real consumer of `so_thanh_chu`), chữ ký blocks. Installed idempotently by
+  the VN setup hook.
+  - Acceptance: SPEC success #3 (vouchers) — `frappe.get_print` renders non-empty HTML
+    containing the amount-in-words for a scratch Payment Entry, both directions.
+  - Verify: `run-tests --module erpnext.regional.vietnam.test_books_and_vouchers`
+  - Files: `erpnext/regional/print_format/phieu_thu/`, `.../phieu_chi/`, `setup.py`,
+    `test_books_and_vouchers.py` (new). Size M. Deps: none.
 
-## Phase 10 — Master-data scaffolding (greenfield: seed tree + validate)
+- [ ] **Task 36 — Print formats Phiếu nhập kho 01-VT + Phiếu xuất kho 02-VT.**
+  Same pattern on Purchase Receipt/Stock Entry (nhập) and Delivery Note/Stock Entry
+  (xuất): item table (mã, tên, ĐVT, SL, đơn giá, thành tiền), totals + số-thành-chữ.
+  - Acceptance: renders for a scratch stock document of each type.
+  - Verify: same module.
+  - Files: `.../phieu_nhap_kho/`, `.../phieu_xuat_kho/`, `setup.py`,
+    `test_books_and_vouchers.py`. Size M. Deps: 35 (shared layout conventions).
 
-- [x] **Task 29 — Master-data taxonomy + completeness report + import templates.**
-  `seed_item_group_taxonomy(company)`: create a thiết bị y tế / vật tư y tế Item Group
-  tree (leaf groups inherit income 511 / expense 632 via existing defaults). Seed one
-  default Warehouse, base UOMs, a default Price List, VN tax categories.
-  `master_data_completeness(company)`: report flagging Customers/Suppliers missing MST
-  (tax id) / address, and Items missing a default account resolution. Add CSV import
-  templates under `docs/import_templates/`.
-  - Acceptance: SPEC success #3 — taxonomy created; completeness flags a Customer
-    missing MST; a complete master is not flagged.
-  - Files: `master_data.py`, `docs/import_templates/`, `test_go_live.py`. Size M. Deps: 27.
+- [ ] **Task 37 — Report Sổ quỹ tiền mặt (S07-DN).**
+  Script Report over GL on `111*`: ngày, số phiếu (voucher link), diễn giải, thu,
+  chi, tồn (running balance from opening); filters company/account/date range.
+  - Acceptance: SPEC success #3 (books) — closing tồn equals GL closing balance for
+    the same range on seeded entries.
+  - Verify: same module.
+  - Files: `erpnext/regional/report/so_quy_tien_mat/`, `utils.py` (shared row
+    builder), `test_books_and_vouchers.py`. Size M. Deps: none.
 
-## Phase 11 — Opening balances (FY-start)
+- [ ] **Task 38 — Report Sổ tiền gửi ngân hàng (S08-DN).**
+  Same shape on `112*`, grouped/filterable per bank account (child of 112).
+  - Acceptance: per-account running balance ties to GL closing.
+  - Verify: same module.
+  - Files: `erpnext/regional/report/so_tien_gui_ngan_hang/`, `test_books_and_vouchers.py`.
+    Size S. Deps: 37 (reuses the row builder).
 
-- [x] **Task 30 — Opening-balance tooling + `validate_opening_balances(company)`.**
-  Helper to post an **Opening Journal Entry** from a `{TT99 number: (dr, cr)}` mapping
-  (resolved via `_acct`, `is_opening=Yes`). Validator asserts: the opening TB **nets to
-  zero**; **every** opening entry uses a TT99-numbered account; control totals tie —
-  AR total → 131, AP total → 331, stock value → 156 (and asset gross/accum-dep →
-  211/2141 when present). Runbook documents entering AR/AP via **Opening Invoice
-  Creation Tool**, stock via **Stock Reconciliation**, fixed assets via Asset records.
-  - Acceptance: SPEC success #4 — validator fails on unbalanced TB / non-TT99 account;
-    passes on a balanced, fully-TT99 opening TB with tying control totals.
-  - Files: `go_live.py`, `constants.py`, `test_go_live.py`. Size M. Deps: 27.
+- [ ] **Task 39 — Report Sổ chi tiết công nợ theo đối tượng.**
+  Per-party ledger on `131/331` (+ other party-linked TT99 accounts): opening /
+  movements / closing per party with voucher rows; filters company/party type/party/
+  account/date.
+  - Acceptance: per-party closing ties to GL with party filter; party missing on a
+    131/331 row is surfaced (consistent with shipped opening validator rule).
+  - Verify: same module.
+  - Files: `erpnext/regional/report/so_chi_tiet_cong_no/`, `test_books_and_vouchers.py`.
+    Size M. Deps: 37.
 
-## Phase 12 — Go-live readiness & cutover runbook
+### Checkpoint A (after 33–39)
+- [ ] Full VN regression green (all suites); pre-commit clean; phiếu formats render;
+      books tie to GL. Cutover day-1 paper needs are covered.
 
-- [x] **Task 31 — `go_live_readiness(company)` command (whitelisted + CLI).**
-  Run all preconditions → structured checklist: on TT99, fiscal year open, Company
-  defaults set, naming series present, perpetual inventory on, ≥1 warehouse, VN role
-  profiles exist, opening TB balanced (delegates to Task 30), no numberless accounts,
-  verified-backup marker present. Returns `{ok, checks:[{name, ok, detail}]}`; a thin
-  formatter prints a readable pass/fail table for `bench execute`.
-  - Acceptance: SPEC success #5 — all-green only when every precondition met; removing
-    any one flips exactly that check to fail.
-  - Files: `go_live.py`, `test_go_live.py`. Size M. Deps: 27–30.
+### Phase 15 — Hóa đơn điện tử (WS-B — mock-first; real adapter blocked on OQ-1)
 
-- [x] **Task 32 — Go-live runbook + checklist (docs).**
-  `docs/go_live_runbook.md`: end-to-end VN cutover — pre-go-live **backup & verify**;
-  `configure_go_live`; seed + import master data; enter opening balances (GL / AR / AP
-  / stock / assets); `validate_opening_balances`; create users + assign role profiles;
-  `go_live_readiness` all-green; set go-live date; **day-1 smoke tests** (post a real
-  SI/PI, a payment, a stock movement); **rollback** via backup restore. Include a
-  one-page printable checklist. Mostly docs; no automated test (manual review).
-  - Acceptance: SPEC success #6 — runbook covers every stage with the exact commands;
-    import templates referenced; rollback documented.
-  - Files: `docs/go_live_runbook.md`, `docs/import_templates/`. Size M. Deps: 27–31.
+- [ ] **Task 40 — E-invoice settings + custom fields (setup hook).**
+  Idempotent custom fields: Company (e-invoice enabled, provider, ký hiệu mẫu/serial
+  defaults) and Sales Invoice (số HĐĐT, ký hiệu, mã CQT, trạng thái, link to log) —
+  created by the VN setup hook, VN-guarded.
+  - Acceptance: fields exist after `setup()` on a scratch VN company; re-run no-op;
+    non-VN company untouched.
+  - Verify: `run-tests --module erpnext.regional.vietnam.test_e_invoice`
+  - Files: `setup.py`, `constants.py`, `test_e_invoice.py` (new). Size M. Deps: none.
 
-### Checkpoint: `go_live_readiness("<scratch>")` is all-green after the runbook's
-### scripted setup; the real-Miyano cutover is executed only after a verified backup
-### and explicit user confirmation (never automatically).
+- [ ] **Task 41 — DocType `Vietnam E Invoice Log`.**
+  Log DocType (module Regional): SI link, provider, payload snapshot, số/ký hiệu/mã
+  CQT, trạng thái (draft/issued/adjusted/replaced/cancelled), XML/PDF attachments,
+  lineage links (adjusts / replaces).
+  - Acceptance: DocType installs via migrate; basic CRUD + status transitions tested.
+  - Verify: same module + `bench --site miyano migrate` clean.
+  - Files: `erpnext/regional/doctype/vietnam_e_invoice_log/` (json/py/tests hook).
+    Size M. Deps: none.
+
+- [ ] **Task 42 — Payload builder + adapter registry + mock adapter.**
+  `build_invoice_payload(si)` pure (party, MST, lines, thuế suất per GTGT template,
+  totals, số-thành-chữ); `get_provider(name)` registry; `providers/mock.py` returns
+  deterministic số/ký hiệu/mã CQT + echo XML.
+  - Acceptance: payload unit-tested against a scratch SI (totals/tax match SI);
+    unknown provider → clear error; mock issue() round-trips.
+  - Verify: same module.
+  - Files: `e_invoice.py`, `e_invoice_providers/__init__.py`, `.../mock.py`,
+    `test_e_invoice.py`. Size M. Deps: 40.
+
+- [ ] **Task 43 — Issuance orchestration on SI submit.**
+  `issue_e_invoice(si)` wired via hooks (`doc_events` on Sales Invoice on_submit):
+  opt-in per company setting; writes the log, stamps SI fields; failure leaves SI
+  submitted but logs the error state (never blocks accounting on provider downtime —
+  retry path via whitelisted method).
+  - Acceptance: SPEC success #2 — submit on enabled scratch company + mock → log
+    created, SI stamped; disabled company → no-op; provider error → SI stays
+    submitted, log records failure, retry succeeds.
+  - Verify: same module + full VN regression.
+  - Files: `e_invoice.py`, `erpnext/hooks.py`, `test_e_invoice.py`. Size M. Deps: 41, 42.
+
+- [ ] **Task 44 — Điều chỉnh / thay thế flows.**
+  Issue adjustment (hóa đơn điều chỉnh, from a return/credit-note SI) and replacement
+  (hóa đơn thay thế) via the provider; lineage recorded on the log (adjusts/replaces
+  links); original log status updated.
+  - Acceptance: lineage chain asserted across the log records; statuses correct.
+  - Verify: same module.
+  - Files: `e_invoice.py`, `test_e_invoice.py`, log DocType json (links). Size M.
+    Deps: 43.
+
+- [ ] **Task 45 — Real provider adapter + sandbox verification. [BLOCKED: OQ-1]**
+  Implement `providers/<chosen>.py` against the chosen provider's sandbox; manual
+  sandbox round-trip documented. **Do not start** until the provider + sandbox
+  credentials exist (user provides; credentials only in `site_config.json`).
+  - Acceptance: sandbox issuance round-trip verified manually; zero secrets in git.
+  - Files: `e_invoice_providers/<provider>.py`, docs. Size M. Deps: 43 + OQ-1.
+
+### Checkpoint B (after 40–44; 45 pending OQ-1)
+- [ ] SI submit on scratch issues via mock end-to-end; regression green. The moment a
+      provider is chosen, only Task 45 remains for legal issuance.
+
+### Phase 16 — Khóa sổ & kết chuyển 911 (WS-D — needed first month-end)
+
+- [ ] **Task 46 — `period_close.py`: kết chuyển preview (pure).**
+  `ket_chuyen_911(company, period, preview=1)`: compute closing lines from GL for the
+  period — Dr 5xx/7xx → 911, 911 → Cr 6xx/8xx, net → 4212 — returning a structured
+  line list + expected 911 zero-check; no writes.
+  - Acceptance: on seeded revenue+expense scratch data, preview lists exactly the
+    expected lines and net result; empty period → empty preview, ok:true.
+  - Verify: `run-tests --module erpnext.regional.vietnam.test_period_close`
+  - Files: `period_close.py` (new), `constants.py`, `test_period_close.py` (new).
+    Size M. Deps: none.
+
+- [ ] **Task 47 — Kết chuyển execute + period lock (idempotent).**
+  `preview=0`: post the JE set (marked, linked to period), verify 911 nets to zero
+  after posting, then create/close the **Accounting Period** for the month; re-run
+  for a closed period → structured "already closed" (no duplicate JEs); cancel path
+  documented (unlock = kế toán trưởng, ask-first).
+  - Acceptance: SPEC success #4 — 5xx–8xx and 911 zero after execute; result in 4212;
+    period locked (posting into it blocked); re-run no-op.
+  - Verify: same module + full VN regression.
+  - Files: `period_close.py`, `test_period_close.py`. Size M. Deps: 46.
+
+- [ ] **Task 48 — Runbook: month-end close section.**
+  Kết chuyển → verify 911=0 → lock → run sổ sách/B01/B02 checklist, with commands.
+  - Acceptance: section exists with copy-paste commands; ask-first gates stated.
+  - Verify: manual review (docs-only).
+  - Files: `docs/go_live_runbook.md`. Size S. Deps: 47.
+
+### Phase 17 — Kê khai & export (WS-C, part 2 — needed first filing)
+
+- [ ] **Task 49 — Bảng kê bán ra / mua vào export.**
+  Whitelisted export from the 01/GTGT data source: bảng kê hóa đơn bán ra & mua vào
+  (số/ký hiệu/ngày HĐ, MST, tên đối tác, doanh số, thuế suất, tiền thuế) as CSV/XLSX.
+  - Acceptance: export rows tie to the on-screen report totals on seeded data.
+  - Verify: `run-tests --module erpnext.regional.report.to_khai_thue_gtgt_01.test_to_khai_thue_gtgt_01`
+  - Files: `to_khai_thue_gtgt_01/` (+small util), tests. Size M. Deps: none
+    (uses shipped report; e-invoice fields from Task 40 enrich rows when present).
+
+- [ ] **Task 50 — 01/GTGT XML export (HTKK/eTax).**
+  Build the declaration XML per the HTKK 01/GTGT schema (golden sample checked in,
+  hand-verified); numbers come from the shipped report; schema-validate when an XSD
+  is available.
+  - Acceptance: SPEC success #3 (XML) — output matches the golden file on seeded
+    data; malformed/mixed-company input → structured error.
+  - Verify: same module.
+  - Files: `to_khai_thue_gtgt_01/`, golden file under the report dir, tests. Size M.
+    Deps: 49. **Risk:** exact schema version — flag output "cần kế toán kiểm tra
+    trước khi nộp" (OQ-5 pattern) until KTT signs off.
+
+### Phase 18 — GĐ2 remainder (WS-E)
+
+- [ ] **Task 51 — TT45 khung khấu hao defaults.**
+  `tt45.py`: TT45 useful-life map for the VN Asset Categories (+ any new standard
+  categories); setup hook applies `total_number_of_depreciations`/frequency
+  idempotently; existing categories with explicit values untouched.
+  - Acceptance: SPEC success #5 — categories carry TT45 lives after setup; re-run
+    no-op; user-modified values preserved.
+  - Verify: `run-tests --module erpnext.regional.vietnam.test_tt45`
+  - Files: `tt45.py` (new), `setup.py`, `test_tt45.py` (new). Size M. Deps: none.
+
+- [ ] **Task 52 — Sổ chi tiết nguyên tệ + TK 007-style FX view.**
+  Report: per foreign-currency account (1122/1312/3312/341…) rows in nguyên tệ +
+  VND, running balances both currencies (007-style memo view for cash accounts).
+  - Acceptance: on seeded multi-currency entries, nguyên tệ and VND balances tie to
+    GL `debit/credit_in_account_currency` vs base amounts.
+  - Verify: `run-tests --module erpnext.regional.vietnam.test_books_and_vouchers`
+  - Files: `erpnext/regional/report/so_chi_tiet_nguyen_te/`, tests. Size M. Deps: none.
+
+- [ ] **Task 53 — Per-employee TNCN surface (HRMS soft dependency).**
+  Upgrade QT TNCN: when `hrms` tables exist, list per-employee taxable income / TNCN
+  withheld (reads Salary Slip data); when absent, degrade to the shipped
+  company-level GL summary with a notice. No hard import of hrms at module load.
+  - Acceptance: SPEC success #5 — rows appear with seeded hrms data; graceful
+    degradation asserted by simulating absence.
+  - Verify: `run-tests --module erpnext.regional.report.quyet_toan_tncn.test_quyet_toan_tncn`
+  - Files: `quyet_toan_tncn/`, tests. Size M. Deps: none.
+
+### Checkpoint C — Complete
+- [ ] All new suites + all shipped VN suites (34) green; `pre-commit run --all-files`
+      clean; `bench --site miyano migrate` clean; runbook covers mid-year cutover +
+      month-end + e-invoice ops. Task 45 explicitly reported if still blocked.
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Opening balances entered wrong on real company | High | Validator (nets-to-zero, TT99-only, control totals) + backup + scratch-first + confirm |
-| Naming series changed after documents exist | Med | Guard/warn in `configure_go_live`; runbook sets series before any document |
-| Perpetual inventory toggled on a company with stock | Med | Guard: only configure on empty stock; ask-first otherwise |
-| Overlap with mvl_accounting / assetcore masters | Med | Don't touch their overlays; seed only generic taxonomy; rely on Company defaults |
-| Readiness "passes" but backup not actually taken | High | Backup marker is operator-set post-verify; runbook makes it a hard gate |
-| Real user accounts created prematurely | Med | Task 28 creates only Role Profiles; real users are a runbook step gated on confirmation |
+| E-invoice provider undecided (OQ-1) | High (legal for real sales) | Adapter architecture: everything but Task 45 proceeds on mock; real adapter is one bounded task once chosen |
+| HTKK/eTax XML schema drift or wrong version | High (rejected filing) | Golden-file + XSD when available; draft-flag output until kế toán trưởng verifies first filing |
+| Mid-year opening method disputed later (OQ-2) | Med | Parameterized `as_of`, BS-only default; decision recorded in runbook; KTT sign-off before real entry |
+| Kết chuyển posts wrong JE set on real data | High | Preview-first API; scratch-only tests; execute on real Miyano is a runbook step behind backup + confirm |
+| Duplication drift vs parked `mvl_accounting` | Med | Reference-only rule (OQ-6); never import; note ported design decisions in commit messages |
+| Provider downtime blocking sales postings | Med | Issuance failure never blocks SI submit; error state + retry method |
+| hrms absent/renamed tables break TNCN report | Low | Soft dependency, runtime capability check, graceful degrade (tested) |
 
 ## Open Questions (defaults from SPEC.md)
 
-1. Go-live fiscal year — parameterized, team confirms at cutover.
-2. Item Group taxonomy — seed the tree, not the item catalog.
-3. Opening counter account — full TB via equity (Temporary Opening only if staged).
-4. Warehouses — one default kho; team adds the rest.
-5. Role Profiles — the six generic VN roles; extend on request.
-6. Backup marker — operator-set readiness note after taking + verifying a backup.
+1. **OQ-1** provider HĐĐT — Task 45 blocked until chosen; mock unblocks the rest.
+2. **OQ-2** mid-year opening — default BS-only + H1 result in 4212; KTT decides.
+3. **OQ-3** cutover date — default số dư 30/06/2026, July backfill.
+4. **OQ-4** VAT cadence — default quý; runbook states both.
+5. **OQ-5** draft mã-số sign-off — human runbook/UAT step, not code.
+6. **OQ-6** mvl_accounting — read for design only; re-implement in erpnext idiom.
