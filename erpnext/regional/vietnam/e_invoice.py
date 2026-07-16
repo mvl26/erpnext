@@ -94,9 +94,10 @@ def on_si_submit(doc, method=None):
 def issue_e_invoice(sales_invoice, si=None):
 	"""Issue a HĐĐT for a submitted Sales Invoice via the company's provider.
 
-	No-op unless the company opted in (``vn_einvoice_enabled``). A provider failure
-	records an Error log and stamps the invoice for retry — calling this again (it
-	is whitelisted) retries the issuance. Returns the log name, or None on no-op.
+	No-op unless the company opted in (``vn_einvoice_enabled``). A return invoice
+	whose original carries an issued HĐĐT is issued as a hóa đơn điều chỉnh with
+	lineage. A provider failure records an Error log and stamps the invoice for
+	retry — calling this again (it is whitelisted) retries. Returns the log name.
 	"""
 	si = si or frappe.get_doc("Sales Invoice", sales_invoice)
 	if si.docstatus != 1:
@@ -105,17 +106,49 @@ def issue_e_invoice(sales_invoice, si=None):
 	if not settings.enabled:
 		return None
 
+	adjusts = None
+	if si.get("is_return") and si.get("return_against"):
+		adjusts = frappe.db.get_value("Sales Invoice", si.return_against, "vn_einvoice_log")
+
 	payload = build_invoice_payload(si, settings)
 	provider = get_provider(settings.provider)
 	try:
-		result = provider.issue(payload)
+		result = provider.adjust(payload, adjusts) if adjusts else provider.issue(payload)
 	except Exception as exc:
-		return _log_issuance(si, settings, payload, error=str(exc))
-	return _log_issuance(si, settings, payload, result=result)
+		return _log_issuance(si, settings, payload, error=str(exc), adjusts=adjusts)
+	return _log_issuance(si, settings, payload, result=result, adjusts=adjusts)
 
 
-def _log_issuance(si, settings, payload, result=None, error=None):
-	"""Write the Vietnam E Invoice Log row and stamp the SI custom fields."""
+@frappe.whitelist()
+def issue_replacement(sales_invoice, replaces_invoice):
+	"""Issue a hóa đơn thay thế: ``sales_invoice`` replaces ``replaces_invoice``.
+
+	Explicit operator action (whitelisted, never automatic): the replacement gets
+	its own số from the provider, the log records the lineage and the original log
+	is marked Replaced.
+	"""
+	si = frappe.get_doc("Sales Invoice", sales_invoice)
+	if si.docstatus != 1:
+		frappe.throw(frappe._("Hóa đơn thay thế phải được submit trước khi phát hành HĐĐT"))
+	settings = get_e_invoice_settings(si.company)
+	if not settings.enabled:
+		return None
+
+	replaces = frappe.db.get_value("Sales Invoice", replaces_invoice, "vn_einvoice_log")
+	if not replaces:
+		frappe.throw(frappe._("Hóa đơn gốc {0} chưa có HĐĐT để thay thế").format(replaces_invoice))
+
+	payload = build_invoice_payload(si, settings)
+	provider = get_provider(settings.provider)
+	try:
+		result = provider.replace(payload, replaces)
+	except Exception as exc:
+		return _log_issuance(si, settings, payload, error=str(exc), replaces=replaces)
+	return _log_issuance(si, settings, payload, result=result, replaces=replaces)
+
+
+def _log_issuance(si, settings, payload, result=None, error=None, adjusts=None, replaces=None):
+	"""Write the Vietnam E Invoice Log row, stamp the SI, and update lineage."""
 	ok = bool(result and result.get("ok"))
 	result = result or {}
 	log = frappe.get_doc(
@@ -132,10 +165,17 @@ def _log_issuance(si, settings, payload, result=None, error=None):
 			"response": _as_json(result) if result else None,
 			"xml": result.get("xml"),
 			"error_message": error,
+			"adjusts": adjusts,
+			"replaces": replaces,
 		}
 	)
 	log.flags.ignore_permissions = True
 	log.insert()
+
+	if ok and adjusts:
+		frappe.db.set_value("Vietnam E Invoice Log", adjusts, "status", "Adjusted")
+	if ok and replaces:
+		frappe.db.set_value("Vietnam E Invoice Log", replaces, "status", "Replaced")
 
 	frappe.db.set_value(
 		"Sales Invoice",

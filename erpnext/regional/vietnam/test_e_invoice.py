@@ -208,3 +208,64 @@ class TestVietnamEInvoiceIssuance(FrappeTestCase):
 		si.reload()
 		self.assertEqual(si.vn_einvoice_status, "Issued")
 		self.assertTrue(si.vn_einvoice_number)
+
+
+class TestVietnamEInvoiceLineage(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.company = _ensure_vn_company("_Test VN EInv Line", "TVIL")
+		frappe.db.set_value(
+			"Company",
+			cls.company,
+			{"vn_einvoice_enabled": 1, "vn_einvoice_provider": "mock", "vn_einvoice_symbol": "1C26TAA"},
+		)
+
+	def _submit_invoice(self, customer_name):
+		si = make_draft_sales_invoice(self.company, customer_name=customer_name)
+		si.submit()
+		si.reload()
+		return si
+
+	def test_return_invoice_issues_dieu_chinh(self):
+		original = self._submit_invoice("_Test VN EInv Adj Cust")
+		ret = frappe.get_doc(
+			{
+				"doctype": "Sales Invoice",
+				"company": self.company,
+				"customer": original.customer,
+				"posting_date": frappe.utils.nowdate(),
+				"is_return": 1,
+				"return_against": original.name,
+				"items": [{"item_code": "_Test VN EInv Service", "qty": -1, "rate": 10_000_000}],
+			}
+		)
+		ret.flags.ignore_permissions = True
+		ret.insert()
+		ret.submit()
+		ret.reload()
+
+		self.assertEqual(ret.vn_einvoice_status, "Issued")
+		adj_log = frappe.get_doc("Vietnam E Invoice Log", ret.vn_einvoice_log)
+		self.assertEqual(adj_log.adjusts, original.vn_einvoice_log)
+		self.assertNotEqual(adj_log.invoice_number, original.vn_einvoice_number)
+		self.assertEqual(
+			frappe.db.get_value("Vietnam E Invoice Log", original.vn_einvoice_log, "status"), "Adjusted"
+		)
+
+	def test_replacement_links_and_marks_original(self):
+		from erpnext.regional.vietnam.e_invoice import issue_replacement
+
+		original = self._submit_invoice("_Test VN EInv Rep Cust 1")
+		replacement = self._submit_invoice("_Test VN EInv Rep Cust 2")
+
+		log_name = issue_replacement(replacement.name, replaces_invoice=original.name)
+		replacement.reload()
+
+		self.assertEqual(replacement.vn_einvoice_log, log_name)
+		rep_log = frappe.get_doc("Vietnam E Invoice Log", log_name)
+		self.assertEqual(rep_log.status, "Issued")
+		self.assertEqual(rep_log.replaces, original.vn_einvoice_log)
+		self.assertEqual(
+			frappe.db.get_value("Vietnam E Invoice Log", original.vn_einvoice_log, "status"), "Replaced"
+		)
