@@ -82,3 +82,131 @@ class TestToKhaiThueGTGT(FrappeTestCase):
 		self.assertEqual(v["25"], 500_000)  # thuế GTGT được khấu trừ kỳ này
 		self.assertEqual(v["40"], 500_000)  # thuế GTGT phải nộp = đầu ra - khấu trừ
 		self.assertEqual(v["41"], 0)  # chưa khấu trừ hết
+
+
+class TestBangKeGTGT(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		from erpnext.regional.vietnam.setup import _acct
+		from erpnext.regional.vietnam.test_setup import make_vn_company
+
+		cls.company = make_vn_company("_Test VN Bang Ke", "TVBK")
+		cls.to_date = nowdate()
+
+		customer = frappe.get_doc(
+			{
+				"doctype": "Customer",
+				"customer_name": "_Test VN BK Customer",
+				"customer_group": "All Customer Groups",
+				"territory": "All Territories",
+				"tax_id": "0312345678",
+			}
+		).insert(ignore_permissions=True)
+		supplier = frappe.get_doc(
+			{
+				"doctype": "Supplier",
+				"supplier_name": "_Test VN BK Supplier",
+				"supplier_group": "All Supplier Groups",
+				"tax_id": "0398765432",
+			}
+		).insert(ignore_permissions=True)
+		if not frappe.db.exists("Item", "_Test VN BK Service"):
+			frappe.get_doc(
+				{
+					"doctype": "Item",
+					"item_code": "_Test VN BK Service",
+					"item_name": "_Test VN BK Service",
+					"item_group": "All Item Groups",
+					"stock_uom": "Nos",
+					"is_stock_item": 0,
+				}
+			).insert(ignore_permissions=True)
+
+		si = frappe.get_doc(
+			{
+				"doctype": "Sales Invoice",
+				"company": cls.company,
+				"customer": customer.name,
+				"posting_date": cls.to_date,
+				"items": [{"item_code": "_Test VN BK Service", "qty": 1, "rate": 10_000_000}],
+				"taxes": [
+					{
+						"charge_type": "On Net Total",
+						"account_head": _acct(cls.company, "33311"),
+						"rate": 10,
+						"description": "Thuế GTGT đầu ra 10%",
+					}
+				],
+			}
+		)
+		si.flags.ignore_permissions = True
+		si.insert()
+		si.submit()
+		cls.si = si
+
+		pi = frappe.get_doc(
+			{
+				"doctype": "Purchase Invoice",
+				"company": cls.company,
+				"supplier": supplier.name,
+				"posting_date": cls.to_date,
+				"items": [{"item_code": "_Test VN BK Service", "qty": 1, "rate": 5_000_000}],
+				"taxes": [
+					{
+						"charge_type": "On Net Total",
+						"account_head": _acct(cls.company, "1331"),
+						"rate": 10,
+						"description": "Thuế GTGT đầu vào 10%",
+						"category": "Total",
+						"add_deduct_tax": "Add",
+					}
+				],
+			}
+		)
+		pi.flags.ignore_permissions = True
+		pi.insert()
+		pi.submit()
+		cls.pi = pi
+
+	def test_bang_ke_ban_ra_ties_to_declaration(self):
+		from erpnext.regional.report.to_khai_thue_gtgt_01.to_khai_thue_gtgt_01 import bang_ke_ban_ra
+
+		rows = bang_ke_ban_ra(self.company, "1900-01-01", self.to_date)
+		self.assertEqual(len(rows), 1)
+		row = rows[0]
+		self.assertEqual(row["so_hoa_don"], self.si.name)  # no HĐĐT issued → ERP number
+		self.assertEqual(row["mst"], "0312345678")
+		self.assertEqual(row["doanh_so"], 10_000_000)
+		self.assertEqual(row["thue_suat"], 10)
+		self.assertEqual(row["tien_thue"], 1_000_000)
+
+		decl = execute(
+			frappe._dict(company=self.company, from_date="1900-01-01", to_date=self.to_date)
+		)[1]
+		output_vat = next(r["so_tien"] for r in decl if r.get("chi_tieu_code") == "33")
+		self.assertEqual(sum(r["tien_thue"] for r in rows), output_vat)
+
+	def test_bang_ke_mua_vao_ties_to_declaration(self):
+		from erpnext.regional.report.to_khai_thue_gtgt_01.to_khai_thue_gtgt_01 import bang_ke_mua_vao
+
+		rows = bang_ke_mua_vao(self.company, "1900-01-01", self.to_date)
+		self.assertEqual(len(rows), 1)
+		row = rows[0]
+		self.assertEqual(row["mst"], "0398765432")
+		self.assertEqual(row["doanh_so"], 5_000_000)
+		self.assertEqual(row["tien_thue"], 500_000)
+
+		decl = execute(
+			frappe._dict(company=self.company, from_date="1900-01-01", to_date=self.to_date)
+		)[1]
+		input_vat = next(r["so_tien"] for r in decl if r.get("chi_tieu_code") == "25")
+		self.assertEqual(sum(r["tien_thue"] for r in rows), input_vat)
+
+	def test_export_bang_ke_csv(self):
+		from erpnext.regional.report.to_khai_thue_gtgt_01.to_khai_thue_gtgt_01 import export_bang_ke
+
+		csv_out = export_bang_ke(self.company, "1900-01-01", self.to_date, kind="ban_ra")
+		self.assertIn("Số hóa đơn", csv_out)
+		self.assertIn("_Test VN BK Customer", csv_out)
+		self.assertIn("0312345678", csv_out)

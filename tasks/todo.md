@@ -34,7 +34,7 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 - [x] Task 48 — Runbook: month-end close section (docs)
 
 ## Phase 17 — Kê khai & export (WS-C2)
-- [ ] Task 49 — Bảng kê bán ra / mua vào export (CSV/XLSX)
+- [x] Task 49 — Bảng kê bán ra / mua vào export (CSV)
 - [ ] Task 50 — 01/GTGT XML export (HTKK/eTax, golden file)
 
 ## Phase 18 — GĐ2 remainder (WS-E)
