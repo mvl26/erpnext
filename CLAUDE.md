@@ -20,13 +20,14 @@ It runs as one app inside a Frappe *bench* (site `miyano`), not standalone. **Ru
 Miyano's deployment (built by a Vietnamese team, medcons.vn) layers several **complementary custom apps** on the same bench and site `miyano`, sharing one database with this app:
 
 - **`mvl_accounting`** — Kế toán tuân thủ Thông tư 99/2025/TT-BTC (VN); requires `erpnext` + `hrms`.
+  **PARKED (decision 2026-07-16):** VN accounting is built **in this app** (`erpnext/regional/vietnam/` + related core edits) — see `SPEC.md`. `mvl_accounting` is disk-only, NOT installed on site `miyano`; treat its code as a tested reference to study, never install it, never import from it at runtime, and never touch its working tree (it has uncommitted local changes).
 - **`assetcore`** — Medical Equipment Lifecycle Management (HTM) — vòng đời thiết bị y tế.
 - **`antmed_crm`** — CRM quản lý kinh doanh thiết bị & vật tư y tế.
 - **`normcore_dmktkt` / `norm_himedic`** — Định mức Kinh tế Kỹ thuật dịch vụ y tế.
 - **`workflowcore`** — Quản lý workflow + AI.
 - **`hrms`** — Frappe HR (dependency of `mvl_accounting`).
 
-Because these share the site DB, changes here can affect — and be affected by — those apps. When a feature is clearly one of theirs (e.g. VN accounting rules → `mvl_accounting`), make the change in that app, not here.
+Because these share the site DB, changes here can affect — and be affected by — those apps. When a feature is clearly one of theirs (e.g. medical-device lifecycle → `assetcore`, CRM → `antmed_crm`), make the change in that app, not here. **Exception:** VN accounting/compliance (TT99, HĐĐT, sổ sách, kê khai) belongs **here** in erpnext core — `mvl_accounting` is parked (see above).
 
 ## Common commands
 
