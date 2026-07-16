@@ -11,6 +11,12 @@ from erpnext.regional.vietnam.test_books_and_vouchers import _make_party
 from erpnext.regional.vietnam.test_setup import make_vn_company
 
 
+def _ensure_vn_company(name, abbr):
+	"""Get-or-create: the custom-field DDL in setup() implicitly commits the test
+	transaction once per site, so this class's company can outlive a test run."""
+	return frappe.db.get_value("Company", name, "name") or make_vn_company(name, abbr)
+
+
 def _make_service_item(name="_Test VN EInv Service"):
 	if not frappe.db.exists("Item", name):
 		frappe.get_doc(
@@ -46,7 +52,7 @@ class TestVietnamEInvoiceLog(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
-		cls.company = make_vn_company("_Test VN EInvoice", "TVEV")
+		cls.company = _ensure_vn_company("_Test VN EInvoice", "TVEV")
 		cls.si = make_draft_sales_invoice(cls.company)
 
 	def test_doctype_installed(self):
@@ -89,7 +95,7 @@ class TestVietnamEInvoiceFields(FrappeTestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 		# Creating a VN company dispatches the regional setup() hook.
-		cls.company = make_vn_company("_Test VN EInv Fields", "TVEF")
+		cls.company = _ensure_vn_company("_Test VN EInv Fields", "TVEF")
 
 	def test_company_fields_created(self):
 		for field in COMPANY_EINVOICE_FIELDS:
@@ -113,3 +119,38 @@ class TestVietnamEInvoiceFields(FrappeTestCase):
 		self.assertEqual(
 			frappe.db.count("Custom Field", {"dt": "Sales Invoice", "fieldname": "vn_einvoice_status"}), 1
 		)
+
+
+class TestVietnamEInvoicePayload(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.company = _ensure_vn_company("_Test VN EInv Payload", "TVEP")
+		cls.si = make_draft_sales_invoice(cls.company)
+
+	def test_payload_totals_match_invoice(self):
+		from erpnext.regional.vietnam.e_invoice import build_invoice_payload
+
+		payload = build_invoice_payload(self.si)
+		self.assertEqual(payload["seller"]["name"], self.company)
+		self.assertEqual(payload["invoice"]["erp_reference"], self.si.name)
+		self.assertEqual(payload["invoice"]["grand_total"], 10_000_000)
+		self.assertEqual(payload["invoice"]["lines"][0]["qty"], 1)
+		self.assertIn("Mười triệu đồng", payload["invoice"]["in_words"])
+
+	def test_unknown_provider_raises(self):
+		from erpnext.regional.vietnam.e_invoice_providers import get_provider
+
+		self.assertRaises(frappe.ValidationError, get_provider, "nope")
+
+	def test_mock_provider_issues_deterministically(self):
+		from erpnext.regional.vietnam.e_invoice import build_invoice_payload
+		from erpnext.regional.vietnam.e_invoice_providers import get_provider
+
+		provider = get_provider("mock")
+		payload = build_invoice_payload(self.si)
+		first, second = provider.issue(payload), provider.issue(payload)
+		self.assertTrue(first["ok"])
+		self.assertEqual(first["invoice_number"], second["invoice_number"])
+		self.assertTrue(first["invoice_number"].isdigit())
+		self.assertIn(first["invoice_number"], first["xml"])
