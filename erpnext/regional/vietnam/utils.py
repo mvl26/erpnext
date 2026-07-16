@@ -177,6 +177,60 @@ def get_account_balances(company, from_date, to_date):
 	return balances
 
 
+def get_cash_bank_book_rows(company, from_date, to_date, prefix, account=None):
+	"""Thu / chi / tồn ledger rows over accounts numbered ``prefix*`` (e.g. 111, 112).
+
+	Shared by Sổ quỹ tiền mặt (S07-DN) and Sổ tiền gửi ngân hàng (S08-DN): an
+	opening-balance row, one row per GL entry (thu = debit, chi = credit, running
+	tồn), a period-total row and a closing row. ``account`` narrows the book to one
+	posting account (một quỹ / một tài khoản ngân hàng).
+	"""
+	accounts = (
+		[account]
+		if account
+		else frappe.get_all(
+			"Account",
+			filters={"company": company, "is_group": 0, "account_number": ["like", f"{prefix}%"]},
+			pluck="name",
+		)
+	)
+	if not accounts:
+		return []
+
+	opening = flt(
+		frappe.db.sql(
+			"""select sum(debit) - sum(credit) from `tabGL Entry`
+			where company=%s and is_cancelled=0 and posting_date < %s and account in %s""",
+			(company, from_date, tuple(accounts)),
+		)[0][0]
+	)
+
+	rows = [{"remarks": "Số dư đầu kỳ", "balance": opening, "is_opening": 1}]
+	balance = opening
+	total_thu = total_chi = 0.0
+	for e in get_gl_entries(company, from_date, to_date, {"account": ["in", accounts]}):
+		balance += flt(e.debit) - flt(e.credit)
+		total_thu += flt(e.debit)
+		total_chi += flt(e.credit)
+		rows.append(
+			{
+				"posting_date": e.posting_date,
+				"voucher_type": e.voucher_type,
+				"voucher_no": e.voucher_no,
+				"account": e.account,
+				"remarks": e.remarks,
+				"against": e.against,
+				"thu": e.debit,
+				"chi": e.credit,
+				"balance": balance,
+			}
+		)
+
+	rows.append({"remarks": "Cộng phát sinh", "thu": total_thu, "chi": total_chi, "is_total": 1})
+	rows.append({"remarks": "Số dư cuối kỳ", "balance": balance, "is_closing": 1})
+	return rows
+
+
 def _prefixes(prefixes):
 	return tuple(str(p) for p in prefixes)
 

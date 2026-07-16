@@ -5,6 +5,7 @@
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import flt
 
 from erpnext.regional.vietnam.setup import _acct
 from erpnext.regional.vietnam.test_setup import make_vn_company
@@ -164,3 +165,52 @@ class TestVietnamStockVoucherPrintFormats(FrappeTestCase):
 		html = frappe.get_print("Delivery Note", dn.name, print_format="Phiếu xuất kho (02-VT)")
 		self.assertIn("PHIẾU XUẤT KHO", html)
 		self.assertIn("Hai triệu năm trăm nghìn đồng", html)
+
+
+def _post_je(company, lines, posting_date):
+	"""Submit a plain (non-opening) Journal Entry from TT99-number lines."""
+	je = frappe.new_doc("Journal Entry")
+	je.company = company
+	je.posting_date = posting_date
+	for number, dr, cr in lines:
+		je.append(
+			"accounts",
+			{
+				"account": _acct(company, number),
+				"debit_in_account_currency": dr,
+				"credit_in_account_currency": cr,
+			},
+		)
+	je.flags.ignore_permissions = True
+	je.insert()
+	je.submit()
+	return je
+
+
+class TestVietnamCashBankBooks(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.company = make_vn_company("_Test VN So Quy", "TVSQ")
+		cls.from_date, cls.to_date = "2026-02-01", "2026-02-28"
+		# Before the period (opening), then one thu and one chi inside it.
+		_post_je(cls.company, [("111", 500_000, 0), ("4211", 0, 500_000)], "2026-01-15")
+		_post_je(cls.company, [("111", 1_000_000, 0), ("4211", 0, 1_000_000)], "2026-02-10")
+		_post_je(cls.company, [("4211", 300_000, 0), ("111", 0, 300_000)], "2026-02-20")
+
+	def test_so_quy_running_balance_ties_to_gl(self):
+		from erpnext.regional.report.so_quy_tien_mat.so_quy_tien_mat import execute
+
+		_cols, rows = execute(
+			{"company": self.company, "from_date": self.from_date, "to_date": self.to_date}
+		)
+		self.assertEqual(flt(rows[0]["balance"]), 500_000)  # số dư đầu kỳ
+		self.assertEqual(flt(rows[-1]["balance"]), 1_200_000)  # tồn quỹ cuối kỳ
+		total = next(r for r in rows if r.get("is_total"))
+		self.assertEqual((flt(total["thu"]), flt(total["chi"])), (1_000_000, 300_000))
+
+	def test_so_quy_requires_filters(self):
+		from erpnext.regional.report.so_quy_tien_mat.so_quy_tien_mat import execute
+
+		_cols, rows = execute({"company": self.company})
+		self.assertEqual(rows, [])
