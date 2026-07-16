@@ -216,6 +216,43 @@ Nếu còn ✗, xử lý đúng mục đó rồi chạy lại (mỗi lần chạ
 
 ---
 
+## Khóa sổ cuối tháng — kết chuyển 911 (vận hành định kỳ)
+
+Cuối mỗi tháng, sau khi toàn bộ chứng từ của tháng đã nhập đủ (bán, mua, kho,
+thu/chi, lương):
+
+1. **Xem trước** bộ bút toán kết chuyển (read-only, an toàn):
+
+   ```bash
+   bench --site miyano execute erpnext.regional.vietnam.period_close.ket_chuyen_911 \
+     --kwargs "{'company':'<CTY>','period':'2026-07','preview':1}"
+   ```
+
+   Kết quả liệt kê: kết chuyển doanh thu/thu nhập (5xx/7xx) → 911, 911 → chi phí
+   (6xx/8xx), và kết quả (lãi/lỗ) → 4212. **Kế toán trưởng soát xét** danh sách
+   này trước khi thực hiện.
+
+2. **Thực hiện** (ghi sổ + khóa kỳ — cần sao lưu trước trên công ty thật):
+
+   ```bash
+   bench --site miyano execute erpnext.regional.vietnam.period_close.ket_chuyen_911 \
+     --kwargs "{'company':'<CTY>','period':'2026-07','preview':0}"
+   ```
+
+   Lệnh này: ghi các Journal Entry kết chuyển vào ngày cuối tháng → tự kiểm tra
+   toàn bộ tài khoản loại 5–9 về **0** → tạo **Accounting Period** khóa tháng
+   (chặn ghi lùi chứng từ vào tháng đã đóng). Chạy lại cho tháng đã đóng sẽ trả
+   `already_closed` — không tạo bút toán trùng.
+
+3. **Kiểm tra sau khóa sổ**: Sổ Cái TK 911 = 0; Bảng CĐSPS cân; chạy B01/B02,
+   sổ quỹ (S07-DN), sổ tiền gửi (S08-DN), sổ công nợ cho tháng vừa đóng.
+
+4. **Mở lại kỳ** (chỉ khi kế toán trưởng phê duyệt — thao tác nhạy cảm): xóa
+   Accounting Period "Kết chuyển <kỳ>" rồi hủy (cancel) các JE kết chuyển của
+   tháng đó, sửa chứng từ, và chạy lại từ bước 1.
+
+---
+
 ## Rollback (nếu phải quay lại)
 
 Số dư/dữ liệu đầu kỳ nhập sai và không thể sửa gọn:
@@ -244,5 +281,6 @@ bench --site miyano migrate
        giữa năm thêm as_of: bs_only · on_cutover_date)
 [ ] 6. print_go_live_readiness = ✅ SẴN SÀNG (mọi mục ✓)
 [ ] 7. Chốt ngày go-live · smoke test SI/PI/Payment/Kho · kiểm tra B01/B02/Sổ Cái
+[ ] (định kỳ) Cuối tháng: ket_chuyen_911 preview → KTT duyệt → execute → 911 = 0
 [ ] (dự phòng) Quy trình rollback bằng bench restore đã sẵn sàng
 ```

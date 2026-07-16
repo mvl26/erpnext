@@ -31,7 +31,7 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 ## Phase 16 — Khóa sổ & kết chuyển 911 (WS-D)
 - [x] Task 46 — `period_close.py`: kết chuyển preview (pure, no writes)
 - [x] Task 47 — Kết chuyển execute + Accounting Period lock (idempotent)
-- [ ] Task 48 — Runbook: month-end close section (docs)
+- [x] Task 48 — Runbook: month-end close section (docs)
 
 ## Phase 17 — Kê khai & export (WS-C2)
 - [ ] Task 49 — Bảng kê bán ra / mua vào export (CSV/XLSX)
