@@ -154,3 +154,57 @@ class TestVietnamEInvoicePayload(FrappeTestCase):
 		self.assertEqual(first["invoice_number"], second["invoice_number"])
 		self.assertTrue(first["invoice_number"].isdigit())
 		self.assertIn(first["invoice_number"], first["xml"])
+
+
+class TestVietnamEInvoiceIssuance(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.company = _ensure_vn_company("_Test VN EInv Issue", "TVIS")
+		frappe.db.set_value(
+			"Company",
+			cls.company,
+			{"vn_einvoice_enabled": 1, "vn_einvoice_provider": "mock", "vn_einvoice_symbol": "1C26TAA"},
+		)
+
+	def test_submit_issues_and_stamps_the_invoice(self):
+		si = make_draft_sales_invoice(self.company, customer_name="_Test VN EInv Issue Cust")
+		si.submit()
+		si.reload()
+		self.assertEqual(si.vn_einvoice_status, "Issued")
+		self.assertTrue(si.vn_einvoice_number)
+		self.assertEqual(si.vn_einvoice_symbol, "1C26TAA")
+		log = frappe.get_doc("Vietnam E Invoice Log", si.vn_einvoice_log)
+		self.assertEqual(log.status, "Issued")
+		self.assertEqual(log.invoice_number, si.vn_einvoice_number)
+		self.assertIn(si.name, log.xml)
+
+	def test_disabled_company_is_untouched(self):
+		company = _ensure_vn_company("_Test VN EInv Off", "TVIO")
+		si = make_draft_sales_invoice(company, customer_name="_Test VN EInv Off Cust")
+		si.submit()
+		si.reload()
+		self.assertFalse(si.vn_einvoice_status)
+		self.assertFalse(frappe.db.exists("Vietnam E Invoice Log", {"sales_invoice": si.name}))
+
+	def test_provider_error_never_blocks_submit_then_retry_succeeds(self):
+		from unittest.mock import patch
+
+		from erpnext.regional.vietnam.e_invoice import issue_e_invoice
+
+		si = make_draft_sales_invoice(self.company, customer_name="_Test VN EInv Err Cust")
+		with patch(
+			"erpnext.regional.vietnam.e_invoice_providers.mock.MockProvider.issue",
+			side_effect=Exception("provider down"),
+		):
+			si.submit()
+		si.reload()
+		self.assertEqual(si.docstatus, 1)  # accounting never blocked
+		self.assertEqual(si.vn_einvoice_status, "Error")
+		error_log = frappe.get_doc("Vietnam E Invoice Log", si.vn_einvoice_log)
+		self.assertIn("provider down", error_log.error_message)
+
+		issue_e_invoice(si.name)  # whitelisted retry path
+		si.reload()
+		self.assertEqual(si.vn_einvoice_status, "Issued")
+		self.assertTrue(si.vn_einvoice_number)

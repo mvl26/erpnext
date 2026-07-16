@@ -14,7 +14,7 @@ an Error log for retry.
 import json
 
 import frappe
-from frappe.utils import cint, flt
+from frappe.utils import cint, flt, now_datetime
 
 from erpnext.regional.vietnam.e_invoice_providers import get_provider
 from erpnext.regional.vietnam.utils import so_thanh_chu
@@ -78,3 +78,74 @@ def build_invoice_payload(si, settings=None):
 
 def _as_json(value):
 	return json.dumps(value, ensure_ascii=False, indent=1, default=str)
+
+
+def on_si_submit(doc, method=None):
+	"""doc_events hook — fire-and-log HĐĐT issuance; must never block the submit."""
+	try:
+		issue_e_invoice(doc.name, si=doc)
+	except Exception:
+		# Provider errors are already caught and logged inside issue_e_invoice;
+		# this guards against unexpected bugs so accounting is never blocked.
+		frappe.log_error(title=f"HĐĐT issuance failed for {doc.name}")
+
+
+@frappe.whitelist()
+def issue_e_invoice(sales_invoice, si=None):
+	"""Issue a HĐĐT for a submitted Sales Invoice via the company's provider.
+
+	No-op unless the company opted in (``vn_einvoice_enabled``). A provider failure
+	records an Error log and stamps the invoice for retry — calling this again (it
+	is whitelisted) retries the issuance. Returns the log name, or None on no-op.
+	"""
+	si = si or frappe.get_doc("Sales Invoice", sales_invoice)
+	if si.docstatus != 1:
+		return None
+	settings = get_e_invoice_settings(si.company)
+	if not settings.enabled:
+		return None
+
+	payload = build_invoice_payload(si, settings)
+	provider = get_provider(settings.provider)
+	try:
+		result = provider.issue(payload)
+	except Exception as exc:
+		return _log_issuance(si, settings, payload, error=str(exc))
+	return _log_issuance(si, settings, payload, result=result)
+
+
+def _log_issuance(si, settings, payload, result=None, error=None):
+	"""Write the Vietnam E Invoice Log row and stamp the SI custom fields."""
+	ok = bool(result and result.get("ok"))
+	result = result or {}
+	log = frappe.get_doc(
+		{
+			"doctype": "Vietnam E Invoice Log",
+			"sales_invoice": si.name,
+			"provider": settings.provider,
+			"status": "Issued" if ok else "Error",
+			"invoice_number": result.get("invoice_number"),
+			"invoice_symbol": result.get("invoice_symbol"),
+			"cqt_code": result.get("cqt_code"),
+			"issued_at": now_datetime() if ok else None,
+			"payload": _as_json(payload),
+			"response": _as_json(result) if result else None,
+			"xml": result.get("xml"),
+			"error_message": error,
+		}
+	)
+	log.flags.ignore_permissions = True
+	log.insert()
+
+	frappe.db.set_value(
+		"Sales Invoice",
+		si.name,
+		{
+			"vn_einvoice_number": log.invoice_number,
+			"vn_einvoice_symbol": log.invoice_symbol,
+			"vn_einvoice_cqt_code": log.cqt_code,
+			"vn_einvoice_status": log.status,
+			"vn_einvoice_log": log.name,
+		},
+	)
+	return log.name
