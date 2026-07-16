@@ -14,7 +14,7 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 - [x] Task 36 — Print formats Phiếu nhập kho 01-VT + Phiếu xuất kho 02-VT
 - [x] Task 37 — Report Sổ quỹ tiền mặt (S07-DN, 111*)
 - [x] Task 38 — Report Sổ tiền gửi ngân hàng (S08-DN, 112*)
-- [ ] Task 39 — Report Sổ chi tiết công nợ theo đối tượng (131/331)
+- [x] Task 39 — Report Sổ chi tiết công nợ theo đối tượng (131/331)
 
 ### Checkpoint A — regression + pre-commit green; day-1 paper needs covered
 
