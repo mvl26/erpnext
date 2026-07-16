@@ -10,7 +10,7 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 - [x] Task 34 — Runbook addendum: cutover giữa năm (docs)
 
 ## Phase 14 — Chứng từ in & sổ sách (WS-C1)
-- [ ] Task 35 — Print formats Phiếu thu 01-TT + Phiếu chi 02-TT (Payment Entry, số-thành-chữ)
+- [x] Task 35 — Print formats Phiếu thu 01-TT + Phiếu chi 02-TT (Payment Entry, số-thành-chữ)
 - [ ] Task 36 — Print formats Phiếu nhập kho 01-VT + Phiếu xuất kho 02-VT
 - [ ] Task 37 — Report Sổ quỹ tiền mặt (S07-DN, 111*)
 - [ ] Task 38 — Report Sổ tiền gửi ngân hàng (S08-DN, 112*)
