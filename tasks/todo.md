@@ -39,7 +39,7 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 
 ## Phase 18 — GĐ2 remainder (WS-E)
 - [x] Task 51 — TT45 khung khấu hao defaults on Asset Categories
-- [ ] Task 52 — Report Sổ chi tiết nguyên tệ + TK 007-style FX view
+- [x] Task 52 — Report Sổ chi tiết nguyên tệ + TK 007-style FX view
 - [ ] Task 53 — Per-employee TNCN surface (HRMS soft dependency, graceful degrade)
 
 ### Checkpoint C — all suites + 34 shipped VN tests green; migrate + pre-commit clean
