@@ -35,7 +35,7 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 
 ## Phase 17 — Kê khai & export (WS-C2)
 - [x] Task 49 — Bảng kê bán ra / mua vào export (CSV)
-- [ ] Task 50 — 01/GTGT XML export (HTKK/eTax, golden file)
+- [x] Task 50 — 01/GTGT XML export (HTKK/eTax, golden file)
 
 ## Phase 18 — GĐ2 remainder (WS-E)
 - [ ] Task 51 — TT45 khung khấu hao defaults on Asset Categories

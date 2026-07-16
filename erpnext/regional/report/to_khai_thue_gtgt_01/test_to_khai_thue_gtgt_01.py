@@ -210,3 +210,30 @@ class TestBangKeGTGT(FrappeTestCase):
 		self.assertIn("Số hóa đơn", csv_out)
 		self.assertIn("_Test VN BK Customer", csv_out)
 		self.assertIn("0312345678", csv_out)
+
+	def test_export_xml_indicators(self):
+		import xml.etree.ElementTree as ET
+
+		from erpnext.regional.report.to_khai_thue_gtgt_01.to_khai_thue_gtgt_01 import export_to_khai_xml
+
+		frappe.db.set_value("Company", self.company, "tax_id", "0301234567")
+		xml_out = export_to_khai_xml(self.company, "1900-01-01", self.to_date, ky_khai="3/2026")
+		root = ET.fromstring(xml_out)
+		self.assertEqual(root.findtext(".//maTKhai"), "842")
+		self.assertEqual(root.findtext(".//mst"), "0301234567")
+		self.assertEqual(root.findtext(".//tenNNT"), self.company)
+		self.assertEqual(root.findtext(".//kyKKhai"), "3/2026")
+		self.assertEqual(root.findtext(".//ct33"), "1000000")
+		self.assertEqual(root.findtext(".//ct25"), "500000")
+		self.assertEqual(root.findtext(".//ct40"), "500000")
+		self.assertEqual(root.findtext(".//ct41"), "0")
+
+	def test_export_xml_matches_golden(self):
+		from pathlib import Path
+
+		from erpnext.regional.report.to_khai_thue_gtgt_01.to_khai_thue_gtgt_01 import export_to_khai_xml
+
+		frappe.db.set_value("Company", self.company, "tax_id", "0301234567")
+		xml_out = export_to_khai_xml(self.company, "1900-01-01", self.to_date, ky_khai="3/2026")
+		golden = (Path(__file__).parent / "golden_01_gtgt.xml").read_text(encoding="utf-8")
+		self.assertEqual(xml_out.strip(), golden.strip())

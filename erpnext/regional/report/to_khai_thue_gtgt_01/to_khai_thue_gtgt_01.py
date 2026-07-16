@@ -157,6 +157,53 @@ def _bang_ke(company, from_date, to_date, kind):
 
 
 @frappe.whitelist()
+def export_to_khai_xml(company, from_date, to_date, kieu_ky="Q", ky_khai=None, so_lan="0"):
+	"""Tờ khai 01/GTGT as eTax-style XML (mã tờ khai 842).
+
+	⚠️ Draft-flagged like the on-screen declaration: the XML structure follows the
+	published eTax layout (HSoThueDTu → HSoKhaiThue → TKhaiThue + CTieuTKhaiChinh
+	with ct-numbered indicators) but the schema version MUST be verified by the
+	kế toán against the current HTKK/eTax release before the first filing (OQ-5).
+
+	``ky_khai`` defaults to the quarter of ``to_date`` (e.g. "3/2026").
+	"""
+	import xml.etree.ElementTree as ET
+
+	from frappe.utils import getdate
+
+	values = {
+		r["chi_tieu_code"]: r["so_tien"]
+		for r in get_data(frappe._dict(company=company, from_date=from_date, to_date=to_date))
+		if r.get("chi_tieu_code")
+	}
+	if not ky_khai:
+		end = getdate(to_date)
+		ky_khai = f"{(end.month - 1) // 3 + 1}/{end.year}"
+
+	root = ET.Element("HSoThueDTu")
+	hs_khai_thue = ET.SubElement(root, "HSoKhaiThue")
+	ttin_chung = ET.SubElement(hs_khai_thue, "TTinChung")
+	tkhai = ET.SubElement(ttin_chung, "TKhaiThue")
+	ET.SubElement(tkhai, "maTKhai").text = "842"
+	ET.SubElement(tkhai, "tenTKhai").text = "Tờ khai thuế giá trị gia tăng (01/GTGT)"
+	ET.SubElement(tkhai, "pbanTKhaiXML").text = "2.0.1"
+	ET.SubElement(tkhai, "loaiTKhai").text = "C"
+	ET.SubElement(tkhai, "soLan").text = str(so_lan)
+	ky = ET.SubElement(tkhai, "KyKKhaiThue")
+	ET.SubElement(ky, "kieuKy").text = kieu_ky
+	ET.SubElement(ky, "kyKKhai").text = ky_khai
+	nnt = ET.SubElement(tkhai, "NNT")
+	ET.SubElement(nnt, "mst").text = frappe.db.get_value("Company", company, "tax_id") or ""
+	ET.SubElement(nnt, "tenNNT").text = company
+
+	ctieu = ET.SubElement(hs_khai_thue, "CTieuTKhaiChinh")
+	for code in ("24", "25", "33", "40", "41"):
+		ET.SubElement(ctieu, f"ct{code}").text = str(int(round(flt(values.get(code)))))
+
+	return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(root, encoding="unicode")
+
+
+@frappe.whitelist()
 def export_bang_ke(company, from_date, to_date, kind="ban_ra"):
 	"""Bảng kê as CSV (UTF-8) — for filing support / import into HTKK-side tooling."""
 	from frappe.utils.csvutils import to_csv
