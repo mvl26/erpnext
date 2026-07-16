@@ -12,6 +12,8 @@ from erpnext.regional.vietnam.test_setup import make_vn_company
 VN_PRINT_FORMATS = (
 	("phieu_thu_01_tt", "Phiếu thu (01-TT)"),
 	("phieu_chi_02_tt", "Phiếu chi (02-TT)"),
+	("phieu_nhap_kho_01_vt", "Phiếu nhập kho (01-VT)"),
+	("phieu_xuat_kho_02_vt", "Phiếu xuất kho (02-VT)"),
 )
 
 
@@ -84,4 +86,81 @@ class TestVietnamVoucherPrintFormats(FrappeTestCase):
 		pe = _make_payment_entry(self.company, "Pay", 2_500_000)
 		html = frappe.get_print("Payment Entry", pe.name, print_format="Phiếu chi (02-TT)")
 		self.assertIn("PHIẾU CHI", html)
+		self.assertIn("Hai triệu năm trăm nghìn đồng", html)
+
+
+def _make_item(name="_Test VN Item Kho"):
+	if not frappe.db.exists("Item", name):
+		frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": name,
+				"item_name": name,
+				"item_group": "All Item Groups",
+				"stock_uom": "Nos",
+				"is_stock_item": 1,
+			}
+		).insert(ignore_permissions=True)
+	return name
+
+
+def _leaf_warehouse(company):
+	return frappe.db.get_value("Warehouse", {"company": company, "is_group": 0}, "name")
+
+
+class TestVietnamStockVoucherPrintFormats(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		_reload_vn_print_formats()
+		cls.company = make_vn_company("_Test VN Kho Vouchers", "TVKV")
+
+	def test_phieu_nhap_kho_renders_with_amount_in_words(self):
+		supplier = _make_party("Supplier", "_Test VN Kho Supplier")
+		pr = frappe.get_doc(
+			{
+				"doctype": "Purchase Receipt",
+				"company": self.company,
+				"supplier": supplier.name,
+				"posting_date": frappe.utils.nowdate(),
+				"items": [
+					{
+						"item_code": _make_item(),
+						"qty": 10,
+						"rate": 100_000,
+						"warehouse": _leaf_warehouse(self.company),
+					}
+				],
+			}
+		)
+		pr.flags.ignore_permissions = True
+		pr.insert()
+		pr.submit()
+		html = frappe.get_print("Purchase Receipt", pr.name, print_format="Phiếu nhập kho (01-VT)")
+		self.assertIn("PHIẾU NHẬP KHO", html)
+		self.assertIn("_Test VN Item Kho", html)
+		self.assertIn("Một triệu đồng", html)
+
+	def test_phieu_xuat_kho_renders_with_amount_in_words(self):
+		customer = _make_party("Customer", "_Test VN Kho Customer")
+		dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": self.company,
+				"customer": customer.name,
+				"posting_date": frappe.utils.nowdate(),
+				"items": [
+					{
+						"item_code": _make_item(),
+						"qty": 2,
+						"rate": 1_250_000,
+						"warehouse": _leaf_warehouse(self.company),
+					}
+				],
+			}
+		)
+		dn.flags.ignore_permissions = True
+		dn.insert()  # draft render smoke — no stock needed for the print format
+		html = frappe.get_print("Delivery Note", dn.name, print_format="Phiếu xuất kho (02-VT)")
+		self.assertIn("PHIẾU XUẤT KHO", html)
 		self.assertIn("Hai triệu năm trăm nghìn đồng", html)
