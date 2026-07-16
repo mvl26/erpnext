@@ -22,7 +22,7 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 - [x] Task 40 — E-invoice settings + custom fields (Company + Sales Invoice, setup hook)
 - [x] Task 41 — DocType `Vietnam E Invoice Log`
 - [x] Task 42 — Payload builder + adapter registry + mock adapter
-- [ ] Task 43 — Issuance orchestration on SI submit (opt-in, non-blocking, retry)
+- [x] Task 43 — Issuance orchestration on SI submit (opt-in, non-blocking, retry)
 - [ ] Task 44 — Điều chỉnh / thay thế flows (lineage on log)
 - [ ] Task 45 — Real provider adapter + sandbox **[BLOCKED: OQ-1 — provider choice]**
 
