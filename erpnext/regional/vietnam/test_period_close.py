@@ -84,3 +84,40 @@ class TestVietnamPeriodClosePreview(FrappeTestCase):
 
 		result = ket_chuyen_911("_Test Company", "2026-07", preview=1)
 		self.assertFalse(result["ok"])
+
+
+class TestVietnamPeriodCloseExecute(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.company = make_vn_company("_Test VN KC Exec", "TVKE")
+		_post_je(cls.company, [("111", 1_000_000, 0), ("511", 0, 1_000_000)], "2026-07-05")
+		_post_je(cls.company, [("632", 600_000, 0), ("111", 0, 600_000)], "2026-07-10")
+
+	def test_execute_zeroes_911_locks_period_and_blocks_rerun(self):
+		from erpnext.regional.vietnam.period_close import ket_chuyen_911
+		from erpnext.regional.vietnam.utils import get_account_balances, sum_closing_by_prefix
+
+		result = ket_chuyen_911(self.company, "2026-07", preview=0)
+		self.assertTrue(result["ok"], result)
+		self.assertEqual(len(result["journal_entries"]), 3)
+
+		# 5xx–8xx and 911 all zero as of period end; result sits in 4212 (credit).
+		balances = get_account_balances(self.company, "1900-01-01", "2026-07-31")
+		self.assertEqual(flt(sum_closing_by_prefix(balances, ("5", "6", "7", "8", "9"))), 0)
+		self.assertEqual(flt(sum_closing_by_prefix(balances, ("4212",))), -400_000)
+
+		# The month is locked: posting into it is now blocked...
+		self.assertRaises(
+			frappe.ValidationError,
+			_post_je,
+			self.company,
+			[("111", 1, 0), ("4211", 0, 1)],
+			"2026-07-20",
+		)
+		# ...and a re-run is a structured no-op with no duplicate JEs.
+		je_count = frappe.db.count("Journal Entry", {"company": self.company})
+		rerun = ket_chuyen_911(self.company, "2026-07", preview=0)
+		self.assertFalse(rerun["ok"])
+		self.assertTrue(rerun["already_closed"])
+		self.assertEqual(frappe.db.count("Journal Entry", {"company": self.company}), je_count)

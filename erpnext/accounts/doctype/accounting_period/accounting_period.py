@@ -82,11 +82,13 @@ class AccountingPeriod(Document):
 	def bootstrap_doctypes_for_closing(self):
 		if len(self.closed_documents) == 0:
 			for doctype_for_closing in self.get_doctypes_for_closing():
+				# get_doctypes_for_closing returns plain dicts (it is whitelisted for the
+				# client flow) — use key access so server-side inserts also bootstrap.
 				self.append(
 					"closed_documents",
 					{
-						"document_type": doctype_for_closing.document_type,
-						"closed": doctype_for_closing.closed,
+						"document_type": doctype_for_closing.get("document_type"),
+						"closed": doctype_for_closing.get("closed"),
 					},
 				)
 
