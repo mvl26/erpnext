@@ -234,3 +234,84 @@ class TestVietnamCashBankBooks(FrappeTestCase):
 			{"company": self.company, "from_date": self.from_date, "to_date": self.to_date}
 		)
 		self.assertEqual(flt(cash_rows[-1]["balance"]), 1_200_000)
+
+
+def _post_party_je(company, number, party_type, party, dr, cr, posting_date):
+	"""Submit a JE moving a receivable/payable account against equity 4211."""
+	je = frappe.new_doc("Journal Entry")
+	je.company = company
+	je.posting_date = posting_date
+	je.append(
+		"accounts",
+		{
+			"account": _acct(company, number),
+			"party_type": party_type,
+			"party": party,
+			"debit_in_account_currency": dr,
+			"credit_in_account_currency": cr,
+		},
+	)
+	je.append(
+		"accounts",
+		{"account": _acct(company, "4211"), "debit_in_account_currency": cr, "credit_in_account_currency": dr},
+	)
+	je.flags.ignore_permissions = True
+	je.insert()
+	je.submit()
+	return je
+
+
+class TestVietnamPartyLedger(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.company = make_vn_company("_Test VN Cong No", "TVCN")
+		cls.from_date, cls.to_date = "2026-03-01", "2026-03-31"
+		cls.c1 = _make_party("Customer", "_Test VN CN Cust 1").name
+		cls.c2 = _make_party("Customer", "_Test VN CN Cust 2").name
+		# C1: opening 700k, +1,000k in period, -300k thu nợ. C2: +200k in period.
+		_post_party_je(cls.company, "131", "Customer", cls.c1, 700_000, 0, "2026-02-15")
+		_post_party_je(cls.company, "131", "Customer", cls.c1, 1_000_000, 0, "2026-03-10")
+		_post_party_je(cls.company, "131", "Customer", cls.c1, 0, 300_000, "2026-03-20")
+		_post_party_je(cls.company, "131", "Customer", cls.c2, 200_000, 0, "2026-03-12")
+
+	def _rows(self, **extra):
+		from erpnext.regional.report.so_chi_tiet_cong_no.so_chi_tiet_cong_no import execute
+
+		filters = {"company": self.company, "from_date": self.from_date, "to_date": self.to_date}
+		filters.update(extra)
+		return execute(filters)[1]
+
+	def test_per_party_closing_ties_to_gl(self):
+		rows = self._rows(party_type="Customer")
+		closing = {r["party"]: flt(r["balance"]) for r in rows if r.get("is_closing")}
+		self.assertEqual(closing.get(self.c1), 1_400_000)
+		self.assertEqual(closing.get(self.c2), 200_000)
+
+	def test_party_filter_narrows_to_one_party(self):
+		rows = self._rows(party_type="Customer", party=self.c1)
+		parties = {r.get("party") for r in rows if r.get("party")}
+		self.assertEqual(parties, {self.c1})
+		closing = next(r for r in rows if r.get("is_closing"))
+		self.assertEqual(flt(closing["balance"]), 1_400_000)
+
+	def test_partyless_rows_are_surfaced(self):
+		# Simulate a legacy/imported 131 row that slipped in without a party.
+		gle = frappe.new_doc("GL Entry")
+		gle.update(
+			{
+				"name": frappe.generate_hash(length=10),
+				"company": self.company,
+				"account": _acct(self.company, "131"),
+				"posting_date": "2026-03-15",
+				"debit": 50_000,
+				"credit": 0,
+				"voucher_type": "Journal Entry",
+				"voucher_no": "_TEST-MANUAL",
+				"is_cancelled": 0,
+			}
+		)
+		gle.db_insert()
+		rows = self._rows(party_type="Customer")
+		bucket = [r for r in rows if r.get("is_closing") and not r.get("party_link")]
+		self.assertTrue(any("không có đối tượng" in (r.get("party") or "") for r in bucket))
