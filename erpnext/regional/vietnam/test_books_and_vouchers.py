@@ -214,3 +214,23 @@ class TestVietnamCashBankBooks(FrappeTestCase):
 
 		_cols, rows = execute({"company": self.company})
 		self.assertEqual(rows, [])
+
+	def test_so_tien_gui_running_balance_ties_to_gl(self):
+		from erpnext.regional.report.so_tien_gui_ngan_hang.so_tien_gui_ngan_hang import execute
+
+		_post_je(self.company, [("112", 2_000_000, 0), ("4211", 0, 2_000_000)], "2026-02-05")
+		_post_je(self.company, [("4211", 450_000, 0), ("112", 0, 450_000)], "2026-02-25")
+		_cols, rows = execute(
+			{"company": self.company, "from_date": self.from_date, "to_date": self.to_date}
+		)
+		self.assertEqual(flt(rows[0]["balance"]), 0)  # no bank opening before the period
+		self.assertEqual(flt(rows[-1]["balance"]), 1_550_000)
+		total = next(r for r in rows if r.get("is_total"))
+		self.assertEqual((flt(total["thu"]), flt(total["chi"])), (2_000_000, 450_000))
+		# The cash book (111*) is unaffected by bank movements.
+		from erpnext.regional.report.so_quy_tien_mat.so_quy_tien_mat import execute as cash_execute
+
+		_c, cash_rows = cash_execute(
+			{"company": self.company, "from_date": self.from_date, "to_date": self.to_date}
+		)
+		self.assertEqual(flt(cash_rows[-1]["balance"]), 1_200_000)
