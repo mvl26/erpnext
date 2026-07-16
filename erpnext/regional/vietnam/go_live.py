@@ -13,7 +13,7 @@ import frappe
 from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 from frappe.utils import flt, getdate, nowdate
 
-from erpnext.regional.vietnam.constants import CHART_NAME, VN_NAMING_SERIES
+from erpnext.regional.vietnam.constants import CHART_NAME, PL_ACCOUNT_PREFIXES, VN_NAMING_SERIES
 from erpnext.regional.vietnam.role_profiles import VN_ROLE_PROFILES
 from erpnext.regional.vietnam.setup import _acct
 
@@ -140,18 +140,25 @@ def post_opening_journal_entry(company, lines, posting_date=None):
 
 
 @frappe.whitelist()
-def validate_opening_balances(company):
+def validate_opening_balances(company, as_of=None):
 	"""Validate a VN company's opening balances. Read-only; structured pass/fail.
 
 	Gates: the opening trial balance nets to zero, every opening entry hits a
 	TT99-numbered account, and receivable/payable openings carry a party (so the
 	131/331 control accounts reconcile with their subsidiary ledgers). Also reports
 	the 131 / 331 / 15x opening control totals.
+
+	With ``as_of`` (mid-year cutover, e.g. ``"2026-06-30"``) two more gates apply:
+	the opening TB is balance-sheet-only — no account numbered loại 5–9, the H1
+	result belongs in equity (4212) — and every opening entry is posted exactly on
+	``as_of``. Core already blocks report_type="Profit and Loss" accounts in opening
+	entries; the number-prefix gate additionally catches P&L-numbered accounts that
+	were misclassified as Balance Sheet. Without ``as_of`` behavior is unchanged.
 	"""
 	rows = frappe.get_all(
 		"GL Entry",
 		filters={"company": company, "is_opening": "Yes", "is_cancelled": 0},
-		fields=["account", "debit", "credit", "party"],
+		fields=["account", "debit", "credit", "party", "posting_date"],
 	)
 	numbers = {
 		a: (frappe.db.get_value("Account", a, "account_number") or "") for a in {r.account for r in rows}
@@ -187,6 +194,29 @@ def validate_opening_balances(company):
 			"detail": "; ".join(orphan) or "công nợ 131/331 có đối tượng",
 		},
 	]
+
+	if as_of:
+		cutover = getdate(as_of)
+		pl_accounts = sorted({r.account for r in rows if numbers[r.account].startswith(PL_ACCOUNT_PREFIXES)})
+		off_date = sorted({str(r.posting_date) for r in rows if getdate(r.posting_date) != cutover})
+		checks.append(
+			{
+				"name": "bs_only",
+				"ok": not pl_accounts,
+				"detail": "; ".join(pl_accounts)
+				or "không có tài khoản loại 5–9 trong số dư đầu kỳ (kết quả H1 nằm ở 4212)",
+			}
+		)
+		checks.append(
+			{
+				"name": "on_cutover_date",
+				"ok": not off_date,
+				"detail": f"bút toán mở sổ ngoài ngày chốt {cutover}: {'; '.join(off_date)}"
+				if off_date
+				else f"mọi bút toán mở sổ đúng ngày chốt {cutover}",
+			}
+		)
+
 	return {"ok": all(c["ok"] for c in checks), "checks": checks, "totals": totals}
 
 
@@ -281,8 +311,8 @@ def _check_no_numberless_accounts(company):
 	)
 
 
-def _check_opening_balanced(company):
-	r = validate_opening_balances(company)
+def _check_opening_balanced(company, as_of=None):
+	r = validate_opening_balances(company, as_of=as_of)
 	bad = "; ".join(c["detail"] for c in r["checks"] if not c["ok"])
 	return _check("opening_balanced", r["ok"], bad or "số dư đầu kỳ hợp lệ")
 
@@ -294,8 +324,12 @@ def _check_backup_verified(company):
 
 
 @frappe.whitelist()
-def go_live_readiness(company):
-	"""Full go-live precondition checklist for a VN company (read-only)."""
+def go_live_readiness(company, as_of=None):
+	"""Full go-live precondition checklist for a VN company (read-only).
+
+	``as_of`` (optional) is passed through to the opening-balance validation for a
+	mid-year cutover (see ``validate_opening_balances``).
+	"""
 	if not _is_vn(company):
 		return {"ok": False, "checks": [_check("vietnam", False, "không phải công ty Việt Nam")]}
 
@@ -308,7 +342,7 @@ def go_live_readiness(company):
 		_check_has_warehouse(company),
 		_check_role_profiles(company),
 		_check_no_numberless_accounts(company),
-		_check_opening_balanced(company),
+		_check_opening_balanced(company, as_of=as_of),
 		_check_backup_verified(company),
 	]
 	return {"ok": all(c["ok"] for c in checks), "checks": checks}
