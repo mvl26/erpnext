@@ -38,7 +38,7 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 - [x] Task 50 — 01/GTGT XML export (HTKK/eTax, golden file)
 
 ## Phase 18 — GĐ2 remainder (WS-E)
-- [ ] Task 51 — TT45 khung khấu hao defaults on Asset Categories
+- [x] Task 51 — TT45 khung khấu hao defaults on Asset Categories
 - [ ] Task 52 — Report Sổ chi tiết nguyên tệ + TK 007-style FX view
 - [ ] Task 53 — Per-employee TNCN surface (HRMS soft dependency, graceful degrade)
 
