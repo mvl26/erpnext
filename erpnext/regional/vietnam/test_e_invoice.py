@@ -72,3 +72,44 @@ class TestVietnamEInvoiceLog(FrappeTestCase):
 		).insert(ignore_permissions=True)
 		log.adjusts = log.name
 		self.assertRaises(frappe.ValidationError, log.save)
+
+
+COMPANY_EINVOICE_FIELDS = ("vn_einvoice_enabled", "vn_einvoice_provider", "vn_einvoice_symbol")
+SI_EINVOICE_FIELDS = (
+	"vn_einvoice_number",
+	"vn_einvoice_symbol",
+	"vn_einvoice_cqt_code",
+	"vn_einvoice_status",
+	"vn_einvoice_log",
+)
+
+
+class TestVietnamEInvoiceFields(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		# Creating a VN company dispatches the regional setup() hook.
+		cls.company = make_vn_company("_Test VN EInv Fields", "TVEF")
+
+	def test_company_fields_created(self):
+		for field in COMPANY_EINVOICE_FIELDS:
+			self.assertTrue(
+				frappe.db.exists("Custom Field", {"dt": "Company", "fieldname": field}),
+				f"missing Company custom field {field}",
+			)
+
+	def test_sales_invoice_fields_created(self):
+		for field in SI_EINVOICE_FIELDS:
+			self.assertTrue(
+				frappe.db.exists("Custom Field", {"dt": "Sales Invoice", "fieldname": field}),
+				f"missing Sales Invoice custom field {field}",
+			)
+
+	def test_setup_rerun_creates_no_duplicates(self):
+		from erpnext.regional.vietnam.setup import setup
+
+		setup(self.company)
+		setup(self.company)
+		self.assertEqual(
+			frappe.db.count("Custom Field", {"dt": "Sales Invoice", "fieldname": "vn_einvoice_status"}), 1
+		)
