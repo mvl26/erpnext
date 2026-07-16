@@ -29,7 +29,7 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 ### Checkpoint B — mock end-to-end green; only Task 45 remains for legal issuance
 
 ## Phase 16 — Khóa sổ & kết chuyển 911 (WS-D)
-- [ ] Task 46 — `period_close.py`: kết chuyển preview (pure, no writes)
+- [x] Task 46 — `period_close.py`: kết chuyển preview (pure, no writes)
 - [ ] Task 47 — Kết chuyển execute + Accounting Period lock (idempotent)
 - [ ] Task 48 — Runbook: month-end close section (docs)
 
