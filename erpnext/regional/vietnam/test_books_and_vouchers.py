@@ -295,6 +295,54 @@ class TestVietnamPartyLedger(FrappeTestCase):
 		closing = next(r for r in rows if r.get("is_closing"))
 		self.assertEqual(flt(closing["balance"]), 1_400_000)
 
+	def test_so_nguyen_te_ledger_ties_both_currencies(self):
+		from erpnext.regional.report.so_chi_tiet_nguyen_te.so_chi_tiet_nguyen_te import execute
+
+		company = make_vn_company("_Test VN Ngoai Te", "TVNT")
+		frappe.db.set_value("Currency", "USD", "enabled", 1)
+		parent = frappe.db.get_value(
+			"Account", {"company": company, "is_group": 1, "root_type": "Asset"}, "name"
+		)
+		usd_account = (
+			frappe.get_doc(
+				{
+					"doctype": "Account",
+					"account_name": "Tiền gửi ngân hàng USD",
+					"account_number": "1122",
+					"company": company,
+					"parent_account": parent,
+					"root_type": "Asset",
+					"account_currency": "USD",
+					"is_group": 0,
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
+		je = frappe.new_doc("Journal Entry")
+		je.company = company
+		je.posting_date = "2026-04-10"
+		je.multi_currency = 1
+		je.append(
+			"accounts",
+			{"account": usd_account, "exchange_rate": 25_000, "debit_in_account_currency": 1_000},
+		)
+		je.append(
+			"accounts", {"account": _acct(company, "4211"), "credit_in_account_currency": 25_000_000}
+		)
+		je.flags.ignore_permissions = True
+		je.insert()
+		je.submit()
+
+		_cols, rows = execute({"company": company, "from_date": "2026-04-01", "to_date": "2026-04-30"})
+		entry = next(r for r in rows if r.get("voucher_no"))
+		self.assertEqual(entry["currency"], "USD")
+		self.assertEqual(flt(entry["debit_nt"]), 1_000)
+		self.assertEqual(flt(entry["debit_vnd"]), 25_000_000)
+		closing = next(r for r in rows if r.get("is_closing"))
+		self.assertEqual(flt(closing["balance_nt"]), 1_000)
+		self.assertEqual(flt(closing["balance_vnd"]), 25_000_000)
+
 	def test_partyless_rows_are_surfaced(self):
 		# Simulate a legacy/imported 131 row that slipped in without a party.
 		gle = frappe.new_doc("GL Entry")
