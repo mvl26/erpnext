@@ -1,5 +1,4 @@
-# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
+# Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
 """One-time: switch the Miyano company from the English Standard chart onto the
 TT99 chart of accounts. Guarded (only runs if the company is empty) and idempotent

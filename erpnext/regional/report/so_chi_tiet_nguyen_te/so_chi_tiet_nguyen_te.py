@@ -1,5 +1,4 @@
-# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
+# Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
 """Sổ chi tiết nguyên tệ (theo dõi ngoại tệ, thay sổ TK 007) — TT99/2025.
 
