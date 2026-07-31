@@ -1,7 +1,3 @@
-# Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
-
 import frappe
 from frappe import _, throw
 from frappe.desk.form import assign_to

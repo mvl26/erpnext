@@ -1,6 +1,3 @@
-// Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Item Variant Settings", {
 	refresh: function (frm) {
 		const allow_fields = [];

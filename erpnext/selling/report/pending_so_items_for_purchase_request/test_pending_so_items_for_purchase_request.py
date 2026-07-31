@@ -1,7 +1,3 @@
-# Copyright (c) 2013, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
-
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_months, nowdate
 

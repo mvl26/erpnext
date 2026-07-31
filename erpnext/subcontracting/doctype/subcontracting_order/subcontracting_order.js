@@ -1,6 +1,3 @@
-// Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.provide("erpnext.buying");
 
 erpnext.landed_cost_taxes_and_charges.setup_triggers("Subcontracting Order");

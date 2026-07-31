@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 from frappe import _, msgprint, scrub, unscrub
 from frappe.core.doctype.user_permission.user_permission import get_permitted_documents

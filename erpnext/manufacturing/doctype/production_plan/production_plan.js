@@ -1,6 +1,3 @@
-// Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Production Plan", {
 	before_save(frm) {
 		// preserve temporary names on production plan item to re-link sub-assembly items

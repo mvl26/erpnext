@@ -1,6 +1,3 @@
-// Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Accounting Dimension Filter", {
 	refresh: function (frm, cdt, cdn) {
 		let help_content = `<table class="table table-bordered" style="background-color: var(--scrollbar-track-color);">

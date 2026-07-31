@@ -1,7 +1,3 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 
 from erpnext.stock.stock_balance import get_reserved_qty, update_bin_qty

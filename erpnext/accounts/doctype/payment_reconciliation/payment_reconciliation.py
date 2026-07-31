@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# For license information, please see license.txt
-
-
 import frappe
 from frappe import _, msgprint, qb
 from frappe.model.document import Document

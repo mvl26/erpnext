@@ -1,8 +1,4 @@
-# Copyright (c) 2013, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
 # Copyright (c) 2013, Tristar Enterprises and contributors
-# For license information, please see license.txt
 
 
 import frappe

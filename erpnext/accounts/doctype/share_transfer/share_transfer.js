@@ -1,6 +1,3 @@
-// Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.provide("erpnext.share_transfer");
 
 frappe.ui.form.on("Share Transfer", {

@@ -1,6 +1,3 @@
-# Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
 from frappe.tests.utils import FrappeTestCase
 
 from erpnext.manufacturing.doctype.production_plan.test_production_plan import make_bom

@@ -1,6 +1,3 @@
-# Copyright (c) 2023, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-
 from random import randint
 
 import frappe
