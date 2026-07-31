@@ -1,5 +1,4 @@
-# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
+# Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
 """Tests for the Vietnam company-setup hook (module/master-data account wiring)."""
 
@@ -104,6 +103,76 @@ def asset_category_numbers(category, company):
 				"cwip": num(row.capital_work_in_progress_account),
 			}
 	return None
+
+
+def _inject_orphan_asset_category_row(category, ghost_company):
+	"""Write a row for a company that does not exist, bypassing validation.
+
+	Mirrors how the rot appears in real life: a company is created, its Asset
+	Category row is written, and the company (with its accounts) later goes away —
+	leaving a row that no longer validates.
+	"""
+	row = frappe.get_doc(
+		{
+			"doctype": "Asset Category Account",
+			"parent": category,
+			"parenttype": "Asset Category",
+			"parentfield": "accounts",
+			"idx": 99,
+			"company_name": ghost_company,
+			"fixed_asset_account": f"211 - Tài sản cố định hữu hình - {ghost_company}",
+			"accumulated_depreciation_account": f"2141 - Hao mòn TSCĐ hữu hình - {ghost_company}",
+			"depreciation_expense_account": f"6424 - Chi phí khấu hao TSCĐ - {ghost_company}",
+			"capital_work_in_progress_account": f"2411 - Mua sắm TSCĐ - {ghost_company}",
+		}
+	)
+	row.name = f"_test-orphan-{frappe.scrub(category)}"
+	row.db_insert()
+	return row.name
+
+
+class TestVietnamAssetCategoryHygiene(FrappeTestCase):
+	"""A row left by a deleted company must never block setup for another company.
+
+	``Asset Category`` is global with a per-company child table, so Frappe validates
+	the links of EVERY row on save. One stale row (accounts gone with its company)
+	therefore fails the save for an unrelated company — and because the VN hook runs
+	inside ``install_country_fixtures``, that failure aborts the company creation.
+	"""
+
+	GHOST = "_Test VN Ghost Co"
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		# A first VN company guarantees both Asset Categories exist to be polluted.
+		cls.company = make_vn_company("_Test VN Hygiene A", "TVHA")
+
+	def test_company_creation_survives_and_prunes_orphan_rows(self):
+		self.assertFalse(frappe.db.exists("Company", self.GHOST))
+		for category in (HUU_HINH, VO_HINH):
+			_inject_orphan_asset_category_row(category, self.GHOST)
+
+		second = make_vn_company("_Test VN Hygiene B", "TVHB")
+
+		for category in (HUU_HINH, VO_HINH):
+			companies = [r.company_name for r in frappe.get_doc("Asset Category", category).accounts]
+			self.assertNotIn(self.GHOST, companies, f"orphan row survived on {category}")
+			self.assertIn(second, companies)
+			self.assertIn(self.company, companies)  # live companies keep their wiring
+
+	def test_deleting_a_company_takes_its_asset_category_rows_with_it(self):
+		"""No new orphans: Company.on_trash must clear the rows it left behind."""
+		doomed = make_vn_company("_Test VN Hygiene C", "TVHC")
+		self.assertTrue(
+			any(r.company_name == doomed for r in frappe.get_doc("Asset Category", HUU_HINH).accounts)
+		)
+
+		frappe.delete_doc("Company", doomed, ignore_permissions=True)
+
+		for category in (HUU_HINH, VO_HINH):
+			companies = [r.company_name for r in frappe.get_doc("Asset Category", category).accounts]
+			self.assertNotIn(doomed, companies, f"deleted company left a row on {category}")
 
 
 class TestVietnamCompanySetup(FrappeTestCase):

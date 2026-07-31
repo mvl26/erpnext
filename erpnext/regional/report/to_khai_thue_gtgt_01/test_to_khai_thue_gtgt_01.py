@@ -1,5 +1,4 @@
-# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
+# Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
 """Tests for Tờ khai thuế GTGT (mẫu 01/GTGT)."""
 
@@ -237,3 +236,86 @@ class TestBangKeGTGT(FrappeTestCase):
 		xml_out = export_to_khai_xml(self.company, "1900-01-01", self.to_date, ky_khai="3/2026")
 		golden = (Path(__file__).parent / "golden_01_gtgt.xml").read_text(encoding="utf-8")
 		self.assertEqual(xml_out.strip(), golden.strip())
+
+
+class TestBangKeMuaVaoTaiSanCoDinh(FrappeTestCase):
+	"""Thuế GTGT đầu vào của TSCĐ hạch toán vào 1332 (không phải 1331).
+
+	Tờ khai cộng cả 133x, nên bảng kê mua vào phải bắt được cả 1332 thì bảng kê mới
+	khớp chỉ tiêu 24/25. Dùng công ty riêng để không đụng golden file 01/GTGT.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		from erpnext.regional.vietnam.setup import _acct
+		from erpnext.regional.vietnam.test_setup import make_vn_company
+
+		cls.company = make_vn_company("_Test VN BK TSCD", "TVBT")
+		cls.to_date = nowdate()
+
+		supplier = frappe.get_doc(
+			{
+				"doctype": "Supplier",
+				"supplier_name": "_Test VN BK TSCD Supplier",
+				"supplier_group": "All Supplier Groups",
+				"tax_id": "0311122233",
+			}
+		).insert(ignore_permissions=True)
+		if not frappe.db.exists("Item", "_Test VN BK TSCD Service"):
+			frappe.get_doc(
+				{
+					"doctype": "Item",
+					"item_code": "_Test VN BK TSCD Service",
+					"item_name": "_Test VN BK TSCD Service",
+					"item_group": "All Item Groups",
+					"stock_uom": "Nos",
+					"is_stock_item": 0,
+				}
+			).insert(ignore_permissions=True)
+
+		def _purchase(rate, vat_account):
+			pi = frappe.get_doc(
+				{
+					"doctype": "Purchase Invoice",
+					"company": cls.company,
+					"supplier": supplier.name,
+					"posting_date": cls.to_date,
+					"items": [{"item_code": "_Test VN BK TSCD Service", "qty": 1, "rate": rate}],
+					"taxes": [
+						{
+							"charge_type": "On Net Total",
+							"account_head": _acct(cls.company, vat_account),
+							"rate": 10,
+							"description": f"Thuế GTGT đầu vào 10% ({vat_account})",
+							"category": "Total",
+							"add_deduct_tax": "Add",
+						}
+					],
+				}
+			)
+			pi.flags.ignore_permissions = True
+			pi.insert()
+			pi.submit()
+			return pi
+
+		cls.pi_hh = _purchase(5_000_000, "1331")  # hàng hóa dịch vụ
+		cls.pi_tscd = _purchase(8_000_000, "1332")  # tài sản cố định
+
+	def test_bang_ke_mua_vao_includes_1332_and_ties_to_declaration(self):
+		from erpnext.regional.report.to_khai_thue_gtgt_01.to_khai_thue_gtgt_01 import bang_ke_mua_vao
+
+		rows = bang_ke_mua_vao(self.company, "1900-01-01", self.to_date)
+		by_invoice = {r["so_hoa_don"]: r for r in rows}
+		self.assertEqual(len(rows), 2)
+
+		self.assertEqual(by_invoice[self.pi_hh.name]["tien_thue"], 500_000)
+		self.assertEqual(by_invoice[self.pi_tscd.name]["doanh_so"], 8_000_000)
+		self.assertEqual(by_invoice[self.pi_tscd.name]["tien_thue"], 800_000)
+
+		decl = execute(
+			frappe._dict(company=self.company, from_date="1900-01-01", to_date=self.to_date)
+		)[1]
+		input_vat = next(r["so_tien"] for r in decl if r.get("chi_tieu_code") == "25")
+		self.assertEqual(input_vat, 1_300_000)
+		self.assertEqual(sum(r["tien_thue"] for r in rows), input_vat)

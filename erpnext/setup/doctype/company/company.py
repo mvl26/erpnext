@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import json
 
 import frappe
@@ -705,6 +701,12 @@ class Company(NestedSet):
 		frappe.defaults.clear_default("company", value=self.name)
 		for doctype in ["Mode of Payment Account", "Item Default"]:
 			frappe.db.sql(f"delete from `tab{doctype}` where company = %s", self.name)
+
+		# Asset Category is a global doc with a per-company child table (keyed on
+		# company_name, hence not in the loop above). A row left behind points at
+		# accounts deleted with the company, so it fails link validation on EVERY
+		# later save of that category — including the one that wires up a new company.
+		frappe.db.sql("delete from `tabAsset Category Account` where company_name = %s", self.name)
 
 		# clear default accounts, warehouses from item
 		warehouses = frappe.db.sql_list("select name from tabWarehouse where company=%s", self.name)

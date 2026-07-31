@@ -1,5 +1,4 @@
-# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
+# Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
 """Tờ khai thuế GTGT — mẫu 01/GTGT (VN VAT return).
 
@@ -13,8 +12,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
-from erpnext.regional.vietnam.constants import INPUT_VAT_ACCOUNT, OUTPUT_VAT_ACCOUNT
-from erpnext.regional.vietnam.setup import _acct
+from erpnext.regional.vietnam.constants import INPUT_VAT_PREFIX, OUTPUT_VAT_PREFIX
 from erpnext.regional.vietnam.utils import get_account_balances, sum_movement_by_prefix
 
 VERIFY_NOTE = _(
@@ -43,8 +41,8 @@ def get_data(filters):
 	b = get_account_balances(filters.company, filters.from_date, filters.to_date)
 
 	# Output VAT = credit movement of 33311; input VAT = debit movement of 133x.
-	output_vat = -sum_movement_by_prefix(b, [OUTPUT_VAT_ACCOUNT])
-	input_vat = sum_movement_by_prefix(b, [INPUT_VAT_ACCOUNT[:3]])  # 133 -> 1331 + 1332
+	output_vat = -sum_movement_by_prefix(b, [OUTPUT_VAT_PREFIX])
+	input_vat = sum_movement_by_prefix(b, [INPUT_VAT_PREFIX])
 	deductible = input_vat  # khấu trừ toàn bộ
 	payable = max(output_vat - deductible, 0.0)
 	carry_forward = max(deductible - output_vat, 0.0)
@@ -81,11 +79,21 @@ def get_data(filters):
 
 # --- Bảng kê hóa đơn (invoice listings backing the declaration) ---------------
 
-# kind → (invoice doctype, tax child doctype, partner-name field, GTGT account number)
+# kind → (invoice doctype, tax child doctype, partner-name field, GTGT number prefix).
+# The prefix is the same one the declaration sums over, so bảng kê always ties to it.
 BANG_KE_SOURCES = {
-	"ban_ra": ("Sales Invoice", "Sales Taxes and Charges", "customer_name", OUTPUT_VAT_ACCOUNT),
-	"mua_vao": ("Purchase Invoice", "Purchase Taxes and Charges", "supplier_name", INPUT_VAT_ACCOUNT),
+	"ban_ra": ("Sales Invoice", "Sales Taxes and Charges", "customer_name", OUTPUT_VAT_PREFIX),
+	"mua_vao": ("Purchase Invoice", "Purchase Taxes and Charges", "supplier_name", INPUT_VAT_PREFIX),
 }
+
+
+def _vat_accounts(company, prefix):
+	"""Posting accounts whose TT99 number starts with ``prefix`` (133 → 1331, 1332)."""
+	return frappe.get_all(
+		"Account",
+		filters={"company": company, "is_group": 0, "account_number": ["like", f"{prefix}%"]},
+		pluck="name",
+	)
 
 
 @frappe.whitelist()
@@ -101,8 +109,10 @@ def bang_ke_mua_vao(company, from_date, to_date):
 
 
 def _bang_ke(company, from_date, to_date, kind):
-	doctype, tax_doctype, partner_field, vat_number = BANG_KE_SOURCES[kind]
-	vat_account = _acct(company, vat_number)
+	doctype, tax_doctype, partner_field, vat_prefix = BANG_KE_SOURCES[kind]
+	vat_accounts = _vat_accounts(company, vat_prefix)
+	if not vat_accounts:
+		return []
 
 	fields = ["name", "posting_date", partner_field, "tax_id", "base_net_total"]
 	meta = frappe.get_meta(doctype)
@@ -128,7 +138,7 @@ def _bang_ke(company, from_date, to_date, kind):
 		filters={
 			"parenttype": doctype,
 			"parent": ["in", [inv.name for inv in invoices]],
-			"account_head": vat_account,
+			"account_head": ["in", vat_accounts],
 			"docstatus": 1,
 		},
 		fields=["parent", "rate", "base_tax_amount"],
