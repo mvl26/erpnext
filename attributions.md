@@ -1,6 +1,6 @@
-## ERPNext includes these public works
+## Miyano ERP includes these public works
 
-For Frappe Framework, please see attributions.md at https://github.com/frappe/frappe/
+Ghi nhận tài nguyên bên thứ ba được sử dụng trong hệ thống. Xem thêm [NOTICE.md](NOTICE.md).
 
 #### Images
 

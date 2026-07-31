@@ -4,14 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-This repo is **ERPNext being hard-forked into the bespoke ERP of Công ty TNHH Miyano Việt Nam** — a medical-equipment (thiết bị & vật tư y tế) business — with Vietnamese localization and compliance. It is not a vanilla install and not a clean overlay: **the ERPNext code itself is edited to become Miyano's product.** Shaping core to fit Miyano's business is the goal, not staying upgrade-clean.
+This repo is **Miyano ERP** — the bespoke, internal-only ERP of Công ty TNHH Miyano Việt Nam, a medical-equipment (thiết bị & vật tư y tế) business — with Vietnamese localization and compliance. It is not a vanilla install and not a clean overlay: **core code is edited directly to become Miyano's product.** Shaping core to fit Miyano's business is the goal, not staying upgrade-clean.
+
+Not published, not distributed outside the company. Provenance and copyright: see `NOTICE.md`.
 
 It runs as one app inside a Frappe *bench* (site `miyano`), not standalone. **Run every `bench` command from the bench root `/home/miyano/frappe-bench`** (not this app directory), passing `--site miyano`.
 
 ## Golden rule for changes
 
-- **Edit the relevant ERPNext module directly** to meet a Miyano requirement — don't route around core. Bending core to fit the business is the point of this fork.
-- Forked off upstream `version-15`: keep changes coherent and grouped in the right module, and stay aware of where you diverge. Use `git blame`/`git log` for a file's history and any prior local edits — for context, not as a reason to avoid changing it.
+- **Edit the relevant module directly** to meet a Miyano requirement — don't route around core. Bending core to fit the business is the point of this fork.
+- Keep changes coherent and grouped in the right module. Use `git blame`/`git log` for a file's history and any prior local edits — for context, not as a reason to avoid changing it.
+- **Branding:** the product is "Miyano ERP". Do not reintroduce upstream branding, logos, doc links, or public-project infrastructure. The bench app key stays `app_name = "erpnext"` and the `erpnext/` package path stays — those are install/DB identifiers, not branding.
 - Put large, self-contained capabilities in a complementary bench app (below); changes to core ERP behavior belong here, in this app.
 - Use Frappe's built-in customization (Custom Field, Client Script, Property Setter, Workflow) for config-level tweaks that need no code; write code for real business logic.
 
@@ -25,7 +28,7 @@ Miyano's deployment (built by a Vietnamese team, medcons.vn) layers several **co
 - **`antmed_crm`** — CRM quản lý kinh doanh thiết bị & vật tư y tế.
 - **`normcore_dmktkt` / `norm_himedic`** — Định mức Kinh tế Kỹ thuật dịch vụ y tế.
 - **`workflowcore`** — Quản lý workflow + AI.
-- **`hrms`** — Frappe HR (dependency of `mvl_accounting`).
+- **`hrms`** — Miyano HR: nhân sự & tiền lương (dependency of `mvl_accounting`).
 
 Because these share the site DB, changes here can affect — and be affected by — those apps. When a feature is clearly one of theirs (e.g. medical-device lifecycle → `assetcore`, CRM → `antmed_crm`), make the change in that app, not here. **Exception:** VN accounting/compliance (TT99, HĐĐT, sổ sách, kê khai) belongs **here** in erpnext core — `mvl_accounting` is parked (see above).
 
