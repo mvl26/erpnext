@@ -1,12 +1,7 @@
-## temp utility
-
 from contextlib import contextmanager
 
 import frappe
 from frappe import _
-from frappe.utils import cstr
-
-from erpnext.utilities.activation import get_level
 
 
 def update_doctypes():
@@ -25,28 +20,9 @@ def update_doctypes():
 				break
 
 
-def get_site_info(site_info):
-	# called via hook
-	company = frappe.db.get_single_value("Global Defaults", "default_company")
-	domain = None
-
-	if not company:
-		company = frappe.db.sql("select name from `tabCompany` order by creation asc")
-		company = company[0][0] if company else None
-
-	if company:
-		domain = frappe.get_cached_value("Company", cstr(company), "domain")
-
-	return {"company": company, "domain": domain, "activation": get_level(site_info)}
-
-
 @contextmanager
 def payment_app_import_guard():
-	marketplace_link = '<a href="https://frappecloud.com/marketplace/apps/payments">Marketplace</a>'
-	github_link = '<a href="https://github.com/frappe/payments/">GitHub</a>'
-	msg = _("payments app is not installed. Please install it from {} or {}").format(
-		marketplace_link, github_link
-	)
+	msg = _("payments app is not installed. Please contact the Miyano IT team.")
 	try:
 		yield
 	except ImportError:
