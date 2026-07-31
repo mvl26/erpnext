@@ -1,5 +1,4 @@
-# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
+# Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
 """Vietnam company setup — wire module/master-data account links to TT99 numbers.
 
@@ -51,6 +50,25 @@ ASSET_CATEGORIES = (
 )
 
 
+def drop_rows_of_deleted_companies(category):
+	"""Drop per-company account rows whose company no longer exists.
+
+	``Asset Category`` is a global DocType with a per-company child table, so Frappe
+	validates the links of EVERY row on save. A row left behind by a deleted company
+	points at accounts that went with it, so it can never validate again and fails
+	the save for an unrelated company — which, inside ``install_country_fixtures``,
+	aborts that company's creation. Returns True when anything was dropped.
+	"""
+	live = [row for row in category.accounts if frappe.db.exists("Company", row.company_name)]
+	if len(live) == len(category.accounts):
+		return False
+
+	category.accounts = live
+	for idx, row in enumerate(live, start=1):
+		row.idx = idx
+	return True
+
+
 def _create_asset_categories(company):
 	"""Default Asset Categories wired to TT99 TSCĐ / hao mòn / khấu hao / XDCB."""
 	for name, fixed, accum, dep, cwip in ASSET_CATEGORIES:
@@ -70,10 +88,13 @@ def _create_asset_categories(company):
 				{"doctype": "Asset Category", "asset_category_name": name, "enable_cwip_accounting": 1}
 			)
 
-		if any(row.company_name == company for row in category.accounts):
+		changed = drop_rows_of_deleted_companies(category)
+		if not any(row.company_name == company for row in category.accounts):
+			category.append("accounts", {"company_name": company, **accounts})
+			changed = True
+		if not changed:
 			continue
 
-		category.append("accounts", {"company_name": company, **accounts})
 		category.flags.ignore_permissions = True
 		category.save() if not category.is_new() else category.insert()
 

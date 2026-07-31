@@ -1,5 +1,4 @@
-# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
+# Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
 """Khung khấu hao TT45/2013/TT-BTC — useful-life defaults for VN Asset Categories.
 
@@ -23,11 +22,15 @@ TT45_USEFUL_LIFE_YEARS = {
 
 def apply_tt45_useful_life():
 	"""Idempotently fill depreciation defaults on the VN Asset Categories."""
+	from erpnext.regional.vietnam.setup import drop_rows_of_deleted_companies
+
 	for name, years in TT45_USEFUL_LIFE_YEARS.items():
 		if not frappe.db.exists("Asset Category", name):
 			continue
 		category = frappe.get_doc("Asset Category", name)
-		if _fill_depreciation_defaults(category, years):
+		# Same global doc as the setup hook — a stale row would fail this save too.
+		pruned = drop_rows_of_deleted_companies(category)
+		if _fill_depreciation_defaults(category, years) or pruned:
 			category.flags.ignore_permissions = True
 			category.save()
 

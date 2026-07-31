@@ -1,5 +1,4 @@
-# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
+# Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
 """Hóa đơn điện tử (NĐ 70/2025) — settings, payload building, issuance orchestration.
 
@@ -80,6 +79,20 @@ def _as_json(value):
 	return json.dumps(value, ensure_ascii=False, indent=1, default=str)
 
 
+def _issued_log(sales_invoice):
+	"""Name of the log for an already-issued HĐĐT on this invoice, else ``None``.
+
+	Read from the database, not from a passed-in document: ``_log_issuance`` stamps
+	the invoice with ``db.set_value``, so an in-memory doc can still look unissued
+	right after a successful issuance. Error logs carry no number, so a failed
+	attempt stays retryable.
+	"""
+	stamped = frappe.db.get_value(
+		"Sales Invoice", sales_invoice, ["vn_einvoice_number", "vn_einvoice_log"], as_dict=True
+	)
+	return stamped.vn_einvoice_log if stamped and stamped.vn_einvoice_number else None
+
+
 def on_si_submit(doc, method=None):
 	"""doc_events hook — fire-and-log HĐĐT issuance; must never block the submit."""
 	try:
@@ -98,6 +111,10 @@ def issue_e_invoice(sales_invoice, si=None):
 	whose original carries an issued HĐĐT is issued as a hóa đơn điều chỉnh with
 	lineage. A provider failure records an Error log and stamps the invoice for
 	retry — calling this again (it is whitelisted) retries. Returns the log name.
+
+	An invoice that already carries a HĐĐT number is never issued again: a real
+	provider would mint a second legal số for one sale. Correcting an issued invoice
+	goes through điều chỉnh (hóa đơn trả lại) or ``issue_replacement``.
 	"""
 	si = si or frappe.get_doc("Sales Invoice", sales_invoice)
 	if si.docstatus != 1:
@@ -105,6 +122,9 @@ def issue_e_invoice(sales_invoice, si=None):
 	settings = get_e_invoice_settings(si.company)
 	if not settings.enabled:
 		return None
+
+	if issued := _issued_log(si.name):
+		return issued
 
 	adjusts = None
 	if si.get("is_return") and si.get("return_against"):

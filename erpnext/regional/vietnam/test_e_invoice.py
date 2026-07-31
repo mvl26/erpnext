@@ -1,5 +1,4 @@
-# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
+# Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
 """Tests for Vietnam hóa đơn điện tử (NĐ 70/2025): log DocType, fields, issuance."""
 
@@ -186,6 +185,26 @@ class TestVietnamEInvoiceIssuance(FrappeTestCase):
 		si.reload()
 		self.assertFalse(si.vn_einvoice_status)
 		self.assertFalse(frappe.db.exists("Vietnam E Invoice Log", {"sales_invoice": si.name}))
+
+	def test_issued_invoice_is_never_reissued(self):
+		"""Một hóa đơn đã có số HĐĐT không được phát hành lần hai (tránh trùng số).
+
+		Mock adapter sinh số tất định nên số trùng nhau; provider thật sẽ cấp số mới,
+		tức là hai hóa đơn hợp pháp cho cùng một lần bán. Điều chỉnh / thay thế là
+		đường đi đúng cho việc sửa một hóa đơn đã phát hành.
+		"""
+		from erpnext.regional.vietnam.e_invoice import issue_e_invoice
+
+		si = make_draft_sales_invoice(self.company, customer_name="_Test VN EInv Dup Cust")
+		si.submit()
+		si.reload()
+		first_log = si.vn_einvoice_log
+		self.assertEqual(si.vn_einvoice_status, "Issued")
+
+		self.assertEqual(issue_e_invoice(si.name), first_log)  # no-op, trả về log đã có
+		si.reload()
+		self.assertEqual(si.vn_einvoice_log, first_log)
+		self.assertEqual(frappe.db.count("Vietnam E Invoice Log", {"sales_invoice": si.name}), 1)
 
 	def test_provider_error_never_blocks_submit_then_retry_succeeds(self):
 		from unittest.mock import patch

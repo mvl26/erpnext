@@ -44,6 +44,12 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 
 ### Checkpoint C — all suites + 34 shipped VN tests green; migrate + pre-commit clean
 
+## Phase 19 — Sửa sau kế hoạch (found while reviewing, after Task 53)
+- [x] Task 54 — Tờ khai + bảng kê cùng cộng 133x (1331 HHDV + 1332 TSCĐ) → bảng kê khớp CT 24/25
+- [x] Task 55 — HĐĐT: hóa đơn đã có số không phát hành lại (sửa qua điều chỉnh/thay thế)
+- [x] Task 56 — Asset Category không bị treo bởi dòng của công ty đã xóa: VN setup tự dọn,
+      `Company.on_trash` dọn dòng của chính nó (trước đó: không tạo được công ty VN mới)
+
 ## Gates (not code tasks)
 - [ ] OQ-1: user chooses HĐĐT provider + provides sandbox credentials → unblocks Task 45
 - [ ] OQ-2/OQ-3: kế toán trưởng confirms mid-year opening method + cutover date
