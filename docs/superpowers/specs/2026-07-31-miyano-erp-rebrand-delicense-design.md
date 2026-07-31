@@ -2,7 +2,7 @@
 
 **Ngày:** 2026-07-31
 **Nhánh:** `feat/vn-accounting-tt99`
-**Trạng thái:** thiết kế đã duyệt
+**Trạng thái:** đã thực thi xong
 
 ## 1. Mục tiêu & phạm vi
 
@@ -147,3 +147,39 @@ Từng bước một commit, `git revert`-được:
 4. Dọn chú thích thừa
 5. Tài liệu
 6. Kiểm chứng toàn bộ
+
+
+---
+
+## Kết quả thực thi (2026-07-31)
+
+| Cổng | Kết quả |
+|---|---|
+| `git grep -i "GNU General Public"` | **1** — chính tài liệu này |
+| `git grep "Frappe Technologies"` | **1** — chính tài liệu này |
+| `license.txt` trong code | **0** |
+| Diff bóc header | 1600 file, **0 dòng thêm**, 5518 dòng xóa |
+| `compileall` | sạch |
+| JSON | 1105 file, 0 lỗi |
+| `bench build --app erpnext` | xanh, bundle không còn URL upstream |
+| Test 5 suite kế toán VN | **45 test / 0 fail — giống hệt mốc trước** |
+
+### Khác biệt so với thiết kế
+
+1. **Phải chạy 2 lượt, không phải 1.** Lượt 1 khớp theo chuỗi cố định (`License:`, `For license information`) nên bỏ sót 3 biến thể: `# See license.txt` trần (226 file), `# MIT License. See license.txt` (16), `# GPL v3 License...` (1). Lượt 2 đổi cách tiếp cận — quét cả khối comment đầu file, xoá mọi dòng nói về giấy phép — mới sạch. Đúng loại rủi ro thiết kế đã cảnh báo, chỉ là biến thể còn nhiều hơn con số đo được ban đầu.
+
+2. **Sáu công ty bên thứ ba, không phải bốn.** Dry-run lộ thêm **Epoch Consulting** và **Tristar Enterprises**. Script viết theo hướng "xoá Frappe, giữ mọi tên khác" nên bắt được cả hai; nếu dùng danh sách cố định thì đã xoá nhầm ghi nhận của họ.
+
+3. **`erpnext/startup/__init__.py` phải sửa tay.** Khối GPL 14 dòng dài quá tầm quét, regex bóc dở dang. File này còn chứa `product_name = "ERPNext"` — hằng số tên sản phẩm, đã đổi thành `"Miyano ERP"`.
+
+4. **Ảnh: sinh 2 file thay vì 3.** Không có artwork riêng cho biến thể "blue" nên `miyano-logo.png` (512×512) dùng chung cho app switcher, splash, desk logo và email; `miyano-favicon.png` (96×96) cho favicon.
+
+5. **Phát sinh: 2 import chết** (`cstr`, `get_level`) sau khi gỡ `get_site_info`, đã gỡ theo.
+
+6. **Bước 4 (dọn chú thích thừa) gần như trống.** Khác `hrms` có 24 dòng scaffold bị comment trong `hooks.py`, erpnext không có dòng nào. Chỉ gỡ được comment `## temp utility`.
+
+### Việc cần con người làm
+
+- **`bench --site miyano migrate`** rồi **`clear-cache`**, và khởi động lại app để `hooks.py` mới có hiệu lực.
+- **Xác nhận trực quan** sau khi khởi động lại: logo Miyano ở app switcher, favicon, splash.
+- **Quyết định cách commit** — cây làm việc đang lẫn phần VN accounting chưa commit từ trước phiên này.
