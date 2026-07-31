@@ -1,6 +1,3 @@
-# Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
 import frappe
 
 from erpnext.stock.report.stock_and_account_value_comparison.stock_and_account_value_comparison import (

@@ -1,6 +1,3 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
 erpnext.SMSManager = function SMSManager(doc) {
 	var me = this;
 	this.setup = function () {

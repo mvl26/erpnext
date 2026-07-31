@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 from frappe.contacts.address_and_contact import load_address_and_contact
 from frappe.utils import cstr, filter_strip_join

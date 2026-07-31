@@ -1,7 +1,3 @@
-# Copyright (c) 2017, Frappe and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 
 from erpnext.manufacturing.doctype.work_order.work_order import create_job_card

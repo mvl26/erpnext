@@ -1,6 +1,3 @@
-# Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-
 import json
 
 import frappe

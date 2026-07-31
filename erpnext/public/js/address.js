@@ -1,6 +1,3 @@
-// Copyright (c) 2016, Frappe Technologies and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Address", {
 	is_your_company_address: function (frm) {
 		frm.clear_table("links");
