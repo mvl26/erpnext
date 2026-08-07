@@ -53,7 +53,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
 - [x] **T3 — DocType `Fast EInvoice Line` (child).** 14 trường mục C3, đúng thứ
   tự cột `structure.detail`. Deps: T1.
 
-- [ ] **T4 — DocType `Fast EInvoice Document` (cha).** Nhóm C2.1–C2.4, naming
+- [x] **T4 — DocType `Fast EInvoice Document` (cha).** Nhóm C2.1–C2.4, naming
   `FEI-.YYYY.-.#####`, 12 trạng thái + `Lỗi`, khóa sửa bằng
   `read_only_depends_on` theo `status` (`is_submittable = 0`).
   - Nghiệm thu: tạo được bản ghi ở trạng thái 01; trạng thái ≥05 khóa sửa;
