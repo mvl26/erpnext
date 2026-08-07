@@ -45,7 +45,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
   - Files: `erpnext/einvoice/`, `modules.txt`, `regional/vietnam/setup.py`,
     `hooks.py`, `patches.txt`, patch mới. Deps: không.
 
-- [ ] **T2 — DocType `Fast eInvoice Settings` (Single).** 18 trường mục C1,
+- [x] **T2 — DocType `Fast eInvoice Settings` (Single).** 18 trường mục C1,
   quản lý token (24h), cờ `is_test_mode`.
   - Nghiệm thu: lưu được cấu hình; thiếu trường bắt buộc → chặn; `api_password`
     là Password (không lộ khi đọc doc). Deps: T1.

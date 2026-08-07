@@ -1,0 +1,213 @@
+{
+ "actions": [],
+ "creation": "2026-08-07 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "is_test_mode",
+  "connection_section",
+  "api_url",
+  "client_code",
+  "proxy_code",
+  "column_break_connection",
+  "unit_code",
+  "voucher_book",
+  "credentials_section",
+  "api_user",
+  "api_password",
+  "column_break_credentials",
+  "token",
+  "token_time",
+  "behaviour_section",
+  "default_human_name",
+  "require_customer_approval",
+  "column_break_behaviour",
+  "auto_download_pdf",
+  "auto_poll_tax_status",
+  "notification_section",
+  "draft_email_template",
+  "issued_email_template",
+  "notify_on_error"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "description": "Tắt = mọi nút hóa đơn điện tử ẩn đi.",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Kích hoạt tích hợp"
+  },
+  {
+   "default": "1",
+   "description": "Bật = bắn vào hệ thống TEST của Fast. Tắt = HỆ THỐNG THẬT, hóa đơn phát hành là chứng từ pháp lý.",
+   "fieldname": "is_test_mode",
+   "fieldtype": "Check",
+   "label": "Chế độ TEST"
+  },
+  {
+   "fieldname": "connection_section",
+   "fieldtype": "Section Break",
+   "label": "Thông số kết nối"
+  },
+  {
+   "default": "https://tportal.fast.com.vn:9000/AppService/FastEInvoice.PortalService.asmx",
+   "description": "Thật: https://tportal.fast.com.vn/AppService/FastEInvoice.PortalService.asmx · Test: thêm :9000",
+   "fieldname": "api_url",
+   "fieldtype": "Data",
+   "label": "URL dịch vụ",
+   "mandatory_depends_on": "eval:doc.enabled"
+  },
+  {
+   "default": "008254",
+   "fieldname": "client_code",
+   "fieldtype": "Data",
+   "label": "Mã doanh nghiệp (clientCode)",
+   "mandatory_depends_on": "eval:doc.enabled"
+  },
+  {
+   "default": "006384",
+   "fieldname": "proxy_code",
+   "fieldtype": "Data",
+   "label": "Mã nhóm dịch vụ (proxyCode)",
+   "mandatory_depends_on": "eval:doc.enabled"
+  },
+  {
+   "fieldname": "column_break_connection",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "CTY",
+   "fieldname": "unit_code",
+   "fieldtype": "Data",
+   "label": "Mã đơn vị (unitCode)",
+   "mandatory_depends_on": "eval:doc.enabled"
+  },
+  {
+   "default": "1C26TAA",
+   "fieldname": "voucher_book",
+   "fieldtype": "Data",
+   "label": "Quyển hóa đơn",
+   "mandatory_depends_on": "eval:doc.enabled"
+  },
+  {
+   "fieldname": "credentials_section",
+   "fieldtype": "Section Break",
+   "label": "Tài khoản API"
+  },
+  {
+   "description": "Nên xin Fast một user riêng cho ERP: mỗi user chỉ có một token sống, dùng chung với người đăng nhập web sẽ đá nhau.",
+   "fieldname": "api_user",
+   "fieldtype": "Data",
+   "label": "User API",
+   "mandatory_depends_on": "eval:doc.enabled"
+  },
+  {
+   "fieldname": "api_password",
+   "fieldtype": "Password",
+   "label": "Mật khẩu",
+   "mandatory_depends_on": "eval:doc.enabled"
+  },
+  {
+   "fieldname": "column_break_credentials",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Hệ thống tự quản lý, hiệu lực 24h.",
+   "fieldname": "token",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Token phiên",
+   "read_only": 1
+  },
+  {
+   "fieldname": "token_time",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Thời điểm lấy token",
+   "read_only": 1
+  },
+  {
+   "fieldname": "behaviour_section",
+   "fieldtype": "Section Break",
+   "label": "Quy tắc vận hành"
+  },
+  {
+   "description": "Điền vào HumanName nếu không lấy được họ tên của người bấm nút.",
+   "fieldname": "default_human_name",
+   "fieldtype": "Data",
+   "label": "Người phát hành mặc định"
+  },
+  {
+   "default": "1",
+   "description": "Bật = hóa đơn phải ở trạng thái \"Khách đã duyệt\" mới cho phát hành.",
+   "fieldname": "require_customer_approval",
+   "fieldtype": "Check",
+   "label": "Bắt buộc khách duyệt trước khi phát hành"
+  },
+  {
+   "fieldname": "column_break_behaviour",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_download_pdf",
+   "fieldtype": "Check",
+   "label": "Tự tải PDF sau phát hành"
+  },
+  {
+   "default": "1",
+   "description": "Job nền chạy 20 phút một lần.",
+   "fieldname": "auto_poll_tax_status",
+   "fieldtype": "Check",
+   "label": "Tự kiểm tra trạng thái CQT"
+  },
+  {
+   "fieldname": "notification_section",
+   "fieldtype": "Section Break",
+   "label": "Email & cảnh báo"
+  },
+  {
+   "fieldname": "draft_email_template",
+   "fieldtype": "Link",
+   "label": "Mẫu email gửi bản nháp",
+   "options": "Email Template"
+  },
+  {
+   "fieldname": "issued_email_template",
+   "fieldtype": "Link",
+   "label": "Mẫu email gửi hóa đơn chính thức",
+   "options": "Email Template"
+  },
+  {
+   "description": "Nhận thông báo khi phát hành lỗi hoặc Cơ quan Thuế từ chối.",
+   "fieldname": "notify_on_error",
+   "fieldtype": "Table MultiSelect",
+   "label": "Người nhận cảnh báo lỗi",
+   "options": "Fast EInvoice Notify User"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-08-07 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Einvoice",
+ "name": "Fast EInvoice Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
