@@ -78,7 +78,11 @@ def resync_from_delivery_note(fei):
 	_copy_from_delivery_note(doc, source, settings)
 
 	# Dữ liệu vừa đổi nên mọi xác nhận trước đó của khách không còn giá trị.
-	doc.revision_count = (doc.revision_count or 0) + 1
+	# `revision_count` đếm số lần **quay về Nháp từ 02/03/04** (mục C2.2 #19), nên
+	# đồng bộ lại một bản ghi đang là Nháp thì không tính thêm một vòng sửa —
+	# nếu không, ghi nhận ý kiến khách rồi đồng bộ sẽ đếm thành hai.
+	if doc.status != STATUS_DRAFT:
+		doc.revision_count = (doc.revision_count or 0) + 1
 	doc.status = STATUS_DRAFT
 	doc.flags.ignore_permissions = True
 	doc.save()

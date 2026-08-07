@@ -171,12 +171,21 @@ class TestResync(FrappeTestCase):
 		self.fei.reload()
 		self.assertEqual(self.fei.lines[0].qty, self.dn.items[0].qty)
 
-	def test_resync_counts_as_a_revision(self):
-		"""revision_count theo dõi số vòng sửa với khách hàng."""
+	def test_resync_from_a_customer_facing_state_counts_as_a_revision(self):
+		"""Đặc tả C2.2 #19: đếm số lần quay về Nháp **từ 02/03/04**."""
+		frappe.db.set_value(FEI, self.fei.name, "status", "03 - Chờ khách duyệt")
+
+		resync_from_delivery_note(self.fei.name)
+		self.fei.reload()
+		self.assertEqual(self.fei.revision_count, 1)
+		self.assertEqual(self.fei.status, STATUS_DRAFT)
+
+	def test_resync_of_a_draft_is_not_a_revision(self):
+		"""Đang là Nháp mà nạp lại dữ liệu thì chưa có vòng qua lại nào với khách."""
 		before = self.fei.revision_count
 		resync_from_delivery_note(self.fei.name)
 		self.fei.reload()
-		self.assertEqual(self.fei.revision_count, before + 1)
+		self.assertEqual(self.fei.revision_count, before)
 
 	def test_resync_never_changes_the_key(self):
 		"""Đặc tả A4: Key sinh một lần và không đổi."""
