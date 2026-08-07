@@ -1,5 +1,3 @@
-// Copyright (c) 2018, Frappe Technologies Pvt. Ltd. and Contributors
-// MIT License. See license.txt
 frappe.provide("frappe.desk");
 
 frappe.ui.form.on("Event", {

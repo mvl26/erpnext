@@ -1,7 +1,3 @@
-# Copyright (c) 2017, Frappe and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 
 parentfield = {"item_code": "items", "item_group": "item_groups", "brand": "brands"}

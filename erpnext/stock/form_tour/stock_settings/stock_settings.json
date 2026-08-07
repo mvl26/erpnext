@@ -51,7 +51,7 @@
    "ui_tour": 0
   },
   {
-   "description": "Choose between FIFO and Moving Average Valuation Methods. Click <a href=\"https://docs.erpnext.com/docs/user/manual/en/stock/articles/item-valuation-fifo-and-moving-average\" target=\"_blank\">here</a> to know more about them.",
+   "description": "Choose between FIFO and Moving Average Valuation Methods. Click here to know more about them.",
    "fieldname": "valuation_method",
    "fieldtype": "Select",
    "has_next_condition": 0,

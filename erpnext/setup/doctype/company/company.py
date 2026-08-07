@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import json
 
 import frappe
@@ -138,6 +134,8 @@ class Company(NestedSet):
 		return exists
 
 	def validate(self):
+		self.set_default_currency_from_country()
+
 		self.update_default_account = False
 		if self.is_new():
 			self.update_default_account = True
@@ -153,6 +151,26 @@ class Company(NestedSet):
 		self.check_parent_changed()
 		self.set_chart_of_accounts()
 		self.validate_parent_company()
+
+	def set_default_currency_from_country(self):
+		"""Default the company currency from its country when unset.
+
+		``default_currency`` is mandatory, so a localized company (e.g. a Vietnam
+		company -> VND) would otherwise fail to insert without a manual currency.
+		Only runs when the field is empty, so it never overrides an explicit choice.
+		"""
+		if self.default_currency or not self.country:
+			return
+
+		from frappe.geo.country_info import get_country_info
+
+		try:
+			currency = (get_country_info(self.country) or {}).get("currency")
+		except Exception:
+			currency = None
+
+		if currency and frappe.db.exists("Currency", currency):
+			self.default_currency = currency
 
 	def validate_abbr(self):
 		if not self.abbr:
@@ -561,12 +579,43 @@ class Company(NestedSet):
 
 			self.db_set("disposal_account", disposal_acct)
 
+		if not self.unrealized_exchange_gain_loss_account:
+			# VN (TT99): đánh giá lại tỷ giá cuối kỳ hạch toán vào TK 413. Only the
+			# Vietnam chart defines account 413, so this is naturally VN-scoped.
+			unrealized_fx_acct = frappe.db.get_value(
+				"Account", {"account_number": "413", "company": self.name, "is_group": 0}
+			)
+			if unrealized_fx_acct:
+				self.db_set("unrealized_exchange_gain_loss_account", unrealized_fx_acct)
+
+		# VN (TT99) HR/Payroll defaults: tạm ứng -> 141, phải trả người lao động
+		# (lương + hoàn ứng chi phí) -> 334. Accounts 141/334 exist only on the
+		# Vietnam chart, so this is naturally VN-scoped. Uses db_set so the value
+		# survives the rest of the insert flow; re-points stale links too.
+		for fieldname, account_number in (
+			("default_employee_advance_account", "141"),
+			("default_expense_claim_payable_account", "334"),
+			("default_payroll_payable_account", "334"),
+		):
+			current = self.get(fieldname)
+			if current and frappe.db.get_value("Account", current, "company") == self.name:
+				continue
+			hr_account = frappe.db.get_value(
+				"Account", {"account_number": account_number, "company": self.name, "is_group": 0}
+			)
+			if hr_account:
+				self.db_set(fieldname, hr_account)
+
 	def _set_default_account(self, fieldname, account_type):
 		if self.get(fieldname):
 			return
 
+		# Order by account_number so the chosen default is deterministic when several
+		# accounts share a type (e.g. VN hao mòn 2141/2142/2143/2147 -> picks 2141).
 		account = frappe.db.get_value(
-			"Account", {"account_type": account_type, "is_group": 0, "company": self.name}
+			"Account",
+			{"account_type": account_type, "is_group": 0, "company": self.name},
+			order_by="account_number asc, name asc",
 		)
 
 		if account:
@@ -652,6 +701,12 @@ class Company(NestedSet):
 		frappe.defaults.clear_default("company", value=self.name)
 		for doctype in ["Mode of Payment Account", "Item Default"]:
 			frappe.db.sql(f"delete from `tab{doctype}` where company = %s", self.name)
+
+		# Asset Category is a global doc with a per-company child table (keyed on
+		# company_name, hence not in the loop above). A row left behind points at
+		# accounts deleted with the company, so it fails link validation on EVERY
+		# later save of that category — including the one that wires up a new company.
+		frappe.db.sql("delete from `tabAsset Category Account` where company_name = %s", self.name)
 
 		# clear default accounts, warehouses from item
 		warehouses = frappe.db.sql_list("select name from tabWarehouse where company=%s", self.name)

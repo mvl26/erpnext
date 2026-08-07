@@ -1,6 +1,3 @@
-// Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Shipment", {
 	address_query: function (frm, link_doctype, link_name, is_your_company_address) {
 		return {

@@ -1,6 +1,3 @@
-// Copyright (c) 2023, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Process Payment Reconciliation Log", {
 	refresh(frm) {
 		if (["Completed", "Running", "Paused", "Partially Reconciled"].find((x) => x == frm.doc.status)) {

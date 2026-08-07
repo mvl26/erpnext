@@ -1,6 +1,3 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
 // eslint-disable-next-line
 frappe.provide("erpnext.accounts.dimensions");
 erpnext.buying.setup_buying_controller();

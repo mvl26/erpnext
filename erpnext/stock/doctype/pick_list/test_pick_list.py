@@ -1,6 +1,3 @@
-# Copyright (c) 2019, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-
 import frappe
 from frappe import _dict
 from frappe.tests.utils import FrappeTestCase

@@ -1,7 +1,3 @@
-# Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
-
 import frappe
 from frappe import _
 from frappe.contacts.doctype.contact.contact import get_default_contact

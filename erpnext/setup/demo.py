@@ -1,6 +1,3 @@
-# Copyright (c) 2023, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
 import json
 import os
 from random import randint
@@ -17,9 +14,6 @@ from erpnext.setup.setup_wizard.operations.install_fixtures import create_bank_a
 
 
 def setup_demo_data():
-	from frappe.utils.telemetry import capture
-
-	capture("demo_data_creation_started", "erpnext")
 	try:
 		company = create_demo_company()
 		process_masters()
@@ -35,11 +29,7 @@ def setup_demo_data():
 
 @frappe.whitelist()
 def clear_demo_data():
-	from frappe.utils.telemetry import capture
-
 	frappe.only_for("System Manager")
-
-	capture("demo_data_erased", "erpnext")
 	try:
 		company = frappe.db.get_single_value("Global Defaults", "demo_company")
 		create_transaction_deletion_record(company)
