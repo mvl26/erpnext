@@ -119,7 +119,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
   `adjustmentType`; gốc chuyển 10/11; liên kết 2 chiều. Deps: T17.
 - [x] **T19 — Nút 13c — hủy nội bộ (330).** Chỉ cho khi status 09; mở khóa DN để
   lập hóa đơn mới nhưng **giữ** liên kết lịch sử. Deps: T18.
-- [ ] **T20 — Report "Đối soát hóa đơn điện tử".** DN chưa xuất hóa đơn · hóa
+- [x] **T20 — Report "Đối soát hóa đơn điện tử".** DN chưa xuất hóa đơn · hóa
   đơn chờ CQT quá 24h · hóa đơn lỗi. Deps: T17.
 
 ### Giai đoạn 6 — Giao diện & hoàn thiện
