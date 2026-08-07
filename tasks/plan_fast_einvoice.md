@@ -132,7 +132,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
 - [x] **T23 — Nối bảng kê bán ra / tờ khai 01/GTGT sang nguồn số mới.** Thay chỗ
   đọc `vn_einvoice_number`/`vn_einvoice_symbol` (đã xóa ở T1) bằng số hóa đơn
   Fast. Deps: T14.
-- [ ] **T24 — Tài liệu vận hành + 12 kịch bản test Giai đoạn 6.** Deps: T23.
+- [x] **T24 — Tài liệu vận hành + 12 kịch bản test Giai đoạn 6.** Deps: T23.
 
 ## Cổng chặn ngoài phạm vi code
 
