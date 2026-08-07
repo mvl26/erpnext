@@ -77,6 +77,7 @@ def make_fei(**values):
 			"amount": 10000000,
 			"tax_rate": "10",
 			"tax_amount": 1000000,
+			"tax_amount_10": 1000000,
 			"total_amount": 11000000,
 			"amount_in_words": "Mười một triệu đồng chẵn",
 			"human_name": "Chu Văn Hiếu",

@@ -84,7 +84,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
   Phần I; bỏ hẳn thẻ không dùng khỏi structure; số gửi dạng number; đọc tiền
   bằng chữ theo loại tiền (đồng / đô la Mỹ / Euro). Deps: T4.
 
-- [ ] **T10 — `validation.py`: 16 quy tắc Phần F.** Phân mức chặn/cảnh báo, trả
+- [x] **T10 — `validation.py`: 16 quy tắc Phần F.** Phân mức chặn/cảnh báo, trả
   danh sách lỗi kèm tên trường để giao diện nhảy tới. Deps: T9.
 
 ### Giai đoạn 3 — Vòng nháp & duyệt khách
