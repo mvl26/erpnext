@@ -19,6 +19,7 @@ from frappe import _
 from frappe.utils import flt, getdate
 
 from erpnext.einvoice.constants import (
+	INVOICE_TYPE_ORIGINAL,
 	ISSUED_STATUSES,
 	LIVE_STATUSES,
 	MAX_LEN,
@@ -422,6 +423,10 @@ def _rule_15_source_delivery_note(fei, result):
 			"delivery_note",
 			_("Phiếu trả hàng không lập hóa đơn trực tiếp — dùng hóa đơn điều chỉnh giảm."),
 		)
+
+	# Hóa đơn điều chỉnh / thay thế **cố ý** dùng chung phiếu giao với hóa đơn gốc.
+	if fei.invoice_type and fei.invoice_type != INVOICE_TYPE_ORIGINAL:
+		return
 
 	sibling = frappe.get_all(
 		"Fast EInvoice Document",

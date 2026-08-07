@@ -114,7 +114,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
 
 ### Giai đoạn 5 — Điều chỉnh / thay thế / hủy
 
-- [ ] **T18 — Nút 13a/13b — điều chỉnh (320) / thay thế (350).** Bản ghi mới sao
+- [x] **T18 — Nút 13a/13b — điều chỉnh (320) / thay thế (350).** Bản ghi mới sao
   từ gốc, đi lại vòng đời từ 01; payload thêm `originalInvoice` +
   `adjustmentType`; gốc chuyển 10/11; liên kết 2 chiều. Deps: T17.
 - [ ] **T19 — Nút 13c — hủy nội bộ (330).** Chỉ cho khi status 09; mở khóa DN để
