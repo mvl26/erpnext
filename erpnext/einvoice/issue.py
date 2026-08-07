@@ -34,6 +34,8 @@ from erpnext.einvoice.actions import (
 	_mirror_status,
 )
 from erpnext.einvoice.constants import (
+	INVOICE_TYPE_ADJUSTMENT,
+	INVOICE_TYPE_REPLACEMENT,
 	ISSUED_STATUSES,
 	STATUS_CUSTOMER_APPROVED,
 	STATUS_DRAFT,
@@ -53,6 +55,10 @@ from erpnext.einvoice.setup import is_chief_accountant
 from erpnext.einvoice.validation import validate_before_send
 
 METHOD_QUERY = 370
+
+# Mỗi loại chứng từ đi bằng một method riêng (bảng action/method Phần I).
+METHOD_ADJUSTMENT = 320
+METHOD_REPLACEMENT = 350
 
 # Fast trả 888 khi không tìm thấy hóa đơn = chưa phát hành lần nào = an toàn.
 ERROR_NOT_FOUND = "888"
@@ -158,7 +164,7 @@ def issue_invoice(fei, client=None):
 			response = call_fast(
 				doc,
 				action=ACTION_EXECUTE,
-				method=METHOD_INVOICE,
+				method=_method_for(doc),
 				data=build_payload(doc),
 				purpose=_("Phát hành hóa đơn"),
 				processing_status=STATUS_ISSUING,
@@ -170,6 +176,15 @@ def issue_invoice(fei, client=None):
 		if not response.success:
 			return _handle_failure(doc, response)
 		return _handle_success(doc, response)
+
+
+def _method_for(doc):
+	"""Hóa đơn gốc đi 310, điều chỉnh đi 320, thay thế đi 350."""
+	if doc.invoice_type == INVOICE_TYPE_ADJUSTMENT:
+		return METHOD_ADJUSTMENT
+	if doc.invoice_type == INVOICE_TYPE_REPLACEMENT:
+		return METHOD_REPLACEMENT
+	return METHOD_INVOICE
 
 
 def _assert_issuable(doc):
@@ -272,7 +287,7 @@ def _has_prior_issue_attempt(doc):
 	return bool(
 		frappe.db.exists(
 			"Fast EInvoice Log",
-			{"fei_document": doc.name, "method": METHOD_INVOICE, "action": ACTION_EXECUTE},
+			{"fei_document": doc.name, "method": _method_for(doc), "action": ACTION_EXECUTE},
 		)
 	)
 
@@ -284,6 +299,11 @@ def _handle_success(doc, response):
 	"""7a — hóa đơn đã có số thật."""
 	result = parse_issue_result(response.message)
 	_store_issue_result(doc, result, issued_now=True)
+
+	# Hóa đơn gốc chỉ bị khóa khi bản điều chỉnh/thay thế đã thực sự có số.
+	from erpnext.einvoice.lineage import mark_original_superseded
+
+	mark_original_superseded(doc)
 
 	try:
 		_queue_pdf_download(doc)
