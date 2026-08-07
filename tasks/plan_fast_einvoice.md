@@ -92,7 +92,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
 - [x] **T11 — Nút 1 + Nút 2.** Tạo FEI từ DN (sinh `fast_key` **một lần**, ghi
   ngược `delivery_note.fast_einvoice`); đồng bộ lại từ DN (`revision_count`).
   Deps: T10.
-- [ ] **T12 — Nút 3 — xem bản nháp PDF** (`action=600`, `method=310`) → lưu
+- [x] **T12 — Nút 3 — xem bản nháp PDF** (`action=600`, `method=310`) → lưu
   `draft_pdf`, `status = 02`; lỗi thì giữ nguyên trạng thái. Deps: T8, T11.
 - [ ] **T13 — Nút 4/5/6 + 2 Email Template.** Gửi nháp cho khách, ghi nhận ý
   kiến (nối lịch sử, không ghi đè), khách đã duyệt. Mẫu email **bắt buộc** có

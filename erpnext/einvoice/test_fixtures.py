@@ -176,3 +176,32 @@ def make_delivery_note(qty=100, rate=100000, submit=True, is_return=False, vat_r
 	if submit:
 		doc.submit()
 	return doc
+
+
+def minimal_pdf_bytes():
+	"""PDF hợp lệ tối thiểu.
+
+	Frappe quét nội dung file PDF khi đính kèm (tìm JavaScript nhúng), nên byte
+	giả không lọt được — test cần một PDF thật sự parse được.
+	"""
+	objects = [
+		b"<< /Type /Catalog /Pages 2 0 R >>",
+		b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+		b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>",
+	]
+	out = bytearray(b"%PDF-1.4\n")
+	offsets = []
+	for index, body in enumerate(objects, start=1):
+		offsets.append(len(out))
+		out += f"{index} 0 obj\n".encode() + body + b"\nendobj\n"
+
+	xref_position = len(out)
+	out += f"xref\n0 {len(objects) + 1}\n".encode()
+	out += b"0000000000 65535 f \n"
+	for offset in offsets:
+		out += f"{offset:010d} 00000 n \n".encode()
+	out += (
+		f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+		f"startxref\n{xref_position}\n%%EOF\n"
+	).encode()
+	return bytes(out)
