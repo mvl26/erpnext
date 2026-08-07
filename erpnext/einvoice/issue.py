@@ -285,6 +285,12 @@ def _handle_success(doc, response):
 	result = parse_issue_result(response.message)
 	_store_issue_result(doc, result, issued_now=True)
 
+	try:
+		_queue_pdf_download(doc)
+	except Exception:
+		# Hóa đơn đã ra số thật rồi — không được để việc tải PDF làm hỏng kết quả.
+		frappe.log_error(title=f"HĐĐT: không hẹn được việc tải PDF cho {doc.name}")
+
 	return {
 		"ok": True,
 		"invoice_no": result.get("fast_invoice_no"),
@@ -379,3 +385,21 @@ def _notify_failure(doc, message):
 	except Exception:
 		# Không gửi được cảnh báo thì cũng không được che mất kết quả phát hành.
 		frappe.log_error(title=f"HĐĐT: không gửi được cảnh báo cho {doc.name}")
+
+
+def _queue_pdf_download(doc, enqueue=None):
+	"""Nhánh 7a — hẹn tải PDF chính thức sau khi phát hành xong.
+
+	Đợi vài giây rồi mới tải: Fast cần thời gian ký số xong mới có bản PDF, và
+	mục E6 chặn hai lời gọi PDF cách nhau dưới 5 giây.
+	"""
+	settings = check_enabled()
+	if not settings.auto_download_pdf:
+		return
+
+	(enqueue or frappe.enqueue)(
+		method="erpnext.einvoice.actions.download_official_pdf",
+		queue="long",
+		enqueue_after_commit=True,
+		fei=doc.name,
+	)

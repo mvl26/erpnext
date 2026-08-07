@@ -10,7 +10,7 @@ client gửi lên.
 
 import frappe
 from frappe import _
-from frappe.utils import now_datetime
+from frappe.utils import get_datetime, now_datetime, time_diff_in_seconds
 
 from erpnext.einvoice.constants import (
 	STATUS_AWAITING_CUSTOMER,
@@ -321,3 +321,114 @@ def _close_email_log(log, ok, error_message=None):
 		},
 		update_modified=False,
 	)
+
+
+# --- Nút 8 & 9 — tải PDF chính thức / PDF chuyển đổi (mục E6) ---------------
+
+METHOD_OFFICIAL_PDF = 380
+METHOD_CONVERTED_PDF = 385
+
+# Bảng B2 — hóa đơn đã có số thật thì mới có PDF chính thức để tải.
+PDF_STATUSES = frozenset(
+	{"06 - Đã phát hành", "07 - Đã gửi khách", "08 - CQT chấp nhận", "09 - CQT từ chối"}
+)
+
+# Đặc tả E6: hai lần gọi 380/385 phải cách nhau tối thiểu 5 giây.
+PDF_THROTTLE_SECONDS = 5
+
+
+@frappe.whitelist()
+def download_official_pdf(fei, client=None):
+	"""Nút 8 — tải bản PDF chính thức của hóa đơn đã phát hành."""
+	doc = _pdf_ready_document(fei)
+	_assert_pdf_throttle()
+
+	response = call_fast(
+		doc,
+		action=ACTION_EXECUTE,
+		method=METHOD_OFFICIAL_PDF,
+		data={"key": doc.fast_key_search},
+		purpose=_("Tải PDF chính thức"),
+		client=client,
+	)
+	if not response.success:
+		_record_error(doc, response)
+		return {"ok": False, "message": _explain(response)}
+
+	filename = f"HD_{doc.fast_serial or 'HD'}_{doc.fast_invoice_no or doc.name}.pdf"
+	file_url = _attach_pdf(doc, response.message, filename)
+	frappe.db.set_value(FEI, doc.name, "official_pdf", file_url, update_modified=False)
+
+	# Bản PDF cũng đính sang phiếu giao: thủ kho và kế toán kho làm việc ở đó.
+	if doc.delivery_note:
+		_attach_pdf_to(doc, response.message, filename, "Delivery Note", doc.delivery_note)
+
+	return {"ok": True, "file_url": file_url}
+
+
+@frappe.whitelist()
+def download_converted_pdf(fei, convert_name=None, client=None):
+	"""Nút 9 — bản PDF chuyển đổi, dùng làm bản in giấy hợp lệ.
+
+	Bản in giấy phải ghi tên người thực hiện chuyển đổi, nên tên là bắt buộc.
+	"""
+	doc = _pdf_ready_document(fei)
+
+	convert_name = (convert_name or "").strip()
+	if not convert_name:
+		frappe.throw(_("Nhập tên người chuyển đổi — bản in giấy bắt buộc ghi tên này."))
+
+	_assert_pdf_throttle()
+
+	response = call_fast(
+		doc,
+		action=ACTION_EXECUTE,
+		method=METHOD_CONVERTED_PDF,
+		data={"key": doc.fast_key_search, "convertName": convert_name},
+		purpose=_("Tải PDF chuyển đổi"),
+		client=client,
+	)
+	if not response.success:
+		_record_error(doc, response)
+		return {"ok": False, "message": _explain(response)}
+
+	filename = f"HDCD_{doc.fast_serial or 'HD'}_{doc.fast_invoice_no or doc.name}.pdf"
+	file_url = _attach_pdf(doc, response.message, filename)
+	frappe.db.set_value(FEI, doc.name, "converted_pdf", file_url, update_modified=False)
+	return {"ok": True, "file_url": file_url}
+
+
+def _pdf_ready_document(fei):
+	check_enabled()
+	doc = frappe.get_doc(FEI, fei)
+	_assert_status(doc, PDF_STATUSES, _("tải PDF"))
+	if not doc.fast_key_search:
+		frappe.throw(
+			_("Chứng từ chưa có mã tra cứu (keySearch) — bấm Truy vấn (370) để lấy về trước.")
+		)
+	return doc
+
+
+def _assert_pdf_throttle():
+	"""Chặn ở phía ta thay vì để Fast từ chối (đặc tả E6)."""
+	last = frappe.db.get_value(
+		"Fast EInvoice Log",
+		{"method": ("in", [METHOD_OFFICIAL_PDF, METHOD_CONVERTED_PDF])},
+		"creation",
+		order_by="creation desc",
+	)
+	if not last:
+		return
+	elapsed = time_diff_in_seconds(now_datetime(), get_datetime(last))
+	if elapsed < PDF_THROTTLE_SECONDS:
+		frappe.throw(
+			_("Vui lòng đợi {0} giây rồi tải lại — Fast giới hạn khoảng cách giữa hai lần tải PDF.").format(
+				int(PDF_THROTTLE_SECONDS - elapsed) + 1
+			)
+		)
+
+
+def _attach_pdf_to(doc, base64_message, filename, doctype, name):
+	from frappe.utils.file_manager import save_file
+
+	return save_file(filename, decode_message(base64_message), doctype, name, is_private=1).file_url
