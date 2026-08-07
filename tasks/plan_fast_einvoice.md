@@ -124,7 +124,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
 
 ### Giai đoạn 6 — Giao diện & hoàn thiện
 
-- [ ] **T21 — Client script `Fast EInvoice Document`.** Banner môi trường
+- [x] **T21 — Client script `Fast EInvoice Document`.** Banner môi trường
   (vàng TEST / đỏ THẬT), bảng kết quả validate, 13 nút hiện theo trạng thái bảng
   B2, dialog xác nhận cấp 1/2/3 (cấp 3 gõ đúng `PHAT HANH` / `HUY`). Deps: T19.
 - [ ] **T22 — Client script `Delivery Note`.** Nút "Tạo hóa đơn điện tử" +
