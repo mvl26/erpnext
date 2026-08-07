@@ -28,7 +28,9 @@ FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
 
 NOT_FOUND = envelope(0, "888|Khong tim thay")
-CHILD_OK = envelope(1, '{"invoiceNo":"3","pattern":"1/001","serial":"1C26TMY","signedDate":"20260808","keySearch":"KS-CHILD"}')
+CHILD_OK = envelope(
+	1, '{"invoiceNo":"3","pattern":"1/001","serial":"1C26TMY","signedDate":"20260808","keySearch":"KS-CHILD"}'
+)
 
 
 class LineageBase(FrappeTestCase):

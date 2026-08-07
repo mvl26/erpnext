@@ -115,9 +115,7 @@ class TestReconciliationReport(FrappeTestCase):
 	def test_a_failed_invoice_is_listed_with_its_reason(self):
 		dn = make_delivery_note()
 		fei = create_from_delivery_note(dn.name)
-		frappe.db.set_value(
-			FEI, fei, {"status": STATUS_ERROR, "error_message": "Thiếu mã số thuế người mua"}
-		)
+		frappe.db.set_value(FEI, fei, {"status": STATUS_ERROR, "error_message": "Thiếu mã số thuế người mua"})
 
 		row = next(r for r in rows_of(ISSUE_ERROR) if r["fei_document"] == fei)
 		self.assertIn("Thiếu mã số thuế", row["note"])

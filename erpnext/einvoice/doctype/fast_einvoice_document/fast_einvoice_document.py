@@ -99,9 +99,9 @@ class FastEInvoiceDocument(Document):
 		before = self.get_doc_before_save()
 		if before and before.fast_key and before.fast_key != self.fast_key:
 			frappe.throw(
-				_("Không được đổi Key ({0}) sau khi bản ghi đã tồn tại — đây là mã chống phát hành trùng.").format(
-					before.fast_key
-				)
+				_(
+					"Không được đổi Key ({0}) sau khi bản ghi đã tồn tại — đây là mã chống phát hành trùng."
+				).format(before.fast_key)
 			)
 
 	def _validate_lineage(self):

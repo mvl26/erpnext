@@ -144,7 +144,9 @@ def describe_error(code, fallback=""):
 		return info
 	return ErrorInfo(
 		code=code,
-		message=_("Fast trả về lỗi {0}{1}").format(code or _("không rõ mã"), f": {fallback}" if fallback else "."),
+		message=_("Fast trả về lỗi {0}{1}").format(
+			code or _("không rõ mã"), f": {fallback}" if fallback else "."
+		),
 		hint=_("Xem nhật ký HĐĐT để biết nội dung Fast trả về."),
 	)
 

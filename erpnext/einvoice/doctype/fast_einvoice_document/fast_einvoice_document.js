@@ -55,8 +55,8 @@ function render_validation(frm, state) {
 				<tr>
 					<td style="white-space:nowrap;color:${colour}"><b>${tag}</b></td>
 					<td><a href="#" data-fei-field="${frappe.utils.escape_html(issue.field || "")}">${frappe.utils.escape_html(
-						issue.field || "—"
-					)}</a></td>
+				issue.field || "—"
+			)}</a></td>
 					<td>${frappe.utils.escape_html(issue.message)}</td>
 				</tr>`;
 		})

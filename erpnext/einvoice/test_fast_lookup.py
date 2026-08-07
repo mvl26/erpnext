@@ -95,9 +95,9 @@ class TestBangKeBanRaUsesTheFastNumber(FrappeTestCase):
 		frappe.db.rollback()
 
 	def test_the_declared_number_comes_from_the_einvoice(self):
+		from erpnext.einvoice.test_fixtures import COMPANY
 		from erpnext.regional.report.to_khai_thue_gtgt_01.to_khai_thue_gtgt_01 import bang_ke_ban_ra
 		from erpnext.stock.doctype.delivery_note.delivery_note import make_sales_invoice
-		from erpnext.einvoice.test_fixtures import COMPANY
 
 		dn = make_delivery_note()
 		fei = create_from_delivery_note(dn.name)

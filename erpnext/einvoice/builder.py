@@ -32,9 +32,7 @@ DEFAULT_PAYMENT_METHOD = "CK"
 def fast_key_for(delivery_note_name):
 	"""Key chống trùng: tên phiếu giao, bỏ dấu, ≤32 ký tự (mục E1)."""
 	stripped = "".join(
-		c
-		for c in unicodedata.normalize("NFD", delivery_note_name or "")
-		if not unicodedata.combining(c)
+		c for c in unicodedata.normalize("NFD", delivery_note_name or "") if not unicodedata.combining(c)
 	)
 	stripped = stripped.replace("Đ", "D").replace("đ", "d")
 	safe = "".join(c for c in stripped if c.isalnum() or c in "-_")
@@ -291,9 +289,7 @@ def _address_field(customer, fieldname):
 
 def _issuer_name(settings):
 	"""HumanName — người bấm nút, hoặc người phát hành mặc định trong cấu hình."""
-	return (get_fullname(frappe.session.user) or settings.default_human_name or "")[
-		: MAX_LEN["human_name"]
-	]
+	return (get_fullname(frappe.session.user) or settings.default_human_name or "")[: MAX_LEN["human_name"]]
 
 
 def _stamp_delivery_note(fei):

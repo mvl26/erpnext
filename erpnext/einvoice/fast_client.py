@@ -175,9 +175,9 @@ class FastClient:
 			)
 		except (requests.Timeout, requests.ConnectionError) as exc:
 			raise FastTimeout(
-				_("Không nhận được phản hồi từ Fast ({0}). Phải truy vấn (370) trước khi thao tác tiếp.").format(
-					exc
-				)
+				_(
+					"Không nhận được phản hồi từ Fast ({0}). Phải truy vấn (370) trước khi thao tác tiếp."
+				).format(exc)
 			) from exc
 
 		response = parse_response(raw)

@@ -20,8 +20,8 @@ from erpnext.einvoice.constants import (
 	STATUS_SENT,
 )
 from erpnext.einvoice.errors import describe_error
-from erpnext.einvoice.fast_settings import check_enabled
 from erpnext.einvoice.fast_client import decode_message
+from erpnext.einvoice.fast_settings import check_enabled
 from erpnext.einvoice.gateway import call_fast
 from erpnext.einvoice.payload import build_payload
 from erpnext.einvoice.setup import DRAFT_TEMPLATE, ISSUED_TEMPLATE
@@ -96,9 +96,7 @@ def preview_draft(fei, client=None):
 
 def _assert_status(doc, allowed, what):
 	if doc.status not in allowed:
-		frappe.throw(
-			_("Hóa đơn đang ở trạng thái {0} nên không {1} được.").format(doc.status, what)
-		)
+		frappe.throw(_("Hóa đơn đang ở trạng thái {0} nên không {1} được.").format(doc.status, what))
 
 
 def _explain(response):
@@ -154,7 +152,7 @@ def send_draft_to_customer(fei, recipients=None, cc=None, subject=None, message=
 	"""Nút 4 — gửi bản nháp cho khách kiểm tra (mục E3).
 
 	Nội dung email **bắt buộc** nói rõ đây là bản nháp chưa có giá trị pháp lý:
-	bản PDF ở trạng thái 01–04 chưa có số hóa đơn, chưa ký số, chưa lên Cơ quan
+	bản PDF ở trạng thái 01—04 chưa có số hóa đơn, chưa ký số, chưa lên Cơ quan
 	Thuế. Gửi mà không nói rõ là để khách hiểu nhầm đã có hóa đơn.
 	"""
 	check_enabled()
@@ -330,9 +328,7 @@ METHOD_OFFICIAL_PDF = 380
 METHOD_CONVERTED_PDF = 385
 
 # Bảng B2 — hóa đơn đã có số thật thì mới có PDF chính thức để tải.
-PDF_STATUSES = frozenset(
-	{"06 - Đã phát hành", "07 - Đã gửi khách", "08 - CQT chấp nhận", "09 - CQT từ chối"}
-)
+PDF_STATUSES = frozenset({"06 - Đã phát hành", "07 - Đã gửi khách", "08 - CQT chấp nhận", "09 - CQT từ chối"})
 
 # Đặc tả E6: hai lần gọi 380/385 phải cách nhau tối thiểu 5 giây.
 PDF_THROTTLE_SECONDS = 5
@@ -404,9 +400,7 @@ def _pdf_ready_document(fei):
 	doc = frappe.get_doc(FEI, fei)
 	_assert_status(doc, PDF_STATUSES, _("tải PDF"))
 	if not doc.fast_key_search:
-		frappe.throw(
-			_("Chứng từ chưa có mã tra cứu (keySearch) — bấm Truy vấn (370) để lấy về trước.")
-		)
+		frappe.throw(_("Chứng từ chưa có mã tra cứu (keySearch) — bấm Truy vấn (370) để lấy về trước."))
 	return doc
 
 
@@ -440,9 +434,7 @@ def _attach_pdf_to(doc, base64_message, filename, doctype, name):
 METHOD_FAST_EMAIL = 700
 
 # Bảng B2 — gửi hóa đơn chính thức được phép khi hóa đơn đã có số.
-INVOICE_SEND_STATUSES = frozenset(
-	{"06 - Đã phát hành", "07 - Đã gửi khách", "08 - CQT chấp nhận"}
-)
+INVOICE_SEND_STATUSES = frozenset({"06 - Đã phát hành", "07 - Đã gửi khách", "08 - CQT chấp nhận"})
 
 
 @frappe.whitelist()

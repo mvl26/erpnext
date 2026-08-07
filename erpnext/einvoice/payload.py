@@ -187,11 +187,7 @@ def _serialise(fei, tags):
 def _used_detail_tags(fei):
 	"""Thẻ tùy chọn của dòng hàng chỉ đưa vào khi **có dòng nào đó** dùng tới."""
 	lines = fei.lines or []
-	return tuple(
-		entry
-		for entry in DETAIL_TAGS
-		if entry[3] or any(line.get(entry[1]) for line in lines)
-	)
+	return tuple(entry for entry in DETAIL_TAGS if entry[3] or any(line.get(entry[1]) for line in lines))
 
 
 def _serialise_row(line, tags):

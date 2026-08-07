@@ -15,8 +15,8 @@ from frappe.utils import add_to_date, now_datetime
 from erpnext.einvoice.fast_client import (
 	FastClient,
 	FastTimeout,
-	encode_payload,
 	decode_message,
+	encode_payload,
 	parse_response,
 )
 
@@ -28,7 +28,7 @@ def envelope(success, message):
 	return (
 		'<?xml version="1.0" encoding="utf-8"?>'
 		'<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
-		"<soap:Body><ExcuteCommandResponse xmlns=\"http://tempuri.org/\">"
+		'<soap:Body><ExcuteCommandResponse xmlns="http://tempuri.org/">'
 		f"<Success>{success}</Success><Message>{message}</Message>"
 		"</ExcuteCommandResponse></soap:Body></soap:Envelope>"
 	)
@@ -79,7 +79,9 @@ def configure(**values):
 class TestPayloadEncoding(FrappeTestCase):
 	def test_payload_is_utf8_json_in_base64(self):
 		encoded = encode_payload({"buyer": "Bệnh viện Đa khoa X"})
-		self.assertEqual(json.loads(base64.b64decode(encoded).decode("utf-8"))["buyer"], "Bệnh viện Đa khoa X")
+		self.assertEqual(
+			json.loads(base64.b64decode(encoded).decode("utf-8"))["buyer"], "Bệnh viện Đa khoa X"
+		)
 
 	def test_payload_keeps_vietnamese_readable_not_escaped(self):
 		"""ensure_ascii sẽ biến tiếng Việt thành \\uXXXX — Fast không đọc được."""
@@ -242,9 +244,7 @@ class TestExcuteCommand(FrappeTestCase):
 		result = client.excute_command(action=0, method=310, data={})
 
 		self.assertTrue(result.success)
-		self.assertEqual(
-			transport.operations, ["CheckKey", "ExcuteCommand", "GetKey", "ExcuteCommand"]
-		)
+		self.assertEqual(transport.operations, ["CheckKey", "ExcuteCommand", "GetKey", "ExcuteCommand"])
 
 	def test_a_real_error_is_not_retried(self):
 		"""Lỗi nghiệp vụ mà thử lại là nguy cơ phát hành hai lần."""
