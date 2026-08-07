@@ -127,7 +127,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
 - [x] **T21 — Client script `Fast EInvoice Document`.** Banner môi trường
   (vàng TEST / đỏ THẬT), bảng kết quả validate, 13 nút hiện theo trạng thái bảng
   B2, dialog xác nhận cấp 1/2/3 (cấp 3 gõ đúng `PHAT HANH` / `HUY`). Deps: T19.
-- [ ] **T22 — Client script `Delivery Note`.** Nút "Tạo hóa đơn điện tử" +
+- [x] **T22 — Client script `Delivery Note`.** Nút "Tạo hóa đơn điện tử" +
   hiển thị trạng thái HĐĐT. Deps: T21.
 - [ ] **T23 — Nối bảng kê bán ra / tờ khai 01/GTGT sang nguồn số mới.** Thay chỗ
   đọc `vn_einvoice_number`/`vn_einvoice_symbol` (đã xóa ở T1) bằng số hóa đơn

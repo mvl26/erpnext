@@ -208,3 +208,59 @@ class TestValidationSummary(FormStateBase):
 	def test_locked_invoices_skip_the_validation_pass(self):
 		"""Hóa đơn đã phát hành thì không còn gì để sửa — chạy validate chỉ gây nhiễu."""
 		self.assertEqual(self.state_at(STATUS_TAX_ACCEPTED)["validation"]["issues"], [])
+
+
+class TestDeliveryNoteState(FormStateBase):
+	"""Nút "Tạo hóa đơn điện tử" trên phiếu giao (mục E1)."""
+
+	def setUp(self):
+		frappe.db.rollback()
+		configure()
+
+	def test_a_fresh_submitted_note_can_raise_an_invoice(self):
+		from erpnext.einvoice.form_state import get_delivery_note_state
+
+		dn = make_delivery_note()
+		state = get_delivery_note_state(dn.name)
+		self.assertTrue(state["can_create"])
+		self.assertEqual(state["grand_total"], dn.grand_total)
+
+	def test_a_draft_note_cannot(self):
+		from erpnext.einvoice.form_state import get_delivery_note_state
+
+		dn = make_delivery_note(submit=False)
+		state = get_delivery_note_state(dn.name)
+		self.assertFalse(state["can_create"])
+		self.assertIn("submit", state["reason"])
+
+	def test_a_return_note_cannot(self):
+		from erpnext.einvoice.form_state import get_delivery_note_state
+
+		dn = make_delivery_note(is_return=True)
+		self.assertFalse(get_delivery_note_state(dn.name)["can_create"])
+
+	def test_a_note_that_already_has_a_live_invoice_cannot(self):
+		from erpnext.einvoice.form_state import get_delivery_note_state
+
+		dn = make_delivery_note()
+		fei = create_from_delivery_note(dn.name)
+
+		state = get_delivery_note_state(dn.name)
+		self.assertFalse(state["can_create"])
+		self.assertEqual(state["existing"]["name"], fei)
+
+	def test_a_cancelled_invoice_frees_the_note_again(self):
+		from erpnext.einvoice.form_state import get_delivery_note_state
+
+		dn = make_delivery_note()
+		fei = create_from_delivery_note(dn.name)
+		frappe.db.set_value(FEI, fei, "status", STATUS_CANCELLED)
+
+		self.assertTrue(get_delivery_note_state(dn.name)["can_create"])
+
+	def test_a_disabled_integration_hides_the_button(self):
+		from erpnext.einvoice.form_state import get_delivery_note_state
+
+		dn = make_delivery_note()
+		configure(enabled=0)
+		self.assertFalse(get_delivery_note_state(dn.name)["can_create"])
