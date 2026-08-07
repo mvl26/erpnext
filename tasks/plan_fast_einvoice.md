@@ -59,7 +59,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
   - Nghiệm thu: tạo được bản ghi ở trạng thái 01; trạng thái ≥05 khóa sửa;
     `fast_key` read-only sau khi tạo. Deps: T2, T3.
 
-- [ ] **T5 — DocType `Fast EInvoice Log`.** 10 trường mục C4 + job dọn bản ghi
+- [x] **T5 — DocType `Fast EInvoice Log`.** 10 trường mục C4 + job dọn bản ghi
   cũ hơn 24 tháng. Deps: T1.
 
 - [ ] **T6 — Custom field Delivery Note (C5) + 2 Role.**
