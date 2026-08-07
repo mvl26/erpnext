@@ -1,0 +1,861 @@
+{
+ "actions": [],
+ "allow_import": 0,
+ "autoname": "FEI-.YYYY.-.#####",
+ "creation": "2026-08-07 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "link_section",
+  "delivery_note",
+  "sales_invoice",
+  "customer",
+  "column_break_link",
+  "status",
+  "is_edit_locked",
+  "invoice_type",
+  "lineage_section",
+  "original_document",
+  "adjustment_type",
+  "adjustment_reason",
+  "column_break_lineage",
+  "minute_no",
+  "minute_date",
+  "amended_from_fei",
+  "buyer_section",
+  "fast_key",
+  "invoice_date",
+  "customer_code",
+  "buyer",
+  "customer_name",
+  "customer_tax_code",
+  "customer_type",
+  "column_break_buyer",
+  "address",
+  "phone_number",
+  "fax_number",
+  "id_card_no",
+  "passport_no",
+  "buyer_unit",
+  "email_deliver",
+  "payment_section",
+  "bank_account",
+  "bank_name",
+  "payment_method",
+  "column_break_payment",
+  "currency",
+  "exchange_rate",
+  "lines_section",
+  "lines",
+  "totals_section",
+  "amount",
+  "total_amount",
+  "column_break_totals",
+  "tax_rate",
+  "tax_amount",
+  "column_break_tax_groups",
+  "tax_amount_free",
+  "tax_amount_0",
+  "tax_amount_5",
+  "tax_amount_10",
+  "deduction_section",
+  "discount_amount",
+  "promotion_amount",
+  "column_break_deduction",
+  "deduction_amount",
+  "deduction_amount_other",
+  "words_section",
+  "amount_in_words",
+  "column_break_words",
+  "human_name",
+  "release_type",
+  "external_section",
+  "external_1",
+  "external_2",
+  "external_3",
+  "column_break_external",
+  "number_external_1",
+  "number_external_2",
+  "number_external_3",
+  "approval_section",
+  "draft_pdf",
+  "draft_pdf_time",
+  "draft_sent_to",
+  "draft_sent_time",
+  "draft_send_count",
+  "column_break_approval",
+  "customer_feedback",
+  "customer_approved_by",
+  "customer_approved_time",
+  "revision_count",
+  "result_section",
+  "fast_key_search",
+  "fast_invoice_no",
+  "fast_pattern",
+  "fast_serial",
+  "fast_signed_date",
+  "column_break_result",
+  "issued_by",
+  "issued_time",
+  "official_pdf",
+  "converted_pdf",
+  "delivery_section",
+  "invoice_sent_to",
+  "column_break_delivery",
+  "invoice_sent_time",
+  "invoice_send_count",
+  "tax_section",
+  "tax_status",
+  "tax_verification_code",
+  "column_break_tax",
+  "tax_feedback",
+  "tax_checked_time",
+  "error_section",
+  "error_code",
+  "error_message",
+  "column_break_error",
+  "cancel_reason",
+  "cancelled_time"
+ ],
+ "fields": [
+  {
+   "fieldname": "link_section",
+   "fieldtype": "Section Break",
+   "label": "Liên kết"
+  },
+  {
+   "fieldname": "delivery_note",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Phiếu giao hàng",
+   "options": "Delivery Note",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Hóa đơn bán (ERP)",
+   "options": "Sales Invoice",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Khách hàng",
+   "options": "Customer",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_link",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "01 - Nháp",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Trạng thái",
+   "options": "01 - Nháp\n02 - Đã xem nháp\n03 - Chờ khách duyệt\n04 - Khách đã duyệt\n05 - Đang phát hành\n06 - Đã phát hành\n07 - Đã gửi khách\n08 - CQT chấp nhận\n09 - CQT từ chối\n10 - Đã điều chỉnh\n11 - Đã thay thế\n12 - Đã hủy nội bộ\n98 - Cần đối soát\n99 - Lỗi",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Hệ thống tự đặt theo trạng thái (bảng B2).",
+   "fieldname": "is_edit_locked",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Đã khóa sửa",
+   "read_only": 1
+  },
+  {
+   "default": "Hóa đơn gốc",
+   "fieldname": "invoice_type",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Loại chứng từ",
+   "options": "Hóa đơn gốc\nHóa đơn điều chỉnh\nHóa đơn thay thế",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "collapsible": 0,
+   "depends_on": "eval:doc.invoice_type && doc.invoice_type != 'Hóa đơn gốc'",
+   "fieldname": "lineage_section",
+   "fieldtype": "Section Break",
+   "label": "Điều chỉnh / thay thế"
+  },
+  {
+   "fieldname": "original_document",
+   "fieldtype": "Link",
+   "label": "Hóa đơn gốc",
+   "options": "Fast EInvoice Document",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "adjustment_type",
+   "fieldtype": "Select",
+   "label": "Loại điều chỉnh",
+   "options": "1 - Điều chỉnh giảm\n2 - Điều chỉnh tăng\n3 - Điều chỉnh thông tin",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "adjustment_reason",
+   "fieldtype": "Small Text",
+   "label": "Lý do điều chỉnh / thay thế",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "column_break_lineage",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "minute_no",
+   "fieldtype": "Data",
+   "label": "Số biên bản",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "minute_date",
+   "fieldtype": "Date",
+   "label": "Ngày biên bản",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "amended_from_fei",
+   "fieldtype": "Link",
+   "label": "Đã được thay thế / điều chỉnh bởi",
+   "options": "Fast EInvoice Document",
+   "read_only": 1
+  },
+  {
+   "fieldname": "buyer_section",
+   "fieldtype": "Section Break",
+   "label": "Thông tin hóa đơn & người mua"
+  },
+  {
+   "description": "Sinh một lần khi tạo bản ghi và không bao giờ đổi (đặc tả A4).",
+   "fieldname": "fast_key",
+   "fieldtype": "Data",
+   "label": "Key (mã chống trùng)",
+   "length": 32,
+   "read_only": 1
+  },
+  {
+   "fieldname": "invoice_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Ngày hóa đơn",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer_code",
+   "fieldtype": "Data",
+   "label": "Mã khách hàng",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "description": "Tên người đi mua, tối đa 100 ký tự.",
+   "fieldname": "buyer",
+   "fieldtype": "Data",
+   "label": "Người mua hàng",
+   "length": 100,
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Tên đơn vị mua",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer_tax_code",
+   "fieldtype": "Data",
+   "label": "Mã số thuế",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "default": "1",
+   "description": "1 = doanh nghiệp (có MST) · 0 = cá nhân",
+   "fieldname": "customer_type",
+   "fieldtype": "Select",
+   "label": "Đối tượng",
+   "options": "1\n0",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_buyer",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Lấy địa chỉ xuất hóa đơn của khách, KHÔNG lấy địa chỉ giao hàng.",
+   "fieldname": "address",
+   "fieldtype": "Data",
+   "label": "Địa chỉ",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "fieldname": "phone_number",
+   "fieldtype": "Data",
+   "label": "Điện thoại",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "fax_number",
+   "fieldtype": "Data",
+   "label": "Fax",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "description": "Đúng 9 hoặc 12 chữ số, hoặc để trống.",
+   "fieldname": "id_card_no",
+   "fieldtype": "Data",
+   "label": "Số CCCD",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "passport_no",
+   "fieldtype": "Data",
+   "label": "Số hộ chiếu",
+   "length": 20,
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "description": "Dùng cho khách là đơn vị công lập.",
+   "fieldname": "buyer_unit",
+   "fieldtype": "Data",
+   "label": "Mã ĐVQHNS",
+   "length": 7,
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "description": "Nhiều email cách nhau bằng dấu phẩy.",
+   "fieldname": "email_deliver",
+   "fieldtype": "Data",
+   "label": "Email nhận hóa đơn",
+   "length": 256,
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "fieldname": "payment_section",
+   "fieldtype": "Section Break",
+   "label": "Thanh toán"
+  },
+  {
+   "fieldname": "bank_account",
+   "fieldtype": "Data",
+   "label": "Số tài khoản",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "bank_name",
+   "fieldtype": "Data",
+   "label": "Ngân hàng",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "default": "CK",
+   "fieldname": "payment_method",
+   "fieldtype": "Select",
+   "label": "Hình thức thanh toán",
+   "options": "TM\nCK\nTM/CK",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_payment",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "VND",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Loại tiền",
+   "options": "Currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "exchange_rate",
+   "fieldtype": "Float",
+   "label": "Tỷ giá",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "fieldname": "lines_section",
+   "fieldtype": "Section Break",
+   "label": "Hàng hóa, dịch vụ"
+  },
+  {
+   "fieldname": "lines",
+   "fieldtype": "Table",
+   "label": "Dòng hàng",
+   "options": "Fast EInvoice Line",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "totals_section",
+   "fieldtype": "Section Break",
+   "label": "Tổng hợp"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Tiền hàng (chưa thuế)",
+   "options": "currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "label": "Tổng thanh toán",
+   "options": "currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "column_break_totals",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "10",
+   "fieldname": "tax_rate",
+   "fieldtype": "Select",
+   "label": "Thuế suất",
+   "options": "0\n5\n8\n10\n-1\n-2\n-8\n-9",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tiền thuế GTGT",
+   "options": "currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "column_break_tax_groups",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tax_amount_free",
+   "fieldtype": "Currency",
+   "label": "Tiền thuế: không chịu thuế",
+   "options": "currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "tax_amount_0",
+   "fieldtype": "Currency",
+   "label": "Tiền thuế: 0%",
+   "options": "currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "tax_amount_5",
+   "fieldtype": "Currency",
+   "label": "Tiền thuế: 5%",
+   "options": "currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "tax_amount_10",
+   "fieldtype": "Currency",
+   "label": "Tiền thuế: 10%",
+   "options": "currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "deduction_section",
+   "fieldtype": "Section Break",
+   "label": "Chiết khấu & giảm trừ"
+  },
+  {
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Tiền chiết khấu",
+   "options": "currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "promotion_amount",
+   "fieldtype": "Currency",
+   "label": "Tiền khuyến mại",
+   "options": "currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "column_break_deduction",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "deduction_amount",
+   "fieldtype": "Currency",
+   "label": "Giảm trừ không chịu thuế",
+   "options": "currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "deduction_amount_other",
+   "fieldtype": "Currency",
+   "label": "Giảm trừ khác",
+   "options": "currency",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "words_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "Hệ thống tự sinh theo loại tiền; sai từ khóa loại tiền là lỗi 152.",
+   "fieldname": "amount_in_words",
+   "fieldtype": "Data",
+   "label": "Số tiền bằng chữ",
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_words",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "human_name",
+   "fieldtype": "Data",
+   "label": "Người phát hành",
+   "length": 128,
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "1 = cột tiền chi tiết đã trừ chiết khấu.",
+   "fieldname": "release_type",
+   "fieldtype": "Select",
+   "label": "Kiểu cột tiền",
+   "options": "1",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "external_section",
+   "fieldtype": "Section Break",
+   "label": "Trường mở rộng"
+  },
+  {
+   "fieldname": "external_1",
+   "fieldtype": "Data",
+   "label": "External 1",
+   "length": 500,
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "external_2",
+   "fieldtype": "Data",
+   "label": "External 2",
+   "length": 500,
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "external_3",
+   "fieldtype": "Data",
+   "label": "External 3",
+   "length": 500,
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "column_break_external",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "number_external_1",
+   "fieldtype": "Float",
+   "label": "NumberExternal 1",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "number_external_2",
+   "fieldtype": "Float",
+   "label": "NumberExternal 2",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "number_external_3",
+   "fieldtype": "Float",
+   "label": "NumberExternal 3",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "fieldname": "approval_section",
+   "fieldtype": "Section Break",
+   "label": "Quy trình duyệt của khách hàng"
+  },
+  {
+   "fieldname": "draft_pdf",
+   "fieldtype": "Attach",
+   "label": "File PDF nháp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "draft_pdf_time",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm tạo nháp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "draft_sent_to",
+   "fieldtype": "Data",
+   "label": "Đã gửi nháp tới",
+   "read_only": 1
+  },
+  {
+   "fieldname": "draft_sent_time",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm gửi nháp",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "draft_send_count",
+   "fieldtype": "Int",
+   "label": "Số lần gửi nháp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_approval",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Lịch sử phản hồi, ghi nối tiếp — không ghi đè.",
+   "fieldname": "customer_feedback",
+   "fieldtype": "Text",
+   "label": "Ý kiến khách hàng",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_approved_by",
+   "fieldtype": "Data",
+   "label": "Người xác nhận khách duyệt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_approved_time",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm khách duyệt",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Tăng mỗi lần quay về trạng thái Nháp từ 02/03/04.",
+   "fieldname": "revision_count",
+   "fieldtype": "Int",
+   "label": "Số lần sửa",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.fast_key_search || doc.fast_invoice_no",
+   "fieldname": "result_section",
+   "fieldtype": "Section Break",
+   "label": "Kết quả từ Fast"
+  },
+  {
+   "fieldname": "fast_key_search",
+   "fieldtype": "Data",
+   "label": "Mã tra cứu (keySearch)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fast_invoice_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Số hóa đơn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fast_pattern",
+   "fieldtype": "Data",
+   "label": "Mẫu số",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fast_serial",
+   "fieldtype": "Data",
+   "label": "Ký hiệu",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fast_signed_date",
+   "fieldtype": "Date",
+   "label": "Ngày phát hành",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_result",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "issued_by",
+   "fieldtype": "Link",
+   "label": "Người phát hành",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "issued_time",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm phát hành",
+   "read_only": 1
+  },
+  {
+   "fieldname": "official_pdf",
+   "fieldtype": "Attach",
+   "label": "PDF chính thức",
+   "read_only": 1
+  },
+  {
+   "fieldname": "converted_pdf",
+   "fieldtype": "Attach",
+   "label": "PDF chuyển đổi",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "delivery_section",
+   "fieldtype": "Section Break",
+   "label": "Gửi hóa đơn cho khách"
+  },
+  {
+   "fieldname": "invoice_sent_to",
+   "fieldtype": "Data",
+   "label": "Đã gửi hóa đơn tới",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_delivery",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "invoice_sent_time",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm gửi",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "invoice_send_count",
+   "fieldtype": "Int",
+   "label": "Số lần gửi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_section",
+   "fieldtype": "Section Break",
+   "label": "Cơ quan Thuế"
+  },
+  {
+   "fieldname": "tax_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Trạng thái CQT",
+   "options": "\nChờ CQT\n3 - Chấp nhận\n4 - Từ chối",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_verification_code",
+   "fieldtype": "Data",
+   "label": "Mã CQT cấp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_tax",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tax_feedback",
+   "fieldtype": "Small Text",
+   "label": "Phản hồi CQT",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_checked_time",
+   "fieldtype": "Datetime",
+   "label": "Lần kiểm tra CQT gần nhất",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.error_code || doc.cancel_reason",
+   "fieldname": "error_section",
+   "fieldtype": "Section Break",
+   "label": "Lỗi & hủy"
+  },
+  {
+   "fieldname": "error_code",
+   "fieldtype": "Data",
+   "label": "Mã lỗi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "Thông báo lỗi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_error",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "cancel_reason",
+   "fieldtype": "Small Text",
+   "label": "Lý do hủy nội bộ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cancelled_time",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm hủy",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 0,
+ "links": [],
+ "modified": "2026-08-07 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Einvoice",
+ "name": "Fast EInvoice Document",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "delivery_note,customer,fast_invoice_no,status",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "delivery_note",
+ "track_changes": 1
+}
