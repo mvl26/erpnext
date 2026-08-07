@@ -80,7 +80,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
 
 ### Giai đoạn 2 — Đóng gói & kiểm tra dữ liệu
 
-- [ ] **T9 — `payload.py`.** Dựng `structure.master`/`structure.detail` đúng
+- [x] **T9 — `payload.py`.** Dựng `structure.master`/`structure.detail` đúng
   Phần I; bỏ hẳn thẻ không dùng khỏi structure; số gửi dạng number; đọc tiền
   bằng chữ theo loại tiền (đồng / đô la Mỹ / Euro). Deps: T4.
 
