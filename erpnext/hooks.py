@@ -424,6 +424,10 @@ scheduler_events = {
 		"0/30 * * * *": [
 			"erpnext.utilities.doctype.video.video.update_youtube_data",
 		],
+		# HĐĐT: quét các hóa đơn còn chờ Cơ quan Thuế (mục E8).
+		"0/20 * * * *": [
+			"erpnext.einvoice.tax_status.poll_pending_tax_status",
+		],
 		# Hourly but offset by 30 minutes
 		"30 * * * *": [
 			"erpnext.accounts.doctype.gl_entry.gl_entry.rename_gle_sle_docs",
