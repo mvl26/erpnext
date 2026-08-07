@@ -69,7 +69,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
 
 ### Giai đoạn 1 — Tầng giao tiếp Fast
 
-- [ ] **T7 — `fast_client.py`: SOAP + token.** Dựng envelope, escape `&<>`,
+- [x] **T7 — `fast_client.py`: SOAP + token.** Dựng envelope, escape `&<>`,
   base64 UTF-8, `CheckKey`/`GetKey`, tự lấy lại token khi hết hạn rồi thử lại 1
   lần. Deps: T2.
 
