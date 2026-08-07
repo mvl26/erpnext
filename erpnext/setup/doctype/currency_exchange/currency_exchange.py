@@ -1,9 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-# For license information, please see license.txt
-
-
 from frappe import _, throw
 from frappe.model.document import Document
 from frappe.utils import cint, formatdate, get_datetime_str, nowdate

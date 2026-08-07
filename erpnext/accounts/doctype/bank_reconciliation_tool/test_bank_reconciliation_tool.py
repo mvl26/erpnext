@@ -1,7 +1,3 @@
-# Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-
-
 import frappe
 from frappe import qb
 from frappe.tests.utils import FrappeTestCase

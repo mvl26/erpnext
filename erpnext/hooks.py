@@ -1,20 +1,21 @@
+# `app_name` is the bench/site install key — it is written into `installed_apps`,
+# module paths and fixtures. Renaming it would break site `miyano`, so it stays.
 app_name = "erpnext"
-app_title = "ERPNext"
-app_publisher = "Frappe Technologies Pvt. Ltd."
-app_description = """ERP made simple"""
+app_title = "Miyano ERP"
+app_publisher = "Công ty TNHH Miyano Việt Nam"
+app_description = """Hệ thống ERP nội bộ Miyano — thiết bị & vật tư y tế, kế toán VN (TT99)"""
 app_icon = "fa fa-th"
 app_color = "#e74c3c"
-app_email = "hello@frappe.io"
-app_license = "GNU General Public License (v3)"
-source_link = "https://github.com/frappe/erpnext"
-app_logo_url = "/assets/erpnext/images/erpnext-logo.svg"
+app_email = "info@miyano.com.vn"
+app_license = "Nội bộ — Công ty TNHH Miyano Việt Nam, không phát hành công khai"
+app_logo_url = "/assets/erpnext/images/miyano-logo.png"
 
 
 add_to_apps_screen = [
 	{
 		"name": "erpnext",
-		"logo": "/assets/erpnext/images/erpnext-logo-blue.png",
-		"title": "ERPNext",
+		"logo": "/assets/erpnext/images/miyano-logo.png",
+		"title": "Miyano ERP",
 		"route": "/app/home",
 		"has_permission": "erpnext.check_app_permission",
 	}
@@ -98,6 +99,7 @@ demo_transaction_doctypes = [
 jinja = {
 	"methods": [
 		"erpnext.stock.serial_batch_bundle.get_serial_or_batch_nos",
+		"erpnext.regional.vietnam.utils.so_thanh_chu",
 	],
 }
 
@@ -109,8 +111,8 @@ calendars = ["Task", "Work Order", "Sales Order", "Holiday List", "ToDo"]
 website_generators = ["BOM", "Sales Partner"]
 
 website_context = {
-	"favicon": "/assets/erpnext/images/erpnext-favicon.svg",
-	"splash_image": "/assets/erpnext/images/erpnext-logo.svg",
+	"favicon": "/assets/erpnext/images/miyano-favicon.png",
+	"splash_image": "/assets/erpnext/images/miyano-logo.png",
 }
 
 # nosemgrep
@@ -362,6 +364,7 @@ doc_events = {
 		"on_submit": [
 			"erpnext.regional.create_transaction_log",
 			"erpnext.regional.italy.utils.sales_invoice_on_submit",
+			"erpnext.regional.vietnam.e_invoice.on_si_submit",
 		],
 		"on_cancel": [
 			"erpnext.regional.italy.utils.sales_invoice_on_cancel",
@@ -478,15 +481,10 @@ scheduler_events = {
 	],
 }
 
-email_brand_image = "assets/erpnext/images/erpnext-logo.jpg"
+email_brand_image = "assets/erpnext/images/miyano-logo.png"
 
 default_mail_footer = """
-	<span>
-		Sent via
-		<a class="text-muted" href="https://frappe.io/erpnext?source=via_email_footer" target="_blank">
-			ERPNext
-		</a>
-	</span>
+	<span class="text-muted">Công ty TNHH Miyano Việt Nam</span>
 """
 
 get_translated_dict = {("doctype", "Global Defaults"): "frappe.geo.country_info.get_translated_dict"}
@@ -495,7 +493,6 @@ bot_parsers = [
 	"erpnext.utilities.bot.FindItemBot",
 ]
 
-get_site_info = "erpnext.utilities.get_site_info"
 
 payment_gateway_enabled = "erpnext.accounts.utils.create_payment_gateway_account"
 

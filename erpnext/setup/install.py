@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import click
 import frappe
 from frappe import _
@@ -15,8 +11,8 @@ from erpnext.setup.doctype.incoterm.incoterm import create_incoterms
 
 from .default_success_action import get_default_success_action
 
-default_mail_footer = """<div style="padding: 7px; text-align: right; color: #888"><small>Sent via
-	<a style="color: #888" href="http://frappe.io/erpnext">ERPNext</a></div>"""
+default_mail_footer = """<div style="padding: 7px; text-align: right; color: #888"><small>
+	Công ty TNHH Miyano Việt Nam</small></div>"""
 
 
 def after_install():
@@ -194,37 +190,14 @@ def add_company_to_session_defaults():
 def add_standard_navbar_items():
 	navbar_settings = frappe.get_single("Navbar Settings")
 
-	erpnext_navbar_items = [
-		{
-			"item_label": "Documentation",
-			"item_type": "Route",
-			"route": "https://docs.erpnext.com/",
-			"is_standard": 1,
-		},
-		{
-			"item_label": "User Forum",
-			"item_type": "Route",
-			"route": "https://discuss.frappe.io",
-			"is_standard": 1,
-		},
-		{
-			"item_label": "Frappe School",
-			"item_type": "Route",
-			"route": "https://frappe.io/school?utm_source=in_app",
-			"is_standard": 1,
-		},
-		{
-			"item_label": "Report an Issue",
-			"item_type": "Route",
-			"route": "https://github.com/frappe/erpnext/issues",
-			"is_standard": 1,
-		},
-	]
+	# Hệ thống nội bộ: không trỏ ra tài liệu/diễn đàn công khai bên ngoài.
+	# Thêm link nội bộ Miyano (wiki, helpdesk) vào danh sách này khi có.
+	standard_navbar_items = []
 
 	current_navbar_items = navbar_settings.help_dropdown
 	navbar_settings.set("help_dropdown", [])
 
-	for item in erpnext_navbar_items:
+	for item in standard_navbar_items:
 		current_labels = [item.get("item_label") for item in current_navbar_items]
 		if item.get("item_label") not in current_labels:
 			navbar_settings.append("help_dropdown", item)
@@ -246,7 +219,7 @@ def add_standard_navbar_items():
 
 
 def add_app_name():
-	frappe.db.set_single_value("System Settings", "app_name", "ERPNext")
+	frappe.db.set_single_value("System Settings", "app_name", "Miyano ERP")
 
 
 def hide_workspaces():

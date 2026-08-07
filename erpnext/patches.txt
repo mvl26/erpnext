@@ -422,3 +422,4 @@ execute:frappe.db.set_single_value("Accounts Settings", "fetch_valuation_rate_fo
 erpnext.patches.v15_0.add_company_payment_gateway_account
 erpnext.patches.v15_0.update_uae_zero_rated_fetch
 erpnext.patches.v15_0.update_fieldname_in_accounting_dimension_filter
+erpnext.patches.v15_0.rebrand_app_name_to_miyano

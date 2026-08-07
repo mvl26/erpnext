@@ -1,9 +1,10 @@
 [project]
+# `name` must stay "erpnext": it is the bench app / import package name on site miyano.
 name = "erpnext"
 authors = [
-    { name = "Frappe Technologies Pvt Ltd", email = "developers@frappe.io"}
+    { name = "Công ty TNHH Miyano Việt Nam", email = "info@miyano.com.vn"}
 ]
-description = "Open Source ERP"
+description = "Hệ thống ERP nội bộ Miyano — thiết bị & vật tư y tế, kế toán VN (TT99)"
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]

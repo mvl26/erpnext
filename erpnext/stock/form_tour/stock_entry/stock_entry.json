@@ -13,7 +13,7 @@
  "save_on_complete": 1,
  "steps": [
   {
-   "description": "Select the type of Stock Entry to be made. For now, to receive stock into a warehouses select <a href=\"https://docs.erpnext.com/docs/v13/user/manual/en/stock/articles/stock-entry-purpose#2purpose-material-receipt\" target=\"_blank\">Material Receipt.</a>",
+   "description": "Select the type of Stock Entry to be made. For now, to receive stock into a warehouses select Material Receipt.",
    "field": "",
    "fieldname": "stock_entry_type",
    "fieldtype": "Link",

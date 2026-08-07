@@ -1,6 +1,3 @@
-// Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Process Statement Of Accounts", {
 	view_properties: function (frm) {
 		frappe.route_options = { doc_type: "Customer" };

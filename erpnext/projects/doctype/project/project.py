@@ -1,7 +1,3 @@
-# Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 from email_reply_parser import EmailReplyParser
 from frappe import _, qb

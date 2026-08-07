@@ -1,7 +1,3 @@
-# Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 from frappe.tests.utils import FrappeTestCase, change_settings
 from frappe.utils import add_to_date, nowdate

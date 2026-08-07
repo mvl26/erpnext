@@ -1,6 +1,3 @@
-// Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Serial and Batch Bundle", {
 	setup(frm) {
 		frm.trigger("set_queries");

@@ -1,7 +1,3 @@
-# Copyright (c) 2021, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-
-
 from typing import Literal
 
 import frappe

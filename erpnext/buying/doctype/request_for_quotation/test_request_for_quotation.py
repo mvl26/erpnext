@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-
-
 from urllib.parse import urlparse
 
 import frappe

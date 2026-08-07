@@ -1,6 +1,3 @@
-# Copyright (c) 2013, Frappe Technologies Pvt. Ltd. and contributors
-# License: MIT. See LICENSE
-
 import frappe
 from frappe import _, qb
 from frappe.query_builder import Column, functions
