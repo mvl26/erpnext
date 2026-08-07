@@ -364,7 +364,6 @@ doc_events = {
 		"on_submit": [
 			"erpnext.regional.create_transaction_log",
 			"erpnext.regional.italy.utils.sales_invoice_on_submit",
-			"erpnext.regional.vietnam.e_invoice.on_si_submit",
 		],
 		"on_cancel": [
 			"erpnext.regional.italy.utils.sales_invoice_on_cancel",

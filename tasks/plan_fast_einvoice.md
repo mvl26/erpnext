@@ -34,7 +34,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
 
 ### Giai đoạn 0 — Nền móng dữ liệu
 
-- [ ] **T1 — Module `einvoice` + gỡ luồng HĐĐT cũ.**
+- [x] **T1 — Module `einvoice` + gỡ luồng HĐĐT cũ.**
   Tạo `erpnext/einvoice/` (+ `modules.txt`). Xóa `regional/vietnam/e_invoice.py`,
   `e_invoice_providers/`, `test_e_invoice.py`, DocType `Vietnam E Invoice Log`,
   hook `on_si_submit`, và các custom field `vn_einvoice_*` (Company + Sales

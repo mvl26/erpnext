@@ -24,7 +24,11 @@ export, GĐ2 remainder. `mvl_accounting` is parked (reference-only).
 - [x] Task 42 — Payload builder + adapter registry + mock adapter
 - [x] Task 43 — Issuance orchestration on SI submit (opt-in, non-blocking, retry)
 - [x] Task 44 — Điều chỉnh / thay thế flows (lineage on log)
-- [ ] Task 45 — Real provider adapter + sandbox **[BLOCKED: OQ-1 — provider choice]**
+- [~] Task 45 — Real provider adapter **[BỎ: OQ-1 đã chốt = Fast e-Invoice]**
+      Nhà cung cấp đã chọn là Fast, nhưng đặc tả Fast v2.0 đổi hẳn kiến trúc
+      (chứng từ nguồn Delivery Note, vòng đời 12 trạng thái có xác nhận người
+      dùng) nên luồng SI-driven Task 40–44 bị gỡ thay vì bổ sung adapter.
+      Việc tiếp theo nằm ở `tasks/plan_fast_einvoice.md`.
 
 ### Checkpoint B — mock end-to-end green; only Task 45 remains for legal issuance
 
