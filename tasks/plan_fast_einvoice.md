@@ -100,7 +100,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
 
 ### Giai đoạn 4 — Phát hành & sau phát hành
 
-- [ ] **T14 — Nút 7 PHÁT HÀNH.** Lock chống bấm đúp, validate lại phía server,
+- [x] **T14 — Nút 7 PHÁT HÀNH.** Lock chống bấm đúp, validate lại phía server,
   **tiền kiểm 370** trước khi phát hành, commit trước khi gọi API, xử lý đủ 3
   nhánh 7a thành công / 7b lỗi / 7c timeout → "Cần đối soát" (tuyệt đối không tự
   phát hành lại). Deps: T13.

@@ -143,6 +143,10 @@ class FastClient:
 	def __init__(self, settings=None, transport=None):
 		self.settings = settings or get_settings()
 		self.transport = transport or _post
+		# Token đã xác minh, dùng lại trong suốt vòng đời client. Một lần phát hành
+		# gồm truy vấn 370 rồi mới tới 310; hỏi CheckKey cho từng lệnh là tự nhân
+		# đôi số vòng mạng ở đúng lúc không nên chậm.
+		self._verified_token = None
 
 	# --- Dựng và gửi envelope ------------------------------------------
 
@@ -185,9 +189,16 @@ class FastClient:
 
 	def token(self, force=False):
 		"""Token phiên, lấy lại khi cần. Trình tự CheckKey → GetKey của mục E5."""
+		if force:
+			self._verified_token = None
+		elif self._verified_token:
+			return self._verified_token
+
 		if not force and self._stored_token_is_fresh() and self._check_key():
-			return self.settings.token
-		return self._get_key()
+			self._verified_token = self.settings.token
+		else:
+			self._verified_token = self._get_key()
+		return self._verified_token
 
 	def _stored_token_is_fresh(self):
 		if not self.settings.token or not self.settings.token_time:
