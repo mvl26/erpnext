@@ -129,7 +129,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
   B2, dialog xác nhận cấp 1/2/3 (cấp 3 gõ đúng `PHAT HANH` / `HUY`). Deps: T19.
 - [x] **T22 — Client script `Delivery Note`.** Nút "Tạo hóa đơn điện tử" +
   hiển thị trạng thái HĐĐT. Deps: T21.
-- [ ] **T23 — Nối bảng kê bán ra / tờ khai 01/GTGT sang nguồn số mới.** Thay chỗ
+- [x] **T23 — Nối bảng kê bán ra / tờ khai 01/GTGT sang nguồn số mới.** Thay chỗ
   đọc `vn_einvoice_number`/`vn_einvoice_symbol` (đã xóa ở T1) bằng số hóa đơn
   Fast. Deps: T14.
 - [ ] **T24 — Tài liệu vận hành + 12 kịch bản test Giai đoạn 6.** Deps: T23.
