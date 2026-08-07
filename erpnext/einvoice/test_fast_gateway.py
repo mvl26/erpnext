@@ -115,9 +115,7 @@ class TestGatewayLogging(FrappeTestCase):
 		client = self._client(requests.Timeout("hết giờ"))
 
 		with self.assertRaises(FastTimeout):
-			call_fast(
-				self.fei, action=0, method=310, data={}, purpose="Phát hành hóa đơn", client=client
-			)
+			call_fast(self.fei, action=0, method=310, data={}, purpose="Phát hành hóa đơn", client=client)
 
 		log = frappe.get_doc(LOG, {"fei_document": self.fei.name})
 		self.assertEqual(log.status, "Timeout")

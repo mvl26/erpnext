@@ -134,9 +134,7 @@ class TestConvertedPdf(PdfTestBase):
 		download_converted_pdf(
 			self.fei.name, convert_name="Chu Văn Hiếu", client=self._client(pdf_envelope(b"%%conv\n"))
 		)
-		self.assertEqual(
-			sent_payload(self.transport.calls[-1]["body"])["convertName"], "Chu Văn Hiếu"
-		)
+		self.assertEqual(sent_payload(self.transport.calls[-1]["body"])["convertName"], "Chu Văn Hiếu")
 
 	def test_it_uses_method_385(self):
 		download_converted_pdf(

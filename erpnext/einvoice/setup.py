@@ -35,7 +35,7 @@ def _make_email_templates():
 	"""Hai mẫu email của mục E3 / E7.
 
 	Mẫu bản nháp **bắt buộc** có dòng cảnh báo chưa có giá trị pháp lý: bản PDF ở
-	trạng thái 01–04 chưa có số hóa đơn, chưa ký số, chưa lên Cơ quan Thuế. Gửi
+	trạng thái 01—04 chưa có số hóa đơn, chưa ký số, chưa lên Cơ quan Thuế. Gửi
 	đi mà không nói rõ là để khách hiểu nhầm đã có hóa đơn.
 	"""
 	templates = (
@@ -163,9 +163,7 @@ def _make_delivery_note_fields():
 def _make_roles():
 	for role in (ROLE_STAFF, ROLE_CHIEF):
 		if not frappe.db.exists("Role", role):
-			doc = frappe.get_doc(
-				{"doctype": "Role", "role_name": role, "desk_access": 1, "is_custom": 1}
-			)
+			doc = frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": 1, "is_custom": 1})
 			doc.flags.ignore_permissions = True
 			doc.insert()
 

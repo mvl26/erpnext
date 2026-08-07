@@ -69,7 +69,7 @@ ISSUED_STATUSES = frozenset(
 )
 
 # Đang giữ chỗ trên Delivery Note: không cho lập bản ghi HĐĐT thứ hai cho cùng DN
-# (đặc tả C2.1 #1 — "không cho trùng với bản ghi khác đang ở trạng thái 01–08").
+# (đặc tả C2.1 #1 — "không cho trùng với bản ghi khác đang ở trạng thái 01—08").
 LIVE_STATUSES = frozenset(
 	{
 		STATUS_DRAFT,

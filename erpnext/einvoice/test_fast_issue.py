@@ -29,7 +29,10 @@ LOG = "Fast EInvoice Log"
 
 # Fast không tìm thấy hóa đơn (mã 888) = chưa phát hành lần nào = an toàn để phát hành.
 NOT_FOUND = envelope(0, "888|Khong tim thay")
-ISSUE_OK = envelope(1, '{"invoiceNo":"2","pattern":"1/001","serial":"1C26TMY","signedDate":"20260807","keySearch":"KS-ABC-123"}')
+ISSUE_OK = envelope(
+	1,
+	'{"invoiceNo":"2","pattern":"1/001","serial":"1C26TMY","signedDate":"20260807","keySearch":"KS-ABC-123"}',
+)
 
 
 class TestParseIssueResult(FrappeTestCase):

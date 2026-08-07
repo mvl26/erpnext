@@ -129,7 +129,10 @@ class TestSendViaFast(SendInvoiceBase):
 
 	def test_a_fast_error_does_not_mark_it_sent(self):
 		send_invoice_to_customer(
-			self.fei.name, via="fast", recipients="kt@bvx.vn", client=self._client(envelope(0, "802|Khong co quyen"))
+			self.fei.name,
+			via="fast",
+			recipients="kt@bvx.vn",
+			client=self._client(envelope(0, "802|Khong co quyen")),
 		)
 
 		self.fei.reload()

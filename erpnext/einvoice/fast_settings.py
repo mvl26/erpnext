@@ -27,9 +27,7 @@ _TRIMMED_FIELDS = (
 def get_settings():
 	"""Cấu hình đã chuẩn hóa, kèm mật khẩu bản rõ. Không gọi mạng."""
 	doc = frappe.get_cached_doc(SETTINGS_DOCTYPE)
-	settings = frappe._dict(
-		{fieldname: (doc.get(fieldname) or "").strip() for fieldname in _TRIMMED_FIELDS}
-	)
+	settings = frappe._dict({fieldname: (doc.get(fieldname) or "").strip() for fieldname in _TRIMMED_FIELDS})
 	settings.update(
 		{
 			"enabled": bool(doc.enabled),
@@ -55,7 +53,7 @@ def get_notify_recipients():
 		return []
 	return [
 		email
-		for email, in frappe.get_all(
+		for (email,) in frappe.get_all(
 			"User", filters={"name": ["in", users], "enabled": 1}, fields=["email"], as_list=True
 		)
 		if email

@@ -28,12 +28,7 @@ frappe.query_reports["Doi Soat Hoa Don Dien Tu"] = {
 			fieldname: "issue_type",
 			label: __("Loại vấn đề"),
 			fieldtype: "Select",
-			options: [
-				"",
-				"Chưa xuất hóa đơn",
-				"Chờ CQT quá 24 giờ",
-				"Lỗi / cần đối soát",
-			].join("\n"),
+			options: ["", "Chưa xuất hóa đơn", "Chờ CQT quá 24 giờ", "Lỗi / cần đối soát"].join("\n"),
 		},
 	],
 

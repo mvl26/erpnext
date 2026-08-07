@@ -120,7 +120,9 @@ def _parse_pipe(message):
 	if "|" not in message:
 		return None
 	parts = [part.strip() for part in message.split("|")]
-	return {field: parts[index] for index, field in enumerate(PIPE_ORDER) if index < len(parts) and parts[index]}
+	return {
+		field: parts[index] for index, field in enumerate(PIPE_ORDER) if index < len(parts) and parts[index]
+	}
 
 
 def _parse_signed_date(value):
@@ -159,7 +161,7 @@ def issue_invoice(fei, client=None):
 		# Bước 3 — chống phát hành lặp.
 		_precheck_not_already_issued(doc, client)
 
-		# Bước 4–6.
+		# Bước 4—6.
 		try:
 			response = call_fast(
 				doc,
@@ -217,9 +219,7 @@ class _issuance_lock:
 
 	def __enter__(self):
 		try:
-			self.acquired = bool(
-				frappe.cache().set(self.key, "1", ex=LOCK_TTL_SECONDS, nx=True)
-			)
+			self.acquired = bool(frappe.cache().set(self.key, "1", ex=LOCK_TTL_SECONDS, nx=True))
 		except Exception:
 			# Redis hỏng không được phép chặn việc phát hành: trạng thái 05 trong
 			# cơ sở dữ liệu vẫn là chốt chống bấm đúp thứ hai.
@@ -256,9 +256,9 @@ def _precheck_not_already_issued(doc, client):
 		found = parse_issue_result(response.message)
 		_store_issue_result(doc, found, issued_now=False)
 		frappe.throw(
-			_(
-				"Hóa đơn này đã được phát hành trước đó (số {0}, mã tra cứu {1}). Không phát hành lại."
-			).format(found.get("fast_invoice_no") or "?", found.get("fast_key_search") or "?")
+			_("Hóa đơn này đã được phát hành trước đó (số {0}, mã tra cứu {1}). Không phát hành lại.").format(
+				found.get("fast_invoice_no") or "?", found.get("fast_key_search") or "?"
+			)
 		)
 
 	if response.error_code == ERROR_NOT_FOUND:

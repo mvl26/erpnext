@@ -107,6 +107,4 @@ class TestFastEInvoiceLog(FrappeTestCase):
 
 	def test_cleanup_is_registered_as_a_scheduled_job(self):
 		daily = frappe.get_hooks("scheduler_events").get("daily") or []
-		self.assertIn(
-			"erpnext.einvoice.doctype.fast_einvoice_log.fast_einvoice_log.delete_old_logs", daily
-		)
+		self.assertIn("erpnext.einvoice.doctype.fast_einvoice_log.fast_einvoice_log.delete_old_logs", daily)

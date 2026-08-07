@@ -157,9 +157,7 @@ class TestAdjustmentPayload(FrappeTestCase):
 		configure()
 		self.original = make_fei()
 		self.original.insert()
-		frappe.db.set_value(
-			"Fast EInvoice Document", self.original.name, "fast_key_search", "KEYSEARCH-ORIG"
-		)
+		frappe.db.set_value("Fast EInvoice Document", self.original.name, "fast_key_search", "KEYSEARCH-ORIG")
 
 	def tearDown(self):
 		frappe.db.rollback()

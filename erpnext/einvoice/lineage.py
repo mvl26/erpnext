@@ -124,7 +124,9 @@ def create_replacement(original, reason, minute_no=None, minute_date=None):
 	)
 
 
-def _create_child(original, invoice_type, reason, suffix, adjustment_type=None, minute_no=None, minute_date=None):
+def _create_child(
+	original, invoice_type, reason, suffix, adjustment_type=None, minute_no=None, minute_date=None
+):
 	check_enabled()
 	parent = frappe.get_doc(FEI, original)
 
@@ -162,7 +164,18 @@ def _create_child(original, invoice_type, reason, suffix, adjustment_type=None, 
 	for line in parent.lines:
 		row = child.append("lines", {})
 		for field, value in line.as_dict().items():
-			if field not in ("name", "parent", "parenttype", "parentfield", "idx", "creation", "modified", "owner", "modified_by", "docstatus"):
+			if field not in (
+				"name",
+				"parent",
+				"parenttype",
+				"parentfield",
+				"idx",
+				"creation",
+				"modified",
+				"owner",
+				"modified_by",
+				"docstatus",
+			):
 				row.set(field, value)
 
 	child.flags.ignore_permissions = True

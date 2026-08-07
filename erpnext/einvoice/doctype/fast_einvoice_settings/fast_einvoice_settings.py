@@ -4,7 +4,6 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
-
 # Thiếu bất kỳ trường nào trong đây thì không thể gọi Fast, nên không cho bật tích hợp.
 REQUIRED_TO_ENABLE = {
 	"api_url": "URL dịch vụ",

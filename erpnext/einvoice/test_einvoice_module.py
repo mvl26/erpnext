@@ -2,7 +2,7 @@
 
 """Module `einvoice` đã đăng ký, và luồng HĐĐT cũ (SI-driven) đã gỡ sạch.
 
-Luồng cũ (Task 40–44) tự phát hành hóa đơn khi submit Sales Invoice. Nó trái
+Luồng cũ (Task 40—44) tự phát hành hóa đơn khi submit Sales Invoice. Nó trái
 nguyên tắc A2 của đặc tả Fast v2.0 ("không hành động nào tự chạy ngầm không
 hỏi") nên bị thay hẳn bằng luồng Fast chạy trên Delivery Note. Bộ test này là
 lưới an toàn: nếu ai đó vô tình dựng lại một mảnh của luồng cũ, nó đỏ ngay.
@@ -28,11 +28,11 @@ class TestEInvoiceModule(FrappeTestCase):
 
 	def test_old_si_driven_flow_module_is_gone(self):
 		with self.assertRaises(ImportError):
-			import erpnext.regional.vietnam.e_invoice  # noqa: F401
+			import erpnext.regional.vietnam.e_invoice
 
 	def test_old_provider_adapter_package_is_gone(self):
 		with self.assertRaises(ImportError):
-			import erpnext.regional.vietnam.e_invoice_providers  # noqa: F401
+			import erpnext.regional.vietnam.e_invoice_providers
 
 	def test_old_log_doctype_is_gone(self):
 		self.assertFalse(frappe.db.exists("DocType", OLD_LOG_DOCTYPE))

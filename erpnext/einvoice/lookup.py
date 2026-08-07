@@ -37,7 +37,14 @@ def invoice_numbers_for(sales_invoices):
 
 
 def _fields():
-	return ["sales_invoice", "delivery_note", "fast_invoice_no", "fast_serial", "fast_pattern", "fast_signed_date"]
+	return [
+		"sales_invoice",
+		"delivery_note",
+		"fast_invoice_no",
+		"fast_serial",
+		"fast_pattern",
+		"fast_signed_date",
+	]
 
 
 def _as_entry(row):
