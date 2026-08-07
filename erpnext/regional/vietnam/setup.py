@@ -9,7 +9,6 @@ it is safe to re-run.
 """
 
 import frappe
-from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 
 def _acct(company, number):
@@ -27,7 +26,6 @@ def setup(company=None, patch=True):
 
 	_wire_mode_of_payment(company)
 	_create_asset_categories(company)
-	_make_e_invoice_custom_fields()
 
 	from erpnext.regional.vietnam.tt45 import apply_tt45_useful_life
 
@@ -97,112 +95,6 @@ def _create_asset_categories(company):
 
 		category.flags.ignore_permissions = True
 		category.save() if not category.is_new() else category.insert()
-
-
-# Mirrors the Vietnam E Invoice Log statuses, with a leading blank for "not issued".
-E_INVOICE_SI_STATUSES = "\nDraft\nIssued\nAdjusted\nReplaced\nCancelled\nError"
-
-
-def _make_e_invoice_custom_fields():
-	"""Hóa đơn điện tử (NĐ 70/2025) fields on Company (settings) + Sales Invoice.
-
-	Global, created on the first VN company's setup; ``create_custom_fields`` with
-	``update=True`` keeps re-runs idempotent. Provider list grows as real adapters
-	ship (mock is the only one until the HĐĐT provider is chosen).
-	"""
-	create_custom_fields(
-		{
-			"Company": [
-				dict(
-					fieldname="vn_einvoice_section",
-					fieldtype="Section Break",
-					label="Hóa đơn điện tử (Việt Nam)",
-					insert_after="country",
-					collapsible=1,
-				),
-				dict(
-					fieldname="vn_einvoice_enabled",
-					fieldtype="Check",
-					label="Phát hành HĐĐT khi submit hóa đơn bán",
-					insert_after="vn_einvoice_section",
-					default="0",
-				),
-				dict(
-					fieldname="vn_einvoice_provider",
-					fieldtype="Select",
-					label="Nhà cung cấp HĐĐT",
-					options="mock",
-					insert_after="vn_einvoice_enabled",
-					depends_on="vn_einvoice_enabled",
-				),
-				dict(
-					fieldname="vn_einvoice_symbol",
-					fieldtype="Data",
-					label="Ký hiệu hóa đơn",
-					insert_after="vn_einvoice_provider",
-					depends_on="vn_einvoice_enabled",
-				),
-			],
-			"Sales Invoice": [
-				dict(
-					fieldname="vn_einvoice_section",
-					fieldtype="Section Break",
-					label="Hóa đơn điện tử",
-					insert_after="remarks",
-					collapsible=1,
-				),
-				dict(
-					fieldname="vn_einvoice_number",
-					fieldtype="Data",
-					label="Số hóa đơn điện tử",
-					insert_after="vn_einvoice_section",
-					read_only=1,
-					no_copy=1,
-				),
-				dict(
-					fieldname="vn_einvoice_symbol",
-					fieldtype="Data",
-					label="Ký hiệu",
-					insert_after="vn_einvoice_number",
-					read_only=1,
-					no_copy=1,
-				),
-				dict(
-					fieldname="vn_einvoice_column",
-					fieldtype="Column Break",
-					insert_after="vn_einvoice_symbol",
-				),
-				dict(
-					fieldname="vn_einvoice_status",
-					fieldtype="Select",
-					label="Trạng thái HĐĐT",
-					options=E_INVOICE_SI_STATUSES,
-					insert_after="vn_einvoice_column",
-					read_only=1,
-					no_copy=1,
-					in_standard_filter=1,
-				),
-				dict(
-					fieldname="vn_einvoice_cqt_code",
-					fieldtype="Data",
-					label="Mã của CQT",
-					insert_after="vn_einvoice_status",
-					read_only=1,
-					no_copy=1,
-				),
-				dict(
-					fieldname="vn_einvoice_log",
-					fieldtype="Link",
-					label="Nhật ký HĐĐT",
-					options="Vietnam E Invoice Log",
-					insert_after="vn_einvoice_cqt_code",
-					read_only=1,
-					no_copy=1,
-				),
-			],
-		},
-		update=True,
-	)
 
 
 def _wire_mode_of_payment(company):
