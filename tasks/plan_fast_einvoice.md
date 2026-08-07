@@ -62,7 +62,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
 - [x] **T5 — DocType `Fast EInvoice Log`.** 10 trường mục C4 + job dọn bản ghi
   cũ hơn 24 tháng. Deps: T1.
 
-- [ ] **T6 — Custom field Delivery Note (C5) + 2 Role.**
+- [x] **T6 — Custom field Delivery Note (C5) + 2 Role.**
   `fast_einvoice`, `fast_invoice_no`, `fast_einvoice_status`, `fast_key_search`;
   Role **Kế toán HĐĐT** và **Kế toán trưởng HĐĐT** (nút cấp 3 chỉ hiện với role
   thứ hai). Deps: T4.

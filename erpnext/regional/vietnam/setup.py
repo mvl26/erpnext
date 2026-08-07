@@ -27,6 +27,10 @@ def setup(company=None, patch=True):
 	_wire_mode_of_payment(company)
 	_create_asset_categories(company)
 
+	from erpnext.einvoice.setup import setup_einvoice
+
+	setup_einvoice()
+
 	from erpnext.regional.vietnam.tt45 import apply_tt45_useful_life
 
 	apply_tt45_useful_life()
