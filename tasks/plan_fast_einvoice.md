@@ -108,7 +108,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
   trong 5 giây. Deps: T14.
 - [x] **T16 — Nút 10 — gửi hóa đơn chính thức.** Phương án A (ERP gửi, mặc định)
   + phương án B (`method=700`). Deps: T15.
-- [ ] **T17 — Nút 11/12 + job nền CQT.** `method=8200` cập nhật trạng thái CQT
+- [x] **T17 — Nút 11/12 + job nền CQT.** `method=8200` cập nhật trạng thái CQT
   (3 → status 08, 4 → status 09 + cảnh báo); `method=370` đối soát, lệch thì hỏi
   trước khi ghi đè; job 20 phút quét các hóa đơn "Chờ CQT". Deps: T14.
 
