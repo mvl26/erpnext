@@ -73,7 +73,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
   base64 UTF-8, `CheckKey`/`GetKey`, tự lấy lại token khi hết hạn rồi thử lại 1
   lần. Deps: T2.
 
-- [ ] **T8 — `ExcuteCommand` + ghi log + ánh xạ lỗi.** Bọc mọi lời gọi theo trình
+- [x] **T8 — `ExcuteCommand` + ghi log + ánh xạ lỗi.** Bọc mọi lời gọi theo trình
   tự A1 (ghi log → commit → gọi → ghi response → commit); che password/token
   trong `request_json`; Message là PDF base64 thì chỉ ghi độ dài; ánh xạ ~20 mã
   lỗi Phần G sang thông báo tiếng Việt + hành động gợi ý. Deps: T5, T7.
