@@ -94,7 +94,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
   Deps: T10.
 - [x] **T12 — Nút 3 — xem bản nháp PDF** (`action=600`, `method=310`) → lưu
   `draft_pdf`, `status = 02`; lỗi thì giữ nguyên trạng thái. Deps: T8, T11.
-- [ ] **T13 — Nút 4/5/6 + 2 Email Template.** Gửi nháp cho khách, ghi nhận ý
+- [x] **T13 — Nút 4/5/6 + 2 Email Template.** Gửi nháp cho khách, ghi nhận ý
   kiến (nối lịch sử, không ghi đè), khách đã duyệt. Mẫu email **bắt buộc** có
   dòng "bản nháp — CHƯA CÓ GIÁ TRỊ PHÁP LÝ". Deps: T12.
 
