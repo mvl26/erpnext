@@ -104,7 +104,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
   **tiền kiểm 370** trước khi phát hành, commit trước khi gọi API, xử lý đủ 3
   nhánh 7a thành công / 7b lỗi / 7c timeout → "Cần đối soát" (tuyệt đối không tự
   phát hành lại). Deps: T13.
-- [ ] **T15 — Nút 8/9 — PDF chính thức (380) / chuyển đổi (385).** Chặn gọi lại
+- [x] **T15 — Nút 8/9 — PDF chính thức (380) / chuyển đổi (385).** Chặn gọi lại
   trong 5 giây. Deps: T14.
 - [ ] **T16 — Nút 10 — gửi hóa đơn chính thức.** Phương án A (ERP gửi, mặc định)
   + phương án B (`method=700`). Deps: T15.
