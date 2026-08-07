@@ -106,7 +106,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
   phát hành lại). Deps: T13.
 - [x] **T15 — Nút 8/9 — PDF chính thức (380) / chuyển đổi (385).** Chặn gọi lại
   trong 5 giây. Deps: T14.
-- [ ] **T16 — Nút 10 — gửi hóa đơn chính thức.** Phương án A (ERP gửi, mặc định)
+- [x] **T16 — Nút 10 — gửi hóa đơn chính thức.** Phương án A (ERP gửi, mặc định)
   + phương án B (`method=700`). Deps: T15.
 - [ ] **T17 — Nút 11/12 + job nền CQT.** `method=8200` cập nhật trạng thái CQT
   (3 → status 08, 4 → status 09 + cảnh báo); `method=370` đối soát, lệch thì hỏi

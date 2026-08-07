@@ -17,13 +17,14 @@ from erpnext.einvoice.constants import (
 	STATUS_CUSTOMER_APPROVED,
 	STATUS_DRAFT,
 	STATUS_DRAFT_VIEWED,
+	STATUS_SENT,
 )
 from erpnext.einvoice.errors import describe_error
 from erpnext.einvoice.fast_settings import check_enabled
 from erpnext.einvoice.fast_client import decode_message
 from erpnext.einvoice.gateway import call_fast
 from erpnext.einvoice.payload import build_payload
-from erpnext.einvoice.setup import DRAFT_TEMPLATE
+from erpnext.einvoice.setup import DRAFT_TEMPLATE, ISSUED_TEMPLATE
 from erpnext.einvoice.validation import validate_before_send
 
 FEI = "Fast EInvoice Document"
@@ -432,3 +433,96 @@ def _attach_pdf_to(doc, base64_message, filename, doctype, name):
 	from frappe.utils.file_manager import save_file
 
 	return save_file(filename, decode_message(base64_message), doctype, name, is_private=1).file_url
+
+
+# --- Nút 10 — gửi hóa đơn chính thức cho khách hàng (mục E7) ----------------
+
+METHOD_FAST_EMAIL = 700
+
+# Bảng B2 — gửi hóa đơn chính thức được phép khi hóa đơn đã có số.
+INVOICE_SEND_STATUSES = frozenset(
+	{"06 - Đã phát hành", "07 - Đã gửi khách", "08 - CQT chấp nhận"}
+)
+
+
+@frappe.whitelist()
+def send_invoice_to_customer(
+	fei, recipients=None, cc=None, subject=None, message=None, via="erp", mailer=None, client=None
+):
+	"""Nút 10 — gửi hóa đơn đã phát hành cho khách (mục E7).
+
+	``via="erp"`` (mặc định, phương án A khuyến nghị): ERP tự gửi, nội dung nằm
+	trong Communication của ERP nên tra lại được khi khách nói chưa nhận.
+	``via="fast"`` (phương án B): nhờ Fast gửi bằng method 700, dùng khi cần
+	đúng mẫu email của portal.
+	"""
+	check_enabled()
+	doc = frappe.get_doc(FEI, fei)
+	_assert_status(doc, INVOICE_SEND_STATUSES, _("gửi hóa đơn cho khách"))
+
+	to = _recipient_list(recipients or doc.email_deliver)
+	if not to:
+		frappe.throw(_("Chưa có email người nhận."))
+
+	if via == "fast":
+		return _send_invoice_via_fast(doc, to, client)
+	return _send_invoice_via_erp(doc, to, cc, subject, message, mailer)
+
+
+def _send_invoice_via_erp(doc, to, cc, subject, message, mailer):
+	if not doc.official_pdf:
+		frappe.throw(
+			_("Chưa tải PDF chính thức — bấm “Tải PDF” trước, nếu không khách nhận email không có hóa đơn.")
+		)
+
+	rendered = _render_template(ISSUED_TEMPLATE, doc, subject, message)
+	log = _open_email_log(doc, _("Gửi hóa đơn chính thức cho khách"), to)
+
+	(mailer or frappe.sendmail)(
+		recipients=to,
+		cc=_recipient_list(cc),
+		subject=rendered["subject"],
+		message=rendered["message"],
+		attachments=[{"file_url": doc.official_pdf}],
+		reference_doctype=FEI,
+		reference_name=doc.name,
+	)
+	_close_email_log(log, ok=True)
+	_mark_invoice_sent(doc, to)
+	return {"ok": True, "recipients": to}
+
+
+def _send_invoice_via_fast(doc, to, client):
+	if not doc.fast_key_search:
+		frappe.throw(_("Chứng từ chưa có mã tra cứu (keySearch)."))
+
+	response = call_fast(
+		doc,
+		action=ACTION_EXECUTE,
+		method=METHOD_FAST_EMAIL,
+		data={"key": doc.fast_key_search, "email": ", ".join(to)},
+		purpose=_("Nhờ Fast gửi hóa đơn cho khách"),
+		client=client,
+	)
+	if not response.success:
+		_record_error(doc, response)
+		return {"ok": False, "message": _explain(response)}
+
+	_mark_invoice_sent(doc, to)
+	return {"ok": True, "recipients": to}
+
+
+def _mark_invoice_sent(doc, to):
+	frappe.db.set_value(
+		FEI,
+		doc.name,
+		{
+			"invoice_sent_to": ", ".join(to),
+			"invoice_sent_time": now_datetime(),
+			"invoice_send_count": (doc.invoice_send_count or 0) + 1,
+			"status": STATUS_SENT,
+		},
+		update_modified=False,
+	)
+	_mirror_status(doc.name, STATUS_SENT)
+	doc.add_comment("Comment", _("Đã gửi hóa đơn chính thức tới {0}.").format(", ".join(to)))
