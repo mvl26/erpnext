@@ -18,6 +18,7 @@ from frappe import _
 
 from erpnext.einvoice.constants import (
 	EDITABLE_STATUSES,
+	LIVE_STATUSES,
 	STATUS_AWAITING_CUSTOMER,
 	STATUS_CUSTOMER_APPROVED,
 	STATUS_DRAFT,
@@ -208,3 +209,51 @@ def _validation_for(doc):
 	if doc.status not in EDITABLE_STATUSES:
 		return {"ok": True, "issues": []}
 	return validate_before_send(doc).as_dict()
+
+
+# --- Trạng thái HĐĐT nhìn từ phiếu giao hàng (Nút 1, mục E1) ----------------
+
+
+@frappe.whitelist()
+def get_delivery_note_state(delivery_note):
+	"""Phiếu giao này có lập được hóa đơn điện tử không, và vì sao không."""
+	settings = get_settings()
+	source = frappe.db.get_value(
+		"Delivery Note",
+		delivery_note,
+		["docstatus", "is_return", "customer", "customer_name", "grand_total", "currency"],
+		as_dict=True,
+	)
+	if not source:
+		return {"can_create": False, "reason": _("Không tìm thấy phiếu giao hàng.")}
+
+	existing = frappe.get_all(
+		FEI,
+		filters={"delivery_note": delivery_note, "status": ("in", list(LIVE_STATUSES))},
+		fields=["name", "status"],
+		limit=1,
+	)
+
+	state = {
+		"can_create": False,
+		"reason": "",
+		"existing": existing[0] if existing else None,
+		"customer_name": source.customer_name or source.customer,
+		"grand_total": source.grand_total,
+		"currency": source.currency,
+	}
+
+	if not settings.enabled:
+		state["reason"] = _("Tích hợp hóa đơn điện tử đang tắt.")
+	elif source.docstatus != 1:
+		state["reason"] = _("Phiếu giao hàng chưa được submit.")
+	elif source.is_return:
+		state["reason"] = _("Phiếu trả hàng không lập hóa đơn trực tiếp — dùng hóa đơn điều chỉnh giảm.")
+	elif existing:
+		state["reason"] = _("Phiếu giao này đã có chứng từ HĐĐT {0} ({1}).").format(
+			existing[0].name, existing[0].status
+		)
+	else:
+		state["can_create"] = True
+
+	return state
