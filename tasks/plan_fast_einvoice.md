@@ -50,7 +50,7 @@ quản trị, không phải code — dựng đủ 2 role để giao sau.
   - Nghiệm thu: lưu được cấu hình; thiếu trường bắt buộc → chặn; `api_password`
     là Password (không lộ khi đọc doc). Deps: T1.
 
-- [ ] **T3 — DocType `Fast EInvoice Line` (child).** 14 trường mục C3, đúng thứ
+- [x] **T3 — DocType `Fast EInvoice Line` (child).** 14 trường mục C3, đúng thứ
   tự cột `structure.detail`. Deps: T1.
 
 - [ ] **T4 — DocType `Fast EInvoice Document` (cha).** Nhóm C2.1–C2.4, naming
