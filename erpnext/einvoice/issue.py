@@ -103,11 +103,17 @@ def parse_issue_result(message):
 
 
 def _parse_json(message):
-	if not message.startswith("{"):
+	if message[:1] not in ("{", "["):
 		return None
 	try:
 		raw = json.loads(message)
 	except ValueError:
+		return None
+	# Phát hành HSM trả Message là **mảng** các hóa đơn: [{"invoiceNo":…}]. Mỗi lần
+	# ta chỉ phát hành một hóa đơn nên lấy phần tử đầu.
+	if isinstance(raw, list):
+		raw = raw[0] if raw else {}
+	if not isinstance(raw, dict):
 		return None
 	return {
 		_JSON_KEYS[key.lower()]: str(value)

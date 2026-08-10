@@ -24,6 +24,7 @@ token thật mới quan sát được một phản hồi thành công:
 """
 
 import base64
+import hashlib
 import json
 import re
 import time
@@ -34,14 +35,15 @@ from xml.sax.saxutils import escape, unescape
 import frappe
 import requests
 from frappe import _
-from frappe.utils import get_datetime, now_datetime, time_diff_in_hours
+from frappe.utils import now_datetime
 
 from erpnext.einvoice.fast_settings import get_settings
 
 # Namespace của web service ASMX — suy ra, cần xác nhận với WSDL của Fast.
 FAST_NAMESPACE = "http://tempuri.org/"
 
-# Token Fast có hiệu lực 24h (mục C1 #10).
+# Token Fast có hiệu lực 24h (mục C1 #10) — CheckKey là nơi xác thực còn hạn hay
+# không, nên không cần tự tính giờ ở client.
 TOKEN_TTL_HOURS = 24
 
 # Timeout mạng. Hóa đơn 300 dòng ký HSM có thể lâu, nên để rộng.
@@ -102,27 +104,35 @@ def decode_message(message):
 	return base64.b64decode(message)
 
 
-def hash_password(password):
-	"""Băm mật khẩu cho thẻ ``hash`` của GetKey.
+# Ký tự ngăn cách trong chuỗi hash — Chrw(254) = þ, theo tài liệu API Fast.
+_HASH_SEP = chr(254)
 
-	⚠️ CHƯA XÁC NHẬN VỚI FAST. WSDL yêu cầu thẻ ``hash`` chứ không nhận mật khẩu
-	thô, nhưng không nêu thuật toán, và không thể dò từ phía ta: mọi mật khẩu sai
-	đều trả ``<GetKeyResult>`` rỗng y hệt nhau. Mặc định MD5 hex viết thường —
-	kiểu phổ biến nhất của các dịch vụ .NET. Khi Fast xác nhận, sửa **đúng một
-	hàm này**.
+
+def hash_password(password, salt):
+	"""Chuỗi ``hash`` cho GetKey, đúng công thức tài liệu API Fast:
+
+	``hash = md5( md5(password) + salt ) + chr(254) + salt``
+
+	``salt`` (8 ký tự) lấy từ phản hồi ``Ok:<salt>`` của CheckKey. Đã đối chiếu
+	khớp ví dụ trong tài liệu (mật khẩu ``123abc456`` + salt ``9dd8e7e4``).
 	"""
-	import hashlib
-
-	return hashlib.md5((password or "").encode("utf-8")).hexdigest()
+	inner = hashlib.md5((password or "").encode("utf-8")).hexdigest()
+	digest = hashlib.md5((inner + (salt or "")).encode("utf-8")).hexdigest()
+	return f"{digest}{_HASH_SEP}{salt}"
 
 
 def parse_response(raw):
-	"""Bóc chuỗi kết quả khỏi SOAP envelope của Fast.
+	"""Bóc kết quả khỏi SOAP envelope của Fast.
 
-	Mọi lời gọi trả về ``<…Result>chuỗi</…Result>``. Rỗng = Fast từ chối. Chuỗi
-	lỗi nghiệp vụ mở đầu bằng mã lỗi (``"835|…"``). Phản hồi không phải XML
-	(proxy lỗi, HTML 502…) tính là thất bại chứ không ném ngoại lệ — tầng trên
-	còn phải ghi log rồi mới báo người dùng.
+	Mọi lời gọi trả về ``<…Result>chuỗi</…Result>``. Hai dạng chuỗi:
+
+	- **Lệnh nghiệp vụ** (ExcuteCommand) → JSON ``{"Success":N,"Code":N,
+	  "Message":"…"}``. ``Message`` khi thành công là chuỗi JSON dữ liệu hóa đơn.
+	- **Token** (CheckKey/GetKey) → chuỗi thường: ``"Ok"`` / ``"Ok:<salt>"`` /
+	  ``"token,salt"`` / rỗng (Fast từ chối).
+
+	Phản hồi không phải XML (proxy lỗi, HTML 502…) tính là thất bại chứ không ném
+	ngoại lệ — tầng trên còn phải ghi log rồi mới báo người dùng.
 	"""
 	response = FastResponse(raw=raw or "")
 	try:
@@ -150,39 +160,40 @@ def parse_response(raw):
 		return response
 
 	text = unescape(result_text).strip()
-	response.error_code = _leading_error_code(text)
-	response.success = bool(text) and not response.error_code
-	response.message = text or _("Fast trả về kết quả rỗng (thường là do sai tài khoản, mật khẩu hoặc mã).")
+	if _apply_command_envelope(response, text):
+		return response
+
+	# Kết quả token: chuỗi thường, rỗng = Fast từ chối.
+	response.success = bool(text)
+	response.message = text
 	return response
+
+
+def _apply_command_envelope(response, text):
+	"""Nếu ``text`` là JSON ``{"Success","Code","Message"}`` thì nạp vào response.
+
+	Trả True khi đúng dạng envelope của ExcuteCommand, False nếu là kết quả token.
+	"""
+	if not text.startswith("{"):
+		return False
+	try:
+		payload = json.loads(text)
+	except ValueError:
+		return False
+	if not isinstance(payload, dict) or "Success" not in payload:
+		return False
+
+	response.success = str(payload.get("Success")).strip() in ("1", "true", "True")
+	code = str(payload.get("Code") or "").strip()
+	response.error_code = "" if code in ("", "0") else code
+	response.message = payload.get("Message") or ""
+	return True
 
 
 def _snippet(raw, limit=300):
 	"""Rút gọn phản hồi thô để nhét vừa một thông báo lỗi."""
 	text = " ".join((raw or "").split())
 	return text[:limit] + ("…" if len(text) > limit else "")
-
-
-def _leading_error_code(text):
-	"""Mã lỗi dẫn đầu chuỗi kết quả, nếu có — nếu không thì rỗng (coi là thành công).
-
-	⚠️ Dựa vào bộ mã lỗi đã biết (Phần G) làm tín hiệu chính, vì định dạng bên
-	trong ``<ExcuteCommandResult>`` khi THÀNH CÔNG chưa quan sát được (cần token
-	thật). Phản hồi thành công của phát hành có nhiều đoạn (``invoiceNo|pattern|
-	serial|…``) hoặc là JSON, nên không bị nhận nhầm là lỗi.
-	"""
-	text = (text or "").strip()
-	if not text or text[0] in "{[":
-		return ""  # JSON payload = thành công
-
-	from erpnext.einvoice.errors import ERROR_CATALOGUE
-
-	first = text.split("|", 1)[0].strip()
-	if first in ERROR_CATALOGUE:
-		return first
-	# Chuỗi ngắn chỉ toàn số (tối đa một dấu |) gần như chắc chắn là mã lỗi lạ.
-	if re.fullmatch(r"-?\d{3,6}", first) and text.count("|") <= 1:
-		return first
-	return ""
 
 
 def _http_failure(exc):
@@ -278,60 +289,60 @@ class FastClient:
 	# --- Token ------------------------------------------------------------
 
 	def token(self, force=False):
-		"""Token phiên, lấy lại khi cần. Trình tự CheckKey → GetKey của mục E5."""
-		if force:
-			self._verified_token = None
-		elif self._verified_token:
+		"""Token phiên, theo đúng handshake của tài liệu API Fast.
+
+		``CheckKey`` là nguồn sự thật: trả ``"Ok"`` nếu token còn hiệu lực,
+		``"Ok:<salt>"`` nếu cần cấp mới (kể cả lần đầu chưa có token), rỗng nếu sai
+		thông tin doanh nghiệp / user. Có salt thì ``GetKey`` với hash dựng từ salt
+		đó. Token có hiệu lực 24h, lưu lại để lần sau chỉ cần CheckKey.
+		"""
+		if not force and self._verified_token:
 			return self._verified_token
 
-		if not force and self._stored_token_is_fresh() and self._check_key():
-			self._verified_token = self.settings.token
-		else:
-			self._verified_token = self._get_key()
-		return self._verified_token
-
-	def _stored_token_is_fresh(self):
-		if not self.settings.token or not self.settings.token_time:
-			return False
-		return time_diff_in_hours(now_datetime(), get_datetime(self.settings.token_time)) < TOKEN_TTL_HOURS
-
-	def _check_key(self):
-		response = self._call(
+		stored = "" if force else (self.settings.token or "")
+		check = self._call(
 			"CheckKey",
 			{
 				"proxyCode": self.settings.proxy_code,
 				"clientCode": self.settings.client_code,
 				"user": self.settings.api_user,
-				"data": self.settings.token,
+				"data": stored,
 			},
 		)
-		return response.success
+		result = (check.message or "").strip()
 
-	def _get_key(self):
+		if result == "Ok" and stored:
+			self._verified_token = stored
+			return stored
+
+		salt = self._extract_salt(result)
+		if salt is None:
+			self._raise_auth_error(result)
+
+		self._verified_token = self._get_key(salt)
+		return self._verified_token
+
+	@staticmethod
+	def _extract_salt(check_result):
+		"""``"Ok:<salt>"`` → salt (8 ký tự). ``None`` nếu không phải dạng cấp salt."""
+		match = re.match(r"Ok\s*:\s*(\S+)", check_result or "")
+		return match.group(1) if match else None
+
+	def _get_key(self, salt):
 		response = self._call(
 			"GetKey",
 			{
 				"proxyCode": self.settings.proxy_code,
 				"clientCode": self.settings.client_code,
 				"user": self.settings.api_user,
-				"hash": hash_password(self.settings.api_password),
+				"hash": hash_password(self.settings.api_password, salt),
 			},
 		)
-		if not response.success:
-			frappe.throw(
-				_(
-					"Không đăng nhập được vào Fast bằng user API <b>{0}</b>.<br>Fast trả về: {1}"
-					"<br><br>Kiểm tra <b>User API</b>, <b>Mật khẩu</b> và <b>URL dịch vụ</b> "
-					"({2}) trong Fast EInvoice Settings."
-				).format(
-					self.settings.api_user or _("(chưa điền)"),
-					response.message or _("(không có nội dung)"),
-					self.settings.api_url,
-				),
-				title=_("Không lấy được token"),
-			)
+		# GetKey trả "token,salt"; rỗng = sai mật khẩu / user chưa có quyền API.
+		token = (response.message or "").split(",", 1)[0].strip()
+		if not token:
+			self._raise_auth_error(response.message)
 
-		token = (response.message or "").strip()
 		self.settings.token = token
 		self.settings.token_time = now_datetime()
 		frappe.db.set_value(
@@ -342,6 +353,21 @@ class FastClient:
 		)
 		frappe.clear_document_cache("Fast EInvoice Settings")
 		return token
+
+	def _raise_auth_error(self, fast_reply):
+		frappe.throw(
+			_(
+				"Không đăng nhập được vào Fast bằng user API <b>{0}</b>.<br>Fast trả về: {1}"
+				"<br><br>Kiểm tra <b>User API</b>, <b>Mật khẩu</b> và <b>URL dịch vụ</b> "
+				"({2}) trong Fast EInvoice Settings. Nếu là user thường, cần được phân "
+				"quyền phát hành hóa đơn trên portal Fast."
+			).format(
+				self.settings.api_user or _("(chưa điền)"),
+				(fast_reply or _("(kết quả rỗng)")).strip() or _("(kết quả rỗng)"),
+				self.settings.api_url,
+			),
+			title=_("Không lấy được token"),
+		)
 
 	# --- Lệnh nghiệp vụ ---------------------------------------------------
 
@@ -369,8 +395,14 @@ class FastClient:
 
 	@staticmethod
 	def _looks_like_dead_token(response):
-		"""Mã lỗi nghiệp vụ (3 chữ số của bảng G) không bao giờ là lỗi token."""
-		if response.error_code and response.error_code not in ("401",):
+		"""Có phải lỗi token chết không — để lấy token mới rồi thử lại đúng một lần.
+
+		Mã lỗi nghiệp vụ đã biết (bảng G) không bao giờ được coi là lỗi token: thử
+		lại một lệnh phát hành là nguy cơ hai số hóa đơn.
+		"""
+		from erpnext.einvoice.errors import ERROR_CATALOGUE
+
+		if response.error_code in ERROR_CATALOGUE:
 			return False
 		haystack = f"{response.error_code} {response.message}".lower()
 		return any(hint in haystack for hint in TOKEN_EXPIRED_HINTS)

@@ -20,7 +20,7 @@ from erpnext.einvoice.constants import (
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.issue import issue_invoice
 from erpnext.einvoice.lineage import create_adjustment, create_replacement
-from erpnext.einvoice.test_fast_client import FakeTransport, configure, envelope
+from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
 from erpnext.einvoice.test_fast_pdf import sent_payload
 from erpnext.einvoice.test_fixtures import make_delivery_note
 
@@ -56,7 +56,7 @@ class LineageBase(FrappeTestCase):
 		frappe.db.rollback()
 
 	def _client(self, *responses):
-		self.transport = FakeTransport(envelope(1, "still valid"), *responses)
+		self.transport = FakeTransport(checkkey_ok(), *responses)
 		return FastClient(transport=self.transport)
 
 	def _make_adjustment(self, **kwargs):

@@ -23,7 +23,7 @@ from erpnext.einvoice.constants import (
 )
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.setup import DRAFT_TEMPLATE, ISSUED_TEMPLATE
-from erpnext.einvoice.test_fast_client import FakeTransport, configure, envelope
+from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
 from erpnext.einvoice.test_fixtures import make_delivery_note, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
@@ -70,7 +70,7 @@ class TestDraftApprovalCycle(FrappeTestCase):
 
 	def _make_draft_pdf(self):
 		transport = FakeTransport(
-			envelope(1, "still valid"), envelope(1, base64.b64encode(minimal_pdf_bytes()).decode())
+			checkkey_ok(), envelope(1, base64.b64encode(minimal_pdf_bytes()).decode())
 		)
 		preview_draft(self.fei.name, client=FastClient(transport=transport))
 		self.fei.reload()

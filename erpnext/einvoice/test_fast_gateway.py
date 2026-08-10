@@ -15,7 +15,7 @@ from erpnext.einvoice.errors import (
 )
 from erpnext.einvoice.fast_client import FastClient, FastTimeout
 from erpnext.einvoice.gateway import call_fast
-from erpnext.einvoice.test_fast_client import FakeTransport, configure, envelope
+from erpnext.einvoice.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
 from erpnext.einvoice.test_fast_document import make_fei
 
 LOG = "Fast EInvoice Log"
@@ -67,13 +67,15 @@ class TestGatewayLogging(FrappeTestCase):
 
 	def _client(self, *responses):
 		"""Token đang tươi nên client luôn hỏi CheckKey trước — dựng sẵn phản hồi đó."""
-		return FastClient(transport=FakeTransport(envelope(1, "still valid"), *responses))
+		return FastClient(transport=FakeTransport(checkkey_ok(), *responses))
 
 	def test_log_exists_before_the_api_call_is_made(self):
 		"""Nguyên tắc A1 bước ①③: nếu server sập giữa chừng vẫn còn bằng chứng đã gửi."""
 		seen = {}
 
 		def spy(url, soap_action, body, timeout=None):
+			if "CheckKey" in soap_action:
+				return checkkey_ok()
 			seen["status"] = frappe.db.get_value(
 				LOG, {"fei_document": self.fei.name, "method": 310}, "status"
 			)
@@ -172,6 +174,8 @@ class TestGatewayLogging(FrappeTestCase):
 		seen = {}
 
 		def spy(url, soap_action, body, timeout=None):
+			if "CheckKey" in soap_action:
+				return checkkey_ok()
 			seen["status"] = frappe.db.get_value("Fast EInvoice Document", self.fei.name, "status")
 			return envelope(1, "ok")
 

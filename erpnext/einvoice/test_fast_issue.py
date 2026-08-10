@@ -21,7 +21,7 @@ from erpnext.einvoice.constants import (
 )
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.issue import issue_invoice, parse_issue_result
-from erpnext.einvoice.test_fast_client import FakeTransport, configure, envelope
+from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
 from erpnext.einvoice.test_fixtures import make_delivery_note
 
 FEI = "Fast EInvoice Document"
@@ -78,7 +78,7 @@ class IssueTestBase(FrappeTestCase):
 		self.fei.reload()
 
 	def _client(self, *responses):
-		self.transport = FakeTransport(envelope(1, "still valid"), *responses)
+		self.transport = FakeTransport(checkkey_ok(), *responses)
 		return FastClient(transport=self.transport)
 
 

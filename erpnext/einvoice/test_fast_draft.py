@@ -16,7 +16,7 @@ from erpnext.einvoice.constants import (
 	STATUS_TAX_ACCEPTED,
 )
 from erpnext.einvoice.fast_client import FastClient
-from erpnext.einvoice.test_fast_client import FakeTransport, configure, envelope
+from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
 from erpnext.einvoice.test_fixtures import make_delivery_note, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
@@ -39,7 +39,7 @@ class TestPreviewDraft(FrappeTestCase):
 		frappe.db.rollback()
 
 	def _client(self, *responses):
-		self.transport = FakeTransport(envelope(1, "still valid"), *responses)
+		self.transport = FakeTransport(checkkey_ok(), *responses)
 		return FastClient(transport=self.transport)
 
 	def test_draft_pdf_is_attached_and_status_advances(self):

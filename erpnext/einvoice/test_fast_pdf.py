@@ -12,7 +12,7 @@ from erpnext.einvoice.actions import download_converted_pdf, download_official_p
 from erpnext.einvoice.builder import create_from_delivery_note
 from erpnext.einvoice.constants import STATUS_DRAFT, STATUS_ISSUED, STATUS_TAX_ACCEPTED
 from erpnext.einvoice.fast_client import FastClient
-from erpnext.einvoice.test_fast_client import FakeTransport, configure, envelope
+from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
 from erpnext.einvoice.test_fixtures import make_delivery_note, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
@@ -54,7 +54,7 @@ class PdfTestBase(FrappeTestCase):
 		frappe.db.rollback()
 
 	def _client(self, *responses):
-		self.transport = FakeTransport(envelope(1, "still valid"), *responses)
+		self.transport = FakeTransport(checkkey_ok(), *responses)
 		return FastClient(transport=self.transport)
 
 	def _age_pdf_logs(self, seconds=60):
