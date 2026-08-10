@@ -13,7 +13,7 @@ from erpnext.einvoice.builder import create_from_delivery_note
 from erpnext.einvoice.constants import STATUS_DRAFT, STATUS_ISSUED, STATUS_SENT
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.test_fast_approval import Mailbox
-from erpnext.einvoice.test_fast_client import FakeTransport, configure, envelope
+from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
 from erpnext.einvoice.test_fast_pdf import pdf_envelope, sent_payload
 from erpnext.einvoice.test_fixtures import make_delivery_note
 
@@ -46,7 +46,7 @@ class SendInvoiceBase(FrappeTestCase):
 		frappe.db.rollback()
 
 	def _client(self, *responses):
-		self.transport = FakeTransport(envelope(1, "still valid"), *responses)
+		self.transport = FakeTransport(checkkey_ok(), *responses)
 		return FastClient(transport=self.transport)
 
 	def _attach_official_pdf(self):

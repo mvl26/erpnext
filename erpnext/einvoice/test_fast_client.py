@@ -10,7 +10,7 @@ import json
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import add_to_date, now_datetime
+from frappe.utils import now_datetime
 
 from erpnext.einvoice.fast_client import (
 	FastClient,
@@ -23,36 +23,61 @@ from erpnext.einvoice.fast_client import (
 SETTINGS = "Fast EInvoice Settings"
 
 
-def result_xml(text):
-	"""Phản hồi ``<…Result>`` với nội dung nguyên văn (không bị blank như envelope)."""
+def _soap(op, inner):
 	return (
 		'<?xml version="1.0" encoding="utf-8"?>'
 		'<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
-		'<soap:Body><ExcuteCommandResponse xmlns="http://tempuri.org/">'
-		f"<ExcuteCommandResult>{text}</ExcuteCommandResult>"
-		"</ExcuteCommandResponse></soap:Body></soap:Envelope>"
+		f'<soap:Body><{op}Response xmlns="http://tempuri.org/">'
+		f"<{op}Result>{inner}</{op}Result>"
+		f"</{op}Response></soap:Body></soap:Envelope>"
 	)
+
+
+def command_result(inner):
+	"""Phản hồi ExcuteCommand nguyên văn (đã là chuỗi JSON envelope hoặc bất kỳ).
+
+	Chỉ escape ``&<>`` — đúng những gì ``parse_response`` sẽ unescape lại; escape
+	cả dấu nháy sẽ làm hỏng chuỗi JSON bên trong.
+	"""
+	from xml.sax.saxutils import escape as xml_escape
+
+	return _soap("ExcuteCommand", xml_escape(inner or ""))
 
 
 def envelope(success, message):
-	"""Phản hồi SOAP giả theo đúng hình dạng WSDL của Fast: ``<…Result>chuỗi</…>``.
+	"""Phản hồi ExcuteCommand giả theo đúng hình dạng Fast: JSON ``{Success,Code,Message}``.
 
-	Tham số ``success`` giữ lại cho các test đang có: khi ``success`` là 0 nhưng
-	``message`` không mở đầu bằng mã lỗi (ví dụ token bị từ chối), Fast trả kết
-	quả **rỗng**, nên helper cũng trả rỗng để phản ánh đúng thực tế.
+	``message`` mở đầu bằng mã lỗi (``"835|…"``) thì lấy làm ``Code``; nếu không
+	thì Code = 0. Đây là dạng phản hồi của mọi lệnh nghiệp vụ (phát hành, PDF…).
 	"""
 	from erpnext.einvoice.errors import ERROR_CATALOGUE
 
-	looks_like_error = message and message.split("|", 1)[0].strip() in ERROR_CATALOGUE
-	if not success and not looks_like_error:
-		message = ""  # Fast từ chối = <…Result> rỗng
-	return (
-		'<?xml version="1.0" encoding="utf-8"?>'
-		'<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
-		'<soap:Body><ExcuteCommandResponse xmlns="http://tempuri.org/">'
-		f"<ExcuteCommandResult>{message}</ExcuteCommandResult>"
-		"</ExcuteCommandResponse></soap:Body></soap:Envelope>"
-	)
+	code = 0
+	if not success:
+		head = (message or "").split("|", 1)[0].strip()
+		code = int(head) if head in ERROR_CATALOGUE or head.isdigit() else 1
+	payload = json.dumps({"Success": 1 if success else 0, "Code": code, "Message": message or ""})
+	return command_result(payload)
+
+
+def checkkey_ok():
+	"""CheckKey xác nhận token còn hiệu lực."""
+	return _soap("CheckKey", "Ok")
+
+
+def checkkey_salt(salt="9dd8e7e4"):
+	"""CheckKey báo cần cấp token mới, kèm salt."""
+	return _soap("CheckKey", f"Ok:{salt}")
+
+
+def getkey_token(token, salt="9dd8e7e4"):
+	"""GetKey trả ``token,salt``."""
+	return _soap("GetKey", f"{token},{salt}")
+
+
+def auth_empty(op="GetKey"):
+	"""Fast từ chối xác thực = ``<…Result>`` rỗng."""
+	return _soap(op, "")
 
 
 class FakeTransport:
@@ -129,19 +154,34 @@ class TestPayloadEncoding(FrappeTestCase):
 
 
 class TestResponseParsing(FrappeTestCase):
-	def test_success_response_is_parsed(self):
+	def test_command_success_carries_the_message(self):
 		result = parse_response(envelope(1, "2|1C26TMY|ABCKEY"))
 		self.assertTrue(result.success)
 		self.assertEqual(result.message, "2|1C26TMY|ABCKEY")
 
-	def test_failure_response_carries_the_error_code(self):
+	def test_command_failure_carries_the_code_from_the_envelope(self):
 		result = parse_response(envelope(0, "835|Hóa đơn đã tồn tại"))
 		self.assertFalse(result.success)
 		self.assertEqual(result.error_code, "835")
 
-	def test_xml_entities_in_the_message_are_decoded(self):
-		result = parse_response(envelope(0, "812|Tên hàng A &amp; B quá dài"))
-		self.assertIn("A & B", result.message)
+	def test_success_message_can_be_a_json_array_of_invoices(self):
+		"""Phát hành HSM trả Message là mảng JSON các hóa đơn."""
+		result = parse_response(envelope(1, '[{"invoiceNo":"2","keySearch":"KS"}]'))
+		self.assertTrue(result.success)
+		self.assertIn('"invoiceNo"', result.message)
+
+	def test_special_characters_in_the_message_survive(self):
+		result = parse_response(envelope(0, "812|Tên hàng A & B <x> quá dài"))
+		self.assertIn("A & B <x>", result.message)
+
+	def test_token_result_is_a_plain_string(self):
+		result = parse_response(getkey_token("TOKENABC", "9dd8e7e4"))
+		self.assertTrue(result.success)
+		self.assertEqual(result.message, "TOKENABC,9dd8e7e4")
+
+	def test_empty_result_is_a_rejection(self):
+		result = parse_response(auth_empty("GetKey"))
+		self.assertFalse(result.success)
 
 	def test_unparseable_response_is_a_failure_not_a_crash(self):
 		result = parse_response("<html>502 Bad Gateway</html>")
@@ -172,6 +212,8 @@ class TestEnvelopeBuilding(FrappeTestCase):
 
 
 class TestTokenLifecycle(FrappeTestCase):
+	"""Handshake CheckKey → (salt) → GetKey đúng tài liệu API Fast."""
+
 	def setUp(self):
 		frappe.db.rollback()
 		configure(token="", token_time=None)
@@ -179,49 +221,61 @@ class TestTokenLifecycle(FrappeTestCase):
 	def tearDown(self):
 		frappe.db.rollback()
 
-	def test_first_call_fetches_a_token_with_get_key(self):
-		transport = FakeTransport(envelope(1, "TOKEN-ABC"))
+	def test_first_call_does_checkkey_then_getkey(self):
+		"""Lần đầu chưa có token: CheckKey trả salt, rồi GetKey cấp token."""
+		transport = FakeTransport(checkkey_salt(), getkey_token("TOKENABC"))
 		client = FastClient(transport=transport)
 
-		self.assertEqual(client.token(), "TOKEN-ABC")
-		self.assertEqual(transport.operations, ["GetKey"])
+		self.assertEqual(client.token(), "TOKENABC")
+		self.assertEqual(transport.operations, ["CheckKey", "GetKey"])
 
 	def test_token_is_persisted_so_it_survives_the_request(self):
-		client = FastClient(transport=FakeTransport(envelope(1, "TOKEN-ABC")))
+		client = FastClient(transport=FakeTransport(checkkey_salt(), getkey_token("TOKENABC")))
 		client.token()
 
 		frappe.clear_document_cache(SETTINGS)
-		self.assertEqual(frappe.get_single(SETTINGS).token, "TOKEN-ABC")
+		self.assertEqual(frappe.get_single(SETTINGS).token, "TOKENABC")
 
-	def test_fresh_token_is_verified_with_check_key_then_reused(self):
+	def test_getkey_hash_is_built_from_the_salt(self):
+		"""hash = md5(md5(password)+salt) + chr(254) + salt."""
+		import hashlib
+
+		configure(api_password="123abc456")
+		transport = FakeTransport(checkkey_salt("9dd8e7e4"), getkey_token("TOKENABC"))
+		FastClient(transport=transport).token()
+
+		inner = hashlib.md5(b"123abc456").hexdigest()
+		expected = hashlib.md5((inner + "9dd8e7e4").encode()).hexdigest() + chr(254) + "9dd8e7e4"
+		self.assertIn(f"<hash>{expected}</hash>", transport.calls[-1]["body"])
+
+	def test_valid_stored_token_is_reused_after_checkkey(self):
 		configure(token="TOKEN-OLD", token_time=now_datetime())
-		transport = FakeTransport(envelope(1, "still valid"))
+		transport = FakeTransport(checkkey_ok())
 		client = FastClient(transport=transport)
 
 		self.assertEqual(client.token(), "TOKEN-OLD")
 		self.assertEqual(transport.operations, ["CheckKey"])
 
-	def test_expired_token_goes_straight_to_get_key(self):
-		"""Token hết hiệu lực 24h — hỏi CheckKey nữa chỉ tốn một vòng mạng."""
-		configure(token="TOKEN-OLD", token_time=add_to_date(now_datetime(), hours=-25))
-		transport = FakeTransport(envelope(1, "TOKEN-NEW"))
-		client = FastClient(transport=transport)
-
-		self.assertEqual(client.token(), "TOKEN-NEW")
-		self.assertEqual(transport.operations, ["GetKey"])
-
-	def test_token_rejected_by_check_key_is_replaced(self):
+	def test_expired_token_is_replaced_via_the_salt(self):
 		configure(token="TOKEN-DEAD", token_time=now_datetime())
-		transport = FakeTransport(envelope(0, "token không hợp lệ"), envelope(1, "TOKEN-NEW"))
+		transport = FakeTransport(checkkey_salt(), getkey_token("TOKEN-NEW"))
 		client = FastClient(transport=transport)
 
 		self.assertEqual(client.token(), "TOKEN-NEW")
 		self.assertEqual(transport.operations, ["CheckKey", "GetKey"])
 
-	def test_failed_get_key_raises_with_the_fast_message(self):
-		client = FastClient(transport=FakeTransport(envelope(0, "802|Tài khoản không có quyền")))
+	def test_wrong_company_params_raise_a_clear_error(self):
+		"""CheckKey trả rỗng = sai thông tin doanh nghiệp/user."""
+		client = FastClient(transport=FakeTransport(auth_empty("CheckKey")))
 		with self.assertRaises(frappe.ValidationError):
 			client.token()
+
+	def test_rejected_getkey_raises_with_the_account_hint(self):
+		transport = FakeTransport(checkkey_salt(), auth_empty("GetKey"))
+		client = FastClient(transport=transport)
+		with self.assertRaises(frappe.ValidationError) as caught:
+			client.token()
+		self.assertIn("phân quyền phát hành", str(caught.exception))
 
 
 class TestExcuteCommand(FrappeTestCase):
@@ -233,7 +287,7 @@ class TestExcuteCommand(FrappeTestCase):
 		frappe.db.rollback()
 
 	def test_command_sends_action_method_and_base64_data(self):
-		transport = FakeTransport(envelope(1, "still valid"), envelope(1, "2|1C26TMY|KEY"))
+		transport = FakeTransport(checkkey_ok(), envelope(1, "2|1C26TMY|KEY"))
 		client = FastClient(transport=transport)
 
 		result = client.excute_command(action=600, method=310, data={"voucherBook": "1C26TAA"})
@@ -245,14 +299,14 @@ class TestExcuteCommand(FrappeTestCase):
 		self.assertIn(encode_payload({"voucherBook": "1C26TAA"}), body)
 
 	def test_command_carries_the_token_as_checksum(self):
-		transport = FakeTransport(envelope(1, "still valid"), envelope(1, "ok"))
+		transport = FakeTransport(checkkey_ok(), envelope(1, "ok"))
 		client = FastClient(transport=transport)
 		client.excute_command(action=0, method=310, data={})
 
 		self.assertIn("<checkSum>TOKEN-ABC</checkSum>", transport.calls[-1]["body"])
 
 	def test_command_identifies_the_company_and_unit(self):
-		transport = FakeTransport(envelope(1, "still valid"), envelope(1, "ok"))
+		transport = FakeTransport(checkkey_ok(), envelope(1, "ok"))
 		client = FastClient(transport=transport)
 		client.excute_command(action=0, method=310, data={})
 
@@ -262,11 +316,16 @@ class TestExcuteCommand(FrappeTestCase):
 		self.assertIn("<unitCode>CTY</unitCode>", body)
 
 	def test_expired_token_mid_call_is_refreshed_and_the_call_retried_once(self):
-		"""Kịch bản 8 của Giai đoạn 6: người dùng không được thấy lỗi token."""
+		"""Kịch bản 8 của Giai đoạn 6: người dùng không được thấy lỗi token.
+
+		Token chết giữa lệnh → lấy token mới (CheckKey lấy salt rồi GetKey) rồi thử
+		lại đúng một lần.
+		"""
 		transport = FakeTransport(
-			envelope(1, "still valid"),  # CheckKey
-			result_xml("401|Token hết hiệu lực"),  # ExcuteCommand lần 1 — token chết
-			envelope(1, "TOKEN-NEW"),  # GetKey
+			checkkey_ok(),  # CheckKey — token đang dùng còn "hiệu lực"
+			envelope(0, "Token hết hiệu lực, vui lòng đăng nhập lại"),  # ExcuteCommand lần 1
+			checkkey_salt(),  # CheckKey khi làm mới → salt
+			getkey_token("TOKEN-NEW"),  # GetKey
 			envelope(1, "2|1C26TMY|KEY"),  # ExcuteCommand lần 2
 		)
 		client = FastClient(transport=transport)
@@ -274,12 +333,15 @@ class TestExcuteCommand(FrappeTestCase):
 		result = client.excute_command(action=0, method=310, data={})
 
 		self.assertTrue(result.success)
-		self.assertEqual(transport.operations, ["CheckKey", "ExcuteCommand", "GetKey", "ExcuteCommand"])
+		self.assertEqual(
+			transport.operations,
+			["CheckKey", "ExcuteCommand", "CheckKey", "GetKey", "ExcuteCommand"],
+		)
 
 	def test_a_real_error_is_not_retried(self):
 		"""Lỗi nghiệp vụ mà thử lại là nguy cơ phát hành hai lần."""
 		transport = FakeTransport(
-			envelope(1, "still valid"),
+			checkkey_ok(),
 			envelope(0, "836|Thiếu thông tin người mua"),
 		)
 		client = FastClient(transport=transport)
@@ -294,14 +356,14 @@ class TestExcuteCommand(FrappeTestCase):
 		"""Nhánh 7c: timeout phải phân biệt được với lỗi nghiệp vụ."""
 		import requests
 
-		transport = FakeTransport(envelope(1, "still valid"), requests.Timeout("hết giờ"))
+		transport = FakeTransport(checkkey_ok(), requests.Timeout("hết giờ"))
 		client = FastClient(transport=transport)
 
 		with self.assertRaises(FastTimeout):
 			client.excute_command(action=0, method=310, data={})
 
 	def test_duration_is_measured_for_the_log(self):
-		transport = FakeTransport(envelope(1, "still valid"), envelope(1, "ok"))
+		transport = FakeTransport(checkkey_ok(), envelope(1, "ok"))
 		client = FastClient(transport=transport)
 		result = client.excute_command(action=0, method=310, data={})
 
