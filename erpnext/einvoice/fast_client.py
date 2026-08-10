@@ -6,20 +6,26 @@
 ``FastResponse``. Chế độ vận hành: **không mã hóa RSA** — payload chỉ base64,
 không ký/mã hóa thêm.
 
-⚠️ CẦN ĐỐI CHIẾU VỚI WSDL THẬT TRƯỚC KHI GO-LIVE ⚠️
-Đặc tả v2.0 nêu tên ba lời gọi (``CheckKey``, ``GetKey``, ``ExcuteCommand``) và
-bốn tham số của ``ExcuteCommand`` (``action``, ``method``, ``data``,
-``checkSum``) nhưng **không kèm WSDL**, và ``fast_client.py`` mà Giai đoạn 2 nói
-"đã có sẵn" không tồn tại trên bench. Vì vậy các tên tham số còn lại
-(``clientCode``/``proxyCode``/``unitCode``/``userName``/``password``) và
-namespace ``http://tempuri.org/`` là **suy ra**, chưa xác nhận với Fast.
+Tên tham số và hình dạng phản hồi lấy từ **WSDL thật** của Fast
+(``…/FastEInvoice.PortalService.asmx?WSDL``, đối chiếu 2026-08-10):
 
-Chúng được gom hết vào ``OPERATIONS`` ngay dưới đây: sửa đúng một chỗ đó là
-khớp lại được với WSDL thật, không phải sờ vào logic nghiệp vụ.
+- ``GetKey(proxyCode, clientCode, user, hash)`` → ``<GetKeyResult>`` = token
+- ``CheckKey(proxyCode, clientCode, user, data)`` → ``<CheckKeyResult>``
+- ``ExcuteCommand(action, method, user, proxyCode, clientCode, unitCode, data,
+  checkSum)`` → ``<ExcuteCommandResult>``
+
+Mọi phản hồi bọc trong một thẻ ``<…Result>`` chứa chuỗi; rỗng = Fast từ chối
+(sai tài khoản / hash / mã). Còn hai điểm **chưa xác nhận được** vì phải có
+token thật mới quan sát được một phản hồi thành công:
+
+1. Thuật toán băm mật khẩu cho thẻ ``hash`` — xem ``hash_password``.
+2. Định dạng bên trong ``<ExcuteCommandResult>`` khi thành công — xem
+   ``_leading_error_code``.
 """
 
 import base64
 import json
+import re
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
@@ -41,20 +47,25 @@ TOKEN_TTL_HOURS = 24
 # Timeout mạng. Hóa đơn 300 dòng ký HSM có thể lâu, nên để rộng.
 REQUEST_TIMEOUT_SECONDS = 120
 
-# Tham số của từng lời gọi, theo đúng thứ tự SOAP mong đợi.
+# Tham số của từng lời gọi — đúng tên và thứ tự trong WSDL của Fast.
 OPERATIONS = {
-	"CheckKey": ("clientCode", "userName", "checkSum"),
-	"GetKey": ("clientCode", "userName", "password"),
+	"GetKey": ("proxyCode", "clientCode", "user", "hash"),
+	"CheckKey": ("proxyCode", "clientCode", "user", "data"),
 	"ExcuteCommand": (
-		"clientCode",
-		"proxyCode",
-		"unitCode",
 		"action",
 		"method",
+		"user",
+		"proxyCode",
+		"clientCode",
+		"unitCode",
 		"data",
 		"checkSum",
 	),
 }
+
+# Che khi ghi log — nguyên tắc A3. `data` của ExcuteCommand là base64 payload nên
+# chỉ ghi độ dài; `data` của CheckKey là token; `hash`/`checkSum` là bí mật.
+_MASKED_PARAMS = ("hash", "checkSum")
 
 # Fast báo token chết bằng nhiều cách khác nhau; nhận ra để lấy token mới rồi
 # thử lại đúng MỘT lần. Không bao giờ thử lại lỗi nghiệp vụ — thử lại một lệnh
@@ -91,43 +102,57 @@ def decode_message(message):
 	return base64.b64decode(message)
 
 
-def parse_response(raw):
-	"""Bóc ``Success``/``Message`` khỏi SOAP envelope.
+def hash_password(password):
+	"""Băm mật khẩu cho thẻ ``hash`` của GetKey.
 
-	Phản hồi không phải XML (proxy lỗi, trang HTML 502…) được coi là thất bại
-	chứ không ném ngoại lệ: tầng trên còn phải ghi log rồi mới báo người dùng.
+	⚠️ CHƯA XÁC NHẬN VỚI FAST. WSDL yêu cầu thẻ ``hash`` chứ không nhận mật khẩu
+	thô, nhưng không nêu thuật toán, và không thể dò từ phía ta: mọi mật khẩu sai
+	đều trả ``<GetKeyResult>`` rỗng y hệt nhau. Mặc định MD5 hex viết thường —
+	kiểu phổ biến nhất của các dịch vụ .NET. Khi Fast xác nhận, sửa **đúng một
+	hàm này**.
+	"""
+	import hashlib
+
+	return hashlib.md5((password or "").encode("utf-8")).hexdigest()
+
+
+def parse_response(raw):
+	"""Bóc chuỗi kết quả khỏi SOAP envelope của Fast.
+
+	Mọi lời gọi trả về ``<…Result>chuỗi</…Result>``. Rỗng = Fast từ chối. Chuỗi
+	lỗi nghiệp vụ mở đầu bằng mã lỗi (``"835|…"``). Phản hồi không phải XML
+	(proxy lỗi, HTML 502…) tính là thất bại chứ không ném ngoại lệ — tầng trên
+	còn phải ghi log rồi mới báo người dùng.
 	"""
 	response = FastResponse(raw=raw or "")
 	try:
 		root = ET.fromstring(raw)
 	except ET.ParseError:
-		response.message = _("Phản hồi từ Fast không đọc được (không phải XML).")
+		response.message = _("Phản hồi từ Fast không đọc được (không phải XML): {0}").format(_snippet(raw))
 		return response
 
-	def find(tag):
-		for element in root.iter():
-			if element.tag.rsplit("}", 1)[-1] == tag:
-				return element.text
-		return None
+	result_text, fault = None, None
+	for element in root.iter():
+		tag = element.tag.rsplit("}", 1)[-1]
+		if tag.endswith("Result") and result_text is None:
+			result_text = element.text or ""
+		elif tag == "faultstring" and fault is None:
+			fault = element.text or ""
 
-	success = (find("Success") or "").strip()
-	response.success = success in ("1", "true", "True")
-	response.message = unescape(find("Message") or "")
+	if result_text is None:
+		# Không có thẻ *Result: hoặc SOAP Fault, hoặc phản hồi lạ. Luôn để lại dấu
+		# vết — "không rõ lý do" là câu vô dụng với cả kế toán lẫn người sửa lỗi.
+		response.message = (
+			unescape(fault)
+			if fault
+			else _("Phản hồi không đúng cấu trúc của Fast. Nội dung nhận được: {0}").format(_snippet(raw))
+		)
+		return response
 
-	if not response.success and not response.message:
-		# SOAP Fault: hỏng ở tầng dịch vụ (sai tài khoản, service lỗi) chứ không
-		# phải lỗi nghiệp vụ, nên không có thẻ Message.
-		if fault := find("faultstring"):
-			response.message = unescape(fault)
-		else:
-			# Không hiểu được phản hồi thì ít nhất cho thấy Fast đã trả về cái gì —
-			# "không rõ lý do" là câu vô dụng với cả kế toán lẫn người sửa lỗi.
-			response.message = _("Phản hồi không có thẻ Success/Message. Nội dung nhận được: {0}").format(
-				_snippet(raw)
-			)
-
-	if not response.success:
-		response.error_code = _extract_error_code(response.message)
+	text = unescape(result_text).strip()
+	response.error_code = _leading_error_code(text)
+	response.success = bool(text) and not response.error_code
+	response.message = text or _("Fast trả về kết quả rỗng (thường là do sai tài khoản, mật khẩu hoặc mã).")
 	return response
 
 
@@ -137,10 +162,27 @@ def _snippet(raw, limit=300):
 	return text[:limit] + ("…" if len(text) > limit else "")
 
 
-def _extract_error_code(message):
-	"""Fast trả lỗi dạng ``"835|Hóa đơn đã tồn tại"`` — lấy phần mã dẫn đầu."""
-	head = (message or "").split("|", 1)[0].strip()
-	return head if head.isdigit() else ""
+def _leading_error_code(text):
+	"""Mã lỗi dẫn đầu chuỗi kết quả, nếu có — nếu không thì rỗng (coi là thành công).
+
+	⚠️ Dựa vào bộ mã lỗi đã biết (Phần G) làm tín hiệu chính, vì định dạng bên
+	trong ``<ExcuteCommandResult>`` khi THÀNH CÔNG chưa quan sát được (cần token
+	thật). Phản hồi thành công của phát hành có nhiều đoạn (``invoiceNo|pattern|
+	serial|…``) hoặc là JSON, nên không bị nhận nhầm là lỗi.
+	"""
+	text = (text or "").strip()
+	if not text or text[0] in "{[":
+		return ""  # JSON payload = thành công
+
+	from erpnext.einvoice.errors import ERROR_CATALOGUE
+
+	first = text.split("|", 1)[0].strip()
+	if first in ERROR_CATALOGUE:
+		return first
+	# Chuỗi ngắn chỉ toàn số (tối đa một dấu |) gần như chắc chắn là mã lỗi lạ.
+	if re.fullmatch(r"-?\d{3,6}", first) and text.count("|") <= 1:
+		return first
+	return ""
 
 
 def _http_failure(exc):
@@ -257,9 +299,10 @@ class FastClient:
 		response = self._call(
 			"CheckKey",
 			{
+				"proxyCode": self.settings.proxy_code,
 				"clientCode": self.settings.client_code,
-				"userName": self.settings.api_user,
-				"checkSum": self.settings.token,
+				"user": self.settings.api_user,
+				"data": self.settings.token,
 			},
 		)
 		return response.success
@@ -268,9 +311,10 @@ class FastClient:
 		response = self._call(
 			"GetKey",
 			{
+				"proxyCode": self.settings.proxy_code,
 				"clientCode": self.settings.client_code,
-				"userName": self.settings.api_user,
-				"password": self.settings.api_password,
+				"user": self.settings.api_user,
+				"hash": hash_password(self.settings.api_password),
 			},
 		)
 		if not response.success:
@@ -312,11 +356,12 @@ class FastClient:
 		return self._call(
 			"ExcuteCommand",
 			{
-				"clientCode": self.settings.client_code,
-				"proxyCode": self.settings.proxy_code,
-				"unitCode": self.settings.unit_code,
 				"action": action,
 				"method": method,
+				"user": self.settings.api_user,
+				"proxyCode": self.settings.proxy_code,
+				"clientCode": self.settings.client_code,
+				"unitCode": self.settings.unit_code,
 				"data": encode_payload(data),
 				"checkSum": token,
 			},
@@ -339,10 +384,14 @@ def _mask(operation, params):
 	"""
 	masked = {}
 	for name, value in params.items():
-		if name in ("password", "checkSum"):
+		if name in _MASKED_PARAMS:
 			masked[name] = "***"
-		elif name == "data":
+		elif name == "data" and operation == "ExcuteCommand":
+			# ExcuteCommand.data là base64 payload — chỉ ghi độ dài để khỏi phình log.
 			masked[name] = f"<base64 {len(str(value))} ký tự>"
+		elif name == "data":
+			# CheckKey.data là token phiên — che đi.
+			masked[name] = "***"
 		else:
 			masked[name] = value
 	return {"operation": operation, "params": masked}
