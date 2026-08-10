@@ -2,9 +2,11 @@
 
 """Nút 11 & 12 — trạng thái CQT (8200) và truy vấn đối soát (370) — mục E8."""
 
+import json
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import add_to_date, now_datetime, nowdate
+from frappe.utils import add_to_date, getdate, now_datetime, nowdate
 
 from erpnext.einvoice.builder import create_from_delivery_note
 from erpnext.einvoice.constants import (
@@ -27,11 +29,30 @@ from erpnext.einvoice.test_fixtures import make_delivery_note
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
 
-ACCEPTED = envelope(1, '[{"keySearch":"KS-ABC-123","taxStatus":"3","taxCode":"M1-0099","feedback":""}]')
-REJECTED = envelope(
-	1, '[{"keySearch":"KS-ABC-123","taxStatus":"4","taxCode":"","feedback":"Sai mã số thuế người mua"}]'
-)
-NOT_LISTED = envelope(1, '[{"keySearch":"KS-KHAC","taxStatus":"3"}]')
+# Hình dạng thật của kết quả 8200 — tài liệu API Fast mục 17 (tr. 38-39):
+# Message là chuỗi JSON ``{"data":[…]}``; mỗi dòng khớp hóa đơn theo ``key`` —
+# chính là Key client đã gửi lúc phát hành, không phải keySearch.
+TAX_QUERY_FIELDS = {
+	"invoiceDateFrom",
+	"invoiceDateTo",
+	"invoiceNumberFrom",
+	"invoiceNumberTo",
+	"voucherBook",
+	"invoiceType",
+}
+
+
+def tax_result(key, tax_status, verification_code="", feedback=""):
+	rows = [
+		{
+			"key": key,
+			"invoiceDate": getdate(nowdate()).strftime("%Y%m%d"),
+			"taxStatus": tax_status,
+			"verificationCode": verification_code,
+			"feedbackContent": feedback,
+		}
+	]
+	return envelope(1, json.dumps({"data": rows}))
 
 
 class TaxStatusBase(FrappeTestCase):
@@ -46,6 +67,7 @@ class TaxStatusBase(FrappeTestCase):
 			{
 				"status": STATUS_ISSUED,
 				"tax_status": TAX_STATUS_PENDING,
+				"fast_key": "KEY-ABC-123",
 				"fast_key_search": "KS-ABC-123",
 				"fast_invoice_no": "2",
 				"fast_serial": "1C26TMY",
@@ -61,10 +83,19 @@ class TaxStatusBase(FrappeTestCase):
 		self.transport = FakeTransport(checkkey_ok(), *responses)
 		return FastClient(transport=self.transport)
 
+	def accepted(self):
+		return tax_result(self.fei.fast_key, "3", verification_code="M1-0099")
+
+	def rejected(self):
+		return tax_result(self.fei.fast_key, "4", feedback="Sai mã số thuế người mua")
+
+	def not_listed(self):
+		return tax_result("KEY-CUA-HOA-DON-KHAC", "3")
+
 
 class TestCheckTaxStatus(TaxStatusBase):
 	def test_acceptance_advances_the_invoice(self):
-		check_tax_status(self.fei.name, client=self._client(ACCEPTED))
+		check_tax_status(self.fei.name, client=self._client(self.accepted()))
 
 		self.fei.reload()
 		self.assertEqual(self.fei.tax_status, TAX_STATUS_ACCEPTED)
@@ -73,7 +104,7 @@ class TestCheckTaxStatus(TaxStatusBase):
 		self.assertIsNotNone(self.fei.tax_checked_time)
 
 	def test_rejection_is_recorded_with_the_reason(self):
-		check_tax_status(self.fei.name, client=self._client(REJECTED))
+		check_tax_status(self.fei.name, client=self._client(self.rejected()))
 
 		self.fei.reload()
 		self.assertEqual(self.fei.tax_status, TAX_STATUS_REJECTED)
@@ -82,7 +113,7 @@ class TestCheckTaxStatus(TaxStatusBase):
 
 	def test_an_invoice_not_in_the_result_stays_pending(self):
 		"""Đặc tả E8: không có trong kết quả = CQT chưa xử lý xong, không phải là từ chối."""
-		check_tax_status(self.fei.name, client=self._client(NOT_LISTED))
+		check_tax_status(self.fei.name, client=self._client(self.not_listed()))
 
 		self.fei.reload()
 		self.assertEqual(self.fei.tax_status, TAX_STATUS_PENDING)
@@ -90,13 +121,27 @@ class TestCheckTaxStatus(TaxStatusBase):
 		self.assertIsNotNone(self.fei.tax_checked_time)
 
 	def test_it_uses_method_8200(self):
-		check_tax_status(self.fei.name, client=self._client(ACCEPTED))
+		check_tax_status(self.fei.name, client=self._client(self.accepted()))
 		log = frappe.get_doc(LOG, {"fei_document": self.fei.name, "method": 8200})
 		self.assertEqual(log.status, "Thành công")
 
+	def test_the_query_carries_every_field_fast_requires(self):
+		"""Tài liệu Fast mục 17: thiếu một thẻ là Fast ném 810 "The given key was not present"."""
+		check_tax_status(self.fei.name, client=self._client(self.accepted()))
+
+		log = frappe.get_doc(LOG, {"fei_document": self.fei.name, "method": 8200})
+		payload = json.loads(log.request_json)
+		self.assertEqual(set(payload), TAX_QUERY_FIELDS)
+		today = getdate(nowdate()).strftime("%Y%m%d")
+		self.assertEqual(payload["invoiceDateFrom"], today)
+		self.assertEqual(payload["invoiceDateTo"], today)
+		self.assertEqual(payload["invoiceNumberFrom"], "2")
+		self.assertEqual(payload["invoiceNumberTo"], "2")
+		self.assertEqual(payload["invoiceType"], "1")
+
 	def test_a_sent_invoice_can_also_be_checked(self):
 		frappe.db.set_value(FEI, self.fei.name, "status", STATUS_SENT)
-		check_tax_status(self.fei.name, client=self._client(ACCEPTED))
+		check_tax_status(self.fei.name, client=self._client(self.accepted()))
 
 		self.fei.reload()
 		self.assertEqual(self.fei.status, STATUS_TAX_ACCEPTED)
@@ -104,12 +149,12 @@ class TestCheckTaxStatus(TaxStatusBase):
 	def test_an_unissued_invoice_has_no_tax_status_to_check(self):
 		frappe.db.set_value(FEI, self.fei.name, "status", STATUS_DRAFT)
 		with self.assertRaises(frappe.ValidationError):
-			check_tax_status(self.fei.name, client=self._client(ACCEPTED))
+			check_tax_status(self.fei.name, client=self._client(self.accepted()))
 
 
 class TestPollJob(TaxStatusBase):
 	def test_the_job_picks_up_pending_invoices(self):
-		checked = poll_pending_tax_status(client=self._client(ACCEPTED))
+		checked = poll_pending_tax_status(client=self._client(self.accepted()))
 
 		self.fei.reload()
 		self.assertIn(self.fei.name, checked)
@@ -120,17 +165,17 @@ class TestPollJob(TaxStatusBase):
 		frappe.db.set_value(
 			FEI, self.fei.name, "fast_signed_date", add_to_date(nowdate(), days=-30)
 		)
-		checked = poll_pending_tax_status(client=self._client(ACCEPTED))
+		checked = poll_pending_tax_status(client=self._client(self.accepted()))
 		self.assertNotIn(self.fei.name, checked)
 
 	def test_already_settled_invoices_are_not_polled_again(self):
 		frappe.db.set_value(FEI, self.fei.name, "tax_status", TAX_STATUS_ACCEPTED)
-		checked = poll_pending_tax_status(client=self._client(ACCEPTED))
+		checked = poll_pending_tax_status(client=self._client(self.accepted()))
 		self.assertNotIn(self.fei.name, checked)
 
 	def test_the_job_does_nothing_when_auto_polling_is_off(self):
 		configure(auto_poll_tax_status=0, token="TOKEN-ABC", token_time=now_datetime())
-		self.assertEqual(poll_pending_tax_status(client=self._client(ACCEPTED)), [])
+		self.assertEqual(poll_pending_tax_status(client=self._client(self.accepted())), [])
 
 	def test_the_job_is_registered_on_a_cron_schedule(self):
 		cron = frappe.get_hooks("scheduler_events").get("cron") or {}

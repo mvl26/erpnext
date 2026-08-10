@@ -185,14 +185,33 @@ class TestPdfThrottle(PdfTestBase):
 
 
 class TestAutoDownloadAfterIssue(PdfTestBase):
-	def test_issuance_queues_the_pdf_download_when_configured(self):
-		"""Mục E5 nhánh 7a: tự tải PDF sau khi phát hành, nếu cấu hình bật."""
+	def test_issuance_queues_the_delayed_pdf_download_when_configured(self):
+		"""Mục E5 nhánh 7a: tự tải PDF sau khi phát hành, qua job có đợi ký số."""
 		from erpnext.einvoice.issue import _queue_pdf_download
 
 		queued = []
 		_queue_pdf_download(self.fei, enqueue=lambda **kwargs: queued.append(kwargs))
 		self.assertTrue(queued)
 		self.assertEqual(queued[0]["fei"], self.fei.name)
+		self.assertIn("download_official_pdf_after_signing", queued[0]["method"])
+
+	def test_background_download_waits_and_retries_until_the_pdf_is_ready(self):
+		"""HSM ký số mất vài giây — job đợi rồi thử lại tới khi có PDF."""
+		from erpnext.einvoice.actions import download_official_pdf_after_signing
+
+		calls = {"n": 0}
+
+		def fake_download(fei):
+			calls["n"] += 1
+			return {"ok": calls["n"] >= 3}  # sẵn sàng ở lần thử thứ 3
+
+		slept = []
+		result = download_official_pdf_after_signing(
+			self.fei.name, _download=fake_download, _sleep=slept.append
+		)
+		self.assertTrue(result["ok"])
+		self.assertEqual(calls["n"], 3)
+		self.assertTrue(all(s > 0 for s in slept), "phải đợi giữa các lần thử")
 
 	def test_nothing_is_queued_when_auto_download_is_off(self):
 		configure(auto_download_pdf=0, token="TOKEN-ABC", token_time=now_datetime())

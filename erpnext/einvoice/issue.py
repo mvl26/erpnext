@@ -417,15 +417,15 @@ def _notify_failure(doc, message):
 def _queue_pdf_download(doc, enqueue=None):
 	"""Nhánh 7a — hẹn tải PDF chính thức sau khi phát hành xong.
 
-	Đợi vài giây rồi mới tải: Fast cần thời gian ký số xong mới có bản PDF, và
-	mục E6 chặn hai lời gọi PDF cách nhau dưới 5 giây.
+	Đi qua ``download_official_pdf_after_signing``: job này đợi Fast ký số HSM
+	xong rồi mới tải, thay vì tải ngay và nhận kết quả rỗng.
 	"""
 	settings = check_enabled()
 	if not settings.auto_download_pdf:
 		return
 
 	(enqueue or frappe.enqueue)(
-		method="erpnext.einvoice.actions.download_official_pdf",
+		method="erpnext.einvoice.actions.download_official_pdf_after_signing",
 		queue="long",
 		enqueue_after_commit=True,
 		fei=doc.name,
