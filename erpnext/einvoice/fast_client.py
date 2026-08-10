@@ -113,15 +113,60 @@ def parse_response(raw):
 	success = (find("Success") or "").strip()
 	response.success = success in ("1", "true", "True")
 	response.message = unescape(find("Message") or "")
+
+	if not response.success and not response.message:
+		# SOAP Fault: hỏng ở tầng dịch vụ (sai tài khoản, service lỗi) chứ không
+		# phải lỗi nghiệp vụ, nên không có thẻ Message.
+		if fault := find("faultstring"):
+			response.message = unescape(fault)
+		else:
+			# Không hiểu được phản hồi thì ít nhất cho thấy Fast đã trả về cái gì —
+			# "không rõ lý do" là câu vô dụng với cả kế toán lẫn người sửa lỗi.
+			response.message = _("Phản hồi không có thẻ Success/Message. Nội dung nhận được: {0}").format(
+				_snippet(raw)
+			)
+
 	if not response.success:
 		response.error_code = _extract_error_code(response.message)
 	return response
+
+
+def _snippet(raw, limit=300):
+	"""Rút gọn phản hồi thô để nhét vừa một thông báo lỗi."""
+	text = " ".join((raw or "").split())
+	return text[:limit] + ("…" if len(text) > limit else "")
 
 
 def _extract_error_code(message):
 	"""Fast trả lỗi dạng ``"835|Hóa đơn đã tồn tại"`` — lấy phần mã dẫn đầu."""
 	head = (message or "").split("|", 1)[0].strip()
 	return head if head.isdigit() else ""
+
+
+def _http_failure(exc):
+	"""Lỗi HTTP → ngoại lệ đúng mức độ nguy hiểm.
+
+	5xx (hoặc không rõ mã) nghĩa là request **đã tới Fast** nhưng không biết bên
+	đó xử lý tới đâu — với lệnh phát hành thì đây là ca "cần đối soát", tuyệt đối
+	không được coi là thất bại chắc chắn rồi gửi lại.
+	4xx (sai tài khoản, sai URL) thì chắc chắn chưa chạm tới nghiệp vụ.
+	"""
+	status = getattr(getattr(exc, "response", None), "status_code", None)
+	body = _snippet(getattr(getattr(exc, "response", None), "text", "") or "", 200)
+	detail = f" — {body}" if body else ""
+
+	if status and status < 500:
+		return frappe.ValidationError(
+			_("Fast từ chối request (HTTP {0}){1}. Kiểm tra URL dịch vụ và tài khoản API.").format(
+				status, detail
+			)
+		)
+	return FastTimeout(
+		_(
+			"Fast trả lỗi máy chủ (HTTP {0}){1}. Nếu lệnh vừa gửi là phát hành, "
+			"phải truy vấn (370) trước khi thao tác tiếp."
+		).format(status or "?", detail)
+	)
 
 
 def _post(url, soap_action, body, timeout=None):
@@ -176,9 +221,12 @@ class FastClient:
 		except (requests.Timeout, requests.ConnectionError) as exc:
 			raise FastTimeout(
 				_(
-					"Không nhận được phản hồi từ Fast ({0}). Phải truy vấn (370) trước khi thao tác tiếp."
-				).format(exc)
+					"Không kết nối được tới Fast tại {0} ({1}). Nếu lệnh vừa gửi là phát hành, "
+					"phải truy vấn (370) trước khi thao tác tiếp."
+				).format(self.settings.api_url, exc)
 			) from exc
+		except requests.HTTPError as exc:
+			raise _http_failure(exc) from exc
 
 		response = parse_response(raw)
 		response.duration_ms = int((time.monotonic() - started) * 1000)
@@ -227,7 +275,16 @@ class FastClient:
 		)
 		if not response.success:
 			frappe.throw(
-				_("Không lấy được token từ Fast: {0}").format(response.message or _("không rõ lý do"))
+				_(
+					"Không đăng nhập được vào Fast bằng user API <b>{0}</b>.<br>Fast trả về: {1}"
+					"<br><br>Kiểm tra <b>User API</b>, <b>Mật khẩu</b> và <b>URL dịch vụ</b> "
+					"({2}) trong Fast EInvoice Settings."
+				).format(
+					self.settings.api_user or _("(chưa điền)"),
+					response.message or _("(không có nội dung)"),
+					self.settings.api_url,
+				),
+				title=_("Không lấy được token"),
 			)
 
 		token = (response.message or "").strip()
