@@ -21,7 +21,7 @@ from erpnext.einvoice.constants import (
 )
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.issue import issue_invoice, parse_issue_result
-from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
+from erpnext.einvoice.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
 from erpnext.einvoice.test_fixtures import make_delivery_note
 
 FEI = "Fast EInvoice Document"
@@ -50,6 +50,12 @@ class TestParseIssueResult(FrappeTestCase):
 		result = parse_issue_result('{"InvoiceNo":"7","KeySearch":"KS7"}')
 		self.assertEqual(result["fast_invoice_no"], "7")
 		self.assertEqual(result["fast_key_search"], "KS7")
+
+	def test_padded_values_are_trimmed(self):
+		"""Fast trả số hóa đơn đệm khoảng trắng ("       2") — phải cắt sạch."""
+		result = parse_issue_result('[{"invoiceNo":"       2","keySearch":" KS-X ","serial":"1C26TMY"}]')
+		self.assertEqual(result["fast_invoice_no"], "2")
+		self.assertEqual(result["fast_key_search"], "KS-X")
 
 	def test_pipe_delimited_response_falls_back_to_the_documented_order(self):
 		result = parse_issue_result("2|1/001|1C26TMY|20260807|KS-ABC")

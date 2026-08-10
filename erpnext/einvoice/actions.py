@@ -349,8 +349,9 @@ def download_official_pdf(fei, client=None):
 		client=client,
 	)
 	if not response.success:
+		message = _explain_pdf_failure(response)
 		_record_error(doc, response)
-		return {"ok": False, "message": _explain(response)}
+		return {"ok": False, "message": message}
 
 	filename = f"HD_{doc.fast_serial or 'HD'}_{doc.fast_invoice_no or doc.name}.pdf"
 	file_url = _attach_pdf(doc, response.message, filename)
@@ -386,13 +387,30 @@ def download_converted_pdf(fei, convert_name=None, client=None):
 		client=client,
 	)
 	if not response.success:
+		message = _explain_pdf_failure(response)
 		_record_error(doc, response)
-		return {"ok": False, "message": _explain(response)}
+		return {"ok": False, "message": message}
 
 	filename = f"HDCD_{doc.fast_serial or 'HD'}_{doc.fast_invoice_no or doc.name}.pdf"
 	file_url = _attach_pdf(doc, response.message, filename)
 	frappe.db.set_value(FEI, doc.name, "converted_pdf", file_url, update_modified=False)
 	return {"ok": True, "file_url": file_url}
+
+
+def _explain_pdf_failure(response):
+	"""Fast trả rỗng khi tải PDF thường là do PDF chưa sẵn sàng, không phải lỗi rõ ràng.
+
+	Ngay sau phát hành HSM, hệ thống Fast còn đang ký số nên PDF chưa lấy được;
+	kết quả trả về rỗng (không mã, không nội dung). Nói rõ điều đó thay vì
+	"không rõ mã".
+	"""
+	if not response.error_code and not (response.message or "").strip():
+		return _(
+			"Fast chưa trả về PDF — hóa đơn có thể đang được ký số (HSM). "
+			"Đợi khoảng 10 giây rồi tải lại; nếu vẫn lỗi, bấm Truy vấn (370) để "
+			"kiểm tra tình trạng hóa đơn trên Fast."
+		)
+	return _explain(response)
 
 
 def _pdf_ready_document(fei):
