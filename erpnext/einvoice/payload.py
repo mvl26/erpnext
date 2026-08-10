@@ -11,6 +11,8 @@ Hai luật của Phần I quyết định toàn bộ module này:
   luôn gửi và thẻ nào chỉ gửi khi có giá trị được đánh dấu ngay trong bảng thẻ.
 """
 
+import re
+
 import frappe
 from frappe.utils import flt, getdate
 
@@ -47,6 +49,20 @@ def _text(value):
 	return "" if value is None else str(value)
 
 
+def normalize_tax_code(value):
+	"""MST chỉ còn chữ số — bỏ dấu gạch, khoảng trắng, chấm.
+
+	MST Việt Nam là số thuần; dấu ``-`` (hoặc khoảng trắng, chấm) chỉ là ký tự
+	phân tách phần chi nhánh khi hiển thị. Fast yêu cầu toàn số (lỗi 78013), nên
+	chuẩn hóa cả khi kiểm tra dữ liệu lẫn khi gửi đi.
+	"""
+	return re.sub(r"\D", "", value or "")
+
+
+def _tax_code(value):
+	return normalize_tax_code(value)
+
+
 def _number(value):
 	number = flt(value)
 	return int(number) if number == int(number) else number
@@ -65,7 +81,7 @@ MASTER_TAGS = (
 	("CustomerCode", "customer_code", _text, True),
 	("Buyer", "buyer", _text, True),
 	("CustomerName", "customer_name", _text, True),
-	("CustomerTaxCode", "customer_tax_code", _text, True),
+	("CustomerTaxCode", "customer_tax_code", _tax_code, True),
 	("CustomerType", "customer_type", _text, True),
 	("Address", "address", _text, True),
 	("PhoneNumber", "phone_number", _text, True),
