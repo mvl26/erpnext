@@ -74,13 +74,34 @@ class TestValidationRules(FrappeTestCase):
 			)
 
 	def test_eleven_or_twelve_digit_codes_are_still_rejected(self):
-		"""Không nới lỏng quá tay: 11–12 số vẫn sai (chi nhánh phải đúng 3 số)."""
+		"""Không nới lỏng quá tay: 11—12 số vẫn sai (chi nhánh phải đúng 3 số)."""
 		for code in ("01012345672", "0101234567-01"):
 			self.assertIn(
 				3,
 				rules_hit(check(make_fei(customer_type="1", customer_tax_code=code)), "block"),
 				code,
 			)
+
+	def test_a_real_tax_code_raises_no_check_digit_warning(self):
+		"""MST thật (số kiểm tra đúng) không bị cảnh báo."""
+		for code in ("0101248141", "0300588569", "0100109106"):
+			result = check(make_fei(customer_type="1", customer_tax_code=code))
+			self.assertNotIn(3, rules_hit(result, "warn"), code)
+
+	def test_wrong_check_digit_warns_but_does_not_block(self):
+		"""MST sai số kiểm tra: cảnh báo (Fast nhiều khả năng trả 78013), không chặn."""
+		result = check(make_fei(customer_type="1", customer_tax_code="0101234567"))
+		self.assertIn(3, rules_hit(result, "warn"))
+		self.assertNotIn(3, rules_hit(result, "block"))
+
+	def test_check_digit_covers_the_parent_of_a_branch_code(self):
+		"""MST chi nhánh 13 số: số kiểm tra tính trên 10 số MST mẹ."""
+		self.assertIn(
+			3, rules_hit(check(make_fei(customer_type="1", customer_tax_code="0101234567001")), "warn")
+		)
+		self.assertNotIn(
+			3, rules_hit(check(make_fei(customer_type="1", customer_tax_code="0101248141001")), "warn")
+		)
 
 	def test_individual_buyer_needs_no_tax_code(self):
 		fei = make_fei(customer_type="0", customer_tax_code="")

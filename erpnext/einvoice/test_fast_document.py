@@ -68,7 +68,7 @@ def make_fei(**values):
 			"customer_code": "KH0001",
 			"customer_name": "Bệnh viện Đa khoa X",
 			"customer_type": "1",
-			"customer_tax_code": "0101234567",
+			"customer_tax_code": "0101234565",
 			"address": "Số 1 Phố Y, Hà Nội",
 			"email_deliver": "kt@bvx.vn",
 			"payment_method": "CK",

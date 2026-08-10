@@ -15,7 +15,7 @@ WAREHOUSE = "Stores - M"
 ITEM_CODE = "_TEST-HDDT-VT001"
 ITEM_NAME = "Bơm kim tiêm 5ml"
 CUSTOMER = "_Test HĐĐT Bệnh viện X"
-CUSTOMER_TAX_ID = "0101234567"
+CUSTOMER_TAX_ID = "0101234565"  # số kiểm tra hợp lệ
 CUSTOMER_EMAIL = "ketoan@benhvienx.test"
 
 
@@ -201,7 +201,6 @@ def minimal_pdf_bytes():
 	for offset in offsets:
 		out += f"{offset:010d} 00000 n \n".encode()
 	out += (
-		f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
-		f"startxref\n{xref_position}\n%%EOF\n"
+		f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n" f"startxref\n{xref_position}\n%%EOF\n"
 	).encode()
 	return bytes(out)

@@ -100,7 +100,7 @@ class TestCreateFromDeliveryNote(FrappeTestCase):
 	def test_customer_details_are_pulled_across(self):
 		fei = self._create()
 		self.assertEqual(fei.customer, CUSTOMER)
-		self.assertEqual(fei.customer_tax_code, "0101234567")
+		self.assertEqual(fei.customer_tax_code, "0101234565")
 		self.assertEqual(fei.customer_type, "1")
 
 	def test_issuer_name_defaults_to_the_person_pressing_the_button(self):

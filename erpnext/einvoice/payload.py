@@ -63,6 +63,26 @@ def _tax_code(value):
 	return normalize_tax_code(value)
 
 
+# Trọng số của thuật toán số kiểm tra MST 10 số (chuẩn Tổng cục Thuế).
+_MST_WEIGHTS = (31, 29, 23, 19, 17, 13, 7, 5, 3)
+
+
+def mst_check_digit_ok(code):
+	"""Chữ số thứ 10 của MST có khớp số kiểm tra tính từ 9 số đầu không.
+
+	MST 13 số (chi nhánh): số kiểm tra tính trên 10 số MST mẹ, 3 số cuối là mã
+	chi nhánh, không kiểm. Đã đối chiếu đúng với nhiều MST doanh nghiệp thật.
+	Trả True khi độ dài không phải 10/13 (để nơi khác lo phần độ dài).
+	"""
+	digits = normalize_tax_code(code)
+	if len(digits) == 13:
+		digits = digits[:10]
+	if len(digits) != 10:
+		return True
+	total = sum(int(digits[i]) * _MST_WEIGHTS[i] for i in range(9))
+	return (10 - (total % 11)) == int(digits[9])
+
+
 def _number(value):
 	number = flt(value)
 	return int(number) if number == int(number) else number
