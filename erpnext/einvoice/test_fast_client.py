@@ -56,11 +56,20 @@ class FakeTransport:
 
 
 def configure(**values):
+	"""Đặt cấu hình về một trạng thái đã biết.
+
+	`Fast EInvoice Settings` là Single DocType — giá trị đang lưu trên site rò
+	thẳng vào test. Vì vậy **mọi cờ hành vi đều đặt tường minh ở đây**, kể cả các
+	cờ trông như không liên quan; test nào cần khác thì truyền kwarg.
+	"""
 	doc = frappe.get_single(SETTINGS)
 	doc.update(
 		{
 			"enabled": 1,
 			"is_test_mode": 1,
+			"require_customer_approval": 1,
+			"auto_download_pdf": 1,
+			"auto_poll_tax_status": 1,
 			"api_url": "https://tportal.fast.com.vn:9000/AppService/FastEInvoice.PortalService.asmx",
 			"client_code": "008254",
 			"proxy_code": "006384",
@@ -277,3 +286,80 @@ class TestExcuteCommand(FrappeTestCase):
 
 		self.assertIsInstance(result.duration_ms, int)
 		self.assertGreaterEqual(result.duration_ms, 0)
+
+
+def soap_fault(faultstring, faultcode="soap:Server"):
+	"""Fast trả SOAP Fault khi lỗi ở tầng dịch vụ chứ không phải lỗi nghiệp vụ."""
+	return (
+		'<?xml version="1.0" encoding="utf-8"?>'
+		'<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
+		f"<soap:Body><soap:Fault><faultcode>{faultcode}</faultcode>"
+		f"<faultstring>{faultstring}</faultstring>"
+		"</soap:Fault></soap:Body></soap:Envelope>"
+	)
+
+
+class TestDiagnosableFailures(FrappeTestCase):
+	"""Người dùng phải đọc được LÝ DO, không phải "không rõ lý do"."""
+
+	def setUp(self):
+		frappe.db.rollback()
+		configure(token="", token_time=None)
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def test_soap_fault_is_surfaced_as_its_faultstring(self):
+		result = parse_response(soap_fault("Server was unable to process request. Invalid user."))
+		self.assertFalse(result.success)
+		self.assertIn("Invalid user", result.message)
+
+	def test_a_response_without_success_or_fault_still_explains_itself(self):
+		"""Không hiểu được phản hồi thì ít nhất phải cho thấy Fast đã trả về cái gì."""
+		result = parse_response("<root><Something>khac</Something></root>")
+		self.assertFalse(result.success)
+		self.assertTrue(result.message.strip(), "Phản hồi lạ mà không có lời giải thích nào")
+
+	def test_bad_credentials_report_the_reason_not_a_shrug(self):
+		client = FastClient(transport=FakeTransport(soap_fault("Sai tên đăng nhập hoặc mật khẩu")))
+
+		with self.assertRaises(frappe.ValidationError) as caught:
+			client.token()
+
+		message = str(caught.exception)
+		self.assertIn("Sai tên đăng nhập", message)
+		self.assertNotIn("không rõ lý do", message)
+
+	def test_http_error_from_fast_is_not_a_raw_stack_trace(self):
+		import requests
+
+		response = requests.Response()
+		response.status_code = 500
+		response._content = b"<html>Internal Server Error</html>"
+		transport = FakeTransport(requests.HTTPError("500 Server Error", response=response))
+
+		with self.assertRaises(FastTimeout) as caught:
+			FastClient(transport=transport).token()
+		self.assertIn("500", str(caught.exception))
+
+	def test_an_auth_rejection_is_a_definite_failure_not_an_unknown_outcome(self):
+		"""401/403 chắc chắn chưa tới nghiệp vụ — không được coi là "cần đối soát"."""
+		import requests
+
+		response = requests.Response()
+		response.status_code = 401
+		transport = FakeTransport(requests.HTTPError("401 Unauthorized", response=response))
+
+		client = FastClient(transport=transport)
+		with self.assertRaises(frappe.ValidationError) as caught:
+			client.token()
+		self.assertNotIsInstance(caught.exception, FastTimeout)
+		self.assertIn("401", str(caught.exception))
+
+	def test_unreachable_host_says_so_plainly(self):
+		import requests
+
+		transport = FakeTransport(requests.ConnectionError("Name or service not known"))
+		with self.assertRaises(FastTimeout) as caught:
+			FastClient(transport=transport).token()
+		self.assertIn("Fast", str(caught.exception))
