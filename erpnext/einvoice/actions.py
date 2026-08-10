@@ -397,6 +397,38 @@ def download_converted_pdf(fei, convert_name=None, client=None):
 	return {"ok": True, "file_url": file_url}
 
 
+# Sau phát hành HSM, Fast cần vài giây ký số xong mới có PDF (mục E5 nhánh 7a).
+PDF_SIGNING_WAIT_SECONDS = 6
+PDF_DOWNLOAD_ATTEMPTS = 5
+
+
+@frappe.whitelist()
+def download_official_pdf_after_signing(fei, _download=None, _sleep=None):
+	"""Job nền: đợi Fast ký số HSM xong rồi tải PDF chính thức.
+
+	`frappe.enqueue` chạy gần như ngay sau commit, mà ký số HSM mất vài giây, nên
+	tải ngay sẽ nhận kết quả rỗng (đúng lỗi kế toán hay gặp khi bấm tải sớm). Job
+	này đợi rồi thử lại nhiều lần; hết số lần vẫn chưa có thì để kế toán tự tải
+	sau — hóa đơn đã ra số thật rồi nên không sao.
+	"""
+	import time
+
+	sleep = _sleep or time.sleep
+	download = _download or download_official_pdf
+
+	for attempt in range(PDF_DOWNLOAD_ATTEMPTS):
+		sleep(PDF_SIGNING_WAIT_SECONDS)
+		try:
+			if download(fei).get("ok"):
+				return {"ok": True, "attempts": attempt + 1}
+		except Exception:
+			frappe.log_error(title=f"HĐĐT: tự tải PDF lỗi cho {fei}")
+			return {"ok": False, "attempts": attempt + 1}
+
+	frappe.log_error(title=f"HĐĐT: PDF chưa sẵn sàng sau {PDF_DOWNLOAD_ATTEMPTS} lần thử cho {fei}")
+	return {"ok": False, "attempts": PDF_DOWNLOAD_ATTEMPTS}
+
+
 def _explain_pdf_failure(response):
 	"""Fast trả rỗng khi tải PDF thường là do PDF chưa sẵn sàng, không phải lỗi rõ ràng.
 
