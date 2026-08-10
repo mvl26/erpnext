@@ -26,7 +26,12 @@ from erpnext.einvoice.constants import (
 	MAX_LINES_PER_INVOICE,
 	TAX_RATE_CODES,
 )
-from erpnext.einvoice.payload import CURRENCY_WORDS, compute_tax_groups, normalize_tax_code
+from erpnext.einvoice.payload import (
+	CURRENCY_WORDS,
+	compute_tax_groups,
+	mst_check_digit_ok,
+	normalize_tax_code,
+)
 
 BLOCK = "block"
 WARN = "warn"
@@ -194,6 +199,21 @@ def _rule_3_tax_code(fei, result):
 			_("Khách là doanh nghiệp thì mã số thuế phải đúng 10 hoặc 13 chữ số (đang là {0}).").format(
 				fei.customer_tax_code or _("trống")
 			),
+		)
+		return
+
+	# Đúng độ dài nhưng sai số kiểm tra: cảnh báo, không chặn. MST sai số kiểm tra
+	# gần như chắc chắn là gõ nhầm hoặc số giả — Fast sẽ trả lỗi 78013. Để cảnh
+	# báo (không chặn) phòng khi có mã đặc biệt hợp lệ mà thuật toán chưa phủ.
+	if not mst_check_digit_ok(code):
+		result.add(
+			3,
+			WARN,
+			"customer_tax_code",
+			_(
+				"Mã số thuế {0} sai số kiểm tra — nhiều khả năng gõ nhầm. "
+				"Fast/Cơ quan Thuế sẽ từ chối (lỗi 78013) nếu MST không có thật."
+			).format(fei.customer_tax_code),
 		)
 
 
