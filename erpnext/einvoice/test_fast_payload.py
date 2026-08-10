@@ -150,6 +150,17 @@ class TestPayloadShape(FrappeTestCase):
 		self.assertEqual(row[structure["detail"].index("ItemName")], "Bơm kim tiêm 5ml")
 		self.assertEqual(row[structure["detail"].index("Quantity")], 100)
 
+	def test_tax_code_is_sent_digits_only(self):
+		"""Fast muốn MST toàn số (78013) — dấu phân cách phải được bỏ khi gửi."""
+		self.fei.customer_tax_code = "0101234567-001"
+		self.fei.flags.ignore_links = True
+		self.fei.save()
+
+		payload = build_payload(self.fei)
+		structure = payload["data"]["structure"]
+		value = payload["data"]["invoices"][0]["master"][structure["master"].index("CustomerTaxCode")]
+		self.assertEqual(value, "0101234567001")
+
 
 class TestAdjustmentPayload(FrappeTestCase):
 	def setUp(self):

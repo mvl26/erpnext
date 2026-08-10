@@ -26,7 +26,7 @@ from erpnext.einvoice.constants import (
 	MAX_LINES_PER_INVOICE,
 	TAX_RATE_CODES,
 )
-from erpnext.einvoice.payload import CURRENCY_WORDS, compute_tax_groups
+from erpnext.einvoice.payload import CURRENCY_WORDS, compute_tax_groups, normalize_tax_code
 
 BLOCK = "block"
 WARN = "warn"
@@ -183,8 +183,10 @@ def _rule_2_buyer_identity(fei, result):
 def _rule_3_tax_code(fei, result):
 	if str(fei.customer_type) != "1":
 		return
-	code = (fei.customer_tax_code or "").replace("-", "").strip()
-	if not code.isdigit() or len(code) not in (10, 13):
+	# Bỏ mọi ký tự không phải số (dấu gạch, khoảng trắng, chấm) — MST chi nhánh 13
+	# số thường được gõ kèm dấu phân tách. Kiểm tra đúng cái sẽ gửi cho Fast.
+	code = normalize_tax_code(fei.customer_tax_code)
+	if len(code) not in (10, 13):
 		result.add(
 			3,
 			BLOCK,
@@ -228,7 +230,9 @@ def _rule_6_newlines(fei, result):
 	for fieldname in _MASTER_TEXT_FIELDS:
 		value = fei.get(fieldname) or ""
 		if "\n" in value or "\r" in value:
-			result.add(6, BLOCK, fieldname, _("Trường “{0}” có ký tự xuống dòng (lỗi 825).").format(fieldname))
+			result.add(
+				6, BLOCK, fieldname, _("Trường “{0}” có ký tự xuống dòng (lỗi 825).").format(fieldname)
+			)
 
 	for line in fei.lines or []:
 		for fieldname in ("item_name", "item_code", "uom", "note"):
@@ -247,7 +251,10 @@ def _rule_7_lengths(fei, result):
 		value = fei.get(fieldname) or ""
 		if len(value) > limit:
 			result.add(
-				7, BLOCK, fieldname, _("“{0}” dài {1} ký tự, tối đa {2}.").format(fieldname, len(value), limit)
+				7,
+				BLOCK,
+				fieldname,
+				_("“{0}” dài {1} ký tự, tối đa {2}.").format(fieldname, len(value), limit),
 			)
 
 	for line in fei.lines or []:
@@ -377,9 +384,9 @@ def _rule_13_xml_specials(fei, result):
 				13,
 				WARN,
 				where,
-				_("“{0}” có ký tự & < > — hệ thống sẽ escape, nhưng Fast từng lỗi 63505 với ký tự này.").format(
-					value
-				),
+				_(
+					"“{0}” có ký tự & < > — hệ thống sẽ escape, nhưng Fast từng lỗi 63505 với ký tự này."
+				).format(value),
 			)
 
 	flag("customer_name", fei.customer_name)
@@ -408,11 +415,11 @@ def _rule_15_source_delivery_note(fei, result):
 		result.add(15, BLOCK, "delivery_note", _("Chưa gắn phiếu giao hàng."))
 		return
 
-	source = frappe.db.get_value(
-		"Delivery Note", fei.delivery_note, ["docstatus", "is_return"], as_dict=True
-	)
+	source = frappe.db.get_value("Delivery Note", fei.delivery_note, ["docstatus", "is_return"], as_dict=True)
 	if not source:
-		result.add(15, BLOCK, "delivery_note", _("Phiếu giao hàng {0} không tồn tại.").format(fei.delivery_note))
+		result.add(
+			15, BLOCK, "delivery_note", _("Phiếu giao hàng {0} không tồn tại.").format(fei.delivery_note)
+		)
 		return
 	if source.docstatus != 1:
 		result.add(15, BLOCK, "delivery_note", _("Phiếu giao hàng chưa được submit."))
@@ -452,11 +459,11 @@ def _rule_15_source_delivery_note(fei, result):
 
 def _rule_16_tax_groups(fei, result):
 	groups = compute_tax_groups(fei.lines or [])
-	bucketed = sum(groups[key] for key in ("tax_amount_free", "tax_amount_0", "tax_amount_5", "tax_amount_10"))
-
-	stored = (
-		flt(fei.tax_amount_free) + flt(fei.tax_amount_0) + flt(fei.tax_amount_5) + flt(fei.tax_amount_10)
+	bucketed = sum(
+		groups[key] for key in ("tax_amount_free", "tax_amount_0", "tax_amount_5", "tax_amount_10")
 	)
+
+	stored = flt(fei.tax_amount_free) + flt(fei.tax_amount_0) + flt(fei.tax_amount_5) + flt(fei.tax_amount_10)
 	if abs(stored - bucketed) > AMOUNT_TOLERANCE:
 		result.add(
 			16,
