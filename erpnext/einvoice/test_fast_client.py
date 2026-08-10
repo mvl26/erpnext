@@ -23,13 +23,34 @@ from erpnext.einvoice.fast_client import (
 SETTINGS = "Fast EInvoice Settings"
 
 
-def envelope(success, message):
-	"""Phản hồi SOAP giả theo hình dạng Success/Message của Fast."""
+def result_xml(text):
+	"""Phản hồi ``<…Result>`` với nội dung nguyên văn (không bị blank như envelope)."""
 	return (
 		'<?xml version="1.0" encoding="utf-8"?>'
 		'<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
 		'<soap:Body><ExcuteCommandResponse xmlns="http://tempuri.org/">'
-		f"<Success>{success}</Success><Message>{message}</Message>"
+		f"<ExcuteCommandResult>{text}</ExcuteCommandResult>"
+		"</ExcuteCommandResponse></soap:Body></soap:Envelope>"
+	)
+
+
+def envelope(success, message):
+	"""Phản hồi SOAP giả theo đúng hình dạng WSDL của Fast: ``<…Result>chuỗi</…>``.
+
+	Tham số ``success`` giữ lại cho các test đang có: khi ``success`` là 0 nhưng
+	``message`` không mở đầu bằng mã lỗi (ví dụ token bị từ chối), Fast trả kết
+	quả **rỗng**, nên helper cũng trả rỗng để phản ánh đúng thực tế.
+	"""
+	from erpnext.einvoice.errors import ERROR_CATALOGUE
+
+	looks_like_error = message and message.split("|", 1)[0].strip() in ERROR_CATALOGUE
+	if not success and not looks_like_error:
+		message = ""  # Fast từ chối = <…Result> rỗng
+	return (
+		'<?xml version="1.0" encoding="utf-8"?>'
+		'<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
+		'<soap:Body><ExcuteCommandResponse xmlns="http://tempuri.org/">'
+		f"<ExcuteCommandResult>{message}</ExcuteCommandResult>"
 		"</ExcuteCommandResponse></soap:Body></soap:Envelope>"
 	)
 
@@ -244,7 +265,7 @@ class TestExcuteCommand(FrappeTestCase):
 		"""Kịch bản 8 của Giai đoạn 6: người dùng không được thấy lỗi token."""
 		transport = FakeTransport(
 			envelope(1, "still valid"),  # CheckKey
-			envelope(0, "401|Token hết hiệu lực"),  # ExcuteCommand lần 1
+			result_xml("401|Token hết hiệu lực"),  # ExcuteCommand lần 1 — token chết
 			envelope(1, "TOKEN-NEW"),  # GetKey
 			envelope(1, "2|1C26TMY|KEY"),  # ExcuteCommand lần 2
 		)

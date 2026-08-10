@@ -92,3 +92,20 @@ class TestFastEInvoiceSettings(FrappeTestCase):
 		self.assertEqual(field.fieldtype, "Table MultiSelect")
 		child = frappe.get_meta(field.options)
 		self.assertEqual(child.get_field("user").options, "User")
+
+
+class TestUrlNormalisation(FrappeTestCase):
+	def setUp(self):
+		frappe.db.rollback()
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def test_stray_double_slash_in_the_path_is_collapsed(self):
+		"""URL gõ thừa dấu / (vn//AppService) không được làm hỏng lời gọi."""
+		_set(enabled=0, api_url="https://tportal.fast.com.vn//AppService/x.asmx")
+		self.assertEqual(get_settings().api_url, "https://tportal.fast.com.vn/AppService/x.asmx")
+
+	def test_the_scheme_slashes_are_preserved(self):
+		_set(enabled=0, api_url="https://tportal.fast.com.vn/AppService/x.asmx")
+		self.assertEqual(get_settings().api_url, "https://tportal.fast.com.vn/AppService/x.asmx")

@@ -7,6 +7,8 @@ Single DocType, vì hai lý do: mã doanh nghiệp và mã đơn vị **phải t
 trắng khi gửi** (C1), và mật khẩu phải lấy qua ``get_password()`` mới ra bản rõ.
 """
 
+import re
+
 import frappe
 from frappe import _
 
@@ -28,6 +30,7 @@ def get_settings():
 	"""Cấu hình đã chuẩn hóa, kèm mật khẩu bản rõ. Không gọi mạng."""
 	doc = frappe.get_cached_doc(SETTINGS_DOCTYPE)
 	settings = frappe._dict({fieldname: (doc.get(fieldname) or "").strip() for fieldname in _TRIMMED_FIELDS})
+	settings.api_url = _normalise_url(settings.api_url)
 	settings.update(
 		{
 			"enabled": bool(doc.enabled),
@@ -43,6 +46,15 @@ def get_settings():
 		}
 	)
 	return settings
+
+
+def _normalise_url(url):
+	"""Gộp dấu ``/`` thừa trong đường dẫn (giữ nguyên ``https://``).
+
+	URL gõ thừa một dấu (``…vn//AppService``) từng làm lời gọi khó chịu; chuẩn hóa
+	ở một chỗ để không nơi nào phải lo.
+	"""
+	return re.sub(r"(?<!:)//+", "/", url or "")
 
 
 def get_notify_recipients():
