@@ -115,10 +115,11 @@ def _parse_json(message):
 		raw = raw[0] if raw else {}
 	if not isinstance(raw, dict):
 		return None
+	# Fast đệm khoảng trắng vào một số trường (số hóa đơn "       2") — cắt sạch.
 	return {
-		_JSON_KEYS[key.lower()]: str(value)
+		_JSON_KEYS[key.lower()]: str(value).strip()
 		for key, value in raw.items()
-		if key.lower() in _JSON_KEYS and value not in (None, "")
+		if key.lower() in _JSON_KEYS and str(value).strip()
 	}
 
 
