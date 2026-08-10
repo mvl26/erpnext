@@ -230,13 +230,23 @@ def _billing_address(source, customer):
 	return _one_line(source.get("address_display"))
 
 
-def _render_address(name):
-	from frappe.contacts.doctype.address.address import get_address_display
+# Chỉ các phần thực sự là địa chỉ. `get_address_display` của Frappe nối thêm cả
+# "Phone:" và "Email:" — trên hóa đơn thì điện thoại và email có thẻ riêng
+# (PhoneNumber, EmailDeliver), nhét vào Address là ghi sai chứng từ.
+_ADDRESS_PARTS = ("address_line1", "address_line2", "city", "county", "state", "country")
 
-	try:
-		return get_address_display(frappe.get_doc("Address", name).as_dict())
-	except Exception:
+
+def _render_address(name):
+	address = frappe.db.get_value("Address", name, _ADDRESS_PARTS, as_dict=True)
+	if not address:
 		return ""
+	seen, parts = set(), []
+	for fieldname in _ADDRESS_PARTS:
+		value = (address.get(fieldname) or "").strip()
+		if value and value.lower() not in seen:
+			seen.add(value.lower())
+			parts.append(value)
+	return ", ".join(parts)
 
 
 def _one_line(value):

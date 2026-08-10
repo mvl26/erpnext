@@ -83,6 +83,13 @@ class TestCreateFromDeliveryNote(FrappeTestCase):
 		fei = self._create()
 		self.assertIn("Số 1 Phố Y", fei.address)
 
+	def test_address_is_only_the_address(self):
+		"""Fast có thẻ riêng cho điện thoại và email — nhét vào Address là sai chứng từ."""
+		address = self._create().address
+		self.assertNotIn("Phone:", address)
+		self.assertNotIn("Email:", address)
+		self.assertIn("Hà Nội", address)
+
 	def test_address_carries_no_html_or_newlines(self):
 		"""Địa chỉ dựng từ HTML của Frappe — thẻ sót lại là lỗi 63505/825."""
 		address = self._create().address
