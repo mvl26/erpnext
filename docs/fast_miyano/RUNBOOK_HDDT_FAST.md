@@ -1,7 +1,8 @@
 # Vận hành hóa đơn điện tử Fast — Miyano ERP
 
 Tài liệu thao tác hằng ngày và xử lý sự cố. Đặc tả gốc:
-`SPEC_FAST_EINVOICE_ERPNEXT_v2.md`. Kế hoạch thi công: `tasks/plan_fast_einvoice.md`.
+`SPEC_FAST_EINVOICE_ERPNEXT_v2.md`. Lịch sử thi công nằm trong `git log` của
+module `erpnext/einvoice/`.
 
 > **Trạng thái:** phần mềm đã dựng xong và test đầy đủ bằng transport giả.
 > **Chưa chạy thật lần nào** — xem mục "Việc phải làm trước khi go-live".
