@@ -53,7 +53,7 @@
   },
   {
    "default": "https://tportal.fast.com.vn:9000/AppService/FastEInvoice.PortalService.asmx",
-   "description": "Thật: https://tportal.fast.com.vn/AppService/FastEInvoice.PortalService.asmx · Test: thêm :9000",
+   "description": "Điền URL của API (chỉ áp dụng cho fast)",
    "fieldname": "api_url",
    "fieldtype": "Data",
    "label": "URL dịch vụ",
