@@ -118,6 +118,7 @@ class TestPayloadShape(FrappeTestCase):
 		)
 
 	def test_invoice_date_is_serialised_day_first(self):
+		self.fei.invoice_date = "2026-08-07"
 		payload = build_payload(self.fei)
 		structure = payload["data"]["structure"]
 		value = payload["data"]["invoices"][0]["master"][structure["master"].index("InvoiceDate")]

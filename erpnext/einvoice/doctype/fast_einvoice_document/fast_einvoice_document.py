@@ -78,15 +78,82 @@ PROTECTED_LINE_FIELDS = (
 )
 
 
+# Loại tiền lấy 0 chữ số thập phân (đồng nguyên) — VND/JPY; còn lại 2 chữ số.
+_ZERO_DECIMAL_CURRENCIES = frozenset({"VND", "JPY"})
+
+
+def _amount_precision(currency):
+	return 0 if (currency or "VND").upper() in _ZERO_DECIMAL_CURRENCIES else 2
+
+
+def _dominant_tax_rate(lines):
+	"""Thuế suất ghi ở master = thuế suất của phần lớn tiền hàng."""
+	from frappe.utils import flt
+
+	totals = {}
+	for line in lines or []:
+		totals[line.tax_rate] = totals.get(line.tax_rate, 0) + flt(line.amount)
+	return max(totals, key=totals.get) if totals else "0"
+
+
 class FastEInvoiceDocument(Document):
 	def validate(self):
 		if not self.status:
 			self.status = STATUS_DRAFT
 		self.is_edit_locked = 0 if self.status in EDITABLE_STATUSES else 1
 
+		# Chỉ tính lại khi còn sửa được. Hóa đơn đã phát hành là chứng từ pháp lý —
+		# số liệu đóng băng, tính lại là làm sai lệch bản đã lên Cơ quan Thuế.
+		if not self.is_edit_locked:
+			self._compute_totals()
+
 		self._validate_fast_key_is_immutable()
 		self._validate_lineage()
 		self._guard_locked_data()
+
+	def _compute_totals(self):
+		"""Tính lại dòng hàng và tổng hợp từ số lượng / đơn giá / thuế suất.
+
+		Chứng từ tự tính như hóa đơn thật, không chỉ giữ số copy: sửa một dòng thì
+		thành tiền, tiền thuế, các nhóm thuế, tổng thanh toán và số tiền bằng chữ
+		đều cập nhật theo, và luôn khớp nhau (không còn dựa vào việc nhập tay đúng).
+		"""
+		from frappe.utils import flt
+
+		from erpnext.einvoice.constants import NUMERIC_TAX_RATES
+		from erpnext.einvoice.payload import amount_in_words_for, compute_tax_groups
+
+		precision = _amount_precision(self.currency)
+
+		amount = 0.0
+		tax = 0.0
+		for line in self.lines or []:
+			gross = flt(line.qty) * flt(line.price)
+			if flt(line.discount_rate):
+				line.discount_amount = flt(gross * flt(line.discount_rate) / 100.0, precision)
+			line.amount = flt(gross - flt(line.discount_amount), precision)
+
+			rate = NUMERIC_TAX_RATES.get((line.tax_rate or "").strip())
+			line.tax_amount = flt(line.amount * rate / 100.0, precision) if rate else 0.0
+
+			amount += line.amount
+			tax += line.tax_amount
+
+		self.amount = flt(amount, precision)
+		self.tax_amount = flt(tax, precision)
+
+		groups = compute_tax_groups(self.lines or [])
+		self.tax_amount_free = flt(groups["tax_amount_free"], precision)
+		self.tax_amount_0 = flt(groups["tax_amount_0"], precision)
+		self.tax_amount_5 = flt(groups["tax_amount_5"], precision)
+		self.tax_amount_10 = flt(groups["tax_amount_10"], precision)
+
+		deductions = flt(self.deduction_amount) + flt(self.deduction_amount_other)
+		self.total_amount = flt(self.amount + self.tax_amount - deductions, precision)
+
+		self.tax_rate = _dominant_tax_rate(self.lines)
+		if self.total_amount and self.currency:
+			self.amount_in_words = amount_in_words_for(self.total_amount, self.currency)
 
 	def _validate_fast_key_is_immutable(self):
 		"""Đặc tả A4: Key sinh một lần và không đổi.
