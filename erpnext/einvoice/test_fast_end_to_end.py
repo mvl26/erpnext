@@ -7,6 +7,7 @@ sandbox) cần tài khoản Fast thật — xem `docs/fast_miyano/RUNBOOK_HDDT_F
 """
 
 import base64
+import json
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
@@ -38,7 +39,7 @@ from erpnext.einvoice.lineage import create_adjustment
 from erpnext.einvoice.reconcile import reconcile_invoice
 from erpnext.einvoice.tax_status import check_tax_status
 from erpnext.einvoice.test_fast_approval import Mailbox
-from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
+from erpnext.einvoice.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
 from erpnext.einvoice.test_fixtures import make_delivery_note, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
@@ -47,7 +48,6 @@ NOT_FOUND = envelope(0, "888|Khong tim thay")
 ISSUE_OK = envelope(
 	1, '{"invoiceNo":"2","pattern":"1/001","serial":"1C26TMY","signedDate":"20260807","keySearch":"KS-1"}'
 )
-TAX_OK = envelope(1, '[{"keySearch":"KS-1","taxStatus":"3","taxCode":"M1-0099"}]')
 
 
 def pdf():
@@ -71,6 +71,16 @@ class EndToEndBase(FrappeTestCase):
 
 	def status(self):
 		return frappe.db.get_value(FEI, self.fei, "status")
+
+	def tax_ok(self):
+		"""Kết quả 8200 của Fast — khớp hóa đơn theo ``key`` client đã gửi lúc phát hành."""
+		row = {
+			"key": frappe.db.get_value(FEI, self.fei, "fast_key"),
+			"taxStatus": "3",
+			"verificationCode": "M1-0099",
+			"feedbackContent": "",
+		}
+		return envelope(1, json.dumps({"data": [row]}))
 
 	def draft_round(self):
 		preview_draft(self.fei, client=self.client(pdf()))
@@ -138,7 +148,7 @@ class TestScenario1HappyPath(EndToEndBase):
 		send_invoice_to_customer(self.fei, mailer=self.mailbox)
 		self.assertEqual(self.status(), STATUS_SENT)
 
-		check_tax_status(self.fei, client=self.client(TAX_OK))
+		check_tax_status(self.fei, client=self.client(self.tax_ok()))
 		self.assertEqual(self.status(), STATUS_TAX_ACCEPTED)
 
 	def test_the_delivery_note_mirrors_the_final_state(self):
@@ -202,7 +212,7 @@ class TestScenario10AdjustmentAfterAcceptance(EndToEndBase):
 		self.draft_round()
 		mark_customer_approved(self.fei, approved_by="Chị Lan", channel="Email")
 		issue_invoice(self.fei, client=self.client(NOT_FOUND, ISSUE_OK))
-		check_tax_status(self.fei, client=self.client(TAX_OK))
+		check_tax_status(self.fei, client=self.client(self.tax_ok()))
 
 		child = create_adjustment(
 			self.fei, adjustment_type="1 - Điều chỉnh giảm", reason="Khách trả lại 10 hộp"

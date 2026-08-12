@@ -23,7 +23,7 @@ from erpnext.einvoice.constants import (
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.reconcile import reconcile_invoice
 from erpnext.einvoice.tax_status import check_tax_status, poll_pending_tax_status
-from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
+from erpnext.einvoice.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
 from erpnext.einvoice.test_fixtures import make_delivery_note
 
 FEI = "Fast EInvoice Document"
@@ -130,7 +130,7 @@ class TestCheckTaxStatus(TaxStatusBase):
 		check_tax_status(self.fei.name, client=self._client(self.accepted()))
 
 		log = frappe.get_doc(LOG, {"fei_document": self.fei.name, "method": 8200})
-		payload = json.loads(log.request_json)
+		payload = json.loads(log.request_json)["payload"]
 		self.assertEqual(set(payload), TAX_QUERY_FIELDS)
 		today = getdate(nowdate()).strftime("%Y%m%d")
 		self.assertEqual(payload["invoiceDateFrom"], today)
@@ -162,9 +162,7 @@ class TestPollJob(TaxStatusBase):
 
 	def test_invoices_older_than_the_window_are_left_alone(self):
 		"""Quét 7 ngày gần nhất — hóa đơn cũ hơn thì đối soát tay, không quét mãi."""
-		frappe.db.set_value(
-			FEI, self.fei.name, "fast_signed_date", add_to_date(nowdate(), days=-30)
-		)
+		frappe.db.set_value(FEI, self.fei.name, "fast_signed_date", add_to_date(nowdate(), days=-30))
 		checked = poll_pending_tax_status(client=self._client(self.accepted()))
 		self.assertNotIn(self.fei.name, checked)
 
@@ -208,9 +206,7 @@ class TestReconcile(TaxStatusBase):
 		self.assertEqual(self.fei.fast_invoice_no, "77")
 
 	def test_not_found_on_fast_is_reported_as_never_issued(self):
-		result = reconcile_invoice(
-			self.fei.name, client=self._client(envelope(0, "888|Khong tim thay"))
-		)
+		result = reconcile_invoice(self.fei.name, client=self._client(envelope(0, "888|Khong tim thay")))
 		self.assertFalse(result["found"])
 
 	def test_a_timed_out_invoice_recovers_its_number(self):
@@ -236,9 +232,7 @@ class TestReconcile(TaxStatusBase):
 	def test_a_timed_out_invoice_confirmed_unissued_returns_to_draft(self):
 		"""Không có trên Fast nghĩa là chưa tiêu số nào — cho phát hành lại."""
 		frappe.db.set_value(FEI, self.fei.name, {"status": STATUS_NEEDS_RECONCILE, "fast_invoice_no": ""})
-		reconcile_invoice(
-			self.fei.name, apply=True, client=self._client(envelope(0, "888|Khong tim thay"))
-		)
+		reconcile_invoice(self.fei.name, apply=True, client=self._client(envelope(0, "888|Khong tim thay")))
 
 		self.fei.reload()
 		self.assertEqual(self.fei.status, STATUS_DRAFT)

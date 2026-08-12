@@ -36,38 +36,52 @@ TAX_CHECK_STATUSES = frozenset({STATUS_ISSUED, STATUS_SENT})
 # soát tay — quét mãi chỉ tốn lời gọi mà CQT cũng không đổi ý nữa.
 POLL_WINDOW_DAYS = 7
 
-# ⚠️ SUY RA, CHƯA XÁC NHẬN VỚI FAST ⚠️
-# Đặc tả nói method 8200 trả `taxStatus` 3/4 nhưng không cho ví dụ chuỗi. Bộ đọc
-# dưới đây chấp nhận cả danh sách lẫn một đối tượng JSON, khớp theo keySearch
-# hoặc số hóa đơn. Response thô luôn nằm trong nhật ký để đối chiếu.
+# Loại chứng từ truy vấn (tài liệu Fast mục 17): 1 - Hóa đơn, 2 - Phiếu xuất kho.
+# Module này chỉ phát hành hóa đơn (310/320/350) nên luôn hỏi loại 1.
+INVOICE_TYPE_INVOICE = "1"
+
+# Kết quả 8200 (tài liệu Fast mục 17, tr. 38-39):
+#   {"data":[{"key":…,"invoiceDate":…,"taxStatus":"3","verificationCode":…,
+#             "feedbackContent":…}]}
+# `key` là Key client gửi lên lúc phát hành (`fast_key`) — KHÔNG phải keySearch.
 _STATUS_MAP = {"3": TAX_STATUS_ACCEPTED, "4": TAX_STATUS_REJECTED}
 
 
-def parse_tax_status(message, key_search=None, invoice_no=None):
+def parse_tax_status(message, key=None, invoice_no=None):
 	"""Tìm bản ghi của hóa đơn này trong kết quả 8200. ``None`` = CQT chưa xử lý."""
 	try:
 		payload = json.loads(message or "")
 	except ValueError:
 		return None
 
-	rows = payload if isinstance(payload, list) else [payload]
+	rows = _rows(payload)
 	for row in rows:
 		if not isinstance(row, dict):
 			continue
-		lowered = {key.lower(): value for key, value in row.items()}
-		if key_search and str(lowered.get("keysearch") or "") == str(key_search):
+		lowered = {name.lower(): value for name, value in row.items()}
+		if key and str(lowered.get("key") or "") == str(key):
 			return _normalise(lowered)
 		if invoice_no and str(lowered.get("invoiceno") or "") == str(invoice_no):
 			return _normalise(lowered)
 	return None
 
 
+def _rows(payload):
+	"""Danh sách hóa đơn trong Message — bọc trong thẻ ``data`` theo tài liệu."""
+	if isinstance(payload, dict):
+		inner = payload.get("data")
+		if isinstance(inner, list):
+			return inner
+		return [payload]
+	return payload if isinstance(payload, list) else []
+
+
 def _normalise(row):
 	code = str(row.get("taxstatus") or "").strip()
 	return {
 		"tax_status": _STATUS_MAP.get(code, TAX_STATUS_PENDING),
-		"tax_verification_code": str(row.get("taxcode") or row.get("verificationcode") or ""),
-		"tax_feedback": str(row.get("feedback") or row.get("message") or ""),
+		"tax_verification_code": str(row.get("verificationcode") or ""),
+		"tax_feedback": str(row.get("feedbackcontent") or ""),
 	}
 
 
@@ -88,11 +102,7 @@ def _apply_tax_status(doc, client=None):
 		doc,
 		action=ACTION_EXECUTE,
 		method=METHOD_TAX_STATUS,
-		data={
-			"key": doc.fast_key_search,
-			"fromDate": _yyyymmdd(doc.fast_signed_date or doc.invoice_date),
-			"toDate": _yyyymmdd(doc.fast_signed_date or doc.invoice_date),
-		},
+		data=_query_payload(doc),
 		purpose=_("Kiểm tra trạng thái Cơ quan Thuế"),
 		client=client,
 	)
@@ -102,7 +112,7 @@ def _apply_tax_status(doc, client=None):
 		frappe.db.set_value(FEI, doc.name, values, update_modified=False)
 		return {"ok": False, "message": _explain(response)}
 
-	found = parse_tax_status(response.message, doc.fast_key_search, doc.fast_invoice_no)
+	found = parse_tax_status(response.message, doc.fast_key, doc.fast_invoice_no)
 	if not found:
 		# Không có trong kết quả = CQT chưa xử lý xong. Đây KHÔNG phải từ chối.
 		frappe.db.set_value(FEI, doc.name, values, update_modified=False)
@@ -121,6 +131,25 @@ def _apply_tax_status(doc, client=None):
 		_notify_rejection(doc, found["tax_feedback"])
 
 	return {"ok": True, "tax_status": found["tax_status"]}
+
+
+def _query_payload(doc):
+	"""Chuỗi data của 8200 — **phải đủ cả 6 thẻ**, thẻ không bắt buộc để rỗng.
+
+	Thiếu một thẻ thì Fast ném ``810 - The given key was not present in the
+	dictionary`` (nó đọc thẳng khóa trong dictionary chứ không kiểm tra trước).
+	Khoảng số hóa đơn thu hẹp kết quả về đúng hóa đơn này thay vì cả ngày.
+	"""
+	signed = _yyyymmdd(doc.fast_signed_date or doc.invoice_date)
+	number = str(doc.fast_invoice_no or "")
+	return {
+		"invoiceDateFrom": signed,
+		"invoiceDateTo": signed,
+		"invoiceNumberFrom": number,
+		"invoiceNumberTo": number,
+		"voucherBook": "",
+		"invoiceType": INVOICE_TYPE_INVOICE,
+	}
 
 
 def _yyyymmdd(value):
