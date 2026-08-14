@@ -33,10 +33,19 @@ class TestFastEInvoiceSettings(FrappeTestCase):
 		self.assertEqual(frappe.get_meta(SETTINGS).get_field("api_password").fieldtype, "Password")
 
 	def test_defaults_are_safe_for_a_fresh_site(self):
-		"""Site mới phải tắt tích hợp và trỏ vào môi trường TEST."""
+		"""Site mới phải tắt tích hợp và trỏ vào cổng TEST của Fast."""
 		meta = frappe.get_meta(SETTINGS)
 		self.assertEqual(meta.get_field("enabled").default, "0")
-		self.assertEqual(meta.get_field("is_test_mode").default, "1")
+		self.assertIn(":9000", meta.get_field("api_url").default)
+
+	def test_there_is_no_self_declared_environment_flag(self):
+		"""Môi trường suy từ `api_url`, không có ô nào để tick sai.
+
+		Ô "Chế độ TEST" cũ không định tuyến gì — nó chỉ đổi màu banner, nên hai
+		nguồn sự thật cho cùng một câu hỏi sớm muộn cũng lệch: banner báo TEST
+		trong khi lời gọi đang bắn vào cổng thật.
+		"""
+		self.assertIsNone(frappe.get_meta(SETTINGS).get_field("is_test_mode"))
 
 	def test_spec_defaults_for_the_operational_checkboxes(self):
 		meta = frappe.get_meta(SETTINGS)
@@ -76,13 +85,13 @@ class TestFastEInvoiceSettings(FrappeTestCase):
 
 	def test_banner_warns_loudly_when_pointing_at_the_real_system(self):
 		"""Nguyên tắc A4: phải biết ngay mình đang bắn vào hệ thống thật."""
-		_set(enabled=0, is_test_mode=0)
+		_set(enabled=0, api_url="https://tportal.fast.com.vn/x.asmx")
 		banner = get_environment_banner()
 		self.assertEqual(banner["indicator"], "red")
 		self.assertIn("THẬT", banner["message"])
 
 	def test_banner_is_calm_in_test_mode(self):
-		_set(enabled=0, is_test_mode=1)
+		_set(enabled=0, api_url="https://tportal.fast.com.vn:9000/x.asmx")
 		banner = get_environment_banner()
 		self.assertEqual(banner["indicator"], "yellow")
 		self.assertIn("TEST", banner["message"])

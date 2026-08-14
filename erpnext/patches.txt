@@ -425,3 +425,4 @@ erpnext.patches.v15_0.update_fieldname_in_accounting_dimension_filter
 erpnext.patches.v15_0.rebrand_app_name_to_miyano
 erpnext.patches.v15_0.remove_vn_einvoice_si_flow
 erpnext.patches.v15_0.setup_fast_einvoice
+erpnext.patches.v15_0.drop_fast_einvoice_test_mode_flag

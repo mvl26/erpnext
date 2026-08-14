@@ -4,6 +4,8 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from erpnext.einvoice.fast_settings import is_test_endpoint
+
 # Thiếu bất kỳ trường nào trong đây thì không thể gọi Fast, nên không cho bật tích hợp.
 REQUIRED_TO_ENABLE = {
 	"api_url": "URL dịch vụ",
@@ -24,7 +26,7 @@ class FastEInvoiceSettings(Document):
 
 		self._validate_credentials_before_enabling()
 
-		if self.enabled and not self.is_test_mode and not frappe.flags.in_test:
+		if self.enabled and not is_test_endpoint(self.api_url) and not frappe.flags.in_test:
 			frappe.msgprint(
 				_(
 					"Tích hợp đang trỏ vào <b>HỆ THỐNG THẬT</b> của Fast. "

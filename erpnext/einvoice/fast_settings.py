@@ -25,6 +25,21 @@ _TRIMMED_FIELDS = (
 	"default_human_name",
 )
 
+# Cổng TEST của Fast là cùng domain nhưng thêm ``:9000`` (tài liệu API mục 1);
+# không có cổng này là đang trỏ vào hệ thống thật.
+_TEST_PORT = ":9000"
+
+
+def is_test_endpoint(api_url):
+	"""URL đang trỏ vào cổng TEST của Fast hay cổng thật.
+
+	Suy từ chính URL thay vì từ một ô tự khai: một cái tick không đổi được đích
+	đến của lời gọi, nên ô tự khai chỉ tạo thêm khả năng nhãn nói một đằng hệ
+	thống làm một nẻo — mà nói sai theo đúng hướng nguy hiểm nhất là báo "TEST"
+	trong khi đang bắn vào cổng thật.
+	"""
+	return _TEST_PORT in (api_url or "")
+
 
 def get_settings():
 	"""Cấu hình đã chuẩn hóa, kèm mật khẩu bản rõ. Không gọi mạng."""
@@ -34,7 +49,7 @@ def get_settings():
 	settings.update(
 		{
 			"enabled": bool(doc.enabled),
-			"is_test_mode": bool(doc.is_test_mode),
+			"is_test_endpoint": is_test_endpoint(settings.api_url),
 			"require_customer_approval": bool(doc.require_customer_approval),
 			"auto_download_pdf": bool(doc.auto_download_pdf),
 			"auto_poll_tax_status": bool(doc.auto_poll_tax_status),
@@ -74,8 +89,12 @@ def get_notify_recipients():
 
 @frappe.whitelist()
 def get_environment_banner():
-	"""Nhắc người dùng đang bắn vào đâu — nguyên tắc A4 của đặc tả."""
-	if get_settings().is_test_mode:
+	"""Nhắc người dùng đang bắn vào đâu — nguyên tắc A4 của đặc tả.
+
+	Đọc thẳng ``api_url``, không đọc ô cấu hình nào: đổi URL là đổi banner ngay,
+	không ai quên tick lại được.
+	"""
+	if get_settings().is_test_endpoint:
 		return {
 			"indicator": "yellow",
 			"message": _("MÔI TRƯỜNG TEST — hóa đơn phát hành ở đây không có giá trị pháp lý."),

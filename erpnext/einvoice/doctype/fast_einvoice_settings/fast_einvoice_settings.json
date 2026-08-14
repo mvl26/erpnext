@@ -6,7 +6,6 @@
  "engine": "InnoDB",
  "field_order": [
   "enabled",
-  "is_test_mode",
   "connection_section",
   "api_url",
   "client_code",
@@ -38,13 +37,6 @@
    "fieldname": "enabled",
    "fieldtype": "Check",
    "label": "Kích hoạt tích hợp"
-  },
-  {
-   "default": "1",
-   "description": "Bật = bắn vào hệ thống TEST của Fast. Tắt = HỆ THỐNG THẬT, hóa đơn phát hành là chứng từ pháp lý.",
-   "fieldname": "is_test_mode",
-   "fieldtype": "Check",
-   "label": "Chế độ TEST"
   },
   {
    "fieldname": "connection_section",

@@ -112,7 +112,6 @@ def configure(**values):
 	doc.update(
 		{
 			"enabled": 1,
-			"is_test_mode": 1,
 			"require_customer_approval": 1,
 			"auto_download_pdf": 1,
 			"auto_poll_tax_status": 1,
