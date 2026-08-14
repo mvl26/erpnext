@@ -77,23 +77,25 @@ PROTECTED_LINE_FIELDS = (
 	"note",
 )
 
-
-# Loại tiền lấy 0 chữ số thập phân (đồng nguyên) — VND/JPY; còn lại 2 chữ số.
-_ZERO_DECIMAL_CURRENCIES = frozenset({"VND", "JPY"})
-
-
-def _amount_precision(currency):
-	return 0 if (currency or "VND").upper() in _ZERO_DECIMAL_CURRENCIES else 2
+# Không gửi lên Fast, nhưng đổi hai trường này là đổi cách số tiền hình thành —
+# nên chứng từ đã khóa cũng phải chặn y như chặn số tiền.
+PROTECTED_CONTROL_FIELDS = ("totals_manual_override", "override_reason")
 
 
-def _dominant_tax_rate(lines):
-	"""Thuế suất ghi ở master = thuế suất của phần lớn tiền hàng."""
-	from frappe.utils import flt
+def _frozen_values(doc):
+	"""Giá trị các trường đóng băng, quy về cùng một dạng để so sánh được.
 
-	totals = {}
-	for line in lines or []:
-		totals[line.tax_rate] = totals.get(line.tax_rate, 0) + flt(line.amount)
-	return max(totals, key=totals.get) if totals else "0"
+	Chứng từ do giao diện gửi lên đi qua JSON nên Date là chuỗi ``"2026-08-12"``,
+	còn bản nạp từ cơ sở dữ liệu là ``datetime.date``. So thẳng thì trường ngày
+	luôn "khác" kể cả khi không ai đụng tới — chứng từ đã khóa sẽ không lưu nổi
+	dù chỉ ghi thêm số biên bản, và thông báo lỗi đổ oan cho ``invoice_date``.
+	"""
+	master = doc.get_valid_dict(convert_dates_to_str=True)
+	lines = [row.get_valid_dict(convert_dates_to_str=True) for row in (doc.lines or [])]
+	return (
+		{field: master.get(field) for field in (*PROTECTED_MASTER_FIELDS, *PROTECTED_CONTROL_FIELDS)},
+		[tuple(row.get(field) for field in PROTECTED_LINE_FIELDS) for row in lines],
+	)
 
 
 class FastEInvoiceDocument(Document):
@@ -102,58 +104,50 @@ class FastEInvoiceDocument(Document):
 			self.status = STATUS_DRAFT
 		self.is_edit_locked = 0 if self.status in EDITABLE_STATUSES else 1
 
-		# Chỉ tính lại khi còn sửa được. Hóa đơn đã phát hành là chứng từ pháp lý —
-		# số liệu đóng băng, tính lại là làm sai lệch bản đã lên Cơ quan Thuế.
-		if not self.is_edit_locked:
-			self._compute_totals()
-
+		self._validate_manual_override()
+		self._compute_totals()
 		self._validate_fast_key_is_immutable()
 		self._validate_lineage()
 		self._guard_locked_data()
 
 	def _compute_totals(self):
-		"""Tính lại dòng hàng và tổng hợp từ số lượng / đơn giá / thuế suất.
+		"""Tính lại dòng hàng và tổng hợp — công thức nằm ở `einvoice.totals`.
 
-		Chứng từ tự tính như hóa đơn thật, không chỉ giữ số copy: sửa một dòng thì
-		thành tiền, tiền thuế, các nhóm thuế, tổng thanh toán và số tiền bằng chữ
-		đều cập nhật theo, và luôn khớp nhau (không còn dựa vào việc nhập tay đúng).
+		Chứng từ tự tính như hóa đơn thật, không chỉ giữ số copy của phiếu giao:
+		sửa hay thêm một dòng thì thành tiền, tiền thuế, các ô nhóm thuế, chiết
+		khấu, khuyến mại, tổng thanh toán và số tiền bằng chữ đều đổi theo và luôn
+		khớp nhau. Phiếu giao đã submit không sửa được, nên đây là chỗ duy nhất
+		sửa được nội dung hóa đơn trước lúc phát hành.
+
+		Hai trường hợp **không** tính:
+
+		- hóa đơn đã rời vùng còn sửa được: số liệu là chứng từ pháp lý đã lên Cơ
+		  quan Thuế, tính lại là làm nó lệch với bản Thuế đang giữ;
+		- kế toán đang ghi đè số tổng hợp bằng tay.
 		"""
-		from frappe.utils import flt
+		if self.is_edit_locked or self.totals_manual_override:
+			return
 
-		from erpnext.einvoice.constants import NUMERIC_TAX_RATES
-		from erpnext.einvoice.payload import amount_in_words_for, compute_tax_groups
+		from erpnext.einvoice.totals import compute_document_totals
 
-		precision = _amount_precision(self.currency)
+		compute_document_totals(self)
 
-		amount = 0.0
-		tax = 0.0
-		for line in self.lines or []:
-			gross = flt(line.qty) * flt(line.price)
-			if flt(line.discount_rate):
-				line.discount_amount = flt(gross * flt(line.discount_rate) / 100.0, precision)
-			line.amount = flt(gross - flt(line.discount_amount), precision)
+	def _validate_manual_override(self):
+		"""Ghi đè số tổng hợp phải nói rõ vì sao.
 
-			rate = NUMERIC_TAX_RATES.get((line.tax_rate or "").strip())
-			line.tax_amount = flt(line.amount * rate / 100.0, precision) if rate else 0.0
+		Đây là con đường duy nhất để số trên chứng từ khác số công thức tính ra.
+		Không có lý do ghi lại thì ba tháng sau không ai giải thích được với cơ
+		quan thuế vì sao hóa đơn này không khớp dòng hàng của chính nó.
+		"""
+		if not self.totals_manual_override:
+			self.override_reason = None
+			return
 
-			amount += line.amount
-			tax += line.tax_amount
-
-		self.amount = flt(amount, precision)
-		self.tax_amount = flt(tax, precision)
-
-		groups = compute_tax_groups(self.lines or [])
-		self.tax_amount_free = flt(groups["tax_amount_free"], precision)
-		self.tax_amount_0 = flt(groups["tax_amount_0"], precision)
-		self.tax_amount_5 = flt(groups["tax_amount_5"], precision)
-		self.tax_amount_10 = flt(groups["tax_amount_10"], precision)
-
-		deductions = flt(self.deduction_amount) + flt(self.deduction_amount_other)
-		self.total_amount = flt(self.amount + self.tax_amount - deductions, precision)
-
-		self.tax_rate = _dominant_tax_rate(self.lines)
-		if self.total_amount and self.currency:
-			self.amount_in_words = amount_in_words_for(self.total_amount, self.currency)
+		if not (self.override_reason or "").strip():
+			frappe.throw(
+				_("Ghi đè số tổng hợp bằng tay thì phải ghi lý do."),
+				frappe.MandatoryError,
+			)
 
 	def _validate_fast_key_is_immutable(self):
 		"""Đặc tả A4: Key sinh một lần và không đổi.
@@ -205,8 +199,11 @@ class FastEInvoiceDocument(Document):
 		if not before or before.status in EDITABLE_STATUSES:
 			return
 
-		changed = [f for f in PROTECTED_MASTER_FIELDS if self.get(f) != before.get(f)]
-		if self._lines_changed(before):
+		mine_master, mine_lines = _frozen_values(self)
+		their_master, their_lines = _frozen_values(before)
+
+		changed = [f for f in PROTECTED_MASTER_FIELDS if mine_master.get(f) != their_master.get(f)]
+		if mine_lines != their_lines:
 			changed.append(_("dòng hàng"))
 		if changed:
 			frappe.throw(
@@ -215,14 +212,6 @@ class FastEInvoiceDocument(Document):
 					"Muốn thay đổi phải lập hóa đơn điều chỉnh hoặc thay thế."
 				).format(before.status, ", ".join(changed))
 			)
-
-	def _lines_changed(self, before):
-		def snapshot(doc):
-			return [
-				tuple(row.get(fieldname) for fieldname in PROTECTED_LINE_FIELDS) for row in (doc.lines or [])
-			]
-
-		return snapshot(self) != snapshot(before)
 
 	@property
 	def is_replacement(self):

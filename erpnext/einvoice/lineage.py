@@ -17,16 +17,31 @@ import frappe
 from frappe import _
 
 from erpnext.einvoice.constants import (
+	ADJUSTABLE_STATUSES,
 	INVOICE_TYPE_ADJUSTMENT,
 	INVOICE_TYPE_REPLACEMENT,
 	LIVE_STATUSES,
 	MAX_LEN,
 	STATUS_DRAFT,
-	STATUS_TAX_ACCEPTED,
+	TAX_STATUS_ACCEPTED,
 )
 from erpnext.einvoice.fast_settings import check_enabled
 
 FEI = "Fast EInvoice Document"
+
+
+def can_amend(doc):
+	"""Hóa đơn này có lập được điều chỉnh / thay thế không.
+
+	Gác theo **phán quyết của Cơ quan Thuế**, không theo ô ``status``. ``status``
+	là một ô tuyến tính đang gánh hai sự thật độc lập — CQT xử lý tới đâu, và đã
+	giao khách chưa — nên gửi hóa đơn cho khách đẩy 08 xuống 07. Mà hóa đơn đã
+	giao cho người mua mới đúng là loại pháp luật bắt buộc phải điều chỉnh hoặc
+	thay thế khi phát hiện sai sót: gác theo ``status`` là khóa mất chính biện
+	pháp khắc phục bắt buộc đó.
+	"""
+	return doc.status in ADJUSTABLE_STATUSES and doc.tax_status == TAX_STATUS_ACCEPTED
+
 
 # Các trường kết quả của hóa đơn gốc tuyệt đối không được sao sang bản mới:
 # bản mới phải tự xin số của nó.
@@ -98,10 +113,14 @@ _COPIED_FIELDS = (
 
 
 @frappe.whitelist()
-def create_adjustment(original, adjustment_type, reason, minute_no=None, minute_date=None):
-	"""Nút 13a — lập hóa đơn điều chỉnh cho một hóa đơn đã được CQT chấp nhận."""
+def create_adjustment(fei, adjustment_type, reason, minute_no=None, minute_date=None):
+	"""Nút 13a — lập hóa đơn điều chỉnh cho một hóa đơn đã được CQT chấp nhận.
+
+	``fei`` là hóa đơn **gốc** cần điều chỉnh. Tên tham số phải là ``fei`` như mọi
+	nút khác của bảng B2: giao diện gọi chung một kiểu ``args: {fei: …}``.
+	"""
 	return _create_child(
-		original,
+		fei,
 		INVOICE_TYPE_ADJUSTMENT,
 		reason,
 		adjustment_type=adjustment_type,
@@ -112,10 +131,10 @@ def create_adjustment(original, adjustment_type, reason, minute_no=None, minute_
 
 
 @frappe.whitelist()
-def create_replacement(original, reason, minute_no=None, minute_date=None):
-	"""Nút 13b — lập hóa đơn thay thế; loại điều chỉnh hệ thống tự gán 4."""
+def create_replacement(fei, reason, minute_no=None, minute_date=None):
+	"""Nút 13b — lập hóa đơn thay thế cho ``fei``; loại điều chỉnh hệ thống tự gán 4."""
 	return _create_child(
-		original,
+		fei,
 		INVOICE_TYPE_REPLACEMENT,
 		reason,
 		minute_no=minute_no,
@@ -130,12 +149,12 @@ def _create_child(
 	check_enabled()
 	parent = frappe.get_doc(FEI, original)
 
-	if parent.status != STATUS_TAX_ACCEPTED:
+	if not can_amend(parent):
 		frappe.throw(
 			_(
 				"Chỉ điều chỉnh hoặc thay thế được hóa đơn đã được Cơ quan Thuế chấp nhận. "
-				"Hóa đơn {0} đang ở trạng thái {1}."
-			).format(parent.name, parent.status)
+				"Hóa đơn {0} đang ở trạng thái {1}, trạng thái CQT: {2}."
+			).format(parent.name, parent.status, parent.tax_status or _("chưa kiểm tra"))
 		)
 
 	if not (reason or "").strip():

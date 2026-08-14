@@ -10,10 +10,16 @@ from frappe.utils import now_datetime
 
 from erpnext.einvoice.actions import download_official_pdf, send_invoice_to_customer
 from erpnext.einvoice.builder import create_from_delivery_note
-from erpnext.einvoice.constants import STATUS_DRAFT, STATUS_ISSUED, STATUS_SENT
+from erpnext.einvoice.constants import (
+	STATUS_DRAFT,
+	STATUS_ISSUED,
+	STATUS_SENT,
+	STATUS_TAX_ACCEPTED,
+	TAX_STATUS_ACCEPTED,
+)
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.tests.test_fast_approval import Mailbox
-from erpnext.einvoice.tests.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
+from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
 from erpnext.einvoice.tests.test_fast_pdf import pdf_envelope, sent_payload
 from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
@@ -66,6 +72,25 @@ class TestSendViaErp(SendInvoiceBase):
 
 		self.fei.reload()
 		self.assertEqual(self.fei.status, STATUS_SENT)
+		self.assertEqual(self.fei.invoice_send_count, 1)
+		self.assertIsNotNone(self.fei.invoice_sent_time)
+
+	def test_sending_does_not_overwrite_the_tax_office_verdict(self):
+		"""Trạng thái 07 không được đè lên 08.
+
+		"Đã gửi khách" và "CQT đã chấp nhận" là hai sự thật độc lập; ghi đè làm
+		hóa đơn mất quyền điều chỉnh/thay thế. Việc đã gửi vẫn ghi đủ ở
+		``invoice_sent_time`` / ``invoice_send_count``.
+		"""
+		frappe.db.set_value(
+			FEI, self.fei.name, {"status": STATUS_TAX_ACCEPTED, "tax_status": TAX_STATUS_ACCEPTED}
+		)
+		self.fei.reload()
+
+		send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
+
+		self.fei.reload()
+		self.assertEqual(self.fei.status, STATUS_TAX_ACCEPTED)
 		self.assertEqual(self.fei.invoice_send_count, 1)
 		self.assertIsNotNone(self.fei.invoice_sent_time)
 

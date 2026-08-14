@@ -32,6 +32,7 @@ from erpnext.einvoice.payload import (
 	mst_check_digit_ok,
 	normalize_tax_code,
 )
+from erpnext.einvoice.totals import amount_precision, is_billable, summarise
 
 BLOCK = "block"
 WARN = "warn"
@@ -323,37 +324,85 @@ def _rule_12_tax_rates(fei, result):
 # --- 9, 10. Số liệu ----------------------------------------------------------
 
 
+# Số master phải khớp dòng hàng. Bốn ô nhóm thuế thuộc quy tắc 16, không kiểm ở đây.
+_TOTAL_LABELS = {
+	"amount": "Tiền hàng (chưa thuế)",
+	"tax_amount": "Tiền thuế GTGT",
+	"discount_amount": "Tiền chiết khấu",
+	"promotion_amount": "Tiền khuyến mại",
+	"total_amount": "Tổng thanh toán",
+}
+
+_TAX_GROUP_LABELS = {
+	"tax_amount_free": "không chịu thuế",
+	"tax_amount_0": "0%",
+	"tax_amount_5": "5%",
+	"tax_amount_10": "10%",
+}
+
+
 def _rule_9_totals(fei, result):
-	lines = fei.lines or []
-	line_amount = sum(flt(line.amount) for line in lines)
-	line_tax = sum(flt(line.tax_amount) for line in lines)
+	"""Số tổng hợp phải đúng bằng cái công thức tính ra từ dòng hàng.
 
-	if abs(line_amount - flt(fei.amount)) > AMOUNT_TOLERANCE:
-		result.add(
-			9,
-			BLOCK,
-			"amount",
-			_("Tiền hàng {0} không khớp tổng các dòng {1}.").format(flt(fei.amount), line_amount),
-		)
-	if abs(line_tax - flt(fei.tax_amount)) > AMOUNT_TOLERANCE:
-		result.add(
-			9,
-			BLOCK,
-			"tax_amount",
-			_("Tiền thuế {0} không khớp tổng thuế các dòng {1}.").format(flt(fei.tax_amount), line_tax),
-		)
+	Đối chiếu bằng **chính** hàm mà chứng từ dùng để tính (`einvoice.totals`), nên
+	"số đúng" và "số được kiểm" không thể là hai định nghĩa khác nhau — trước đây
+	quy tắc này có công thức riêng và không biết Tính chất dòng, nên hóa đơn có
+	dòng khuyến mại luôn bị báo lệch.
 
-	deductions = flt(fei.deduction_amount) + flt(fei.deduction_amount_other)
-	expected = flt(fei.amount) + flt(fei.tax_amount) - deductions
-	if abs(expected - flt(fei.total_amount)) > AMOUNT_TOLERANCE:
+	Đang ghi đè số bằng tay thì hạ xuống **cảnh báo**: chặn ở đây thì ghi đè trở
+	nên vô nghĩa (không phát hành được), nhưng vẫn phải nói ra là số đã lệch.
+	"""
+	level = WARN if fei.get("totals_manual_override") else BLOCK
+
+	if level == WARN:
 		result.add(
 			9,
-			BLOCK,
-			"total_amount",
-			_("Tổng thanh toán {0} phải bằng tiền hàng + thuế − giảm trừ = {1}.").format(
-				flt(fei.total_amount), expected
+			WARN,
+			"totals_manual_override",
+			_("Số tổng hợp đang do người dùng ghi đè bằng tay, không do công thức tính: {0}").format(
+				fei.get("override_reason") or _("(chưa ghi lý do)")
 			),
 		)
+
+	expected = summarise(
+		fei.lines,
+		amount_precision(fei.currency),
+		fei.deduction_amount,
+		fei.deduction_amount_other,
+	)
+	for fieldname, label in _TOTAL_LABELS.items():
+		if abs(flt(expected[fieldname]) - flt(fei.get(fieldname))) > AMOUNT_TOLERANCE:
+			result.add(
+				9,
+				level,
+				fieldname,
+				_("{0} đang là {1}, nhưng dòng hàng cho ra {2}.").format(
+					label, flt(fei.get(fieldname)), flt(expected[fieldname])
+				),
+			)
+
+	_warn_about_lines_left_out_of_the_totals(fei, result)
+
+
+def _warn_about_lines_left_out_of_the_totals(fei, result):
+	"""Nói rõ khi hóa đơn có dòng không cộng vào Tiền hàng.
+
+	Khuyến mại và ghi chú **cố ý** đứng ngoài Tiền hàng và Tiền thuế. Nhưng nếu
+	Fast đối chiếu tổng của phần chi tiết với phần master ở đầu họ, chênh lệch này
+	là thứ đầu tiên cần nhìn — nên ghi ra trước, đừng để đi tìm lúc bị từ chối.
+	"""
+	excluded = [line for line in (fei.lines or []) if not is_billable(line)]
+	if not excluded:
+		return
+	result.add(
+		9,
+		WARN,
+		"lines",
+		_(
+			"{0} dòng (khuyến mại / ghi chú) không cộng vào Tiền hàng và Tiền thuế: dòng {1}. "
+			"Tổng phần chi tiết vì thế lớn hơn số ở phần tổng hợp."
+		).format(len(excluded), ", ".join(str(line.idx) for line in excluded)),
+	)
 
 
 def _rule_10_line_count(fei, result):
@@ -478,19 +527,26 @@ def _rule_15_source_delivery_note(fei, result):
 
 
 def _rule_16_tax_groups(fei, result):
-	groups = compute_tax_groups(fei.lines or [])
-	bucketed = sum(
-		groups[key] for key in ("tax_amount_free", "tax_amount_0", "tax_amount_5", "tax_amount_10")
-	)
+	"""Bốn ô nhóm thuế của Phần I phải khớp dòng hàng — **từng ô một**.
 
-	stored = flt(fei.tax_amount_free) + flt(fei.tax_amount_0) + flt(fei.tax_amount_5) + flt(fei.tax_amount_10)
-	if abs(stored - bucketed) > AMOUNT_TOLERANCE:
-		result.add(
-			16,
-			BLOCK,
-			"tax_amount_10",
-			_("Tiền thuế theo nhóm ({0}) chưa khớp tổng thuế của các dòng ({1}).").format(stored, bucketed),
-		)
+	Kiểm riêng từng ô chứ không chỉ kiểm tổng: hai ô 5% và 10% đổi chỗ nhau thì
+	tổng vẫn đúng, mà tờ khai thì sai.
+	"""
+	level = WARN if fei.get("totals_manual_override") else BLOCK
+	groups = compute_tax_groups(fei.lines or [])
+	precision = amount_precision(fei.currency)
+
+	for fieldname, label in _TAX_GROUP_LABELS.items():
+		expected = flt(groups[fieldname], precision)
+		if abs(expected - flt(fei.get(fieldname))) > AMOUNT_TOLERANCE:
+			result.add(
+				16,
+				level,
+				fieldname,
+				_("Ô tiền thuế {0} đang là {1}, nhưng dòng hàng cho ra {2}.").format(
+					label, flt(fei.get(fieldname)), expected
+				),
+			)
 
 	if flt(groups["unbucketed"]) > AMOUNT_TOLERANCE:
 		result.add(

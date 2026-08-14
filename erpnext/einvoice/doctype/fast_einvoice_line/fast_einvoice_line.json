@@ -25,7 +25,7 @@
   {
    "columns": 1,
    "default": "1",
-   "description": "1 Hàng hóa/DV · 2 Khuyến mại · 3 Chiết khấu · 4 Ghi chú · 5 Hàng đặc trưng",
+   "description": "Tính chất dòng hàng — 1 = Hàng hóa / dịch vụ · 2 = Khuyến mại · 3 = Chiết khấu · 4 = Ghi chú · 5 = Hàng đặc trưng.",
    "fieldname": "process_type",
    "fieldtype": "Select",
    "in_list_view": 1,
@@ -90,7 +90,8 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Thành tiền",
-   "options": "currency"
+   "options": "currency",
+   "read_only": 1
   },
   {
    "fieldname": "discount_rate",
@@ -98,6 +99,7 @@
    "label": "Tỷ lệ chiết khấu (%)"
   },
   {
+   "description": "Nhập Tỷ lệ chiết khấu thì ô này do hệ thống tính.",
    "fieldname": "discount_amount",
    "fieldtype": "Currency",
    "label": "Tiền chiết khấu",
@@ -117,7 +119,8 @@
    "fieldname": "tax_amount",
    "fieldtype": "Currency",
    "label": "Tiền thuế GTGT",
-   "options": "currency"
+   "options": "currency",
+   "read_only": 1
   },
   {
    "fieldname": "note",

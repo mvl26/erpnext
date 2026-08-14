@@ -15,12 +15,15 @@ from erpnext.einvoice.constants import (
 	STATUS_DRAFT,
 	STATUS_ISSUED,
 	STATUS_REPLACED,
+	STATUS_SENT,
 	STATUS_TAX_ACCEPTED,
+	TAX_STATUS_ACCEPTED,
+	TAX_STATUS_PENDING,
 )
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.issue import issue_invoice
 from erpnext.einvoice.lineage import create_adjustment, create_replacement
-from erpnext.einvoice.tests.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
+from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
 from erpnext.einvoice.tests.test_fast_pdf import sent_payload
 from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
@@ -44,6 +47,7 @@ class LineageBase(FrappeTestCase):
 			self.original.name,
 			{
 				"status": STATUS_TAX_ACCEPTED,
+				"tax_status": TAX_STATUS_ACCEPTED,
 				"fast_key_search": "KS-GOC",
 				"fast_invoice_no": "2",
 				"fast_serial": "1C26TMY",
@@ -63,6 +67,30 @@ class LineageBase(FrappeTestCase):
 		kwargs.setdefault("adjustment_type", "1 - Điều chỉnh giảm")
 		kwargs.setdefault("reason", "Khách trả lại 10 hộp do sai quy cách")
 		return frappe.get_doc(FEI, create_adjustment(self.original.name, **kwargs))
+
+
+class TestAmendableDependsOnTheTaxVerdict(LineageBase):
+	"""Điều kiện gác đọc phán quyết CQT, không đọc ô ``status``."""
+
+	def test_an_invoice_already_sent_to_the_customer_can_still_be_adjusted(self):
+		"""Gửi hóa đơn cho khách đẩy 08 → 07 — không được mất quyền điều chỉnh."""
+		frappe.db.set_value(FEI, self.original.name, "status", STATUS_SENT)
+		self.original.reload()
+
+		child = self._make_adjustment()
+		self.assertEqual(child.original_document, self.original.name)
+
+	def test_an_invoice_whose_status_lags_the_tax_verdict_can_be_adjusted(self):
+		"""CQT cấp mã trong vài giây, còn ô ``status`` chỉ đổi khi có ai đó hỏi 8200.
+
+		Chứng từ đứng ở 06 mà ``tax_status`` đã là chấp nhận là chuyện thường —
+		phán quyết mới là sự thật, không phải cái nhãn trạng thái.
+		"""
+		frappe.db.set_value(FEI, self.original.name, "status", STATUS_ISSUED)
+		self.original.reload()
+
+		child = self._make_adjustment()
+		self.assertEqual(child.original_document, self.original.name)
 
 
 class TestCreateAdjustment(LineageBase):
@@ -102,7 +130,9 @@ class TestCreateAdjustment(LineageBase):
 			create_adjustment(self.original.name, adjustment_type="1 - Điều chỉnh giảm", reason="")
 
 	def test_only_a_tax_accepted_invoice_may_be_adjusted(self):
-		frappe.db.set_value(FEI, self.original.name, "status", STATUS_ISSUED)
+		frappe.db.set_value(
+			FEI, self.original.name, {"status": STATUS_ISSUED, "tax_status": TAX_STATUS_PENDING}
+		)
 		with self.assertRaises(frappe.ValidationError):
 			self._make_adjustment()
 

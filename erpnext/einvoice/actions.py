@@ -13,10 +13,12 @@ from frappe import _
 from frappe.utils import get_datetime, now_datetime, time_diff_in_seconds
 
 from erpnext.einvoice.constants import (
+	EDITABLE_STATUSES,
 	STATUS_AWAITING_CUSTOMER,
 	STATUS_CUSTOMER_APPROVED,
 	STATUS_DRAFT,
 	STATUS_DRAFT_VIEWED,
+	STATUS_ISSUED,
 	STATUS_SENT,
 )
 from erpnext.einvoice.errors import describe_error
@@ -233,6 +235,55 @@ def record_customer_feedback(fei, feedback):
 	_mirror_status(doc.name, STATUS_DRAFT)
 	doc.add_comment("Comment", _("Khách yêu cầu sửa: {0}").format(feedback))
 	return {"ok": True}
+
+
+MIN_OVERRIDE_REASON_LENGTH = 10
+
+
+@frappe.whitelist()
+def enable_manual_override(fei, reason):
+	"""Ngừng tự tính, mở các ô tổng hợp cho gõ tay.
+
+	Cửa thoát cho tình huống số công thức tính ra không dùng được — ví dụ chốt số
+	theo biên bản với Fast khi hai bên làm tròn khác nhau. Bắt buộc ghi lý do: đây
+	là con đường duy nhất để chứng từ có số khác dòng hàng của chính nó, nên phải
+	để lại dấu vết giải thích được.
+	"""
+	doc = frappe.get_doc(FEI, fei)
+	_assert_status(doc, EDITABLE_STATUSES, _("ghi đè số tổng hợp"))
+
+	reason = (reason or "").strip()
+	if len(reason) < MIN_OVERRIDE_REASON_LENGTH:
+		frappe.throw(
+			_("Ghi rõ vì sao phải ghi đè số tổng hợp (tối thiểu {0} ký tự).").format(
+				MIN_OVERRIDE_REASON_LENGTH
+			)
+		)
+
+	doc.totals_manual_override = 1
+	doc.override_reason = reason
+	doc.save()
+	doc.add_comment("Comment", _("Bật ghi đè số tổng hợp: {0}").format(reason))
+	return {
+		"ok": True,
+		"message": _(
+			"Chứng từ đã NGỪNG tự tính. Các ô tổng hợp giờ nhập tay và không đổi khi sửa dòng hàng. "
+			"Phần kiểm tra dữ liệu sẽ báo cảnh báo cho tới khi bỏ ghi đè."
+		),
+	}
+
+
+@frappe.whitelist()
+def disable_manual_override(fei):
+	"""Bỏ ghi đè và tính lại toàn bộ số tổng hợp từ dòng hàng."""
+	doc = frappe.get_doc(FEI, fei)
+	_assert_status(doc, EDITABLE_STATUSES, _("bỏ ghi đè số tổng hợp"))
+
+	doc.totals_manual_override = 0
+	doc.override_reason = None
+	doc.save()
+	doc.add_comment("Comment", _("Bỏ ghi đè số tổng hợp — đã tính lại từ dòng hàng."))
+	return {"ok": True, "message": _("Đã tính lại số tổng hợp từ dòng hàng.")}
 
 
 @frappe.whitelist()
@@ -555,16 +606,19 @@ def _send_invoice_via_fast(doc, to, client):
 
 
 def _mark_invoice_sent(doc, to):
-	frappe.db.set_value(
-		FEI,
-		doc.name,
-		{
-			"invoice_sent_to": ", ".join(to),
-			"invoice_sent_time": now_datetime(),
-			"invoice_send_count": (doc.invoice_send_count or 0) + 1,
-			"status": STATUS_SENT,
-		},
-		update_modified=False,
-	)
-	_mirror_status(doc.name, STATUS_SENT)
+	values = {
+		"invoice_sent_to": ", ".join(to),
+		"invoice_sent_time": now_datetime(),
+		"invoice_send_count": (doc.invoice_send_count or 0) + 1,
+	}
+	# Chỉ 06 mới lên 07. Hóa đơn đã có phán quyết của Cơ quan Thuế (08/09) giữ
+	# nguyên trạng thái đó: "đã gửi khách" và "CQT đã chấp nhận" là hai sự thật
+	# độc lập, đè cái sau bằng cái trước là khóa mất quyền điều chỉnh/thay thế.
+	# Việc đã gửi vẫn ghi đủ ở `invoice_sent_to` / `invoice_sent_time`.
+	if doc.status == STATUS_ISSUED:
+		values["status"] = STATUS_SENT
+
+	frappe.db.set_value(FEI, doc.name, values, update_modified=False)
+	if values.get("status"):
+		_mirror_status(doc.name, STATUS_SENT)
 	doc.add_comment("Comment", _("Đã gửi hóa đơn chính thức tới {0}.").format(", ".join(to)))

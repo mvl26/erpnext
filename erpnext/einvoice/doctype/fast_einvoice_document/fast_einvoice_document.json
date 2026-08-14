@@ -49,6 +49,8 @@
   "lines_section",
   "lines",
   "totals_section",
+  "totals_manual_override",
+  "override_reason",
   "amount",
   "total_amount",
   "column_break_totals",
@@ -401,6 +403,7 @@
    "label": "Hàng hóa, dịch vụ"
   },
   {
+   "description": "Tính chất: 1 = Hàng hóa / dịch vụ · 2 = Khuyến mại · 3 = Chiết khấu · 4 = Ghi chú · 5 = Hàng đặc trưng. Dòng 1, 3, 5 cộng vào Tiền hàng và Tiền thuế; dòng 2 chỉ vào ô Tiền khuyến mại; dòng 4 không cộng gì. Dòng chiết khấu nhập số âm. Thành tiền và Tiền thuế do hệ thống tự tính từ Số lượng, Đơn giá, Chiết khấu, Thuế suất.",
    "fieldname": "lines",
    "fieldtype": "Table",
    "label": "Dòng hàng",
@@ -413,18 +416,35 @@
    "label": "Tổng hợp"
   },
   {
+   "default": "0",
+   "description": "Chỉ dùng khi số công thức tính ra không dùng được (ví dụ chốt số theo biên bản với Fast). Bật lên là chứng từ NGỪNG tự tính và các ô tổng hợp mở ra cho gõ tay.",
+   "fieldname": "totals_manual_override",
+   "fieldtype": "Check",
+   "label": "Ghi đè số tổng hợp bằng tay",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
+   "depends_on": "eval:doc.totals_manual_override",
+   "description": "Bắt buộc — vì sao số trên chứng từ khác số công thức tính ra.",
+   "fieldname": "override_reason",
+   "fieldtype": "Small Text",
+   "label": "Lý do ghi đè",
+   "mandatory_depends_on": "eval:doc.totals_manual_override",
+   "read_only_depends_on": "eval:doc.is_edit_locked"
+  },
+  {
    "fieldname": "amount",
    "fieldtype": "Currency",
    "label": "Tiền hàng (chưa thuế)",
    "options": "currency",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
    "fieldname": "total_amount",
    "fieldtype": "Currency",
    "label": "Tổng thanh toán",
    "options": "currency",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
    "fieldname": "column_break_totals",
@@ -436,7 +456,7 @@
    "fieldtype": "Select",
    "label": "Thuế suất",
    "options": "0\n5\n8\n10\n-1\n-2\n-8\n-9",
-   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override",
    "reqd": 1
   },
   {
@@ -444,7 +464,7 @@
    "fieldtype": "Currency",
    "label": "Tiền thuế GTGT",
    "options": "currency",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
    "fieldname": "column_break_tax_groups",
@@ -455,28 +475,28 @@
    "fieldtype": "Currency",
    "label": "Tiền thuế: không chịu thuế",
    "options": "currency",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
    "fieldname": "tax_amount_0",
    "fieldtype": "Currency",
    "label": "Tiền thuế: 0%",
    "options": "currency",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
    "fieldname": "tax_amount_5",
    "fieldtype": "Currency",
    "label": "Tiền thuế: 5%",
    "options": "currency",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
    "fieldname": "tax_amount_10",
    "fieldtype": "Currency",
    "label": "Tiền thuế: 10%",
    "options": "currency",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
    "collapsible": 1,
@@ -489,14 +509,14 @@
    "fieldtype": "Currency",
    "label": "Tiền chiết khấu",
    "options": "currency",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
    "fieldname": "promotion_amount",
    "fieldtype": "Currency",
    "label": "Tiền khuyến mại",
    "options": "currency",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
    "fieldname": "column_break_deduction",
@@ -525,7 +545,7 @@
    "fieldname": "amount_in_words",
    "fieldtype": "Data",
    "label": "Số tiền bằng chữ",
-   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override",
    "reqd": 1
   },
   {

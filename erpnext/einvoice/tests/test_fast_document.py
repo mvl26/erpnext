@@ -2,6 +2,8 @@
 
 """DocType `Fast EInvoice Document` — mục C2 và bảng trạng thái B2."""
 
+import json
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
@@ -52,6 +54,11 @@ MASTER_FIELDS = (
 	"amount_in_words",
 	"human_name",
 )
+
+
+def _as_browser_sends(doc):
+	"""Chứng từ đúng như giao diện gửi lên: đi qua JSON nên Date thành chuỗi."""
+	return json.loads(frappe.as_json(doc.as_dict()))
 
 
 def make_fei(**values):
@@ -205,6 +212,49 @@ class TestFastEInvoiceDocument(FrappeTestCase):
 		reloaded.flags.ignore_links = True
 		with self.assertRaises(frappe.ValidationError):
 			reloaded.save()
+
+	def _locked_document(self):
+		doc = make_fei()
+		doc.insert()
+		doc.status = STATUS_TAX_ACCEPTED
+		doc.flags.ignore_status_lock = True
+		doc.save()
+		return frappe.get_doc(FEI, doc.name)
+
+	def test_resaving_a_locked_record_untouched_is_allowed(self):
+		"""Form đi qua JSON nên Date về dạng chuỗi — không được coi là đã sửa.
+
+		So thẳng ``"2026-08-12"`` với ``datetime.date(2026, 8, 12)`` luôn ra
+		"khác", nên mọi lần lưu chứng từ đã khóa từ giao diện đều bị chặn và
+		thông báo đổ oan cho ``invoice_date``. Các test khác không bắt được vì
+		chúng nạp bằng ``get_doc`` nên nhận thẳng kiểu ngày của CSDL.
+		"""
+		resent = frappe.get_doc(_as_browser_sends(self._locked_document()))
+		resent.flags.ignore_links = True
+		resent.save()
+
+	def test_a_locked_record_still_accepts_fields_outside_the_frozen_set(self):
+		"""Số biên bản ghi bổ sung sau khi hóa đơn đã khóa — không phải dữ liệu Fast."""
+		payload = _as_browser_sends(self._locked_document())
+		payload["minute_no"] = "BB-2026-001"
+
+		resent = frappe.get_doc(payload)
+		resent.flags.ignore_links = True
+		resent.save()
+		self.assertEqual(frappe.db.get_value(FEI, resent.name, "minute_no"), "BB-2026-001")
+
+	def test_editing_master_data_from_the_form_is_still_refused(self):
+		payload = _as_browser_sends(self._locked_document())
+		payload["customer_name"] = "Tên khác"
+
+		resent = frappe.get_doc(payload)
+		resent.flags.ignore_links = True
+		with self.assertRaises(frappe.ValidationError) as caught:
+			resent.save()
+
+		message = str(caught.exception)
+		self.assertIn("customer_name", message)
+		self.assertNotIn("invoice_date", message)
 
 	def test_error_state_stays_editable_so_it_can_be_fixed(self):
 		doc = make_fei()
@@ -368,3 +418,196 @@ class TestComputeTotals(FrappeTestCase):
 		doc.save()
 		doc.reload()
 		self.assertEqual(doc.amount, 999)
+
+	# --- Chứng từ tự tính, không phụ thuộc phiếu giao --------------------
+
+	def test_adding_a_line_moves_every_total(self):
+		"""Yêu cầu gốc: thêm một dòng thì mọi số liệu khác đổi theo."""
+		doc = self._doc([{"qty": 100, "price": 100000, "tax_rate": "10"}])
+		before = (doc.amount, doc.tax_amount, doc.tax_amount_10, doc.total_amount, doc.amount_in_words)
+
+		doc.append(
+			"lines",
+			{
+				"process_type": "1",
+				"item_code": "VT002",
+				"item_name": "Găng tay",
+				"uom": "Đôi",
+				"qty": 10,
+				"price": 50000,
+				"tax_rate": "5",
+			},
+		)
+		doc.flags.ignore_links = True
+		doc.save()
+		doc.reload()
+
+		self.assertEqual(doc.lines[1].amount, 500_000)
+		self.assertEqual(doc.lines[1].tax_amount, 25_000)
+		self.assertEqual(doc.amount, 10_500_000)
+		self.assertEqual(doc.tax_amount, 1_025_000)
+		self.assertEqual(doc.tax_amount_5, 25_000)
+		self.assertEqual(doc.total_amount, 11_525_000)
+		after = (doc.amount, doc.tax_amount, doc.tax_amount_10, doc.total_amount, doc.amount_in_words)
+		self.assertNotEqual(before, after)
+
+	def test_promotion_line_does_not_inflate_the_amount_due(self):
+		doc = self._doc(
+			[
+				{"qty": 1, "price": 1_000_000, "tax_rate": "10"},
+				{"process_type": "2", "qty": 2, "price": 100_000, "tax_rate": "10"},
+			]
+		)
+		self.assertEqual(doc.amount, 1_000_000)
+		self.assertEqual(doc.promotion_amount, 200_000)
+		self.assertEqual(doc.total_amount, 1_100_000)
+
+	def test_discount_line_fills_the_master_discount_box(self):
+		doc = self._doc(
+			[
+				{"qty": 1, "price": 1_000_000, "tax_rate": "10"},
+				{"process_type": "3", "qty": 1, "price": -100_000, "tax_rate": "10"},
+			]
+		)
+		self.assertEqual(doc.amount, 900_000)
+		self.assertEqual(doc.discount_amount, 100_000)
+		self.assertEqual(doc.total_amount, 990_000)
+
+	def test_the_form_preview_agrees_with_what_saving_computes(self):
+		"""Số form hiện ra khi chưa lưu phải trùng số server ghi lúc Lưu.
+
+		Nếu hai bên lệch thì kế toán thấy một con số rồi chứng từ lưu một con số
+		khác — đúng cái làm mất niềm tin vào toàn bộ phần tính toán.
+		"""
+		from erpnext.einvoice.totals import preview_totals
+
+		doc = self._doc(
+			[
+				{"qty": 7, "price": 142_857, "tax_rate": "10"},
+				{"process_type": "2", "qty": 3, "price": 33_333, "tax_rate": "10"},
+				{"process_type": "3", "qty": 1, "price": -77_777, "tax_rate": "10"},
+				{"qty": 13, "price": 76_923, "discount_rate": 3.33, "tax_rate": "5"},
+			],
+			deduction_amount=1000,
+		)
+		preview = preview_totals(_as_browser_sends(doc))
+
+		for fieldname, value in preview["master"].items():
+			self.assertEqual(value, doc.get(fieldname), fieldname)
+		for values in preview["lines"]:
+			row = doc.lines[values["idx"] - 1]
+			for fieldname, value in values.items():
+				if fieldname != "idx":
+					self.assertEqual(value, row.get(fieldname), f"dòng {values['idx']} · {fieldname}")
+
+	def test_the_form_preview_works_before_the_first_save(self):
+		"""Chứng từ chưa lưu lần nào cũng phải hiện số — đó chính là lúc đang nhập."""
+		from erpnext.einvoice.totals import preview_totals
+
+		doc = make_fei()
+		doc.lines[0].qty = 20
+		doc.lines[0].price = 50_000
+		payload = _as_browser_sends(doc)
+		payload["__islocal"] = 1
+		payload["__unsaved"] = 1
+
+		preview = preview_totals(payload)
+
+		self.assertEqual(preview["lines"][0]["amount"], 1_000_000)
+		self.assertEqual(preview["lines"][0]["tax_amount"], 100_000)
+		self.assertEqual(preview["master"]["amount"], 1_000_000)
+		self.assertEqual(preview["master"]["total_amount"], 1_100_000)
+		self.assertIn("Một triệu một trăm nghìn", preview["master"]["amount_in_words"])
+
+	def test_the_form_preview_never_writes_to_the_database(self):
+		"""Chỉ là số để xem: lúc Lưu server vẫn tính lại, nên đây không được ghi gì."""
+		from erpnext.einvoice.totals import preview_totals
+
+		doc = self._doc([{"qty": 100, "price": 100000, "tax_rate": "10"}])
+		payload = _as_browser_sends(doc)
+		payload["amount"] = 1
+		payload["lines"][0]["qty"] = 1
+
+		preview_totals(payload)
+
+		self.assertEqual(frappe.db.get_value(FEI, doc.name, "amount"), 10_000_000)
+
+
+class TestManualOverride(FrappeTestCase):
+	"""Ghi đè số tổng hợp — cửa thoát có kiểm soát khi số máy tính không dùng được."""
+
+	def setUp(self):
+		frappe.db.rollback()
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def _overridden(self, **values):
+		doc = make_fei(totals_manual_override=1, override_reason="Chốt số theo biên bản với Fast", **values)
+		doc.insert()
+		return doc
+
+	def test_override_keeps_hand_entered_numbers(self):
+		doc = self._overridden(amount=12_345, tax_amount=678, total_amount=13_023)
+		doc.reload()
+		self.assertEqual(doc.amount, 12_345)
+		self.assertEqual(doc.tax_amount, 678)
+		self.assertEqual(doc.total_amount, 13_023)
+
+	def test_override_needs_a_reason(self):
+		doc = make_fei(totals_manual_override=1)
+		self.assertRaises(frappe.ValidationError, doc.insert)
+
+	def test_clearing_the_override_recomputes_from_the_lines(self):
+		doc = self._overridden(amount=12_345, tax_amount=678, total_amount=13_023)
+		doc.totals_manual_override = 0
+		doc.override_reason = None
+		doc.flags.ignore_links = True
+		doc.save()
+		doc.reload()
+		self.assertEqual(doc.amount, 10_000_000)
+		self.assertEqual(doc.total_amount, 11_000_000)
+
+	def test_computed_fields_open_up_only_while_overriding(self):
+		meta = frappe.get_meta(FEI)
+		for fieldname in (
+			"amount",
+			"total_amount",
+			"tax_amount",
+			"tax_rate",
+			"tax_amount_free",
+			"tax_amount_0",
+			"tax_amount_5",
+			"tax_amount_10",
+			"discount_amount",
+			"promotion_amount",
+			"amount_in_words",
+		):
+			self.assertEqual(
+				meta.get_field(fieldname).read_only_depends_on,
+				"eval:doc.is_edit_locked || !doc.totals_manual_override",
+				fieldname,
+			)
+
+	def test_reason_is_mandatory_in_the_form_too(self):
+		field = frappe.get_meta(FEI).get_field("override_reason")
+		self.assertEqual(field.mandatory_depends_on, "eval:doc.totals_manual_override")
+
+
+class TestProcessTypeLegend(FrappeTestCase):
+	"""Mã Tính chất 1..5 phải đọc được ngay trên form, không phải tra tài liệu."""
+
+	def test_the_lines_table_spells_out_every_process_type(self):
+		from erpnext.einvoice.constants import PROCESS_TYPE_CODES, PROCESS_TYPE_LABELS
+
+		description = frappe.get_meta(FEI).get_field("lines").description or ""
+		for code in PROCESS_TYPE_CODES:
+			self.assertIn(code, description, code)
+			self.assertIn(PROCESS_TYPE_LABELS[code], description, code)
+
+	def test_the_line_field_carries_the_same_legend(self):
+		from erpnext.einvoice.constants import PROCESS_TYPE_LABELS
+
+		description = frappe.get_meta("Fast EInvoice Line").get_field("process_type").description or ""
+		for code, label in PROCESS_TYPE_LABELS.items():
+			self.assertIn(f"{code} = {label}", description, code)

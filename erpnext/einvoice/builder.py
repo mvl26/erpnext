@@ -18,10 +18,11 @@ from erpnext.einvoice.constants import (
 	INVOICE_TYPE_ORIGINAL,
 	LIVE_STATUSES,
 	MAX_LEN,
+	PROCESS_TYPE_GOODS,
 	STATUS_DRAFT,
 )
 from erpnext.einvoice.fast_settings import check_enabled, get_settings
-from erpnext.einvoice.payload import amount_in_words_for, compute_tax_groups
+from erpnext.einvoice.totals import amount_precision, compute_document_totals
 
 FEI = "Fast EInvoice Document"
 
@@ -140,47 +141,61 @@ def _copy_from_delivery_note(fei, source, settings):
 	fei.exchange_rate = flt(source.conversion_rate) or 1.0
 	fei.human_name = fei.human_name or _issuer_name(settings)
 
-	fei.amount = flt(source.net_total)
-	fei.total_amount = flt(source.grand_total)
-	fei.tax_amount = flt(source.get("total_taxes_and_charges"))
-	fei.discount_amount = flt(source.get("discount_amount"))
-
+	# Phiếu giao chỉ còn là **nguồn dòng hàng**. Số tổng hợp do chứng từ tự tính
+	# từ chính các dòng đó, không bê `net_total`/`grand_total` sang nữa: bê sang
+	# thì sửa một dòng ở đây là chứng từ sai mà không chỗ nào phát hiện, và hóa
+	# đơn không bao giờ độc lập được khỏi phiếu giao đã submit.
+	fei.totals_manual_override = 0
+	fei.override_reason = None
 	_copy_lines(fei, source)
-
-	groups = compute_tax_groups(fei.lines)
-	fei.tax_amount_free = groups["tax_amount_free"]
-	fei.tax_amount_0 = groups["tax_amount_0"]
-	fei.tax_amount_5 = groups["tax_amount_5"]
-	fei.tax_amount_10 = groups["tax_amount_10"]
-
-	fei.tax_rate = _dominant_tax_rate(fei.lines)
-	fei.amount_in_words = amount_in_words_for(fei.total_amount, fei.currency)
+	compute_document_totals(fei)
 
 
 def _copy_lines(fei, source):
+	"""Sao dòng hàng sang, đặt sao cho `SL * Đơn giá - Chiết khấu` **đúng bằng** tiền của phiếu giao.
+
+	Đơn giá lấy giá gốc (`price_list_rate`) và toàn bộ phần giảm dồn vào Tiền chiết
+	khấu, nên hóa đơn vẫn nói rõ đã giảm bao nhiêu mà công thức tính lại vẫn ra
+	đúng `net_amount` của phiếu giao. Cố ý **không** sao `discount_percentage`: tỷ
+	lệ thắng số tiền khi tính lại, mà tỷ lệ dòng không chứa phần chiết khấu toàn
+	phiếu đã phân bổ — dùng nó là mất tiền giảm đó khỏi hóa đơn.
+	"""
 	default_rate = _delivery_note_tax_rate(source)
+	precision = amount_precision(fei.currency)
 	fei.set("lines", [])
 	for item in source.items:
-		rate = _line_tax_rate(item, default_rate)
-		net_amount = flt(item.net_amount)
+		price, discount = _price_and_discount(item, precision)
 		fei.append(
 			"lines",
 			{
-				"process_type": "1",
+				"process_type": PROCESS_TYPE_GOODS,
 				"item_code": item.item_code,
 				"item_name": item.item_name,
 				"uom": item.uom or item.get("stock_uom") or "",
 				"is_promotion": 0,
 				"qty": flt(item.qty),
-				"price": flt(item.rate),
-				"amount": net_amount,
-				"discount_rate": flt(item.get("discount_percentage")),
-				"discount_amount": flt(item.get("discount_amount")) * flt(item.qty),
-				"tax_rate": rate,
-				"tax_amount": net_amount * (flt(rate) / 100.0) if flt(rate) > 0 else 0.0,
+				"price": price,
+				"discount_rate": 0,
+				"discount_amount": discount,
+				"tax_rate": _line_tax_rate(item, default_rate),
 				"line_number": item.idx,
 			},
 		)
+
+
+def _price_and_discount(item, precision):
+	"""Đơn giá và tiền chiết khấu của một dòng, sao cho thành tiền khớp `net_amount`."""
+	qty = flt(item.qty)
+	net_amount = flt(item.net_amount, precision)
+	list_rate = flt(item.get("price_list_rate")) or flt(item.rate)
+
+	discount = flt(flt(qty * list_rate, precision) - net_amount, precision)
+	if discount >= 0:
+		return list_rate, discount
+
+	# Giá gốc thấp hơn tiền thực thu (phiếu có phụ phí trên dòng, hoặc giá nhập
+	# tay cao hơn bảng giá): quay về đơn giá thực để thành tiền vẫn đúng.
+	return (flt(net_amount / qty) if qty else 0.0), 0.0
 
 
 def _delivery_note_tax_rate(source):
@@ -210,14 +225,6 @@ def _closest_tax_code(rate):
 		if abs(value - rate) < 0.01:
 			return code
 	return str(int(rate)) if rate == int(rate) else str(rate)
-
-
-def _dominant_tax_rate(lines):
-	"""Thuế suất ghi ở master: thuế suất của phần lớn tiền hàng."""
-	totals = {}
-	for line in lines or []:
-		totals[line.tax_rate] = totals.get(line.tax_rate, 0) + flt(line.amount)
-	return max(totals, key=totals.get) if totals else "0"
 
 
 def _billing_address(source, customer):

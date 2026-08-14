@@ -18,8 +18,10 @@ from frappe.utils import flt, getdate
 
 from erpnext.einvoice.constants import (
 	ADJUSTMENT_TYPE_REPLACEMENT,
+	BILLABLE_PROCESS_TYPES,
 	INVOICE_TYPE_ORIGINAL,
 	INVOICE_TYPE_REPLACEMENT,
+	PROCESS_TYPE_GOODS,
 )
 from erpnext.einvoice.fast_settings import get_settings
 from erpnext.regional.vietnam.utils import so_thanh_chu
@@ -167,6 +169,11 @@ def amount_in_words_for(amount, currency):
 def compute_tax_groups(lines):
 	"""Cộng tiền thuế theo bốn ô nhóm của Phần I.
 
+	Chỉ cộng những dòng có chảy vào Tiền thuế của hóa đơn (xem
+	``BILLABLE_PROCESS_TYPES``). Dòng khuyến mại và dòng ghi chú bị loại, đúng như
+	ở ô Tiền thuế — nếu chỗ này cộng mà chỗ kia không thì bốn ô nhóm sẽ không bao
+	giờ cộng đủ Tiền thuế, và hóa đơn tự mâu thuẫn.
+
 	Trả thêm ``unbucketed``: tiền thuế của những thuế suất không có ô nào nhận —
 	trong thực tế là **thuế suất 8%** (giảm thuế theo nghị quyết). Bảng thẻ của
 	đặc tả chỉ có Free/0/5/10, chưa có TaxAmount8. Không tự nhét 8% vào ô 10%:
@@ -176,6 +183,9 @@ def compute_tax_groups(lines):
 	groups = {"tax_amount_free": 0.0, "tax_amount_0": 0.0, "tax_amount_5": 0.0, "tax_amount_10": 0.0}
 	unbucketed = 0.0
 	for line in lines or []:
+		process_type = (line.get("process_type") or PROCESS_TYPE_GOODS).strip() or PROCESS_TYPE_GOODS
+		if process_type not in BILLABLE_PROCESS_TYPES:
+			continue
 		amount = flt(line.get("tax_amount"))
 		bucket = _TAX_BUCKETS.get((line.get("tax_rate") or "").strip())
 		if bucket:

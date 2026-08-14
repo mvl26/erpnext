@@ -68,6 +68,11 @@ ISSUED_STATUSES = frozenset(
 	}
 )
 
+# Lập được hóa đơn điều chỉnh / thay thế. Điều kiện đầy đủ còn cần Cơ quan Thuế
+# đã chấp nhận (``tax_status``) — xem `lineage.can_amend`. Tập này chỉ loại các
+# trạng thái không có số hóa đơn, hoặc đã bị điều chỉnh/thay thế/hủy rồi.
+ADJUSTABLE_STATUSES = frozenset({STATUS_ISSUED, STATUS_SENT, STATUS_TAX_ACCEPTED})
+
 # Đang giữ chỗ trên Delivery Note: không cho lập bản ghi HĐĐT thứ hai cho cùng DN
 # (đặc tả C2.1 #1 — "không cho trùng với bản ghi khác đang ở trạng thái 01—08").
 LIVE_STATUSES = frozenset(
@@ -124,14 +129,33 @@ TAX_RATE_OPTIONS = "\n".join(TAX_RATE_CODES)
 NUMERIC_TAX_RATES = {"0": 0.0, "5": 5.0, "8": 8.0, "10": 10.0}
 
 # --- Tính chất dòng hàng (thẻ ProcessType) — mục C3 #1.
-PROCESS_TYPE_CODES = ("1", "2", "3", "4", "5")
+PROCESS_TYPE_GOODS = "1"
+PROCESS_TYPE_PROMOTION = "2"
+PROCESS_TYPE_DISCOUNT = "3"
+PROCESS_TYPE_NOTE = "4"
+PROCESS_TYPE_SPECIAL = "5"
+
+PROCESS_TYPE_CODES = (
+	PROCESS_TYPE_GOODS,
+	PROCESS_TYPE_PROMOTION,
+	PROCESS_TYPE_DISCOUNT,
+	PROCESS_TYPE_NOTE,
+	PROCESS_TYPE_SPECIAL,
+)
 PROCESS_TYPE_LABELS = {
-	"1": "Hàng hóa / dịch vụ",
-	"2": "Khuyến mại",
-	"3": "Chiết khấu",
-	"4": "Ghi chú",
-	"5": "Hàng đặc trưng",
+	PROCESS_TYPE_GOODS: "Hàng hóa / dịch vụ",
+	PROCESS_TYPE_PROMOTION: "Khuyến mại",
+	PROCESS_TYPE_DISCOUNT: "Chiết khấu",
+	PROCESS_TYPE_NOTE: "Ghi chú",
+	PROCESS_TYPE_SPECIAL: "Hàng đặc trưng",
 }
+
+# Dòng chảy vào Tiền hàng và Tiền thuế của hóa đơn.
+#
+# Khuyến mại có giá trị nhưng không thu tiền, ghi chú thì không phải tiền — cộng
+# hai loại này vào tiền hàng là thổi phồng số phải thu và số kê khai. Chiết khấu
+# **có** nằm trong đây vì dòng chiết khấu nhập số âm: nó phải trừ được tiền hàng.
+BILLABLE_PROCESS_TYPES = frozenset({PROCESS_TYPE_GOODS, PROCESS_TYPE_DISCOUNT, PROCESS_TYPE_SPECIAL})
 PROCESS_TYPE_OPTIONS = "\n".join(PROCESS_TYPE_CODES)
 
 # --- Giới hạn của Fast.

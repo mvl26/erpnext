@@ -6,6 +6,8 @@
 server không thể lệch nhau, và bảng B2 mới kiểm chứng được bằng test.
 """
 
+import inspect
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
@@ -24,12 +26,39 @@ from erpnext.einvoice.constants import (
 	STATUS_SENT,
 	STATUS_TAX_ACCEPTED,
 	STATUS_TAX_REJECTED,
+	TAX_STATUS_ACCEPTED,
+	TAX_STATUS_PENDING,
 )
-from erpnext.einvoice.form_state import get_form_state
+from erpnext.einvoice.form_state import BUTTONS, get_form_state
 from erpnext.einvoice.tests.test_fast_client import configure
 from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
 FEI = "Fast EInvoice Document"
+
+# Cổng TEST của Fast chỉ khác cổng thật ở ``:9000`` (tài liệu API mục 1).
+TEST_URL = "https://tportal.fast.com.vn:9000/AppService/FastEInvoice.PortalService.asmx"
+LIVE_URL = "https://tportal.fast.com.vn/AppService/FastEInvoice.PortalService.asmx"
+
+
+class TestButtonMethodsMatchWhatTheFormSends(FrappeTestCase):
+	"""Chữ ký của phương thức phải khớp với đối số giao diện gửi lên.
+
+	``call_action`` trong fast_einvoice_document.js gọi **mọi** nút bằng
+	``args: {fei: frm.doc.name, ...}``. Frappe lọc kwargs theo chữ ký hàm trước
+	khi gọi, nên phương thức nào đặt tên tham số định danh khác ``fei`` thì nút
+	đó chết ngay với TypeError — trong khi test gọi trực tiếp bằng tham số vị
+	trí vẫn xanh. Đó là lý do lỗi này lọt tới tận giao diện.
+	"""
+
+	def test_every_button_method_takes_fei_as_its_first_argument(self):
+		for name, _label, method, *_rest in BUTTONS:
+			with self.subTest(button=name):
+				parameters = list(inspect.signature(frappe.get_attr(method)).parameters)
+				self.assertEqual(
+					parameters[0],
+					"fei",
+					f"Nút {name!r} gọi {method} với tham số đầu {parameters[0]!r} — giao diện gửi 'fei'.",
+				)
 
 
 class FormStateBase(FrappeTestCase):
@@ -42,8 +71,8 @@ class FormStateBase(FrappeTestCase):
 	def tearDown(self):
 		frappe.db.rollback()
 
-	def buttons_at(self, status):
-		frappe.db.set_value(FEI, self.fei, "status", status)
+	def buttons_at(self, status, tax_status=""):
+		frappe.db.set_value(FEI, self.fei, {"status": status, "tax_status": tax_status})
 		return {b["name"] for b in get_form_state(self.fei)["buttons"]}
 
 	def state_at(self, status):
@@ -53,14 +82,14 @@ class FormStateBase(FrappeTestCase):
 
 class TestEnvironmentBanner(FormStateBase):
 	def test_test_mode_shows_a_yellow_banner(self):
-		configure(is_test_mode=1)
+		configure(api_url=TEST_URL)
 		banner = self.state_at(STATUS_DRAFT)["banner"]
 		self.assertEqual(banner["indicator"], "yellow")
 		self.assertIn("TEST", banner["message"])
 
 	def test_live_mode_shows_a_red_banner(self):
 		"""Nguyên tắc A4: phải biết ngay mình đang bắn vào hệ thống thật."""
-		configure(is_test_mode=0)
+		configure(api_url=LIVE_URL)
 		banner = self.state_at(STATUS_DRAFT)["banner"]
 		self.assertEqual(banner["indicator"], "red")
 		self.assertIn("THẬT", banner["message"])
@@ -104,13 +133,26 @@ class TestButtonsFollowTheStateTable(FormStateBase):
 		self.assertNotIn("resync", buttons)
 
 	def test_tax_accepted_invoice_unlocks_adjustment_and_replacement(self):
-		buttons = self.buttons_at(STATUS_TAX_ACCEPTED)
+		buttons = self.buttons_at(STATUS_TAX_ACCEPTED, TAX_STATUS_ACCEPTED)
+		self.assertIn("create_adjustment", buttons)
+		self.assertIn("create_replacement", buttons)
+
+	def test_an_invoice_already_sent_to_the_customer_can_still_be_amended(self):
+		"""Gửi khách rồi vẫn phải điều chỉnh/thay thế được.
+
+		``status`` là ô tuyến tính gánh hai sự thật độc lập — CQT xử lý tới đâu và
+		đã giao khách chưa. Gửi hóa đơn đẩy 08 → 07, mà chính hóa đơn đã giao
+		khách mới là loại pháp luật bắt buộc phải điều chỉnh khi có sai sót. Nên
+		điều kiện gác phải đọc ``tax_status``, không đọc ``status``.
+		"""
+		buttons = self.buttons_at(STATUS_SENT, TAX_STATUS_ACCEPTED)
 		self.assertIn("create_adjustment", buttons)
 		self.assertIn("create_replacement", buttons)
 
 	def test_adjustment_is_not_offered_before_the_tax_office_accepts(self):
 		self.assertNotIn("create_adjustment", self.buttons_at(STATUS_ISSUED))
 		self.assertNotIn("create_adjustment", self.buttons_at(STATUS_SENT))
+		self.assertNotIn("create_adjustment", self.buttons_at(STATUS_ISSUED, TAX_STATUS_PENDING))
 
 	def test_rejected_invoice_offers_the_cancel_button(self):
 		self.assertIn("cancel", self.buttons_at(STATUS_TAX_REJECTED))

@@ -17,6 +17,7 @@ import frappe
 from frappe import _
 
 from erpnext.einvoice.constants import (
+	ADJUSTABLE_STATUSES,
 	EDITABLE_STATUSES,
 	LIVE_STATUSES,
 	STATUS_AWAITING_CUSTOMER,
@@ -31,6 +32,7 @@ from erpnext.einvoice.constants import (
 	STATUS_TAX_REJECTED,
 )
 from erpnext.einvoice.fast_settings import get_environment_banner, get_settings
+from erpnext.einvoice.lineage import can_amend
 from erpnext.einvoice.setup import is_chief_accountant
 from erpnext.einvoice.validation import validate_before_send
 
@@ -40,6 +42,14 @@ FEI = "Fast EInvoice Document"
 _PREPARING = (STATUS_DRAFT, STATUS_DRAFT_VIEWED, STATUS_AWAITING_CUSTOMER, STATUS_CUSTOMER_APPROVED)
 _FIXABLE = (*_PREPARING, STATUS_ERROR, STATUS_NEEDS_RECONCILE)
 _HAS_NUMBER = (STATUS_ISSUED, STATUS_SENT, STATUS_TAX_ACCEPTED)
+
+# Hai nút này gác thêm theo phán quyết CQT chứ không chỉ theo `status` — cùng một
+# mệnh đề với chốt server, để giao diện và server không nói hai điều khác nhau.
+_NEEDS_TAX_VERDICT = frozenset({"create_adjustment", "create_replacement"})
+
+# Bật/tắt ghi đè là hai chiều của một công tắc — không bao giờ hiện cùng lúc.
+_ONLY_WHILE_COMPUTING = frozenset({"override_totals"})
+_ONLY_WHILE_OVERRIDDEN = frozenset({"clear_override"})
 
 # (tên, nhãn, phương thức, cấp xác nhận, các trạng thái hiện nút, chỉ kế toán trưởng)
 BUTTONS = (
@@ -57,6 +67,22 @@ BUTTONS = (
 		"erpnext.einvoice.actions.preview_draft",
 		1,
 		_FIXABLE,
+		False,
+	),
+	(
+		"override_totals",
+		"Ghi đè số tổng hợp",
+		"erpnext.einvoice.actions.enable_manual_override",
+		2,
+		_PREPARING,
+		False,
+	),
+	(
+		"clear_override",
+		"Bỏ ghi đè & tính lại",
+		"erpnext.einvoice.actions.disable_manual_override",
+		1,
+		_PREPARING,
 		False,
 	),
 	(
@@ -136,7 +162,7 @@ BUTTONS = (
 		"Tạo hóa đơn điều chỉnh",
 		"erpnext.einvoice.lineage.create_adjustment",
 		2,
-		(STATUS_TAX_ACCEPTED,),
+		tuple(ADJUSTABLE_STATUSES),
 		True,
 	),
 	(
@@ -144,7 +170,7 @@ BUTTONS = (
 		"Tạo hóa đơn thay thế",
 		"erpnext.einvoice.lineage.create_replacement",
 		2,
-		(STATUS_TAX_ACCEPTED,),
+		tuple(ADJUSTABLE_STATUSES),
 		True,
 	),
 	(
@@ -182,6 +208,12 @@ def _buttons_for(doc, settings):
 	for name, label, method, level, statuses, needs_chief in BUTTONS:
 		allowed = _issue_statuses(settings) if name == "issue" else statuses
 		if doc.status not in allowed:
+			continue
+		if name in _NEEDS_TAX_VERDICT and not can_amend(doc):
+			continue
+		if name in _ONLY_WHILE_COMPUTING and doc.totals_manual_override:
+			continue
+		if name in _ONLY_WHILE_OVERRIDDEN and not doc.totals_manual_override:
 			continue
 		if needs_chief and not chief:
 			continue

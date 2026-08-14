@@ -5,9 +5,17 @@
 // Script này cố tình "mỏng": nút nào hiện ở trạng thái nào, cấp xác nhận ra sao
 // đều do server trả về qua `get_form_state` (bảng B2). Nhân bản bảng đó ở đây là
 // mở đường cho giao diện và server nói hai điều khác nhau.
+//
+// Phần tính tiền cũng theo đúng nguyên tắc đó: ở đây chỉ có **khi nào** tính lại,
+// còn **tính thế nào** thì gọi `einvoice.totals.preview_totals` trên server —
+// cùng công thức mà lúc Lưu server chạy. Viết lại công thức bằng JavaScript sẽ
+// nhanh hơn một nhịp mạng, nhưng đổi lại là hai công thức, và cái giá của việc
+// form hiện một số rồi chứng từ lưu một số khác thì đắt hơn nhiều.
 
 frappe.ui.form.on("Fast EInvoice Document", {
 	refresh(frm) {
+		apply_totals_lock(frm);
+		render_override_banner(frm);
 		if (frm.is_new()) return;
 		frm.trigger("load_einvoice_state");
 	},
@@ -24,7 +32,91 @@ frappe.ui.form.on("Fast EInvoice Document", {
 		render_validation(frm, state);
 		render_buttons(frm, state);
 	},
+
+	// Đổi loại tiền là đổi số chữ số thập phân của mọi con số trên chứng từ.
+	currency: recalculate_totals,
+	deduction_amount: recalculate_totals,
+	deduction_amount_other: recalculate_totals,
+
+	lines_add: recalculate_totals,
+	lines_remove: recalculate_totals,
+
+	totals_manual_override(frm) {
+		apply_totals_lock(frm);
+		recalculate_totals(frm);
+	},
 });
+
+// --- Tính lại số liệu khi đang gõ (server giữ công thức) ---------------------
+
+// Trường nào của dòng hàng thay đổi thì tổng hợp phải đổi theo.
+const LINE_INPUTS = [
+	"qty",
+	"price",
+	"discount_rate",
+	"discount_amount",
+	"tax_rate",
+	"process_type",
+	"is_promotion",
+];
+
+frappe.ui.form.on(
+	"Fast EInvoice Line",
+	Object.fromEntries(LINE_INPUTS.map((fieldname) => [fieldname, (frm) => recalculate_totals(frm)]))
+);
+
+const request_totals = frappe.utils.debounce((frm) => {
+	frappe.call({
+		method: "erpnext.einvoice.totals.preview_totals",
+		args: { doc: frm.doc },
+		callback({ message }) {
+			if (message) apply_totals(frm, message);
+		},
+	});
+}, 300);
+
+function recalculate_totals(frm) {
+	// Hóa đơn đã khóa: số liệu là chứng từ pháp lý. Đang ghi đè: kế toán tự nhập.
+	if (frm.doc.is_edit_locked || frm.doc.totals_manual_override) return;
+	request_totals(frm);
+}
+
+function apply_totals(frm, totals) {
+	// Gán thẳng vào `frm.doc` chứ không qua `set_value`: đây chỉ là số để **xem**.
+	// Lúc Lưu, server tính lại từ đầu, nên số form hiện ra không thể lọt vào cơ sở
+	// dữ liệu — và cũng không kích hoạt lại vòng tính khi vừa gán xong.
+	Object.assign(frm.doc, totals.master);
+	for (const values of totals.lines) {
+		const row = (frm.doc.lines || []).find((line) => line.idx === values.idx);
+		if (row) Object.assign(row, values);
+	}
+
+	for (const fieldname of Object.keys(totals.master)) frm.refresh_field(fieldname);
+	frm.refresh_field("lines");
+}
+
+// --- Ghi đè số tổng hợp bằng tay --------------------------------------------
+
+function apply_totals_lock(frm) {
+	// `read_only_depends_on` lo phần master; bảng dòng hàng phải mở/khóa bằng tay.
+	const grid = frm.fields_dict.lines && frm.fields_dict.lines.grid;
+	if (!grid) return;
+	const editable = frm.doc.totals_manual_override && !frm.doc.is_edit_locked;
+	for (const fieldname of ["amount", "tax_amount"]) {
+		grid.update_docfield_property(fieldname, "read_only", editable ? 0 : 1);
+	}
+}
+
+function render_override_banner(frm) {
+	if (!frm.doc.totals_manual_override) return;
+	frm.dashboard.add_comment(
+		__("Số tổng hợp đang GHI ĐÈ bằng tay — chứng từ không tự tính. Lý do: {0}", [
+			frm.doc.override_reason || __("(chưa ghi)"),
+		]),
+		"red",
+		true
+	);
+}
 
 // --- Banner môi trường (nguyên tắc A4) --------------------------------------
 
@@ -146,6 +238,23 @@ function level_two_fields(frm, button) {
 					fieldtype: "Small Text",
 					reqd: 1,
 					description: __("Tối thiểu 10 ký tự. Nội dung được ghi nối vào lịch sử, không ghi đè."),
+				},
+			];
+		case "override_totals":
+			return [
+				{
+					fieldname: "reason",
+					label: __("Vì sao phải ghi đè"),
+					fieldtype: "Small Text",
+					reqd: 1,
+					description: __("Tối thiểu 10 ký tự. Ghi lại trên chứng từ để về sau giải thích được."),
+				},
+				{
+					fieldname: "hint",
+					fieldtype: "HTML",
+					options: `<p class="text-muted">${__(
+						"Chứng từ sẽ NGỪNG tự tính: sửa dòng hàng không còn làm đổi số tổng hợp. Phần kiểm tra dữ liệu sẽ báo cảnh báo cho tới khi bỏ ghi đè."
+					)}</p>`,
 				},
 			];
 		case "mark_approved":
