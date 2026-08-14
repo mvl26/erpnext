@@ -5,7 +5,7 @@
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from erpnext.regional.vietnam.test_setup import make_vn_company
+from erpnext.regional.vietnam.tests.test_setup import make_vn_company
 
 
 class TestVietnamTT45(FrappeTestCase):

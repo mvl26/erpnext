@@ -7,7 +7,7 @@ from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt
 
 from erpnext.regional.vietnam.setup import _acct
-from erpnext.regional.vietnam.test_setup import make_vn_company
+from erpnext.regional.vietnam.tests.test_setup import make_vn_company
 
 VN_PRINT_FORMATS = (
 	("phieu_thu_01_tt", "Phiếu thu (01-TT)"),
@@ -200,9 +200,7 @@ class TestVietnamCashBankBooks(FrappeTestCase):
 	def test_so_quy_running_balance_ties_to_gl(self):
 		from erpnext.regional.report.so_quy_tien_mat.so_quy_tien_mat import execute
 
-		_cols, rows = execute(
-			{"company": self.company, "from_date": self.from_date, "to_date": self.to_date}
-		)
+		_cols, rows = execute({"company": self.company, "from_date": self.from_date, "to_date": self.to_date})
 		self.assertEqual(flt(rows[0]["balance"]), 500_000)  # số dư đầu kỳ
 		self.assertEqual(flt(rows[-1]["balance"]), 1_200_000)  # tồn quỹ cuối kỳ
 		total = next(r for r in rows if r.get("is_total"))
@@ -219,9 +217,7 @@ class TestVietnamCashBankBooks(FrappeTestCase):
 
 		_post_je(self.company, [("112", 2_000_000, 0), ("4211", 0, 2_000_000)], "2026-02-05")
 		_post_je(self.company, [("4211", 450_000, 0), ("112", 0, 450_000)], "2026-02-25")
-		_cols, rows = execute(
-			{"company": self.company, "from_date": self.from_date, "to_date": self.to_date}
-		)
+		_cols, rows = execute({"company": self.company, "from_date": self.from_date, "to_date": self.to_date})
 		self.assertEqual(flt(rows[0]["balance"]), 0)  # no bank opening before the period
 		self.assertEqual(flt(rows[-1]["balance"]), 1_550_000)
 		total = next(r for r in rows if r.get("is_total"))
@@ -252,7 +248,11 @@ def _post_party_je(company, number, party_type, party, dr, cr, posting_date):
 	)
 	je.append(
 		"accounts",
-		{"account": _acct(company, "4211"), "debit_in_account_currency": cr, "credit_in_account_currency": dr},
+		{
+			"account": _acct(company, "4211"),
+			"debit_in_account_currency": cr,
+			"credit_in_account_currency": dr,
+		},
 	)
 	je.flags.ignore_permissions = True
 	je.insert()
@@ -326,9 +326,7 @@ class TestVietnamPartyLedger(FrappeTestCase):
 			"accounts",
 			{"account": usd_account, "exchange_rate": 25_000, "debit_in_account_currency": 1_000},
 		)
-		je.append(
-			"accounts", {"account": _acct(company, "4211"), "credit_in_account_currency": 25_000_000}
-		)
+		je.append("accounts", {"account": _acct(company, "4211"), "credit_in_account_currency": 25_000_000})
 		je.flags.ignore_permissions = True
 		je.insert()
 		je.submit()

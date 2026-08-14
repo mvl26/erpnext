@@ -12,8 +12,8 @@ from erpnext.einvoice.actions import download_converted_pdf, download_official_p
 from erpnext.einvoice.builder import create_from_delivery_note
 from erpnext.einvoice.constants import STATUS_DRAFT, STATUS_ISSUED, STATUS_TAX_ACCEPTED
 from erpnext.einvoice.fast_client import FastClient
-from erpnext.einvoice.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.test_fixtures import make_delivery_note, minimal_pdf_bytes
+from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
+from erpnext.einvoice.tests.test_fixtures import make_delivery_note, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -121,7 +121,7 @@ class TestOfficialPdf(PdfTestBase):
 
 	def test_empty_response_gives_a_pdf_not_ready_hint(self):
 		"""Fast trả rỗng ngay sau phát hành HSM — nói rõ PDF chưa sẵn sàng, đừng "không rõ mã"."""
-		from erpnext.einvoice.test_fast_client import auth_empty
+		from erpnext.einvoice.tests.test_fast_client import auth_empty
 
 		result = download_official_pdf(self.fei.name, client=self._client(auth_empty("ExcuteCommand")))
 		self.assertFalse(result["ok"])

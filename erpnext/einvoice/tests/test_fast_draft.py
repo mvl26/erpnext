@@ -16,8 +16,8 @@ from erpnext.einvoice.constants import (
 	STATUS_TAX_ACCEPTED,
 )
 from erpnext.einvoice.fast_client import FastClient
-from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
-from erpnext.einvoice.test_fixtures import make_delivery_note, minimal_pdf_bytes
+from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
+from erpnext.einvoice.tests.test_fixtures import make_delivery_note, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"

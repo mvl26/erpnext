@@ -12,10 +12,10 @@ from erpnext.einvoice.actions import download_official_pdf, send_invoice_to_cust
 from erpnext.einvoice.builder import create_from_delivery_note
 from erpnext.einvoice.constants import STATUS_DRAFT, STATUS_ISSUED, STATUS_SENT
 from erpnext.einvoice.fast_client import FastClient
-from erpnext.einvoice.test_fast_approval import Mailbox
-from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
-from erpnext.einvoice.test_fast_pdf import pdf_envelope, sent_payload
-from erpnext.einvoice.test_fixtures import make_delivery_note
+from erpnext.einvoice.tests.test_fast_approval import Mailbox
+from erpnext.einvoice.tests.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
+from erpnext.einvoice.tests.test_fast_pdf import pdf_envelope, sent_payload
+from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"

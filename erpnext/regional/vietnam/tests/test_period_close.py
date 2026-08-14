@@ -7,7 +7,7 @@ from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt
 
 from erpnext.regional.vietnam.setup import _acct
-from erpnext.regional.vietnam.test_setup import make_vn_company
+from erpnext.regional.vietnam.tests.test_setup import make_vn_company
 
 
 def _post_je(company, lines, posting_date):
@@ -101,7 +101,7 @@ class TestVietnamPeriodCloseExecute(FrappeTestCase):
 		self.assertTrue(result["ok"], result)
 		self.assertEqual(len(result["journal_entries"]), 3)
 
-		# 5xx–8xx and 911 all zero as of period end; result sits in 4212 (credit).
+		# 5xx—8xx and 911 all zero as of period end; result sits in 4212 (credit).
 		balances = get_account_balances(self.company, "1900-01-01", "2026-07-31")
 		self.assertEqual(flt(sum_closing_by_prefix(balances, ("5", "6", "7", "8", "9"))), 0)
 		self.assertEqual(flt(sum_closing_by_prefix(balances, ("4212",))), -400_000)

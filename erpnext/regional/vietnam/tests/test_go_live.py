@@ -7,7 +7,7 @@ from frappe.tests.utils import FrappeTestCase
 
 from erpnext.regional.vietnam.constants import VN_NAMING_SERIES
 from erpnext.regional.vietnam.go_live import configure_go_live
-from erpnext.regional.vietnam.test_setup import make_vn_company
+from erpnext.regional.vietnam.tests.test_setup import make_vn_company
 
 # Far-future so the fiscal year never collides with real or seed fiscal years.
 GO_LIVE_YEAR = 2099
@@ -144,16 +144,20 @@ def _make_numberless_account(company):
 	parent = frappe.db.get_value(
 		"Account", {"company": company, "is_group": 1, "root_type": "Equity"}, "name"
 	)
-	return frappe.get_doc(
-		{
-			"doctype": "Account",
-			"account_name": "_Test Numberless Equity",
-			"company": company,
-			"parent_account": parent,
-			"root_type": "Equity",
-			"is_group": 0,
-		}
-	).insert(ignore_permissions=True).name
+	return (
+		frappe.get_doc(
+			{
+				"doctype": "Account",
+				"account_name": "_Test Numberless Equity",
+				"company": company,
+				"parent_account": parent,
+				"root_type": "Equity",
+				"is_group": 0,
+			}
+		)
+		.insert(ignore_permissions=True)
+		.name
+	)
 
 
 def _make_misnumbered_account(company, number):
@@ -162,17 +166,21 @@ def _make_misnumbered_account(company, number):
 	parent = frappe.db.get_value(
 		"Account", {"company": company, "is_group": 1, "root_type": "Equity"}, "name"
 	)
-	return frappe.get_doc(
-		{
-			"doctype": "Account",
-			"account_name": f"_Test Misnumbered {number}",
-			"account_number": number,
-			"company": company,
-			"parent_account": parent,
-			"root_type": "Equity",
-			"is_group": 0,
-		}
-	).insert(ignore_permissions=True).name
+	return (
+		frappe.get_doc(
+			{
+				"doctype": "Account",
+				"account_name": f"_Test Misnumbered {number}",
+				"account_number": number,
+				"company": company,
+				"parent_account": parent,
+				"root_type": "Equity",
+				"is_group": 0,
+			}
+		)
+		.insert(ignore_permissions=True)
+		.name
+	)
 
 
 def _post_opening_je_by_account(company, lines, posting_date=None):
@@ -182,7 +190,10 @@ def _post_opening_je_by_account(company, lines, posting_date=None):
 	je.is_opening = "Yes"
 	je.posting_date = posting_date or frappe.utils.nowdate()
 	for account, dr, cr in lines:
-		je.append("accounts", {"account": account, "debit_in_account_currency": dr, "credit_in_account_currency": cr})
+		je.append(
+			"accounts",
+			{"account": account, "debit_in_account_currency": dr, "credit_in_account_currency": cr},
+		)
 	je.flags.ignore_permissions = True
 	je.insert()
 	je.submit()

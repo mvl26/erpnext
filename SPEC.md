@@ -118,10 +118,10 @@ bench --site miyano execute erpnext.regional.vietnam.period_close.ket_chuyen_911
 bench --site miyano execute erpnext.regional.vietnam.e_invoice.issue_e_invoice --kwargs "{'sales_invoice':'<name>'}"
 
 # Tests (per workstream)
-bench --site miyano run-tests --module erpnext.regional.vietnam.test_go_live
-bench --site miyano run-tests --module erpnext.regional.vietnam.test_period_close
-bench --site miyano run-tests --module erpnext.regional.vietnam.test_e_invoice
-bench --site miyano run-tests --module erpnext.regional.vietnam.test_books_and_vouchers
+bench --site miyano run-tests --module erpnext.regional.vietnam.tests.test_go_live
+bench --site miyano run-tests --module erpnext.regional.vietnam.tests.test_period_close
+bench --site miyano run-tests --module erpnext.einvoice.tests.test_fast_end_to_end
+bench --site miyano run-tests --module erpnext.regional.vietnam.tests.test_books_and_vouchers
 
 # Lint
 pre-commit run --all-files

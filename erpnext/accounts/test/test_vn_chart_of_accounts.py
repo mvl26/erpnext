@@ -87,9 +87,7 @@ COMPANY_OPERATIONAL_DEFAULT_FIELDS = (
 
 
 def _chart_path():
-	return os.path.join(
-		os.path.dirname(chart_of_accounts.__file__), "verified", "vn_chart_of_accounts.json"
-	)
+	return os.path.join(os.path.dirname(chart_of_accounts.__file__), "verified", "vn_chart_of_accounts.json")
 
 
 def _flatten(tree, root_type=None, by_number=None):
@@ -180,13 +178,9 @@ class TestVietnamChartOfAccounts(unittest.TestCase):
 		# made deterministic via order_by in set_default_accounts, not by uniqueness.
 		for account_type in single_default_types:
 			tagged = [
-				n
-				for n, info in self.by_number.items()
-				if info["node"].get("account_type") == account_type
+				n for n, info in self.by_number.items() if info["node"].get("account_type") == account_type
 			]
-			self.assertEqual(
-				len(tagged), 1, f"expected exactly one {account_type} account, got {tagged}"
-			)
+			self.assertEqual(len(tagged), 1, f"expected exactly one {account_type} account, got {tagged}")
 
 	def test_parses_via_build_tree(self):
 		accounts = chart_of_accounts.build_tree_from_json(CHART_NAME)
@@ -199,7 +193,7 @@ class TestVietnamChartOfAccounts(unittest.TestCase):
 		with open(_chart_path(), encoding="utf-8") as f:
 			raw = f.read()
 		numbers = [
-			line.split(":", 1)[1].strip().strip(',').strip('"')
+			line.split(":", 1)[1].strip().strip(",").strip('"')
 			for line in raw.splitlines()
 			if '"account_number"' in line
 		]
@@ -223,9 +217,7 @@ class TestVietnamChartOfAccounts(unittest.TestCase):
 			self.assertIn(name, self.by_name, f"named operational account {name!r} missing")
 
 	def test_operational_types_are_single(self):
-		by_number_and_name = list(self.by_number.values()) + [
-			{"node": n} for n in self.by_name.values()
-		]
+		by_number_and_name = list(self.by_number.values()) + [{"node": n} for n in self.by_name.values()]
 		for account_type in OPERATIONAL_ACCOUNT_TYPES.values():
 			tagged = [i for i in by_number_and_name if i["node"].get("account_type") == account_type]
 			self.assertEqual(

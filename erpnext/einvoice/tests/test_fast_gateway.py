@@ -15,8 +15,8 @@ from erpnext.einvoice.errors import (
 )
 from erpnext.einvoice.fast_client import FastClient, FastTimeout
 from erpnext.einvoice.gateway import call_fast
-from erpnext.einvoice.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.test_fast_document import make_fei
+from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
+from erpnext.einvoice.tests.test_fast_document import make_fei
 
 LOG = "Fast EInvoice Log"
 

@@ -12,8 +12,8 @@ from erpnext.einvoice.payload import (
 	build_payload,
 	compute_tax_groups,
 )
-from erpnext.einvoice.test_fast_client import configure
-from erpnext.einvoice.test_fast_document import make_fei
+from erpnext.einvoice.tests.test_fast_client import configure
+from erpnext.einvoice.tests.test_fast_document import make_fei
 
 
 class TestAmountInWords(FrappeTestCase):

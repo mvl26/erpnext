@@ -34,7 +34,7 @@ bench --site miyano console                   # python shell có app context
 
 ```bash
 bench --site miyano run-tests --app erpnext
-bench --site miyano run-tests --module erpnext.regional.vietnam.test_tt45
+bench --site miyano run-tests --module erpnext.regional.vietnam.tests.test_tt45
 bench --site miyano run-tests --doctype "Sales Invoice"
 ```
 

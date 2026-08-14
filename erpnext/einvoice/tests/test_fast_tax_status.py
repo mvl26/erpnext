@@ -23,8 +23,8 @@ from erpnext.einvoice.constants import (
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.reconcile import reconcile_invoice
 from erpnext.einvoice.tax_status import check_tax_status, poll_pending_tax_status
-from erpnext.einvoice.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.test_fixtures import make_delivery_note
+from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
+from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"

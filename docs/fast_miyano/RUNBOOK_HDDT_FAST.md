@@ -177,7 +177,7 @@ for m in test_einvoice_module test_einvoice_setup test_fast_settings test_fast_l
          test_fast_approval test_fast_issue test_fast_pdf test_fast_send_invoice \
          test_fast_tax_status test_fast_lineage test_fast_cancel test_fast_form_state \
          test_fast_lookup test_fast_end_to_end ; do
-  bench --site miyano run-tests --module erpnext.einvoice.$m
+  bench --site miyano run-tests --module erpnext.einvoice.tests.$m
 done
 bench --site miyano run-tests --module erpnext.einvoice.report.doi_soat_hoa_don_dien_tu.test_doi_soat_hoa_don_dien_tu
 ```

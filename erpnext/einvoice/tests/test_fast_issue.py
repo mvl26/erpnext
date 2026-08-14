@@ -21,8 +21,8 @@ from erpnext.einvoice.constants import (
 )
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.issue import issue_invoice, parse_issue_result
-from erpnext.einvoice.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.test_fixtures import make_delivery_note
+from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
+from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -238,7 +238,7 @@ class TestPreconditions(IssueTestBase):
 	def test_only_the_chief_accountant_may_issue(self):
 		"""Nút cấp 3 dành riêng cho kế toán trưởng."""
 		from erpnext.einvoice.setup import ROLE_STAFF
-		from erpnext.einvoice.test_einvoice_setup import _as, _ensure_user
+		from erpnext.einvoice.tests.test_einvoice_setup import _as, _ensure_user
 
 		staff = _ensure_user("fei-staff-issue@example.com", ROLE_STAFF)
 		client = self._client(NOT_FOUND, ISSUE_OK)

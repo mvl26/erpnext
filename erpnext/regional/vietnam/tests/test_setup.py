@@ -95,7 +95,10 @@ def asset_category_numbers(category, company):
 	cat = frappe.get_doc("Asset Category", category)
 	for row in cat.accounts:
 		if row.company_name == company:
-			num = lambda a: frappe.db.get_value("Account", a, "account_number") if a else None
+
+			def num(a):
+				return frappe.db.get_value("Account", a, "account_number") if a else None
+
 			return {
 				"fixed": num(row.fixed_asset_account),
 				"accum": num(row.accumulated_depreciation_account),
@@ -188,9 +191,7 @@ class TestVietnamCompanySetup(FrappeTestCase):
 	def test_hr_payroll_accounts_wired_to_tt99(self):
 		# tạm ứng -> 141, phải trả người lao động (lương + hoàn ứng chi phí) -> 334
 		self.assertEqual(company_account_number(self.company, "default_employee_advance_account"), "141")
-		self.assertEqual(
-			company_account_number(self.company, "default_expense_claim_payable_account"), "334"
-		)
+		self.assertEqual(company_account_number(self.company, "default_expense_claim_payable_account"), "334")
 		self.assertEqual(company_account_number(self.company, "default_payroll_payable_account"), "334")
 
 	def test_setup_is_idempotent(self):
@@ -205,7 +206,9 @@ class TestVietnamCompanySetup(FrappeTestCase):
 			self.assertEqual(len(rows), 1, f"duplicate {mode} MoP row")
 		for category in (HUU_HINH, VO_HINH):
 			rows = [
-				r for r in frappe.get_doc("Asset Category", category).accounts if r.company_name == self.company
+				r
+				for r in frappe.get_doc("Asset Category", category).accounts
+				if r.company_name == self.company
 			]
 			self.assertEqual(len(rows), 1, f"duplicate {category} row")
 
@@ -265,7 +268,12 @@ class TestVietnamCompanySetup(FrappeTestCase):
 				"supplier": supplier,
 				"taxes_and_charges": template,
 				"items": [
-					{"item_code": item, "qty": 1, "rate": 5_000_000, "expense_account": acct(self.company, "632")}
+					{
+						"item_code": item,
+						"qty": 1,
+						"rate": 5_000_000,
+						"expense_account": acct(self.company, "632"),
+					}
 				],
 			}
 		)

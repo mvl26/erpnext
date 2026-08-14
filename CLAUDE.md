@@ -73,6 +73,15 @@ bench --site miyano run-parallel-tests --app erpnext
 
 Tests subclass `frappe.tests.utils.FrappeTestCase` (or `IntegrationTestCase`) and run inside a transaction that is rolled back. Fixture data lives in `test_records.json` next to each DocType.
 
+**Where test files go — mandatory:** every `test_*.py` (including shared fixture/helper modules named `test_*`) lives in a dedicated test folder of its module — `erpnext/<module>/tests/` (Accounts uses the pre-existing `erpnext/accounts/test/`). Never leave a test file loose next to source code at a module or package root. Sub-packages that own a self-contained feature keep their own folder, e.g. `erpnext/einvoice/tests/`, `erpnext/regional/vietnam/tests/`. Each test folder is a package (`__init__.py`).
+
+**The two exceptions — framework-mandated, do not move:**
+
+- `erpnext/<module>/doctype/<doctype>/test_<doctype>.py` — Frappe auto-creates test records from the adjacent `<doctype>.json` / `test_records.json`, and `run-tests --doctype "X"` resolves the file by that path.
+- `erpnext/<module>/report/<report>/test_<report>.py` — same for `run-tests --report`.
+
+Discovery is `os.walk`-based (`frappe/test_runner.py`), so nested `tests/` folders are picked up by `run-tests --app erpnext` automatically; only the `--module` dotted path changes.
+
 ### Lint / format
 
 The gate is **pre-commit** (ruff + prettier + eslint). Config: `.pre-commit-config.yaml`, `pyproject.toml`, `.eslintrc`.

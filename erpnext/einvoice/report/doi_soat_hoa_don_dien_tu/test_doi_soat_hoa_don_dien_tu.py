@@ -20,8 +20,8 @@ from erpnext.einvoice.report.doi_soat_hoa_don_dien_tu.doi_soat_hoa_don_dien_tu i
 	ISSUE_TAX_OVERDUE,
 	execute,
 )
-from erpnext.einvoice.test_fast_client import configure
-from erpnext.einvoice.test_fixtures import COMPANY, make_delivery_note
+from erpnext.einvoice.tests.test_fast_client import configure
+from erpnext.einvoice.tests.test_fixtures import COMPANY, make_delivery_note
 
 FEI = "Fast EInvoice Document"
 

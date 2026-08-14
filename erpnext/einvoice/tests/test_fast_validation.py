@@ -10,7 +10,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from erpnext.einvoice.constants import STATUS_ISSUED
-from erpnext.einvoice.test_fast_document import make_fei
+from erpnext.einvoice.tests.test_fast_document import make_fei
 from erpnext.einvoice.validation import validate_before_send
 
 
@@ -243,28 +243,28 @@ class TestSourceDeliveryNoteRule(FrappeTestCase):
 		frappe.db.rollback()
 
 	def test_submitted_delivery_note_passes(self):
-		from erpnext.einvoice.test_fixtures import make_delivery_note
+		from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
 		dn = make_delivery_note()
 		fei = make_fei(delivery_note=dn.name)
 		self.assertNotIn(15, rules_hit(validate_before_send(fei), "block"))
 
 	def test_draft_delivery_note_is_blocked(self):
-		from erpnext.einvoice.test_fixtures import make_delivery_note
+		from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
 		dn = make_delivery_note(submit=False)
 		fei = make_fei(delivery_note=dn.name)
 		self.assertIn(15, rules_hit(validate_before_send(fei), "block"))
 
 	def test_return_delivery_note_is_blocked(self):
-		from erpnext.einvoice.test_fixtures import make_delivery_note
+		from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
 		dn = make_delivery_note(is_return=True)
 		fei = make_fei(delivery_note=dn.name)
 		self.assertIn(15, rules_hit(validate_before_send(fei), "block"))
 
 	def test_delivery_note_already_carrying_a_live_invoice_is_blocked(self):
-		from erpnext.einvoice.test_fixtures import make_delivery_note
+		from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
 		dn = make_delivery_note()
 		existing = make_fei(delivery_note=dn.name)

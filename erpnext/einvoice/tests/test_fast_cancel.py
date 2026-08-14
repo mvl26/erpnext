@@ -15,9 +15,9 @@ from erpnext.einvoice.constants import (
 	STATUS_TAX_REJECTED,
 )
 from erpnext.einvoice.fast_client import FastClient
-from erpnext.einvoice.test_fast_client import checkkey_ok, FakeTransport, configure, envelope
-from erpnext.einvoice.test_fast_pdf import sent_payload
-from erpnext.einvoice.test_fixtures import make_delivery_note
+from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
+from erpnext.einvoice.tests.test_fast_pdf import sent_payload
+from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -125,7 +125,7 @@ class TestCancelPreconditions(CancelBase):
 
 	def test_only_the_chief_accountant_may_cancel(self):
 		from erpnext.einvoice.setup import ROLE_STAFF
-		from erpnext.einvoice.test_einvoice_setup import _as, _ensure_user
+		from erpnext.einvoice.tests.test_einvoice_setup import _as, _ensure_user
 
 		staff = _ensure_user("fei-staff-cancel@example.com", ROLE_STAFF)
 		client = self._client(envelope(1, "ok"))

@@ -11,8 +11,8 @@ from erpnext.einvoice.builder import (
 	resync_from_delivery_note,
 )
 from erpnext.einvoice.constants import STATUS_DRAFT, STATUS_ISSUED, STATUS_TAX_ACCEPTED
-from erpnext.einvoice.test_fast_client import configure
-from erpnext.einvoice.test_fixtures import CUSTOMER, make_delivery_note
+from erpnext.einvoice.tests.test_fast_client import configure
+from erpnext.einvoice.tests.test_fixtures import CUSTOMER, make_delivery_note
 
 FEI = "Fast EInvoice Document"
 

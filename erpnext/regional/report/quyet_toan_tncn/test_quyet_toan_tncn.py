@@ -54,9 +54,7 @@ class TestQuyetToanTNCN(FrappeTestCase):
 		post(acc("3335"), acc("111"), 300_000)  # nộp một phần NSNN
 
 	def _run(self):
-		result = execute(
-			frappe._dict(company=self.company, from_date="1900-01-01", to_date=nowdate())
-		)
+		result = execute(frappe._dict(company=self.company, from_date="1900-01-01", to_date=nowdate()))
 		return {r["chi_tieu"]: r["so_tien"] for r in result[1] if r.get("so_tien") is not None}
 
 	def test_pit_summary(self):
@@ -70,7 +68,7 @@ class TestQuyetToanTNCNPerEmployee(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
-		from erpnext.regional.vietnam.test_setup import make_vn_company
+		from erpnext.regional.vietnam.tests.test_setup import make_vn_company
 
 		cls.company = make_vn_company("_Test VN TNCN NV", "TVTN")
 
@@ -129,9 +127,7 @@ class TestQuyetToanTNCNPerEmployee(FrappeTestCase):
 		detail.db_insert()
 
 	def _execute(self):
-		return execute(
-			frappe._dict(company=self.company, from_date="2026-06-01", to_date="2026-06-30")
-		)
+		return execute(frappe._dict(company=self.company, from_date="2026-06-01", to_date="2026-06-30"))
 
 	def test_per_employee_rows_from_payroll(self):
 		_cols, rows, _note = self._execute()
@@ -145,9 +141,7 @@ class TestQuyetToanTNCNPerEmployee(FrappeTestCase):
 	def test_degrades_gracefully_without_hrms(self):
 		from unittest.mock import patch
 
-		with patch(
-			"erpnext.regional.report.quyet_toan_tncn.quyet_toan_tncn._has_hrms", return_value=False
-		):
+		with patch("erpnext.regional.report.quyet_toan_tncn.quyet_toan_tncn._has_hrms", return_value=False):
 			_cols, rows, _note = self._execute()
 		self.assertFalse([r for r in rows if r.get("employee")])
 		# The GL summary section is still produced.

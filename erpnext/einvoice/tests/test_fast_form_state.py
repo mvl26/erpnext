@@ -26,8 +26,8 @@ from erpnext.einvoice.constants import (
 	STATUS_TAX_REJECTED,
 )
 from erpnext.einvoice.form_state import get_form_state
-from erpnext.einvoice.test_fast_client import configure
-from erpnext.einvoice.test_fixtures import make_delivery_note
+from erpnext.einvoice.tests.test_fast_client import configure
+from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
 FEI = "Fast EInvoice Document"
 
@@ -173,7 +173,7 @@ class TestApprovalPolicyAffectsButtons(FormStateBase):
 class TestPermissionGate(FormStateBase):
 	def test_staff_do_not_see_the_issue_button(self):
 		from erpnext.einvoice.setup import ROLE_STAFF
-		from erpnext.einvoice.test_einvoice_setup import _as, _ensure_user
+		from erpnext.einvoice.tests.test_einvoice_setup import _as, _ensure_user
 
 		staff = _ensure_user("fei-staff-form@example.com", ROLE_STAFF)
 		frappe.db.set_value(FEI, self.fei, "status", STATUS_CUSTOMER_APPROVED)
@@ -184,7 +184,7 @@ class TestPermissionGate(FormStateBase):
 
 	def test_staff_still_see_the_preparation_buttons(self):
 		from erpnext.einvoice.setup import ROLE_STAFF
-		from erpnext.einvoice.test_einvoice_setup import _as, _ensure_user
+		from erpnext.einvoice.tests.test_einvoice_setup import _as, _ensure_user
 
 		staff = _ensure_user("fei-staff-form2@example.com", ROLE_STAFF)
 		frappe.db.set_value(FEI, self.fei, "status", STATUS_DRAFT)
