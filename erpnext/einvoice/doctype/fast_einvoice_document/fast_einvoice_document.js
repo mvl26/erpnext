@@ -16,6 +16,7 @@ frappe.ui.form.on("Fast EInvoice Document", {
 	refresh(frm) {
 		apply_totals_lock(frm);
 		render_override_banner(frm);
+		set_item_query(frm);
 		if (frm.is_new()) return;
 		frm.trigger("load_einvoice_state");
 	},
@@ -64,6 +65,36 @@ frappe.ui.form.on(
 	"Fast EInvoice Line",
 	Object.fromEntries(LINE_INPUTS.map((fieldname) => [fieldname, (frm) => recalculate_totals(frm)]))
 );
+
+// --- Chọn hàng thì tự điền dòng ---------------------------------------------
+
+// Chỉ hàng đang bán: danh mục Item còn cả vật tư nội bộ và hàng đã ngừng dùng.
+function set_item_query(frm) {
+	frm.set_query("item_code", "lines", () => ({
+		filters: { is_sales_item: 1, disabled: 0 },
+	}));
+}
+
+frappe.ui.form.on("Fast EInvoice Line", {
+	async item_code(frm, cdt, cdn) {
+		const row = locals[cdt][cdn];
+		// Hóa đơn đã khóa là chứng từ pháp lý; đang ghi đè thì kế toán tự nhập.
+		if (!row.item_code || frm.doc.is_edit_locked) return;
+
+		const { message: defaults } = await frappe.call({
+			method: "erpnext.einvoice.catalogue.item_defaults",
+			args: { item_code: row.item_code, currency: frm.doc.currency },
+		});
+		if (!defaults) return;
+
+		// Server chỉ trả về khóa nào tra được — khóa vắng mặt nghĩa là "không
+		// biết, đừng đụng", nên không bao giờ ghi rỗng lên số kế toán vừa gõ.
+		for (const [fieldname, value] of Object.entries(defaults)) {
+			frappe.model.set_value(cdt, cdn, fieldname, value);
+		}
+		recalculate_totals(frm);
+	},
+});
 
 const request_totals = frappe.utils.debounce((frm) => {
 	frappe.call({

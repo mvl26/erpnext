@@ -36,11 +36,12 @@
   {
    "columns": 1,
    "fieldname": "item_code",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Mã hàng",
    "length": 32,
-   "reqd": 1
+   "options": "Item",
+   "description": "Chọn từ danh mục hàng hóa; tên hàng và ĐVT tự điền theo hồ sơ Item."
   },
   {
    "columns": 3,

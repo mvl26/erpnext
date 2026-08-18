@@ -24,6 +24,9 @@ from erpnext.einvoice.constants import (
 	LIVE_STATUSES,
 	MAX_LEN,
 	MAX_LINES_PER_INVOICE,
+	PROCESS_TYPE_GOODS,
+	PROCESS_TYPE_LABELS,
+	PROCESS_TYPE_SPECIAL,
 	TAX_RATE_CODES,
 )
 from erpnext.einvoice.payload import (
@@ -41,6 +44,10 @@ WARN = "warn"
 AMOUNT_TOLERANCE = 1.0
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+# Chỉ dòng thực sự bán hàng mới phải trỏ tới danh mục. Dòng ghi chú (4), khuyến
+# mại (2) và chiết khấu (3) không có mặt hàng nào tương ứng.
+ITEM_CODE_REQUIRED_PROCESS_TYPES = frozenset({PROCESS_TYPE_GOODS, PROCESS_TYPE_SPECIAL})
 
 # Trường text sẽ nằm trong XML envelope — xuống dòng là lỗi 825.
 _MASTER_TEXT_FIELDS = (
@@ -118,7 +125,7 @@ def validate_before_send(fei, check_source=True):
 	_rule_5_amount_in_words(fei, result)
 	_rule_6_newlines(fei, result)
 	_rule_7_lengths(fei, result)
-	_rule_8_process_type(fei, result)
+	_rule_8_line_basics(fei, result)
 	_rule_9_totals(fei, result)
 	_rule_10_line_count(fei, result)
 	_rule_11_invoice_date(fei, result)
@@ -300,11 +307,30 @@ def _rule_7_lengths(fei, result):
 # --- 8, 12. Dòng hàng --------------------------------------------------------
 
 
-def _rule_8_process_type(fei, result):
+def _rule_8_line_basics(fei, result):
+	"""Tính chất dòng, và mã hàng cho những dòng thực sự bán hàng.
+
+	Mã hàng bắt buộc gác ở đây thay vì bằng ``reqd`` của DocType: dòng ghi chú
+	(tính chất 4), khuyến mại (2) và chiết khấu (3) không trỏ tới hàng nào trong
+	danh mục — nội dung của chúng nằm ở tên hàng. Chỉ dòng hàng hóa (1) và hàng
+	đặc trưng (5) mới phải có mã.
+	"""
 	for line in fei.lines or []:
-		if not (line.process_type or "").strip():
+		process_type = (line.process_type or "").strip()
+		if not process_type:
 			result.add(
 				8, BLOCK, "lines", _("Dòng {0}: chưa chọn tính chất hàng hóa (lỗi 836).").format(line.idx)
+			)
+			continue
+
+		if process_type in ITEM_CODE_REQUIRED_PROCESS_TYPES and not (line.item_code or "").strip():
+			result.add(
+				8,
+				BLOCK,
+				"lines",
+				_("Dòng {0}: chưa chọn mã hàng — dòng {1} phải trỏ tới một mặt hàng trong danh mục.").format(
+					line.idx, PROCESS_TYPE_LABELS.get(process_type, process_type)
+				),
 			)
 
 

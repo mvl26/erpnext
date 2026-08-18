@@ -32,6 +32,24 @@ DETAIL_FIELDS = (
 
 
 class TestFastEInvoiceLine(FrappeTestCase):
+	def test_item_code_links_to_the_item_catalogue(self):
+		"""Mã hàng phải trỏ vào danh mục, không phải ô gõ tay.
+
+		Gõ tay thì mã trên hóa đơn lệch mã trong kho, và không có đường nào tự
+		điền tên hàng / đơn vị tính từ hồ sơ Item.
+		"""
+		field = frappe.get_meta(LINE).get_field("item_code")
+		self.assertEqual(field.fieldtype, "Link")
+		self.assertEqual(field.options, "Item")
+
+	def test_item_code_is_not_mandatory_at_schema_level(self):
+		"""Dòng ghi chú và dòng chiết khấu không trỏ tới hàng nào trong danh mục.
+
+		Bắt buộc chuyển xuống quy tắc 8 của `validation.py`, chỉ áp cho dòng hàng
+		hóa (tính chất 1) và hàng đặc trưng (tính chất 5).
+		"""
+		self.assertFalse(frappe.get_meta(LINE).get_field("item_code").reqd)
+
 	def test_line_is_a_child_table(self):
 		self.assertTrue(frappe.get_meta(LINE).istable)
 
@@ -65,8 +83,13 @@ class TestFastEInvoiceLine(FrappeTestCase):
 		self.assertEqual(meta.get_field("discount_rate").fieldtype, "Float")
 
 	def test_required_line_fields_match_the_spec(self):
+		"""``item_code`` cố ý không có trong danh sách này — xem quy tắc 8.
+
+		Nó chỉ bắt buộc với dòng hàng hóa và hàng đặc trưng, nên bắt buộc phải gác
+		theo tính chất dòng ở `validation.py`, không phải bằng ``reqd`` của schema.
+		"""
 		meta = frappe.get_meta(LINE)
-		for fieldname in ("process_type", "item_code", "item_name", "uom", "qty", "tax_rate"):
+		for fieldname in ("process_type", "item_name", "uom", "qty", "tax_rate"):
 			self.assertEqual(meta.get_field(fieldname).reqd, 1, fieldname)
 
 	def test_adjustment_lines_may_carry_negative_amounts(self):

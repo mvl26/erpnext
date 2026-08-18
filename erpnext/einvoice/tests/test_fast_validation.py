@@ -9,7 +9,13 @@ lệnh phát hành thì còn là một số hóa đơn không bị tiêu oan.
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from erpnext.einvoice.constants import STATUS_ISSUED
+from erpnext.einvoice.constants import (
+	PROCESS_TYPE_DISCOUNT,
+	PROCESS_TYPE_GOODS,
+	PROCESS_TYPE_NOTE,
+	PROCESS_TYPE_SPECIAL,
+	STATUS_ISSUED,
+)
 from erpnext.einvoice.tests.test_fast_document import make_fei
 from erpnext.einvoice.validation import validate_before_send
 
@@ -33,6 +39,34 @@ class TestValidationRules(FrappeTestCase):
 	def test_a_clean_invoice_passes(self):
 		result = check(make_fei())
 		self.assertTrue(result.ok, f"Hóa đơn sạch mà vẫn bị chặn: {[i.message for i in result.issues]}")
+
+	# --- Quy tắc 8: dòng hàng ---------------------------------------------
+
+	def test_a_goods_line_without_an_item_code_is_blocked(self):
+		fei = make_fei()
+		fei.lines[0].process_type = PROCESS_TYPE_GOODS
+		fei.lines[0].item_code = ""
+		self.assertIn(8, rules_hit(check(fei), "block"))
+
+	def test_a_special_goods_line_without_an_item_code_is_blocked(self):
+		fei = make_fei()
+		fei.lines[0].process_type = PROCESS_TYPE_SPECIAL
+		fei.lines[0].item_code = ""
+		self.assertIn(8, rules_hit(check(fei), "block"))
+
+	def test_a_note_line_needs_no_item_code(self):
+		"""Dòng ghi chú không trỏ tới hàng nào — nội dung nằm ở tên hàng."""
+		fei = make_fei()
+		fei.lines[0].process_type = PROCESS_TYPE_NOTE
+		fei.lines[0].item_code = ""
+		fei.lines[0].tax_rate = "-9"
+		self.assertNotIn(8, rules_hit(check(fei), "block"))
+
+	def test_a_discount_line_needs_no_item_code(self):
+		fei = make_fei()
+		fei.lines[0].process_type = PROCESS_TYPE_DISCOUNT
+		fei.lines[0].item_code = ""
+		self.assertNotIn(8, rules_hit(check(fei), "block"))
 
 	# --- Quy tắc 1: Key ---------------------------------------------------
 
