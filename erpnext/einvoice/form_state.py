@@ -21,6 +21,7 @@ from erpnext.einvoice.constants import (
 	EDITABLE_STATUSES,
 	LIVE_STATUSES,
 	STATUS_AWAITING_CUSTOMER,
+	STATUS_COLOURS,
 	STATUS_CUSTOMER_APPROVED,
 	STATUS_DRAFT,
 	STATUS_DRAFT_VIEWED,
@@ -31,7 +32,7 @@ from erpnext.einvoice.constants import (
 	STATUS_TAX_ACCEPTED,
 	STATUS_TAX_REJECTED,
 )
-from erpnext.einvoice.fast_settings import get_environment_banner, get_settings
+from erpnext.einvoice.fast_settings import get_settings
 from erpnext.einvoice.lineage import can_amend
 from erpnext.einvoice.setup import is_chief_accountant
 from erpnext.einvoice.validation import validate_before_send
@@ -188,13 +189,14 @@ CONFIRM_WORDS = {"issue": "PHAT HANH", "cancel": "HUY"}
 
 @frappe.whitelist()
 def get_form_state(fei):
-	"""Mọi thứ giao diện cần để vẽ form: banner, nút khả dụng, kết quả kiểm tra."""
+	"""Mọi thứ giao diện cần để vẽ form: nút khả dụng, kết quả kiểm tra, cờ chạy thử."""
 	doc = frappe.get_doc(FEI, fei)
 	settings = get_settings()
 
 	return {
 		"status": doc.status,
-		"banner": get_environment_banner(),
+		"status_colour": STATUS_COLOURS.get(doc.status, "grey"),
+		"is_test_mode": settings.is_test_mode,
 		"enabled": settings.enabled,
 		"is_chief": is_chief_accountant(),
 		"buttons": _buttons_for(doc, settings),

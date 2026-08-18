@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "enabled",
+  "is_test_mode",
   "connection_section",
   "api_url",
   "client_code",
@@ -37,6 +38,13 @@
    "fieldname": "enabled",
    "fieldtype": "Check",
    "label": "Kích hoạt tích hợp"
+  },
+  {
+   "default": "1",
+   "description": "Chỉ hiện một dòng cảnh báo vàng trên chứng từ. Không đổi URL, không chặn phát hành.",
+   "fieldname": "is_test_mode",
+   "fieldtype": "Check",
+   "label": "Hệ thống đang chạy thử (TEST)"
   },
   {
    "fieldname": "connection_section",

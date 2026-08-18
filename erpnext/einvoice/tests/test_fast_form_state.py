@@ -7,6 +7,8 @@ server không thể lệch nhau, và bảng B2 mới kiểm chứng được b�
 """
 
 import inspect
+import re
+from pathlib import Path
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
@@ -16,6 +18,7 @@ from erpnext.einvoice.constants import (
 	STATUS_ADJUSTED,
 	STATUS_AWAITING_CUSTOMER,
 	STATUS_CANCELLED,
+	STATUS_COLOURS,
 	STATUS_CUSTOMER_APPROVED,
 	STATUS_DRAFT,
 	STATUS_DRAFT_VIEWED,
@@ -26,6 +29,7 @@ from erpnext.einvoice.constants import (
 	STATUS_SENT,
 	STATUS_TAX_ACCEPTED,
 	STATUS_TAX_REJECTED,
+	STATUSES,
 	TAX_STATUS_ACCEPTED,
 	TAX_STATUS_PENDING,
 )
@@ -34,10 +38,6 @@ from erpnext.einvoice.tests.test_fast_client import configure
 from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
 FEI = "Fast EInvoice Document"
-
-# Cổng TEST của Fast chỉ khác cổng thật ở ``:9000`` (tài liệu API mục 1).
-TEST_URL = "https://tportal.fast.com.vn:9000/AppService/FastEInvoice.PortalService.asmx"
-LIVE_URL = "https://tportal.fast.com.vn/AppService/FastEInvoice.PortalService.asmx"
 
 
 class TestButtonMethodsMatchWhatTheFormSends(FrappeTestCase):
@@ -61,6 +61,36 @@ class TestButtonMethodsMatchWhatTheFormSends(FrappeTestCase):
 				)
 
 
+class TestStatusColours(FrappeTestCase):
+	"""Bảng màu trong JS phải khớp bảng màu ở server.
+
+	Danh sách buộc phải có bản sao trong JS vì ``get_indicator`` chạy phía client
+	cho từng dòng. Test này là chốt duy nhất giữ hai bảng khớp nhau — thiếu nó thì
+	thêm một trạng thái mới là danh sách lặng lẽ tô xám.
+	"""
+
+	LIST_JS = (
+		Path(frappe.get_app_path("erpnext"))
+		/ "einvoice"
+		/ "doctype"
+		/ "fast_einvoice_document"
+		/ "fast_einvoice_document_list.js"
+	)
+
+	def test_every_status_has_a_colour(self):
+		for status in STATUSES:
+			with self.subTest(status=status):
+				self.assertIn(status, STATUS_COLOURS)
+
+	def test_the_list_view_map_matches_the_server_map(self):
+		source = self.LIST_JS.read_text(encoding="utf-8")
+		block = re.search(r"const STATUS_COLOURS = \{(.*?)\};", source, re.S)
+		self.assertIsNotNone(block, "Không tìm thấy bảng STATUS_COLOURS trong list view JS.")
+
+		in_js = dict(re.findall(r'"([^"]+)":\s*"([^"]+)"', block.group(1)))
+		self.assertEqual(in_js, STATUS_COLOURS)
+
+
 class FormStateBase(FrappeTestCase):
 	def setUp(self):
 		frappe.db.rollback()
@@ -80,19 +110,28 @@ class FormStateBase(FrappeTestCase):
 		return get_form_state(self.fei)
 
 
-class TestEnvironmentBanner(FormStateBase):
-	def test_test_mode_shows_a_yellow_banner(self):
-		configure(api_url=TEST_URL)
-		banner = self.state_at(STATUS_DRAFT)["banner"]
-		self.assertEqual(banner["indicator"], "yellow")
-		self.assertIn("TEST", banner["message"])
+class TestStatusIndicatorReachesTheForm(FormStateBase):
+	def test_state_carries_the_colour_of_the_current_status(self):
+		self.assertEqual(self.state_at(STATUS_TAX_ACCEPTED)["status_colour"], "green")
+		self.assertEqual(self.state_at(STATUS_ERROR)["status_colour"], "red")
+		self.assertEqual(self.state_at(STATUS_DRAFT)["status_colour"], "grey")
 
-	def test_live_mode_shows_a_red_banner(self):
-		"""Nguyên tắc A4: phải biết ngay mình đang bắn vào hệ thống thật."""
-		configure(api_url=LIVE_URL)
-		banner = self.state_at(STATUS_DRAFT)["banner"]
-		self.assertEqual(banner["indicator"], "red")
-		self.assertIn("THẬT", banner["message"])
+
+class TestTestModeFlag(FormStateBase):
+	"""Giao diện chỉ cần biết có đang chạy thử hay không — không cần banner."""
+
+	def test_state_reports_test_mode_when_the_box_is_ticked(self):
+		configure(is_test_mode=1)
+		self.assertTrue(self.state_at(STATUS_DRAFT)["is_test_mode"])
+
+	def test_state_reports_no_test_mode_when_the_box_is_clear(self):
+		"""Hệ thống thật là trạng thái bình thường — không dán nhãn gì."""
+		configure(is_test_mode=0)
+		self.assertFalse(self.state_at(STATUS_DRAFT)["is_test_mode"])
+
+	def test_there_is_no_environment_banner_left(self):
+		"""Nhãn đỏ ở mọi chứng từ thì vài hôm là không ai đọc nữa."""
+		self.assertNotIn("banner", self.state_at(STATUS_DRAFT))
 
 
 class TestButtonsFollowTheStateTable(FormStateBase):

@@ -132,9 +132,9 @@
    "in_list_view": 1,
    "label": "Phiếu giao hàng",
    "options": "Delivery Note",
-   "read_only_depends_on": "eval:doc.is_edit_locked",
    "reqd": 1,
-   "search_index": 1
+   "search_index": 1,
+   "read_only": 1
   },
   {
    "fieldname": "sales_invoice",
@@ -183,8 +183,8 @@
    "in_standard_filter": 1,
    "label": "Loại chứng từ",
    "options": "Hóa đơn gốc\nHóa đơn điều chỉnh\nHóa đơn thay thế",
-   "read_only_depends_on": "eval:doc.is_edit_locked",
-   "reqd": 1
+   "reqd": 1,
+   "read_only": 1
   },
   {
    "collapsible": 0,
@@ -198,14 +198,14 @@
    "fieldtype": "Link",
    "label": "Hóa đơn gốc",
    "options": "Fast EInvoice Document",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only": 1
   },
   {
    "fieldname": "adjustment_type",
    "fieldtype": "Select",
    "label": "Loại điều chỉnh",
    "options": "1 - Điều chỉnh giảm\n2 - Điều chỉnh tăng\n3 - Điều chỉnh thông tin",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only": 1
   },
   {
    "fieldname": "adjustment_reason",

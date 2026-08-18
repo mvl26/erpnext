@@ -5,7 +5,7 @@
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from erpnext.einvoice.fast_settings import get_environment_banner, get_settings
+from erpnext.einvoice.fast_settings import get_settings
 
 SETTINGS = "Fast EInvoice Settings"
 
@@ -33,19 +33,11 @@ class TestFastEInvoiceSettings(FrappeTestCase):
 		self.assertEqual(frappe.get_meta(SETTINGS).get_field("api_password").fieldtype, "Password")
 
 	def test_defaults_are_safe_for_a_fresh_site(self):
-		"""Site mới phải tắt tích hợp và trỏ vào cổng TEST của Fast."""
+		"""Site mới phải tắt tích hợp, trỏ vào cổng TEST và tự nhận là đang chạy thử."""
 		meta = frappe.get_meta(SETTINGS)
 		self.assertEqual(meta.get_field("enabled").default, "0")
 		self.assertIn(":9000", meta.get_field("api_url").default)
-
-	def test_there_is_no_self_declared_environment_flag(self):
-		"""Môi trường suy từ `api_url`, không có ô nào để tick sai.
-
-		Ô "Chế độ TEST" cũ không định tuyến gì — nó chỉ đổi màu banner, nên hai
-		nguồn sự thật cho cùng một câu hỏi sớm muộn cũng lệch: banner báo TEST
-		trong khi lời gọi đang bắn vào cổng thật.
-		"""
-		self.assertIsNone(frappe.get_meta(SETTINGS).get_field("is_test_mode"))
+		self.assertEqual(meta.get_field("is_test_mode").default, "1")
 
 	def test_spec_defaults_for_the_operational_checkboxes(self):
 		meta = frappe.get_meta(SETTINGS)
@@ -83,18 +75,17 @@ class TestFastEInvoiceSettings(FrappeTestCase):
 		_set(enabled=0, api_password="s3cret")
 		self.assertEqual(get_settings().api_password, "s3cret")
 
-	def test_banner_warns_loudly_when_pointing_at_the_real_system(self):
-		"""Nguyên tắc A4: phải biết ngay mình đang bắn vào hệ thống thật."""
-		_set(enabled=0, api_url="https://tportal.fast.com.vn/x.asmx")
-		banner = get_environment_banner()
-		self.assertEqual(banner["indicator"], "red")
-		self.assertIn("THẬT", banner["message"])
+	def test_get_settings_reports_the_test_mode_flag(self):
+		"""Ô tích là lời tự khai của người dùng, không suy từ URL.
 
-	def test_banner_is_calm_in_test_mode(self):
-		_set(enabled=0, api_url="https://tportal.fast.com.vn:9000/x.asmx")
-		banner = get_environment_banner()
-		self.assertEqual(banner["indicator"], "yellow")
-		self.assertIn("TEST", banner["message"])
+		Nó chỉ để nhắc trên màn hình: đích đến của lời gọi do `api_url` quyết
+		định, một cái tick không đổi được điều đó.
+		"""
+		_set(enabled=0, is_test_mode=1)
+		self.assertTrue(get_settings().is_test_mode)
+
+		_set(enabled=0, is_test_mode=0)
+		self.assertFalse(get_settings().is_test_mode)
 
 	def test_notify_on_error_is_a_user_multiselect(self):
 		field = frappe.get_meta(SETTINGS).get_field("notify_on_error")

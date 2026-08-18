@@ -29,7 +29,8 @@ frappe.ui.form.on("Fast EInvoice Document", {
 		if (!state) return;
 
 		frm.einvoice_state = state;
-		render_banner(frm, state);
+		render_status_indicator(frm, state);
+		render_environment(frm, state);
 		render_validation(frm, state);
 		render_buttons(frm, state);
 	},
@@ -149,9 +150,20 @@ function render_override_banner(frm) {
 	);
 }
 
-// --- Banner môi trường (nguyên tắc A4) --------------------------------------
+// --- Chấm màu trạng thái -----------------------------------------------------
 
-function render_banner(frm, state) {
+// Chấm màu cạnh tiêu đề chứng từ, cùng bảng màu với danh sách. Màu lấy từ server
+// (`STATUS_COLOURS` trong constants.py) để form không tự bịa một bảng thứ hai.
+function render_status_indicator(frm, state) {
+	frm.page.set_indicator(__(state.status), state.status_colour);
+}
+
+// --- Nhắc môi trường ---------------------------------------------------------
+
+// Chỉ nói khi có gì đáng nói: tích hợp đang tắt, hoặc đang chạy thử. Hệ thống
+// thật là trạng thái bình thường nên không dán nhãn — nhãn đỏ hiện ở mọi chứng
+// từ thì vài hôm là không ai đọc nữa.
+function render_environment(frm, state) {
 	if (!state.enabled) {
 		frm.dashboard.add_comment(
 			__("Tích hợp hóa đơn điện tử đang tắt trong Fast EInvoice Settings."),
@@ -160,7 +172,9 @@ function render_banner(frm, state) {
 		);
 		return;
 	}
-	frm.dashboard.add_comment(state.banner.message, state.banner.indicator, true);
+	if (state.is_test_mode) {
+		frm.dashboard.add_comment(__("Hệ thống đang chạy thử (TEST)."), "yellow", true);
+	}
 }
 
 // --- Bảng kết quả kiểm tra dữ liệu (Phần F) ---------------------------------
@@ -426,7 +440,6 @@ function confirm_level_three(frm, button) {
 function summary_html(frm, button) {
 	const doc = frm.doc;
 	const money = (value) => format_currency(value, doc.currency);
-	const banner = frm.einvoice_state.banner;
 
 	const rows = [
 		[__("Khách hàng"), doc.customer_name],
@@ -463,10 +476,14 @@ function summary_html(frm, button) {
 					"Sau khi phát hành: hóa đơn được ký số HSM, cấp số chính thức và gửi lên Cơ quan Thuế. KHÔNG THỂ XÓA hoặc sửa. Muốn thay đổi phải lập hóa đơn điều chỉnh hoặc thay thế."
 			  );
 
+	// Nhắc chạy thử ngay trong hộp xác nhận cấp 3: đây là chỗ cuối cùng còn dừng
+	// lại được, và người bấm cần biết số hóa đơn sắp tiêu là thật hay không.
+	const testing = frm.einvoice_state.is_test_mode
+		? `<div class="alert alert-warning"><b>${__("Hệ thống đang chạy thử (TEST).")}</b></div>`
+		: "";
+
 	return `
-		<div class="alert alert-${banner.indicator === "red" ? "danger" : "warning"}">
-			<b>${banner.message}</b>
-		</div>
+		${testing}
 		<table class="table table-bordered">${body}</table>
 		<div class="alert alert-danger">${warning}</div>`;
 }

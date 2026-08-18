@@ -165,6 +165,22 @@ class TestFastEInvoiceDocument(FrappeTestCase):
 		):
 			self.assertEqual(meta.get_field(fieldname).read_only, 1, fieldname)
 
+	def test_document_identity_fields_are_never_typed_by_hand(self):
+		"""Danh tính chứng từ do hệ thống đặt lúc tạo, không phải ô nhập.
+
+		``builder`` đặt phiếu giao + loại chứng từ, ``lineage`` đặt hóa đơn gốc +
+		loại điều chỉnh. Gõ tay vào đây là làm sai bản chất chứng từ: đổi phiếu
+		giao thì ``fast_key`` (mã chống trùng, bất biến) lệch hẳn với nguồn, còn
+		đổi hóa đơn gốc thì thẻ ``originalInvoice`` gửi lên Fast trỏ sai chỗ.
+
+		Chỉ khóa ở giao diện — đồng bộ lại từ phiếu giao và các luồng nghiệp vụ
+		vẫn ghi được các trường này như trước.
+		"""
+		meta = frappe.get_meta(FEI)
+		for fieldname in ("delivery_note", "invoice_type", "original_document", "adjustment_type"):
+			with self.subTest(fieldname=fieldname):
+				self.assertEqual(meta.get_field(fieldname).read_only, 1)
+
 	def test_release_type_defaults_to_detailed_columns(self):
 		self.assertEqual(frappe.get_meta(FEI).get_field("release_type").default, "1")
 

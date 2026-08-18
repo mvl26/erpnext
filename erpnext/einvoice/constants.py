@@ -43,6 +43,37 @@ STATUSES = (
 )
 STATUS_OPTIONS = "\n".join(STATUSES)
 
+# Màu chấm trạng thái, nhóm theo **việc người dùng cần làm** chứ không theo thứ
+# tự vòng đời: nhìn danh sách là biết chứng từ nào đang chờ mình.
+#
+#   grey     — đang soạn, chưa ràng buộc gì
+#   orange   — đang chờ hoặc cần người can thiệp
+#   yellow   — hệ thống đang chạy, đừng đụng
+#   blue     — đã có số hóa đơn, đang đi đúng luồng
+#   green    — xong xuôi
+#   red      — phải xử lý ngay
+#   darkgrey — hết hiệu lực, chỉ để tra cứu
+#
+# Danh sách (list view) buộc phải có bản sao bảng này trong JS vì `get_indicator`
+# chạy phía client cho từng dòng. Test `TestStatusColours` đối chiếu hai bên, nên
+# sửa một chỗ mà quên chỗ kia là đỏ ngay.
+STATUS_COLOURS = {
+	STATUS_DRAFT: "grey",
+	STATUS_DRAFT_VIEWED: "grey",
+	STATUS_AWAITING_CUSTOMER: "orange",
+	STATUS_CUSTOMER_APPROVED: "blue",
+	STATUS_ISSUING: "yellow",
+	STATUS_ISSUED: "blue",
+	STATUS_SENT: "blue",
+	STATUS_TAX_ACCEPTED: "green",
+	STATUS_TAX_REJECTED: "red",
+	STATUS_ADJUSTED: "darkgrey",
+	STATUS_REPLACED: "darkgrey",
+	STATUS_CANCELLED: "darkgrey",
+	STATUS_NEEDS_RECONCILE: "orange",
+	STATUS_ERROR: "red",
+}
+
 # Sửa được dữ liệu (cột cuối bảng B2). Mọi trạng thái khác khóa dữ liệu master.
 EDITABLE_STATUSES = frozenset(
 	{
