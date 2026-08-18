@@ -2,7 +2,7 @@
 
 Hệ thống ERP nội bộ của **Công ty TNHH Miyano Việt Nam** — kinh doanh thiết bị & vật tư y tế.
 
-Đây là **hệ thống nội bộ, không phát hành công khai**. Repo này là bản fork sâu, được sửa trực tiếp trong core để phù hợp nghiệp vụ Miyano (xem [CLAUDE.md](CLAUDE.md) và [SPEC.md](SPEC.md)). Nguồn gốc và giấy phép: xem [NOTICE.md](NOTICE.md).
+Đây là **hệ thống nội bộ, không phát hành công khai**. Repo này là bản fork sâu, được sửa trực tiếp trong core để phù hợp nghiệp vụ Miyano (xem [CLAUDE.md](CLAUDE.md) và [SPEC.md](docs/SPEC.md)). Nguồn gốc và giấy phép: xem [NOTICE.md](NOTICE.md).
 
 ## Phạm vi nghiệp vụ
 

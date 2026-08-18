@@ -23,7 +23,7 @@ It runs as one app inside a Frappe *bench* (site `miyano`), not standalone. **Ru
 Miyano's deployment (built by a Vietnamese team, medcons.vn) layers several **complementary custom apps** on the same bench and site `miyano`, sharing one database with this app:
 
 - **`mvl_accounting`** — Kế toán tuân thủ Thông tư 99/2025/TT-BTC (VN); requires `erpnext` + `hrms`.
-  **PARKED (decision 2026-07-16):** VN accounting is built **in this app** (`erpnext/regional/vietnam/` + related core edits) — see `SPEC.md`. `mvl_accounting` is disk-only, NOT installed on site `miyano`; treat its code as a tested reference to study, never install it, never import from it at runtime, and never touch its working tree (it has uncommitted local changes).
+  **PARKED (decision 2026-07-16):** VN accounting is built **in this app** (`erpnext/regional/vietnam/` + related core edits) — see `docs/SPEC.md`. `mvl_accounting` is disk-only, NOT installed on site `miyano`; treat its code as a tested reference to study, never install it, never import from it at runtime, and never touch its working tree (it has uncommitted local changes).
 - **`assetcore`** — Medical Equipment Lifecycle Management (HTM) — vòng đời thiết bị y tế.
 - **`antmed_crm`** — CRM quản lý kinh doanh thiết bị & vật tư y tế.
 - **`normcore_dmktkt` / `norm_himedic`** — Định mức Kinh tế Kỹ thuật dịch vụ y tế.
@@ -73,14 +73,7 @@ bench --site miyano run-parallel-tests --app erpnext
 
 Tests subclass `frappe.tests.utils.FrappeTestCase` (or `IntegrationTestCase`) and run inside a transaction that is rolled back. Fixture data lives in `test_records.json` next to each DocType.
 
-**Where test files go — mandatory:** every `test_*.py` (including shared fixture/helper modules named `test_*`) lives in a dedicated test folder of its module — `erpnext/<module>/tests/` (Accounts uses the pre-existing `erpnext/accounts/test/`). Never leave a test file loose next to source code at a module or package root. Sub-packages that own a self-contained feature keep their own folder, e.g. `erpnext/einvoice/tests/`, `erpnext/regional/vietnam/tests/`. Each test folder is a package (`__init__.py`).
-
-**The two exceptions — framework-mandated, do not move:**
-
-- `erpnext/<module>/doctype/<doctype>/test_<doctype>.py` — Frappe auto-creates test records from the adjacent `<doctype>.json` / `test_records.json`, and `run-tests --doctype "X"` resolves the file by that path.
-- `erpnext/<module>/report/<report>/test_<report>.py` — same for `run-tests --report`.
-
-Discovery is `os.walk`-based (`frappe/test_runner.py`), so nested `tests/` folders are picked up by `run-tests --app erpnext` automatically; only the `--module` dotted path changes.
+**Where files go — enforced, not advisory:** `scripts/file_structure/gate.py` holds the authoritative path map; a `PreToolUse` hook blocks any *new* file landing in the wrong place and names the right one. Audit the whole tree with `python3 -m scripts.file_structure --audit`. Tests go in `<module>/tests/` (Accounts uses `accounts/test/`); discovery is `os.walk`-based so nested folders are found automatically. Two framework-mandated exceptions the map allows on purpose: `<module>/doctype/<dt>/test_<dt>.py` and `<module>/report/<rp>/test_<rp>.py` — Frappe resolves those by path (`frappe/test_runner.py:209`). Load the `code_structure` skill when creating a DocType, report, or patch.
 
 ### Lint / format
 

@@ -1,6 +1,6 @@
 ## Miyano ERP includes these public works
 
-Ghi nhận tài nguyên bên thứ ba được sử dụng trong hệ thống. Xem thêm [NOTICE.md](NOTICE.md).
+Ghi nhận tài nguyên bên thứ ba được sử dụng trong hệ thống. Xem thêm [NOTICE.md](../NOTICE.md).
 
 #### Images
 
