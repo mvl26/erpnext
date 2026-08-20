@@ -31,6 +31,7 @@ email_css = "email_erpnext.bundle.css"
 
 doctype_js = {
 	"Address": "public/js/address.js",
+	"Delivery Note": "public/js/einvoice/delivery_note.js",
 	"Communication": "public/js/communication.js",
 	"Event": "public/js/event.js",
 	"Newsletter": "public/js/newsletter.js",
@@ -61,6 +62,10 @@ before_install = [
 	"erpnext.setup.install.check_frappe_version",
 ]
 after_install = "erpnext.setup.install.after_install"
+
+# Tích hợp HĐĐT Fast dựng lại cấu hình sau mỗi lần migrate. Hàm này chạy lại
+# được nhiều lần, và để ở đây thì thêm trường/mẫu email mới không cần patch mới.
+after_migrate = ["erpnext.einvoice.setup.setup_einvoice"]
 
 boot_session = "erpnext.startup.boot.boot_session"
 notification_config = "erpnext.startup.notifications.get_notification_config"
@@ -364,7 +369,6 @@ doc_events = {
 		"on_submit": [
 			"erpnext.regional.create_transaction_log",
 			"erpnext.regional.italy.utils.sales_invoice_on_submit",
-			"erpnext.regional.vietnam.e_invoice.on_si_submit",
 		],
 		"on_cancel": [
 			"erpnext.regional.italy.utils.sales_invoice_on_cancel",
@@ -421,6 +425,10 @@ scheduler_events = {
 		"0/30 * * * *": [
 			"erpnext.utilities.doctype.video.video.update_youtube_data",
 		],
+		# HĐĐT: quét các hóa đơn còn chờ Cơ quan Thuế (mục E8).
+		"0/20 * * * *": [
+			"erpnext.einvoice.tax_status.poll_pending_tax_status",
+		],
 		# Hourly but offset by 30 minutes
 		"30 * * * *": [
 			"erpnext.accounts.doctype.gl_entry.gl_entry.rename_gle_sle_docs",
@@ -441,6 +449,7 @@ scheduler_events = {
 		"erpnext.utilities.bulk_transaction.retry",
 	],
 	"daily": [
+		"erpnext.einvoice.doctype.fast_einvoice_log.fast_einvoice_log.delete_old_logs",
 		"erpnext.support.doctype.issue.issue.auto_close_tickets",
 		"erpnext.crm.doctype.opportunity.opportunity.auto_close_opportunity",
 		"erpnext.controllers.accounts_controller.update_invoice_status",

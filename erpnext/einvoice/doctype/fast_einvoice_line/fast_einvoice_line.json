@@ -1,0 +1,150 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-08-07 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "process_type",
+  "item_code",
+  "item_name",
+  "uom",
+  "is_promotion",
+  "qty",
+  "price",
+  "amount",
+  "discount_rate",
+  "discount_amount",
+  "tax_rate",
+  "tax_amount",
+  "note",
+  "line_number"
+ ],
+ "fields": [
+  {
+   "columns": 1,
+   "default": "1",
+   "description": "Tính chất dòng hàng — 1 = Hàng hóa / dịch vụ · 2 = Khuyến mại · 3 = Chiết khấu · 4 = Ghi chú · 5 = Hàng đặc trưng.",
+   "fieldname": "process_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Tính chất",
+   "options": "1\n2\n3\n4\n5",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Mã hàng",
+   "length": 32,
+   "options": "Item",
+   "description": "Chọn từ danh mục hàng hóa; tên hàng và ĐVT tự điền theo hồ sơ Item."
+  },
+  {
+   "columns": 3,
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Tên hàng hóa, dịch vụ",
+   "length": 500,
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "description": "Tên đơn vị tính tiếng Việt (Cái, Chiếc, Bộ, Hộp…).",
+   "fieldname": "uom",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "ĐVT",
+   "length": 16,
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_promotion",
+   "fieldtype": "Check",
+   "label": "Hàng khuyến mại"
+  },
+  {
+   "columns": 1,
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Số lượng",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Đơn giá",
+   "options": "currency"
+  },
+  {
+   "columns": 1,
+   "description": "= Số lượng × Đơn giá − chiết khấu (ReleaseType = 1).",
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Thành tiền",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_rate",
+   "fieldtype": "Float",
+   "label": "Tỷ lệ chiết khấu (%)"
+  },
+  {
+   "description": "Nhập Tỷ lệ chiết khấu thì ô này do hệ thống tính.",
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Tiền chiết khấu",
+   "options": "currency"
+  },
+  {
+   "columns": 1,
+   "description": "0 · 5 · 8 · 10 · -1 KCT · -2 KKKNT · -8 KHAC · -9 không ghi",
+   "fieldname": "tax_rate",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Thuế suất",
+   "options": "0\n5\n8\n10\n-1\n-2\n-8\n-9",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tiền thuế GTGT",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Data",
+   "label": "Ghi chú"
+  },
+  {
+   "description": "Tùy chọn. Chỉ đưa thẻ LineNumber vào payload khi thực sự dùng.",
+   "fieldname": "line_number",
+   "fieldtype": "Int",
+   "label": "Số thứ tự dòng"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-07 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Einvoice",
+ "name": "Fast EInvoice Line",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
