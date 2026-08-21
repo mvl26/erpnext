@@ -34,3 +34,11 @@ class TestTBYTModule(FrappeTestCase):
 
 	def test_expiry_warning_threshold_is_ninety_days(self):
 		self.assertEqual(constants.EXPIRY_WARNING_DAYS, 90)
+
+	def test_module_def_exists_in_the_database(self):
+		"""`bench migrate` không tự tạo Module Def cho module mới — phải có patch.
+
+		Hai test trên đều đọc từ đĩa (`modules.txt` và thư mục), nên chúng vẫn
+		xanh khi DB thiếu bản ghi. Test này đóng đúng khe hở đó.
+		"""
+		self.assertTrue(frappe.db.exists("Module Def", "TBYT"))
