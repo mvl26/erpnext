@@ -1014,3 +1014,16 @@ function open_form(frm, doctype, child_doctype, parentfield) {
 		]);
 	});
 }
+
+frappe.ui.form.on("Item", {
+	item_group(frm) {
+		// Nhóm hàng chỉ GỢI Ý, và chỉ lúc tạo mới. Server cố ý không tự suy cờ này:
+		// trường Check không diễn tả được "chưa khai" khác "cố ý bỏ tích", nên mọi
+		// suy đoán phía server đều có nguy cơ ghi đè lựa chọn của người dùng. Hàng
+		// tạo qua API/import phải khai cờ tường minh.
+		if (!frm.is_new()) return;
+		frappe.db.get_value("Item Group", frm.doc.item_group, "la_tbyt").then((r) => {
+			frm.set_value("la_thiet_bi_y_te", cint(r.message && r.message.la_tbyt));
+		});
+	},
+});

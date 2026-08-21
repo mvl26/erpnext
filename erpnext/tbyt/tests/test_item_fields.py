@@ -54,9 +54,16 @@ class TestItemTBYTFields(FrappeTestCase):
 		self.suffix = frappe.generate_hash(length=6)
 		self.auth = make_authorization(so_luu_hanh=f"_TEST-SLH-ITEM-{self.suffix}", phan_loai="C")
 
-	def test_medical_flag_defaults_from_the_item_group(self):
-		item = make_item(f"_TEST-TBYT-DEFAULT-{self.suffix}", so_luu_hanh=self.auth.name)
-		self.assertEqual(item.la_thiet_bi_y_te, 1)
+	def test_server_never_infers_the_medical_flag(self):
+		"""Server cố ý KHÔNG suy cờ từ nhóm hàng — gợi ý là việc của form.
+
+		Trường Check không phân biệt được "chưa khai" với "cố ý bỏ tích", nên mọi
+		suy đoán phía server đều có nguy cơ ghi đè lựa chọn của người dùng. Nhập
+		hàng loạt vào nhóm y tế mà tự bật cờ thì mọi dòng sẽ hỏng vì thiếu số lưu
+		hành — cùng một cái bẫy, ở quy mô lớn hơn.
+		"""
+		item = make_item(f"_TEST-TBYT-NOINFER-{self.suffix}", item_group=make_item_group())
+		self.assertEqual(item.la_thiet_bi_y_te, 0)
 
 	def test_non_medical_group_leaves_the_flag_off(self):
 		group = make_item_group("_Test Nhom Thuong", la_tbyt=0)
@@ -70,6 +77,7 @@ class TestItemTBYTFields(FrappeTestCase):
 		doc.item_group = make_item_group()
 		doc.stock_uom = "Nos"
 		doc.is_stock_item = 0
+		doc.la_thiet_bi_y_te = 1
 		with self.assertRaises(frappe.MandatoryError):
 			doc.insert(ignore_permissions=True)
 
@@ -87,11 +95,24 @@ class TestItemTBYTFields(FrappeTestCase):
 		item = make_item(f"_TEST-TBYT-OPTIONAL-{self.suffix}", item_group=group)
 		self.assertFalse(item.so_luu_hanh)
 
-	def test_manual_override_of_the_medical_flag_survives_saving(self):
-		"""Bỏ tích rồi lưu lại không được bị nhóm hàng ghi đè ngược."""
+	def test_explicit_untick_in_a_medical_group_is_respected(self):
+		"""Phụ kiện trong nhóm y tế: bỏ tích là thao tác chính đáng, không được ghi đè.
+
+		Đây là ca mà bản đầu bỏ lọt — nhóm hàng bật cờ, người dùng tắt đi, và hệ thống
+		phải nghe theo người dùng chứ không phải nhóm hàng.
+		"""
+		item = make_item(
+			f"_TEST-TBYT-UNTICK-{self.suffix}",
+			item_group=make_item_group(),
+			la_thiet_bi_y_te=0,
+		)
+		self.assertEqual(item.la_thiet_bi_y_te, 0)
+		self.assertFalse(item.so_luu_hanh)
+
+	def test_explicit_tick_in_a_non_medical_group_is_respected(self):
 		group = make_item_group("_Test Nhom Thuong", la_tbyt=0)
 		item = make_item(
-			f"_TEST-TBYT-OVERRIDE-{self.suffix}",
+			f"_TEST-TBYT-TICK-{self.suffix}",
 			item_group=group,
 			la_thiet_bi_y_te=1,
 			so_luu_hanh=self.auth.name,

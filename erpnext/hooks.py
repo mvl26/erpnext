@@ -338,7 +338,6 @@ doc_events = {
 		],
 	},
 	"Item": {
-		"before_insert": "erpnext.tbyt.item_hooks.set_default_medical_flag",
 		"validate": "erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
 	},
 	tuple(period_closing_doctypes): {

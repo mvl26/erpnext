@@ -28,16 +28,3 @@ def require_authorization_for_medical_item(doc, method=None):
 		_("Mặt hàng là thiết bị y tế thì bắt buộc phải có Số lưu hành."),
 		frappe.MandatoryError,
 	)
-
-
-def set_default_medical_flag(doc, method=None):
-	"""Chỉ áp mặc định lúc TẠO MỚI, và chỉ khi người dùng chưa tự khai.
-
-	Cố ý không dùng `fetch_from` + `fetch_if_empty`: với trường Check thì "rỗng"
-	chính là 0, nên người dùng bỏ tích sẽ bị nhóm hàng ghi đè lại mỗi lần lưu.
-	"""
-	if doc.get("la_thiet_bi_y_te"):
-		return
-	if not doc.item_group:
-		return
-	doc.la_thiet_bi_y_te = cint(frappe.db.get_value("Item Group", doc.item_group, "la_tbyt"))
