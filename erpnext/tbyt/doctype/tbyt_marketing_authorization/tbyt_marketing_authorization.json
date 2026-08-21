@@ -1,0 +1,158 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-08-21 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "so_luu_hanh",
+  "loai_hinh",
+  "phan_loai",
+  "column_break_ma_1",
+  "chu_so_huu",
+  "miyano_la_chu_so_huu",
+  "hang_nhap_khau",
+  "section_break_ma_1",
+  "trang_thai",
+  "khong_thoi_han",
+  "column_break_ma_2",
+  "ngay_cap",
+  "ngay_het_han"
+ ],
+ "fields": [
+  {
+   "default": "TBYT-LH-.YYYY.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "TBYT-LH-.YYYY.-.#####"
+  },
+  {
+   "description": "Số thật do Bộ Y tế cấp. Để trống khi đang nộp hồ sơ đăng ký.",
+   "fieldname": "so_luu_hanh",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Số lưu hành",
+   "unique": 1
+  },
+  {
+   "fieldname": "loai_hinh",
+   "fieldtype": "Select",
+   "label": "Loại hình",
+   "options": "Số công bố tiêu chuẩn\nSố đăng ký lưu hành",
+   "reqd": 1
+  },
+  {
+   "description": "Nguồn sự thật cho phân loại của mọi Item trỏ tới số lưu hành này.",
+   "fieldname": "phan_loai",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Phân loại",
+   "options": "A\nB\nC\nD",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_ma_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "chu_so_huu",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Chủ sở hữu",
+   "options": "Manufacturer",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Bỏ tích khi Miyano chỉ đứng tên hộ. Đây là công tắc của nhóm chứng từ BB*.",
+   "fieldname": "miyano_la_chu_so_huu",
+   "fieldtype": "Check",
+   "label": "Miyano là chủ sở hữu số lưu hành"
+  },
+  {
+   "default": "0",
+   "fieldname": "hang_nhap_khau",
+   "fieldtype": "Check",
+   "label": "Hàng nhập khẩu"
+  },
+  {
+   "fieldname": "section_break_ma_1",
+   "fieldtype": "Section Break",
+   "label": "Hiệu lực"
+  },
+  {
+   "default": "Đang đăng ký",
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Trạng thái",
+   "options": "Đang đăng ký\nCòn hiệu lực\nHết hiệu lực\nBị thu hồi",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Số lưu hành cấp vô thời hạn. Tích vào thì không bao giờ bị cảnh báo hết hạn.",
+   "fieldname": "khong_thoi_han",
+   "fieldtype": "Check",
+   "label": "Vô thời hạn"
+  },
+  {
+   "fieldname": "column_break_ma_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ngay_cap",
+   "fieldtype": "Date",
+   "label": "Ngày cấp",
+   "mandatory_depends_on": "eval:doc.trang_thai !== \"Đang đăng ký\""
+  },
+  {
+   "fieldname": "ngay_het_han",
+   "fieldtype": "Date",
+   "label": "Ngày hết hạn",
+   "mandatory_depends_on": "eval:doc.trang_thai !== \"Đang đăng ký\" && !doc.khong_thoi_han"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-21 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "TBYT",
+ "name": "TBYT Marketing Authorization",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Item Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "show_title_field_in_link": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "so_luu_hanh",
+ "track_changes": 1
+}
