@@ -43,11 +43,16 @@ def refresh_for_authorization(doc, method=None) -> None:
 def _enqueue(item_codes: list[str]) -> None:
 	if not item_codes:
 		return
-	# `now=in_test` vì enqueue mặc định KHÔNG chạy inline trong test — nó đẩy
-	# vào Redis thật và assert ngay sau đó sẽ đọc phải giá trị cũ.
+	# `now=in_test` vì enqueue mặc định KHÔNG chạy inline trong test — nó đẩy vào
+	# Redis thật và assert ngay sau đó sẽ đọc phải giá trị cũ.
+	# `enqueue_after_commit=True` vì nếu đẩy job trước khi giao dịch lưu được commit,
+	# worker chạy trên kết nối DB riêng có thể đọc phải dữ liệu CŨ, tính ra trạng thái
+	# sai, rồi tự commit cái sai đó. Test không bao giờ bắt được lỗi này vì `now=True`
+	# biến mọi thứ thành đồng bộ trong cùng giao dịch.
 	frappe.enqueue(
 		"erpnext.tbyt.refresh.refresh_items",
 		queue="short",
 		item_codes=item_codes,
 		now=bool(frappe.flags.in_test),
+		enqueue_after_commit=True,
 	)

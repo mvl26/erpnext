@@ -35,7 +35,10 @@ class TBYTRegulatoryDocument(Document):
 		place_file(self)
 		refresh_for_document(self)
 
-	def on_trash(self):
+	def after_delete(self):
+		"""`on_trash` chạy TRƯỚC `delete_from_table` — refresh đồng bộ trong test (`now=True`)
+		sẽ vẫn thấy dòng sắp xóa còn trong DB và tính sai. `after_delete` chạy sau khi
+		hàng đã thật sự mất, nên đọc lại là đọc đúng — kể cả khi refresh chạy đồng bộ."""
 		refresh_for_document(self)
 
 	def _validate_links(self):

@@ -23,6 +23,26 @@ from erpnext.tbyt.tests.test_item_fields import make_item, make_item_group
 AUTH_DOCTYPE = "TBYT Marketing Authorization"
 
 
+def upload_everything_required(item, auth):
+	"""Tải lên mọi chứng từ bắt buộc còn thiếu — dùng để đẩy Item tới trạng thái Đủ.
+
+	Ở cấp module để `test_refresh.py` tái dùng thay vì chép lại lần hai.
+	"""
+	from erpnext.tbyt.resolver import get_item_documents
+
+	for row in get_item_documents(item.name):
+		if not row["is_required"] or row["document"]:
+			continue
+		scope_map = {
+			constants.SCOPE_COMPANY: ("Company", erpnext.get_default_company()),
+			constants.SCOPE_OWNER: ("Manufacturer", auth.chu_so_huu),
+			constants.SCOPE_AUTHORIZATION: (AUTH_DOCTYPE, auth.name),
+			constants.SCOPE_ITEM: ("Item", item.name),
+		}
+		scope_doctype, scope_name = scope_map[row["scope_level"]]
+		make_regulatory_document(row["document_key"], scope_doctype, scope_name)
+
+
 class TestItemStatus(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
@@ -42,19 +62,7 @@ class TestItemStatus(FrappeTestCase):
 		return item, auth
 
 	def _upload_everything_required(self, item, auth):
-		from erpnext.tbyt.resolver import get_item_documents
-
-		for row in get_item_documents(item.name):
-			if not row["is_required"] or row["document"]:
-				continue
-			scope_map = {
-				constants.SCOPE_COMPANY: ("Company", erpnext.get_default_company()),
-				constants.SCOPE_OWNER: ("Manufacturer", auth.chu_so_huu),
-				constants.SCOPE_AUTHORIZATION: (AUTH_DOCTYPE, auth.name),
-				constants.SCOPE_ITEM: ("Item", item.name),
-			}
-			scope_doctype, scope_name = scope_map[row["scope_level"]]
-			make_regulatory_document(row["document_key"], scope_doctype, scope_name)
+		upload_everything_required(item, auth)
 
 	def test_non_medical_item_has_no_status(self):
 		group = make_item_group("_Test Nhom Thuong", la_tbyt=0)
