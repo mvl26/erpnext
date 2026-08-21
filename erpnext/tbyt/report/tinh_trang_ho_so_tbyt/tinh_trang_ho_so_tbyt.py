@@ -70,27 +70,30 @@ def get_columns():
 
 
 def get_data(filters):
+	# `phan_loai_tbyt` trên Item là fetch_from, chỉ đồng bộ lại khi Item được
+	# lưu — sửa phân loại trên Authorization không tự đẩy xuống Item. Vì vậy
+	# không lọc bằng cột đó: đọc `phan_loai` sống từ Authorization bên dưới,
+	# giống hệt cách `chu_so_huu` đã được áp dụng hậu truy vấn.
 	item_filters = {"la_thiet_bi_y_te": 1}
 	if filters.get("item_group"):
 		item_filters["item_group"] = filters.item_group
-	if filters.get("phan_loai"):
-		item_filters["phan_loai_tbyt"] = filters.phan_loai
 
 	items = frappe.get_all(
 		"Item",
 		filters=item_filters,
-		fields=["name", "item_name", "item_group", "so_luu_hanh", "phan_loai_tbyt"],
+		fields=["name", "item_name", "item_group", "so_luu_hanh"],
 		order_by="name",
 	)
 
 	owner_filter = filters.get("chu_so_huu")
+	class_filter = filters.get("phan_loai")
 	rows = []
 	for item in items:
 		auth = (
 			frappe.db.get_value(
 				"TBYT Marketing Authorization",
 				item.so_luu_hanh,
-				["chu_so_huu", "trang_thai"],
+				["chu_so_huu", "trang_thai", "phan_loai"],
 				as_dict=True,
 			)
 			if item.so_luu_hanh
@@ -98,14 +101,21 @@ def get_data(filters):
 		)
 		if owner_filter and (not auth or auth.chu_so_huu != owner_filter):
 			continue
+		if class_filter and (not auth or auth.phan_loai != class_filter):
+			continue
 
 		documents = get_item_documents(item.name)
 		missing = _count_missing(documents)
 		expired = [d for d in documents if d["document"] and d["trang_thai"] == DOC_STATUS_EXPIRED]
 		horizon = _nearest_expiry(documents)
 		status = get_item_status(item.name)
+		batch_label, batch_complete = _batch_coverage(item.name)
 
-		if filters.get("chi_hien_thieu") and status == ITEM_STATUS_OK:
+		# Trạng thái Item cố ý bỏ qua chứng từ cấp lô (CQ, CO), nên "đủ hồ sơ
+		# mặt hàng" không có nghĩa là đủ hồ sơ thật sự — phải xét cả batch_complete,
+		# nếu không bộ lọc mặc định sẽ giấu đúng khoảng trống mà cột này sinh ra
+		# để phơi bày.
+		if filters.get("chi_hien_thieu") and status == ITEM_STATUS_OK and batch_complete:
 			continue
 
 		rows.append(
@@ -114,7 +124,7 @@ def get_data(filters):
 				"item_name": item.item_name,
 				"item_group": item.item_group,
 				"so_luu_hanh": item.so_luu_hanh,
-				"phan_loai_tbyt": item.phan_loai_tbyt,
+				"phan_loai_tbyt": auth.phan_loai if auth else None,
 				"trang_thai_slh": auth.trang_thai if auth else None,
 				"tinh_trang_ho_so": status,
 				"bb_thieu": missing[LEVEL_BB],
@@ -122,7 +132,7 @@ def get_data(filters):
 				"nc_thieu": missing[LEVEL_NC],
 				"chung_tu_het_han": len(expired),
 				"ngay_het_han_gan_nhat": horizon,
-				"ho_so_lo": _batch_coverage(item.name),
+				"ho_so_lo": batch_label,
 			}
 		)
 	return rows
@@ -149,14 +159,16 @@ def _nearest_expiry(documents):
 	return min(dates) if dates else None
 
 
-def _batch_coverage(item_code: str) -> str:
+def _batch_coverage(item_code: str) -> tuple[str, bool]:
 	"""CQ và CO theo từng lô — phần mà trạng thái trên Item cố ý không xét.
 
-	Trả về "3/4 lô" nghĩa là 3 trên 4 lô còn tồn đã đủ cả CQ lẫn CO.
+	Trả về `("3/4 lô", False)` nghĩa là 3 trên 4 lô còn tồn đã đủ cả CQ lẫn CO
+	— cờ thứ hai là False vì vẫn còn lô thiếu. Không có lô nào thì coi là đủ
+	(`True`): không có gì để thiếu, đúng lý do trạng thái Item bỏ qua cấp lô.
 	"""
 	batches = frappe.get_all("Batch", filters={"item": item_code, "disabled": 0}, pluck="name")
 	if not batches:
-		return _("Chưa có lô")
+		return _("Chưa có lô"), True
 
 	covered = 0
 	for batch in batches:
@@ -176,4 +188,5 @@ def _batch_coverage(item_code: str) -> str:
 		if found == len(BATCH_REQUIRED):
 			covered += 1
 
-	return f"{covered}/{len(batches)} " + _("lô")
+	label = f"{covered}/{len(batches)} " + _("lô")
+	return label, covered == len(batches)

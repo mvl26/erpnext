@@ -16,6 +16,7 @@ from erpnext.tbyt.doctype.tbyt_marketing_authorization.test_tbyt_marketing_autho
 from erpnext.tbyt.report.tinh_trang_ho_so_tbyt.tinh_trang_ho_so_tbyt import execute
 from erpnext.tbyt.tests.test_expiry import make_regulatory_document
 from erpnext.tbyt.tests.test_item_fields import make_item
+from erpnext.tbyt.tests.test_status import upload_everything_required
 
 AUTH_DOCTYPE = "TBYT Marketing Authorization"
 
@@ -88,10 +89,47 @@ class TestTinhTrangHoSoTBYT(FrappeTestCase):
 		_columns, rows = execute({"chi_hien_thieu": 1})
 		self.assertTrue(all(r["tinh_trang_ho_so"] != constants.ITEM_STATUS_OK for r in rows))
 
+	def test_incomplete_batch_paperwork_survives_the_default_filter(self):
+		"""Đủ hồ sơ mặt hàng nhưng lô thiếu CQ/CO thì vẫn phải hiện.
+
+		Trạng thái của Item cố ý bỏ qua chứng từ cấp lô, nên nếu bộ lọc "chỉ hiện
+		hồ sơ chưa đủ" chỉ nhìn trạng thái đó thì nó sẽ giấu đúng khoảng trống mà
+		cột Hồ sơ cấp lô sinh ra để phơi bày — và bộ lọc này bật sẵn.
+		"""
+		upload_everything_required(self.item, self.auth)
+		frappe.db.set_value("Item", self.item.name, "has_batch_no", 1)
+		frappe.get_doc(
+			{
+				"doctype": "Batch",
+				"item": self.item.name,
+				"batch_id": f"_TEST-LO-GAP-{self.suffix}",
+			}
+		).insert(ignore_permissions=True)
+
+		_columns, rows = execute({"chi_hien_thieu": 1})
+		row = self._row(rows)
+		self.assertIsNotNone(row, "Mặt hàng có lô thiếu CQ/CO bị bộ lọc mặc định giấu mất")
+		self.assertEqual(row["ho_so_lo"], "0/1 lô")
+
 	def test_filter_by_device_class(self):
 		_columns, rows = execute({"phan_loai": "B"})
 		self.assertTrue(all(r["phan_loai_tbyt"] == "B" for r in rows))
 		self.assertIsNotNone(self._row(rows))
+
+	def test_filter_by_device_class_uses_live_authorization_value_not_stale_fetch(self):
+		"""`phan_loai_tbyt` là fetch_from, chỉ đồng bộ khi Item được lưu lại.
+
+		Đổi phân loại thẳng dưới DB (bỏ qua việc lưu Item) để mô phỏng bản sao bị
+		cũ, rồi kỳ vọng bộ lọc vẫn tìm thấy mặt hàng theo phân loại MỚI vì báo
+		cáo phải đọc `phan_loai` sống từ số lưu hành, không tin bản fetch cũ.
+		"""
+		frappe.db.set_value(AUTH_DOCTYPE, self.auth.name, "phan_loai", "C")
+		self.assertEqual(frappe.db.get_value("Item", self.item.name, "phan_loai_tbyt"), "B")
+
+		_columns, rows = execute({"phan_loai": "C"})
+		row = self._row(rows)
+		self.assertIsNotNone(row, "Đổi phân loại trên số lưu hành phải phản ánh ngay trong bộ lọc")
+		self.assertEqual(row["phan_loai_tbyt"], "C")
 
 	def test_columns_expose_the_expiry_horizon(self):
 		columns, _rows = execute({})
