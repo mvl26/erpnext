@@ -22,6 +22,7 @@
 - Test kế thừa `frappe.tests.utils.FrappeTestCase`, chạy trong transaction và được rollback.
 - **Không tạo Custom Field** cho các trường trên Item / Item Group — sửa thẳng JSON core. Lý do: `create_custom_fields` chạy ALTER TABLE, ngầm COMMIT transaction của FrappeTestCase và làm rác dữ liệu test.
 - Sau mỗi lần sửa file `.json` của DocType: `bench --site miyano migrate`.
+- **`mandatory_depends_on` CHỈ chạy phía client.** Không một chỗ nào trong `frappe/model/` đọc nó; thực thi nằm ở `public/js/frappe/form/save.js`. Mọi trường dùng nó **phải** được ghép thêm một kiểm tra server viết tay ném `frappe.MandatoryError`. ERPNext core làm đúng thế: `Item.asset_category` có `mandatory_depends_on`, nhưng `item.py` vẫn viết riêng một kiểm tra server. Thiếu nửa sau thì mọi đường ghi không qua form — import, API, test, script — đều lọt.
 - 5 mức chứng từ: `BB` (bắt buộc), `BB*` (bắt buộc có điều kiện), `NC` (nên có), `TH` (theo trường hợp), `KHONG_AP_DUNG`.
 - 6 cấp phạm vi: `Company`, `Owner`, `Authorization`, `Batch`, `Item`, `Transaction`.
 - Ngưỡng cảnh báo sắp hết hạn: **90 ngày**.
@@ -2066,6 +2067,7 @@ from erpnext.tbyt.expiry import compute_document_status
 class TBYTRegulatoryDocument(Document):
 	def validate(self):
 		self._fill_scope_doctype()
+		self._validate_expiry_is_declared()
 		self._validate_expiry_is_unambiguous()
 		self._validate_date_order()
 		self._set_status()
@@ -2082,6 +2084,19 @@ class TBYTRegulatoryDocument(Document):
 			)
 		for row in self.pham_vi:
 			row.scope_doctype = expected
+
+	def _validate_expiry_is_declared(self):
+		"""Nửa server của tri-state. `mandatory_depends_on` chỉ chặn ở trình duyệt.
+
+		Không có hàm này thì tổ hợp "chưa tích Vô thời hạn mà bỏ trống ngày" vẫn lưu
+		được qua import, API hay test — và đúng khoảng mờ mà tri-state sinh ra để xoá
+		sẽ mở lại.
+		"""
+		if not cint(self.khong_thoi_han) and not self.ngay_het_han:
+			frappe.throw(
+				_("Chưa tích Vô thời hạn thì bắt buộc phải điền Ngày hết hạn."),
+				frappe.MandatoryError,
+			)
 
 	def _validate_expiry_is_unambiguous(self):
 		if cint(self.khong_thoi_han) and self.ngay_het_han:
@@ -2277,6 +2292,7 @@ Sửa `erpnext/tbyt/doctype/tbyt_regulatory_document/tbyt_regulatory_document.py
 ```python
 	def validate(self):
 		self._fill_scope_doctype()
+		self._validate_expiry_is_declared()
 		self._validate_scope_count()
 		self._validate_scope_rows_are_distinct()
 		self._validate_single_owner()
@@ -2413,7 +2429,7 @@ git commit -m "feat(tbyt): chan trung chung tu va giu toan ven bang pham vi"
 
 **Interfaces:**
 - Consumes: `TBYT Marketing Authorization` (Task 4)
-- Produces: trường Item `la_thiet_bi_y_te`, `so_luu_hanh`, `phan_loai_tbyt`, `tinh_trang_ho_so`, `ho_so_tbyt_html`; trường Item Group `la_tbyt`; `erpnext.tbyt.item_hooks.set_default_medical_flag(doc, method=None)`
+- Produces: trường Item `la_thiet_bi_y_te`, `so_luu_hanh`, `phan_loai_tbyt`, `tinh_trang_ho_so`, `ho_so_tbyt_html`; trường Item Group `la_tbyt`; `erpnext.tbyt.item_hooks.set_default_medical_flag(doc, method=None)`, `erpnext.tbyt.item_hooks.require_authorization_for_medical_item(doc, method=None)`
 
 **Lưu ý:** sửa thẳng JSON core, **không** dùng Custom Field — `create_custom_fields` chạy ALTER TABLE và ngầm COMMIT transaction của FrappeTestCase, làm rác dữ liệu của mọi suite chạy sau.
 
@@ -2666,7 +2682,26 @@ sửa quy định lại phải mở một file 1000 dòng của core.
 """
 
 import frappe
+from frappe import _
 from frappe.utils import cint
+
+
+def require_authorization_for_medical_item(doc, method=None):
+	"""Số lưu hành là ràng buộc CỨNG duy nhất của cả tính năng — chặn thật.
+
+	`mandatory_depends_on` trên trường chỉ chặn ở trình duyệt: không chỗ nào trong
+	`frappe/model/` đọc nó. ERPNext core cũng không tin nó — `Item.asset_category`
+	có `mandatory_depends_on`, nhưng `item.py` vẫn viết riêng một kiểm tra server.
+	Thiếu hàm này thì mọi đường ghi không qua form đều lọt.
+	"""
+	if not cint(doc.get("la_thiet_bi_y_te")):
+		return
+	if doc.get("so_luu_hanh"):
+		return
+	frappe.throw(
+		_("Mặt hàng là thiết bị y tế thì bắt buộc phải có Số lưu hành."),
+		frappe.MandatoryError,
+	)
 
 
 def set_default_medical_flag(doc, method=None):
@@ -2689,6 +2724,7 @@ Trong `erpnext/hooks.py`, tìm `doc_events = {` (khoảng dòng 333) và thêm k
 ```python
 	"Item": {
 		"before_insert": "erpnext.tbyt.item_hooks.set_default_medical_flag",
+		"validate": "erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
 	},
 ```
 
@@ -3572,9 +3608,15 @@ Sửa khóa `"Item"` trong `doc_events` (đã thêm ở Task 7) thành:
 ```python
 	"Item": {
 		"before_insert": "erpnext.tbyt.item_hooks.set_default_medical_flag",
-		"validate": "erpnext.tbyt.item_hooks.warn_about_missing_documents",
+		"validate": [
+			"erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
+			"erpnext.tbyt.item_hooks.warn_about_missing_documents",
+		],
 	},
 ```
+
+Hai handler, đúng thứ tự đó: ràng buộc cứng chạy trước rồi mới tới cảnh báo. Frappe
+chấp nhận danh sách cho một sự kiện `doc_events`.
 
 - [ ] **Step 7: Dựng bảng hồ sơ trên form Item**
 
