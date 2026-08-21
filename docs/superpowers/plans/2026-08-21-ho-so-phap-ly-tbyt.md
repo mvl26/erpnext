@@ -37,7 +37,9 @@
 - Create: `erpnext/tbyt/doctype/__init__.py`
 - Create: `erpnext/tbyt/tests/__init__.py`
 - Create: `erpnext/tbyt/tests/test_tbyt_module.py`
+- Create: `erpnext/patches/v15_0/add_tbyt_module_def.py`
 - Modify: `erpnext/modules.txt` (thêm dòng cuối)
+- Modify: `erpnext/patches.txt` (thêm dòng cuối)
 
 **Interfaces:**
 - Produces: `erpnext.tbyt.constants` — `SCOPE_COMPANY`, `SCOPE_OWNER`, `SCOPE_AUTHORIZATION`, `SCOPE_BATCH`, `SCOPE_ITEM`, `SCOPE_TRANSACTION`, `SCOPE_DOCTYPE: dict[str, str]`, `LEVEL_BB`, `LEVEL_BB_STAR`, `LEVEL_NC`, `LEVEL_TH`, `LEVEL_NA`, `DEVICE_CLASSES: tuple`, `EXPIRY_WARNING_DAYS: int`, `AUTH_STATUS_*`, `DOC_STATUS_*`, `ITEM_STATUS_*`
@@ -83,6 +85,14 @@ class TestTBYTModule(FrappeTestCase):
 
 	def test_expiry_warning_threshold_is_ninety_days(self):
 		self.assertEqual(constants.EXPIRY_WARNING_DAYS, 90)
+
+	def test_module_def_exists_in_the_database(self):
+		"""`bench migrate` không tự tạo Module Def cho module mới — phải có patch.
+
+		Hai test đầu đều đọc từ đĩa (`modules.txt` và thư mục), nên chúng vẫn xanh
+		khi DB thiếu bản ghi. Test này đóng đúng khe hở đó.
+		"""
+		self.assertTrue(frappe.db.exists("Module Def", "TBYT"))
 ```
 
 - [ ] **Step 2: Chạy test để xác nhận nó đỏ**
@@ -219,7 +229,46 @@ Thêm `TBYT` vào cuối `erpnext/modules.txt` (sau dòng `Einvoice`):
 printf 'TBYT\n' >> erpnext/modules.txt && tail -3 erpnext/modules.txt
 ```
 
-- [ ] **Step 5: Migrate để Frappe tạo Module Def**
+- [ ] **Step 5: Tạo Module Def bằng patch, rồi migrate**
+
+`bench migrate` **KHÔNG** tạo Module Def cho module mới thêm vào `modules.txt` —
+`frappe.installer.add_module_defs` chỉ chạy lúc **cài app**, không có trong
+`frappe/migrate.py`. Thiếu bản ghi này thì DocType khai `"module": "TBYT"` ở Task 2
+không có gì để trỏ tới. Repo cũng không có tiền lệ tự động: Module Def của `Einvoice`
+được tạo tay ngày 2026-08-07.
+
+Tạo `erpnext/patches/v15_0/add_tbyt_module_def.py`:
+
+```python
+# Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
+
+"""Tạo Module Def cho module TBYT.
+
+`bench migrate` KHÔNG tạo Module Def cho module mới thêm vào `modules.txt` —
+`frappe.installer.add_module_defs` chỉ chạy lúc cài app. Thiếu bản ghi này thì
+DocType khai `"module": "TBYT"` không có gì để trỏ tới.
+"""
+
+import frappe
+
+
+def execute():
+	if frappe.db.exists("Module Def", "TBYT"):
+		return
+
+	doc = frappe.new_doc("Module Def")
+	doc.module_name = "TBYT"
+	doc.app_name = "erpnext"
+	doc.insert(ignore_permissions=True)
+```
+
+Thêm dòng vào cuối `erpnext/patches.txt`:
+
+```bash
+printf 'erpnext.patches.v15_0.add_tbyt_module_def\n' >> erpnext/patches.txt
+```
+
+Rồi chạy:
 
 ```bash
 cd /home/miyano/frappe-bench && bench --site miyano migrate
@@ -231,7 +280,7 @@ cd /home/miyano/frappe-bench && bench --site miyano migrate
 cd /home/miyano/frappe-bench && bench --site miyano run-tests --module erpnext.tbyt.tests.test_tbyt_module
 ```
 
-Kỳ vọng: PASS, 4 test.
+Kỳ vọng: PASS, 5 test.
 
 - [ ] **Step 7: Commit**
 
