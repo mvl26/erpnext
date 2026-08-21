@@ -3971,6 +3971,8 @@ git commit -m "feat(tbyt): cay thu muc va quy uoc dat ten file ho so"
   - `erpnext.tbyt.refresh.refresh_for_document(doc, method=None) -> None`
   - `erpnext.tbyt.refresh.refresh_for_authorization(doc, method=None) -> None`
 
+**Ruling tiền-thực-thi (bắt buộc giữ):** `refresh.py` **không được** import `resolver` / `status` ở cấp module — phải hoãn vào trong thân hàm. Lý do nằm trong comment của chính file. Đây không phải chỗ để "dọn dẹp import cho gọn": làm vậy là dựng lại vòng lặp import và app sẽ không nạp được.
+
 **Vì sao cần task này:** không có nó thì trạng thái ôi tới 24 tiếng. 9h sáng upload CFS ở cấp chủ sở hữu, toàn bộ item của hãng vẫn hiển thị "Thiếu CFS" cho tới khi job nửa đêm chạy — người dùng vừa làm đúng việc mà hệ thống vẫn báo đỏ.
 
 - [ ] **Step 1: Viết test thất bại**
@@ -4085,17 +4087,25 @@ Chạy nền vì một chứng từ cấp chủ sở hữu có thể chạm hàn
 
 import frappe
 
-from erpnext.tbyt.resolver import find_items_for_scope
-from erpnext.tbyt.status import update_item_status
+# CỐ Ý không import `resolver` và `status` ở cấp module. Controller
+# `tbyt_marketing_authorization` import file này, mà `resolver` lại import
+# `get_condition_context` từ chính controller đó — thành vòng lặp
+# `authorization -> refresh -> resolver -> authorization`. Python sẽ nổ
+# ImportError ngay khi Frappe nạp controller, và nổ từ cả hai đầu vào. Hoãn
+# import vào trong thân hàm cắt vòng tại đúng một điểm.
 
 
 def refresh_items(item_codes: list[str]) -> None:
+	from erpnext.tbyt.status import update_item_status
+
 	for item_code in item_codes:
 		update_item_status(item_code)
 
 
 def refresh_for_document(doc, method=None) -> None:
 	"""Chứng từ đổi → làm mới mọi Item mà bảng phạm vi của nó phủ."""
+	from erpnext.tbyt.resolver import find_items_for_scope
+
 	affected = []
 	for row in doc.pham_vi:
 		affected.extend(find_items_for_scope(row.scope_doctype, row.scope_name))
@@ -4104,6 +4114,8 @@ def refresh_for_document(doc, method=None) -> None:
 
 def refresh_for_authorization(doc, method=None) -> None:
 	"""Số lưu hành đổi trạng thái → làm mới mọi Item trỏ tới nó."""
+	from erpnext.tbyt.resolver import find_items_for_scope
+
 	_enqueue(find_items_for_scope("TBYT Marketing Authorization", doc.name))
 
 
