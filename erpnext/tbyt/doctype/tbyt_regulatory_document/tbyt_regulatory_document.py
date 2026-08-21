@@ -28,6 +28,7 @@ class TBYTRegulatoryDocument(Document):
 		self._validate_no_duplicate_scope()
 		self._validate_expiry_is_unambiguous()
 		self._validate_date_order()
+		self._validate_not_superseding_itself()
 		self._set_status()
 
 	def on_update(self):
@@ -54,6 +55,12 @@ class TBYTRegulatoryDocument(Document):
 
 	def _fill_scope_doctype(self):
 		"""Người dùng chỉ chọn đối tượng; cấp phạm vi suy từ loại chứng từ."""
+		if not self.document_type:
+			# Hàm này chạy từ `_validate_links`, tức TRƯỚC bước kiểm tra trường bắt
+			# buộc của khung sườn. Cứ chạy tiếp thì người dùng bỏ trống Loại chứng
+			# từ sẽ nhận một câu tiếng Việt có chữ "None" chèn giữa. Im lặng nhường
+			# chỗ cho lỗi "bắt buộc" thật của Frappe ngay sau đó.
+			return
 		scope_level = frappe.db.get_value("TBYT Document Type", self.document_type, "scope_level")
 		expected = SCOPE_DOCTYPE.get(scope_level)
 		if not expected:
@@ -172,6 +179,15 @@ class TBYTRegulatoryDocument(Document):
 						"Nếu đây là bản gia hạn, hãy khai nó ở trường Thay thế cho."
 					).format(self.document_type, row.scope_name, clash[0][0])
 				)
+
+	def _validate_not_superseding_itself(self):
+		"""Tự khai mình là bản bị chính mình thay thế thì bản ghi tự xoá mình khỏi hồ sơ.
+
+		`_supersede_previous` sẽ tắt `is_active` của "bản cũ" — mà bản cũ chính là
+		nó — nên tờ giấy vừa nhập biến mất khỏi phân giải ngay khi lưu xong.
+		"""
+		if self.thay_the_cho and self.thay_the_cho == self.name:
+			frappe.throw(_("Một bản ghi không thể là bản thay thế của chính nó."))
 
 	def _supersede_previous(self):
 		"""Khai Thay thế cho là đủ — bản cũ tự rút lui, không cần thao tác hai bước."""

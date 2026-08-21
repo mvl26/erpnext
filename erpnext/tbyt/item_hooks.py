@@ -51,6 +51,7 @@ def warn_about_missing_documents(doc, method=None):
 
 	if not cint(doc.get("la_thiet_bi_y_te")):
 		doc.tinh_trang_ho_so = None
+		warn_about_untracked_medical_group(doc)
 		return
 
 	snapshot = {
@@ -58,18 +59,17 @@ def warn_about_missing_documents(doc, method=None):
 		"la_thiet_bi_y_te": doc.la_thiet_bi_y_te,
 		"so_luu_hanh": doc.so_luu_hanh,
 	}
-	doc.tinh_trang_ho_so = get_item_status(doc.name, item=snapshot)
 
 	if not doc.so_luu_hanh:
+		doc.tinh_trang_ho_so = get_item_status(doc.name, item=snapshot)
 		return
 
 	auth_status = frappe.db.get_value("TBYT Marketing Authorization", doc.so_luu_hanh, "trang_thai")
-	lines = []
 
-	if auth_status in (AUTH_STATUS_EXPIRED, AUTH_STATUS_REVOKED):
-		lines.append(f"<b style='color:var(--red-600)'>Số lưu hành đang ở trạng thái “{auth_status}”.</b>")
-	elif auth_status == AUTH_STATUS_PENDING:
-		# Chưa có phân loại chắc chắn thì liệt kê thiếu gì chỉ gây nhiễu.
+	if auth_status == AUTH_STATUS_PENDING:
+		# Chưa có phân loại chắc chắn thì liệt kê thiếu gì chỉ gây nhiễu. Thoát
+		# trước khi phân giải luôn — không có gì để liệt kê thì đừng tốn truy vấn.
+		doc.tinh_trang_ho_so = get_item_status(doc.name, item=snapshot)
 		frappe.msgprint(
 			"Số lưu hành chưa được cấp (đang đăng ký). Hồ sơ chứng từ sẽ kiểm khi có số chính thức.",
 			indicator="orange",
@@ -77,7 +77,15 @@ def warn_about_missing_documents(doc, method=None):
 		)
 		return
 
+	# Phân giải ĐÚNG MỘT LẦN rồi đưa lại cho `get_item_status`. Gọi tách hai lần
+	# là trả giá khoảng trăm truy vấn thừa trên MỌI lần lưu một mặt hàng TBYT.
 	rows = get_item_documents(doc.name, item=snapshot)
+	doc.tinh_trang_ho_so = get_item_status(doc.name, item=snapshot, documents=rows)
+
+	lines = []
+	if auth_status in (AUTH_STATUS_EXPIRED, AUTH_STATUS_REVOKED):
+		lines.append(f"<b style='color:var(--red-600)'>Số lưu hành đang ở trạng thái “{auth_status}”.</b>")
+
 	expired = [r for r in rows if r["is_required"] and r["trang_thai"] == DOC_STATUS_EXPIRED]
 	missing_bb = [r for r in rows if not r["document"] and r["level"] == LEVEL_BB]
 	missing_star = [r for r in rows if not r["document"] and r["level"] == LEVEL_BB_STAR and r["is_required"]]
@@ -103,3 +111,29 @@ def warn_about_missing_documents(doc, method=None):
 			title="Hồ sơ pháp lý TBYT chưa đầy đủ",
 			indicator="red" if (expired or missing_bb) else "orange",
 		)
+
+
+def warn_about_untracked_medical_group(doc) -> None:
+	"""Nhóm hàng là TBYT mà mặt hàng không tích cờ — chỉ NÓI RA, tuyệt đối không tự sửa.
+
+	Suy cờ phía server đã bị bỏ có chủ đích và quyết định đó vẫn đúng: trường
+	Check không phân biệt được "chưa khai" với "cố ý bỏ tích", còn tự bật cờ khi
+	nhập hàng loạt thì mọi dòng hỏng ngay vì thiếu số lưu hành.
+
+	Nhưng lỗ hổng nó để lại là có thật: một lần Data Import 500 dòng thiếu cột này
+	sinh ra 500 mặt hàng cờ tắt — vắng mặt khỏi báo cáo, vắng mặt khỏi job đêm, và
+	không có tín hiệu nào ở đâu cả. Cách thoát duy nhất không ghi đè người dùng là
+	cảnh báo: hệ thống nêu nghi vấn, người dùng quyết.
+	"""
+	if not doc.get("item_group"):
+		return
+	if not cint(frappe.db.get_value("Item Group", doc.item_group, "la_tbyt")):
+		return
+	frappe.msgprint(
+		_(
+			"Nhóm hàng {0} là nhóm thiết bị y tế, nhưng mặt hàng này không được đánh dấu "
+			"là thiết bị y tế — hồ sơ pháp lý của nó KHÔNG được theo dõi."
+		).format(doc.item_group),
+		title=_("Mặt hàng nằm ngoài diện theo dõi hồ sơ"),
+		indicator="orange",
+	)

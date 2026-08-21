@@ -108,7 +108,9 @@ def get_data(filters):
 		missing = _count_missing(documents)
 		expired = [d for d in documents if d["document"] and d["trang_thai"] == DOC_STATUS_EXPIRED]
 		horizon = _nearest_expiry(documents)
-		status = get_item_status(item.name)
+		# Truyền lại bộ chứng từ vừa phân giải: báo cáo chạy trên cả nghìn mặt
+		# hàng, để `get_item_status` tự phân giải lần hai là nhân đôi toàn bộ.
+		status = get_item_status(item.name, documents=documents)
 		batch_label, batch_complete = _batch_coverage(item.name)
 
 		# Trạng thái Item cố ý bỏ qua chứng từ cấp lô (CQ, CO), nên "đủ hồ sơ

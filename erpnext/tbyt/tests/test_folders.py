@@ -20,7 +20,7 @@ from erpnext.tbyt.folders import build_file_name, ensure_folder, slugify
 AUTH_DOCTYPE = "TBYT Marketing Authorization"
 
 
-def attach_pdf(file_name="_test_tbyt.pdf"):
+def attach_pdf(file_name="_test_tbyt.pdf", is_private=1):
 	"""Frappe parse PDF để dò JS nhúng, nên byte giả sẽ bị từ chối.
 
 	Thêm một dòng chú thích PDF (bắt đầu bằng `%`, nằm sau `%%EOF` nên không đụng
@@ -36,7 +36,7 @@ def attach_pdf(file_name="_test_tbyt.pdf"):
 			"doctype": "File",
 			"file_name": f"{suffix}_{file_name}",
 			"content": content,
-			"is_private": 1,
+			"is_private": is_private,
 			"folder": "Home/Attachments",
 		}
 	)
@@ -90,7 +90,7 @@ class TestFilePlacement(FrappeTestCase):
 		self.auth = make_authorization(so_luu_hanh=f"_TEST-SLH-FLD-{self.suffix}")
 
 	def _make_document(self, document_type, scope_names, **kwargs):
-		attachment = attach_pdf()
+		attachment = kwargs.get("attachment") or attach_pdf()
 		doc = frappe.new_doc("TBYT Regulatory Document")
 		doc.document_type = document_type
 		for scope_name in scope_names:
@@ -130,3 +130,23 @@ class TestFilePlacement(FrappeTestCase):
 	def test_attachment_is_always_private(self):
 		doc = self._make_document("hdsd_tieng_viet", [self.auth.name])
 		self.assertEqual(frappe.db.get_value("File", {"file_url": doc.file}, "is_private"), 1)
+
+	def test_forcing_private_rewrites_the_record_link_instead_of_breaking_it(self):
+		"""Ép riêng tư làm ĐỔI `file_url` — trường `file` phải đi theo, không được ở lại.
+
+		`File.handle_is_private_changed` dời tệp sang `/private/files/` và gán URL
+		mới cho bản ghi File. Nếu trường `file` vẫn giữ `/files/...` thì link tải về
+		chết, và hook lõi `attach_files_to_document` chạy ngay sau đó không thấy File
+		nào ở URL cũ nên đẻ thêm một File ma — từ đó `_file_of` vớ đúng File ma ấy và
+		bản ghi này vĩnh viễn không đặt tên hay xếp thư mục được nữa.
+		"""
+		public = attach_pdf(is_private=0)
+		self.assertTrue(public.file_url.startswith("/files/"), public.file_url)
+
+		doc = self._make_document("hdsd_tieng_viet", [self.auth.name], attachment=public)
+		doc.reload()
+
+		file_url = frappe.db.get_value("File", public.name, "file_url")
+		self.assertTrue(file_url.startswith("/private/files/"), file_url)
+		self.assertEqual(doc.file, file_url)
+		self.assertEqual(frappe.db.count("File", {"file_url": file_url}), 1)

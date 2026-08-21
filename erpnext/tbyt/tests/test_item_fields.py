@@ -65,6 +65,25 @@ class TestItemTBYTFields(FrappeTestCase):
 		item = make_item(f"_TEST-TBYT-NOINFER-{self.suffix}", item_group=make_item_group())
 		self.assertEqual(item.la_thiet_bi_y_te, 0)
 
+	def test_medical_group_without_the_flag_warns_but_never_sets_it(self):
+		"""Không suy cờ, nhưng cũng không im lặng: lỗ hổng nhập hàng loạt phải kêu lên.
+
+		Một lần Data Import 500 dòng thiếu cột `la_thiet_bi_y_te` sinh ra 500 mặt
+		hàng vắng mặt khỏi cả báo cáo lẫn job đêm. Cảnh báo là cách duy nhất phơi
+		bày chuyện đó mà không ghi đè lựa chọn của người dùng.
+		"""
+		group = make_item_group()
+		frappe.clear_messages()
+		item = make_item(f"_TEST-TBYT-GRPWARN-{self.suffix}", item_group=group)
+
+		self.assertEqual(item.la_thiet_bi_y_te, 0)
+		self.assertEqual(frappe.db.get_value("Item", item.name, "la_thiet_bi_y_te"), 0)
+		messages = frappe.get_message_log()
+		self.assertTrue(
+			any(group in str(m) and "KHÔNG được theo dõi" in str(m) for m in messages),
+			f"Phải cảnh báo mặt hàng nằm ngoài diện theo dõi, message log: {messages}",
+		)
+
 	def test_non_medical_group_leaves_the_flag_off(self):
 		group = make_item_group("_Test Nhom Thuong", la_tbyt=0)
 		item = make_item(f"_TEST-TBYT-PLAIN-{self.suffix}", item_group=group)

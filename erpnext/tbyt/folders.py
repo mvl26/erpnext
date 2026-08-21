@@ -125,6 +125,31 @@ def place_file(doc) -> None:
 		file_doc.flags.ignore_permissions = True
 		file_doc.save()
 
+	_sync_file_url(doc, file_doc)
+
+
+def _sync_file_url(doc, file_doc) -> None:
+	"""Ép `is_private` làm ĐỔI `file_url`, nên phải ghi ngược lại vào bản ghi.
+
+	`File.handle_is_private_changed` (frappe/core/doctype/file/file.py) dời tệp
+	sang `/private/files/` rồi gán `file_url` mới cho chính bản ghi File — nhưng
+	không ai cập nhật trường `file` của bản ghi chứng từ, nó vẫn giữ `/files/...`.
+	Hậu quả dây chuyền, cả ba đều đã kiểm chứng trong mã nguồn Frappe:
+
+	1. Link tải về trên bản ghi trỏ vào đường dẫn không còn tồn tại.
+	2. Hook lõi `attach_files_to_document` (frappe/core/doctype/file/utils.py)
+	   chạy ở `on_update` SAU hook này, không thấy File nào ở URL cũ, nên CHÈN
+	   THÊM một File ma trỏ vào đường dẫn đã chết.
+	3. Từ lần lưu sau, `_file_of` vớ đúng cái File ma đó, nên đặt tên lẫn xếp
+	   thư mục vĩnh viễn không còn tác dụng với bản ghi này.
+
+	Dùng `db_set` chứ không `doc.save()`: đang đứng trong `on_update`, lưu lại
+	là đệ quy. `db_set` cũng cập nhật giá trị trong bộ nhớ, nhờ đó hook lõi chạy
+	ngay sau đọc được URL mới và không đẻ thêm File.
+	"""
+	if file_doc.file_url and file_doc.file_url != doc.file:
+		doc.db_set("file", file_doc.file_url, update_modified=False)
+
 
 def archive_file(doc) -> None:
 	"""Dời file của bản ghi đã bị thay thế vào `_Luu-tru/`."""
@@ -137,7 +162,51 @@ def _archive_of(folder: str) -> str:
 
 
 def _file_of(doc):
+	"""File của CHÍNH bản ghi này — không bao giờ cướp File của bản ghi khác.
+
+	Frappe gộp theo `content_hash`, nên hai bản ghi File hoàn toàn khác nhau có
+	thể dùng chung một `file_url`: cùng một bản scan đính vào hai tờ giấy (CFS và
+	giấy uỷ quyền in chung một trang là chuyện thường). Tra theo mỗi `file_url`
+	thì DB trả về hàng nào tuỳ nó, có thể là hàng của bản ghi kia — và `place_file`
+	sẽ đổi tên, dời thư mục rồi ghi đè `attached_to_name` của hàng đó sang bản ghi
+	này, làm đính kèm bên kia biến mất khỏi thanh bên.
+
+	Nên: ưu tiên File đã gắn đúng vào (doctype, name, field) của bản ghi này; không
+	có thì mới xét các File trùng `file_url` và CHỈ nhận hàng chưa thuộc về bản ghi
+	nào khác. `order_by` để hai lần gọi không ra hai kết quả khác nhau.
+
+	Lưu ý "chưa thuộc về ai" ở đây gồm cả trạng thái NỬA VỜI mà hook `after_insert`
+	của app `assetcore` tạo ra (điền doctype + name, bỏ trống `attached_to_field`):
+	đó vẫn là file của chính bản ghi này, chỉ là gắn thiếu một trường — lọc cứng
+	theo cả ba trường sẽ trượt nó và bỏ file lại giữa `Home/Attachments`.
+	"""
 	if not doc.file:
 		return None
-	name = frappe.db.get_value("File", {"file_url": doc.file}, "name")
-	return frappe.get_doc("File", name) if name else None
+
+	name = frappe.db.get_value(
+		"File",
+		{
+			"attached_to_doctype": doc.doctype,
+			"attached_to_name": doc.name,
+			"attached_to_field": "file",
+		},
+		"name",
+		order_by="creation asc",
+	)
+	if name:
+		return frappe.get_doc("File", name)
+
+	owned = orphan = None
+	for row in frappe.get_all(
+		"File",
+		filters={"file_url": doc.file},
+		fields=["name", "attached_to_doctype", "attached_to_name"],
+		order_by="creation asc",
+	):
+		if (row.attached_to_doctype, row.attached_to_name) == (doc.doctype, doc.name):
+			owned = owned or row
+		elif not row.attached_to_name:
+			orphan = orphan or row
+
+	row = owned or orphan
+	return frappe.get_doc("File", row.name) if row else None

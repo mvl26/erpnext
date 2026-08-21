@@ -101,6 +101,34 @@ class TestItemStatus(FrappeTestCase):
 		self._upload_everything_required(item, auth)
 		self.assertEqual(get_item_status(item.name), constants.ITEM_STATUS_OK)
 
+	def test_a_dangling_authorization_link_never_reads_as_complete(self):
+		"""Xoá số lưu hành mà Item còn trỏ tới — tuyệt đối không được xanh.
+
+		Dọn dữ liệu bằng `ignore_links`, script dọn dẹp hay Transaction Deletion
+		Record đều tạo ra được cảnh này. `frappe.db.get_value` trả None, và None
+		không khớp nhánh thu hồi/hết hiệu lực lẫn nhánh đang đăng ký — không chặn
+		lại thì mặt hàng trôi thẳng xuống "Đủ hồ sơ mặt hàng" đúng lúc cơ sở pháp
+		lý của nó đã bốc hơi.
+		"""
+		item, auth = self._make()
+		self._upload_everything_required(item, auth)
+		self.assertEqual(get_item_status(item.name), constants.ITEM_STATUS_OK)
+
+		frappe.delete_doc(AUTH_DOCTYPE, auth.name, force=1, ignore_permissions=True)
+		self.assertFalse(frappe.db.exists(AUTH_DOCTYPE, auth.name))
+		self.assertEqual(get_item_status(item.name), constants.ITEM_STATUS_AUTH_INVALID)
+
+	def test_an_empty_resolution_reads_as_broken_not_complete(self):
+		"""Không phân giải ra dòng nào thì không có gì để đối chiếu — cấm kết luận "đủ"."""
+		from erpnext.tbyt.resolver import get_item_documents
+
+		item, auth = self._make()
+		# Số lưu hành mất phân loại thì resolver không tra được ma trận và trả rỗng —
+		# cùng hình dạng dữ liệu với ca danh mục 23 loại chứng từ vắng mặt.
+		frappe.db.set_value(AUTH_DOCTYPE, auth.name, "phan_loai", None)
+		self.assertEqual(get_item_documents(item.name), [])
+		self.assertEqual(get_item_status(item.name), constants.ITEM_STATUS_AUTH_INVALID)
+
 	def test_expiring_document_is_reported_once_nothing_is_missing(self):
 		item, auth = self._make()
 		self._upload_everything_required(item, auth)

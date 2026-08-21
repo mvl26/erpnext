@@ -66,6 +66,19 @@ class TestRegulatoryDocumentDuplicates(FrappeTestCase):
 		self.assertEqual(old.is_active, 0)
 		self.assertEqual(old.trang_thai, "Đã thay thế")
 
+	def test_a_document_cannot_supersede_itself(self):
+		"""Tự thay thế chính mình thì bản ghi tự tắt `is_active` và biến khỏi phân giải.
+
+		Hỏng an toàn (mặt hàng báo thiếu chứ không báo đủ), nhưng vẫn là một tờ giấy
+		có thật lặng lẽ rơi khỏi hồ sơ — chặn ngay ở `validate` rẻ hơn đi tìm sau.
+		"""
+		doc = make_regulatory_document("hdsd_tieng_viet", AUTH_DOCTYPE, self.auth.name)
+		doc.thay_the_cho = doc.name
+		with self.assertRaises(frappe.ValidationError):
+			doc.save(ignore_permissions=True)
+
+		self.assertEqual(frappe.db.get_value("TBYT Regulatory Document", doc.name, "is_active"), 1)
+
 	def test_one_document_may_cover_several_authorizations(self):
 		"""Một CFS phủ nhiều số lưu hành = MỘT bản ghi, không nhân bản."""
 		before = frappe.db.count("TBYT Regulatory Document")
