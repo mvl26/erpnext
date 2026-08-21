@@ -1027,3 +1027,79 @@ frappe.ui.form.on("Item", {
 		});
 	},
 });
+
+frappe.ui.form.on("Item", {
+	refresh(frm) {
+		erpnext_render_tbyt_dossier(frm);
+	},
+	la_thiet_bi_y_te(frm) {
+		erpnext_render_tbyt_dossier(frm);
+	},
+	so_luu_hanh(frm) {
+		erpnext_render_tbyt_dossier(frm);
+	},
+});
+
+function erpnext_render_tbyt_dossier(frm) {
+	const wrapper = frm.get_field("ho_so_tbyt_html");
+	if (!wrapper) return;
+	if (frm.is_new() || !frm.doc.la_thiet_bi_y_te) {
+		wrapper.$wrapper.empty();
+		return;
+	}
+
+	frappe.call({
+		method: "erpnext.tbyt.status.get_item_dashboard",
+		args: { item_code: frm.doc.name },
+		callback(r) {
+			if (!r.message) return;
+			wrapper.$wrapper.html(erpnext_tbyt_dossier_html(r.message));
+		},
+	});
+}
+
+function erpnext_tbyt_dossier_html(data) {
+	if (!data.rows.length) {
+		return `<div class="text-muted">${__("Chưa xác định được bộ chứng từ.")}</div>`;
+	}
+
+	const level_label = { BB: "Bắt buộc", "BB*": "BB có điều kiện", NC: "Nên có", TH: "Bổ sung" };
+	const body = data.rows
+		.map((row) => {
+			const expiry = row.khong_thoi_han
+				? __("Vô thời hạn")
+				: row.ngay_het_han
+				? frappe.datetime.str_to_user(row.ngay_het_han)
+				: "—";
+			const state = row.document
+				? `<span class="indicator-pill ${row.trang_thai === "Còn hiệu lực" ? "green" : "red"}">${
+						row.trang_thai
+				  }</span>`
+				: `<span class="indicator-pill ${row.is_required ? "red" : "gray"}">${__("Chưa có")}</span>`;
+			const link = row.document
+				? `<a href="/app/tbyt-regulatory-document/${encodeURIComponent(
+						row.document
+				  )}">${frappe.utils.escape_html(row.so_hieu || row.document)}</a>`
+				: "";
+			return `<tr>
+				<td>${frappe.utils.escape_html(row.document_name)}</td>
+				<td>${level_label[row.level] || row.level}</td>
+				<td>${row.scope_level}</td>
+				<td>${link}</td>
+				<td>${expiry}</td>
+				<td>${state}</td>
+			</tr>`;
+		})
+		.join("");
+
+	return `
+		<div class="mb-2"><b>${__("Tình trạng")}:</b> ${data.status || "—"}
+			${data.missing ? `· <span class="text-danger">${__("Thiếu")} ${data.missing}</span>` : ""}</div>
+		<table class="table table-bordered table-sm">
+			<thead><tr>
+				<th>${__("Chứng từ")}</th><th>${__("Mức")}</th><th>${__("Cấp lưu")}</th>
+				<th>${__("Số hiệu")}</th><th>${__("Hết hạn")}</th><th>${__("Trạng thái")}</th>
+			</tr></thead>
+			<tbody>${body}</tbody>
+		</table>`;
+}

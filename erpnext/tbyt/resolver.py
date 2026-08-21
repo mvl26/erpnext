@@ -30,18 +30,24 @@ from erpnext.tbyt.doctype.tbyt_marketing_authorization.tbyt_marketing_authorizat
 ITEM_SCOPES = (SCOPE_COMPANY, SCOPE_OWNER, SCOPE_AUTHORIZATION, SCOPE_ITEM)
 
 
-def get_item_documents(item_code: str) -> list[dict]:
+def get_item_documents(item_code: str, item: dict | None = None) -> list[dict]:
 	"""Trả về bộ chứng từ đã phân giải của một Item.
 
 	Danh sách rỗng nếu mặt hàng không phải TBYT hoặc chưa gắn số lưu hành.
+
+	`item` cho phép truyền vào bản ghi chưa nằm trong DB — cần khi `validate`
+	chạy lúc tạo mới, vì lúc đó chưa có dòng nào để đọc.
 	"""
-	item = frappe.db.get_value("Item", item_code, ["name", "la_thiet_bi_y_te", "so_luu_hanh"], as_dict=True)
-	if not item or not cint(item.la_thiet_bi_y_te) or not item.so_luu_hanh:
+	if item is None:
+		item = frappe.db.get_value(
+			"Item", item_code, ["name", "la_thiet_bi_y_te", "so_luu_hanh"], as_dict=True
+		)
+	if not item or not cint(item.get("la_thiet_bi_y_te")) or not item.get("so_luu_hanh"):
 		return []
 
 	auth = frappe.db.get_value(
 		"TBYT Marketing Authorization",
-		item.so_luu_hanh,
+		item["so_luu_hanh"],
 		["name", "phan_loai", "chu_so_huu"],
 		as_dict=True,
 	)
@@ -49,7 +55,7 @@ def get_item_documents(item_code: str) -> list[dict]:
 		return []
 
 	context = get_condition_context(auth.name)
-	scope_values = get_scope_values(item_code)
+	scope_values = get_scope_values(item_code, item=item)
 
 	rows = []
 	for doc_type in _document_types():
@@ -92,23 +98,24 @@ def get_item_documents(item_code: str) -> list[dict]:
 	return rows
 
 
-def get_scope_values(item_code: str) -> dict:
+def get_scope_values(item_code: str, item: dict | None = None) -> dict:
 	"""Đối tượng cụ thể của Item ở từng cấp phạm vi."""
 	import erpnext
 
-	item = frappe.db.get_value("Item", item_code, ["name", "so_luu_hanh"], as_dict=True)
+	if item is None:
+		item = frappe.db.get_value("Item", item_code, ["name", "so_luu_hanh"], as_dict=True)
 	if not item:
 		return {}
 
 	owner = None
-	if item.so_luu_hanh:
-		owner = frappe.db.get_value("TBYT Marketing Authorization", item.so_luu_hanh, "chu_so_huu")
+	if item.get("so_luu_hanh"):
+		owner = frappe.db.get_value("TBYT Marketing Authorization", item["so_luu_hanh"], "chu_so_huu")
 
 	return {
 		SCOPE_COMPANY: erpnext.get_default_company(),
 		SCOPE_OWNER: owner,
-		SCOPE_AUTHORIZATION: item.so_luu_hanh,
-		SCOPE_ITEM: item.name,
+		SCOPE_AUTHORIZATION: item.get("so_luu_hanh"),
+		SCOPE_ITEM: item.get("name") or item_code,
 	}
 
 

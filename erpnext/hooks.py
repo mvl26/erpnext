@@ -338,7 +338,10 @@ doc_events = {
 		],
 	},
 	"Item": {
-		"validate": "erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
+		"validate": [
+			"erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
+			"erpnext.tbyt.item_hooks.warn_about_missing_documents",
+		],
 	},
 	tuple(period_closing_doctypes): {
 		"validate": "erpnext.accounts.doctype.accounting_period.accounting_period.validate_accounting_period_on_doc_save",
