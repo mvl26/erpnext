@@ -315,7 +315,7 @@ Tạo `erpnext/tbyt/doctype/tbyt_document_type/test_tbyt_document_type.py`:
 ```python
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Danh mục loại chứng từ — khuôn của bảng rule 23 × 4.
+"""Danh mục loại chứng từ — khuôn của bảng rule 23 x 4.
 
 `mac_dinh_co_thoi_han` cố ý CHỈ là gợi ý: có hạn hay không là thuộc tính của
 từng tờ giấy chứ không phải của loại (số lưu hành C/D nay nhiều giấy cấp vô
@@ -721,7 +721,7 @@ class TestTBYTSetup(FrappeTestCase):
 			)
 
 	def test_every_type_declares_all_four_device_classes(self):
-		"""23 × 4 = 92 dòng quy tắc, không thiếu phân loại nào."""
+		"""23 x 4 = 92 dòng quy tắc, không thiếu phân loại nào."""
 		total = 0
 		for spec in DOCUMENT_TYPES:
 			doc = frappe.get_doc(DOCTYPE, spec["document_key"])
@@ -1042,7 +1042,7 @@ DOCUMENT_TYPES = (
 
 
 def setup_tbyt_masters():
-	"""Nạp / cập nhật toàn bộ danh mục. Gọi lại nhiều lần vẫn ra đúng 23 × 4."""
+	"""Nạp / cập nhật toàn bộ danh mục. Gọi lại nhiều lần vẫn ra đúng 23 x 4."""
 	for spec in DOCUMENT_TYPES:
 		_upsert_document_type(spec)
 
