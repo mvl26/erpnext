@@ -2429,7 +2429,7 @@ git commit -m "feat(tbyt): chan trung chung tu va giu toan ven bang pham vi"
 
 **Interfaces:**
 - Consumes: `TBYT Marketing Authorization` (Task 4)
-- Produces: trường Item `la_thiet_bi_y_te`, `so_luu_hanh`, `phan_loai_tbyt`, `tinh_trang_ho_so`, `ho_so_tbyt_html`; trường Item Group `la_tbyt`; `erpnext.tbyt.item_hooks.set_default_medical_flag(doc, method=None)`, `erpnext.tbyt.item_hooks.require_authorization_for_medical_item(doc, method=None)`
+- Produces: trường Item `la_thiet_bi_y_te`, `so_luu_hanh`, `phan_loai_tbyt`, `tinh_trang_ho_so`, `ho_so_tbyt_html`; trường Item Group `la_tbyt`; `erpnext.tbyt.item_hooks.require_authorization_for_medical_item(doc, method=None)`
 
 **Lưu ý:** sửa thẳng JSON core, **không** dùng Custom Field — `create_custom_fields` chạy ALTER TABLE và ngầm COMMIT transaction của FrappeTestCase, làm rác dữ liệu của mọi suite chạy sau.
 
@@ -2704,17 +2704,31 @@ def require_authorization_for_medical_item(doc, method=None):
 	)
 
 
-def set_default_medical_flag(doc, method=None):
-	"""Chỉ áp mặc định lúc TẠO MỚI, và chỉ khi người dùng chưa tự khai.
+# Không có hàm suy cờ phía server. Xem ghi chú bên dưới.
+```
 
-	Cố ý không dùng `fetch_from` + `fetch_if_empty`: với trường Check thì "rỗng"
-	chính là 0, nên người dùng bỏ tích sẽ bị nhóm hàng ghi đè lại mỗi lần lưu.
-	"""
-	if doc.get("la_thiet_bi_y_te"):
-		return
-	if not doc.item_group:
-		return
-	doc.la_thiet_bi_y_te = cint(frappe.db.get_value("Item Group", doc.item_group, "la_tbyt"))
+**Không suy `la_thiet_bi_y_te` ở phía server.** Trường Check không diễn tả được "chưa
+khai" khác "cố ý bỏ tích": `frappe/model/base_document.py::_fix_numeric_types` ép
+`cint()` vô điều kiện cho mọi Check, và `insert()` gọi `_set_defaults()` **trước**
+`before_insert`, nên đến lúc hook chạy thì giá trị luôn là 0 hoặc 1, không bao giờ là
+`None`. Mọi suy đoán phía server vì thế đều có nguy cơ ghi đè lựa chọn của người dùng —
+mà nhóm *Thiết bị y tế và phụ kiện* có cả phụ kiện không phải thiết bị đăng ký, nên bỏ
+tích là thao tác chính đáng. Ghép với ràng buộc số lưu hành, ghi đè sẽ làm họ không lưu
+được.
+
+Thay vào đó, **form gợi ý** qua `item.js` khi người dùng chọn nhóm hàng trên bản ghi mới,
+còn đường API/import phải khai cờ tường minh:
+
+```javascript
+frappe.ui.form.on("Item", {
+	item_group(frm) {
+		// Nhóm hàng chỉ GỢI Ý, và chỉ lúc tạo mới. Server cố ý không tự suy cờ này.
+		if (!frm.is_new()) return;
+		frappe.db.get_value("Item Group", frm.doc.item_group, "la_tbyt").then((r) => {
+			frm.set_value("la_thiet_bi_y_te", cint(r.message && r.message.la_tbyt));
+		});
+	},
+});
 ```
 
 - [ ] **Step 6: Nối vào `hooks.py`**
@@ -2723,7 +2737,6 @@ Trong `erpnext/hooks.py`, tìm `doc_events = {` (khoảng dòng 333) và thêm k
 
 ```python
 	"Item": {
-		"before_insert": "erpnext.tbyt.item_hooks.set_default_medical_flag",
 		"validate": "erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
 	},
 ```
@@ -3607,7 +3620,6 @@ Sửa khóa `"Item"` trong `doc_events` (đã thêm ở Task 7) thành:
 
 ```python
 	"Item": {
-		"before_insert": "erpnext.tbyt.item_hooks.set_default_medical_flag",
 		"validate": [
 			"erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
 			"erpnext.tbyt.item_hooks.warn_about_missing_documents",
