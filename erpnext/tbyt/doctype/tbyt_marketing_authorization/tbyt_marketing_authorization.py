@@ -14,6 +14,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, getdate
 
 from erpnext.tbyt.constants import AUTH_STATUS_PENDING
+from erpnext.tbyt.refresh import refresh_for_authorization
 
 
 class TBYTMarketingAuthorization(Document):
@@ -21,6 +22,9 @@ class TBYTMarketingAuthorization(Document):
 		self._validate_dates_required_unless_pending()
 		self._validate_expiry_is_unambiguous()
 		self._validate_date_order()
+
+	def on_update(self):
+		refresh_for_authorization(self)
 
 	def _validate_dates_required_unless_pending(self):
 		"""`mandatory_depends_on` trên JSON chỉ có tác dụng ở trình duyệt (JS) —

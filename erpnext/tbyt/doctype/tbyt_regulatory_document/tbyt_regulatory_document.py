@@ -15,6 +15,7 @@ from frappe.utils import cint, getdate
 from erpnext.tbyt.constants import SCOPE_DOCTYPE
 from erpnext.tbyt.expiry import compute_document_status
 from erpnext.tbyt.folders import place_file
+from erpnext.tbyt.refresh import refresh_for_document
 
 
 class TBYTRegulatoryDocument(Document):
@@ -32,6 +33,10 @@ class TBYTRegulatoryDocument(Document):
 	def on_update(self):
 		self._supersede_previous()
 		place_file(self)
+		refresh_for_document(self)
+
+	def on_trash(self):
+		refresh_for_document(self)
 
 	def _validate_links(self):
 		"""Frappe tự kiểm tra Dynamic Link ngay trong `insert()`/`_save()`, TRƯỚC khi
