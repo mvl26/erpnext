@@ -162,26 +162,57 @@ def _archive_of(folder: str) -> str:
 
 
 def _file_of(doc):
-	"""File của CHÍNH bản ghi này — không bao giờ cướp File của bản ghi khác.
+	"""File của CHÍNH bản ghi này — `doc.file` là lời sau cùng, vì người dùng vừa đặt nó.
 
-	Frappe gộp theo `content_hash`, nên hai bản ghi File hoàn toàn khác nhau có
-	thể dùng chung một `file_url`: cùng một bản scan đính vào hai tờ giấy (CFS và
-	giấy uỷ quyền in chung một trang là chuyện thường). Tra theo mỗi `file_url`
-	thì DB trả về hàng nào tuỳ nó, có thể là hàng của bản ghi kia — và `place_file`
-	sẽ đổi tên, dời thư mục rồi ghi đè `attached_to_name` của hàng đó sang bản ghi
-	này, làm đính kèm bên kia biến mất khỏi thanh bên.
+	Thứ tự tra cứu, đúng ba nhánh:
 
-	Nên: ưu tiên File đã gắn đúng vào (doctype, name, field) của bản ghi này; không
-	có thì mới xét các File trùng `file_url` và CHỈ nhận hàng chưa thuộc về bản ghi
-	nào khác. `order_by` để hai lần gọi không ra hai kết quả khác nhau.
+	1. File có `file_url == doc.file` VÀ đã gắn đủ vào (doctype, name, "file") của
+	   bản ghi này — trạng thái ổn định, không có gì thay đổi.
+	2. File có `file_url == doc.file` VÀ chưa thuộc về bản ghi nào khác: hoặc mồ côi
+	   (`attached_to_name` trống), hoặc gắn NỬA VỜI vào chính bản ghi này (đúng
+	   doctype + name nhưng bỏ trống `attached_to_field` — dấu vết hook `after_insert`
+	   của app `assetcore`, xem `assetcore/utils/attachments.py`). Đây là tệp vừa
+	   được tải lên; lọc cứng theo cả ba trường sẽ trượt nó và bỏ tệp lại giữa
+	   `Home/Attachments`.
+	3. Không có hàng nào khớp `doc.file` thì mới nhận bất kỳ File nào đang gắn vào
+	   (doctype, name, "file") của bản ghi này, kệ URL. Nhánh này để CHỮA bản ghi cũ
+	   có `file` lệch URL từ hồi ép `is_private` — `_sync_file_url` sẽ ghi URL thật
+	   ngược lại vào trường `file`.
 
-	Lưu ý "chưa thuộc về ai" ở đây gồm cả trạng thái NỬA VỜI mà hook `after_insert`
-	của app `assetcore` tạo ra (điền doctype + name, bỏ trống `attached_to_field`):
-	đó vẫn là file của chính bản ghi này, chỉ là gắn thiếu một trường — lọc cứng
-	theo cả ba trường sẽ trượt nó và bỏ file lại giữa `Home/Attachments`.
+	Vì sao `doc.file` phải đứng trước: người dùng thay tệp A bằng tệp B rồi lưu thì
+	`place_file` chạy TRƯỚC hook lõi `attach_files_to_document`, lúc ấy B còn mồ côi
+	trong khi A vẫn khớp đủ ba trường. Ưu tiên hàng đã gắn sẽ vớ đúng A, rồi
+	`_sync_file_url` ghi đè URL của A lên `doc.file` — lặng lẽ nuốt mất chỉnh sửa
+	người dùng vừa làm, còn B mắc kẹt ở `Home/Attachments`.
+
+	Ràng buộc bất di bất dịch ở mọi nhánh: KHÔNG BAO GIỜ cướp File của bản ghi khác.
+	Frappe gộp theo `content_hash`, nên hai bản ghi File khác nhau có thể dùng chung
+	một `file_url` (cùng một bản scan đính vào hai tờ giấy là chuyện thường). Hàng
+	nào có `attached_to_name` trỏ sang bản ghi khác đều bị loại, kể cả khi
+	`attached_to_field` của nó đang trống. `order_by` để hai lần gọi không ra hai
+	kết quả khác nhau.
 	"""
 	if not doc.file:
 		return None
+
+	attached = half = orphan = None
+	for row in frappe.get_all(
+		"File",
+		filters={"file_url": doc.file},
+		fields=["name", "attached_to_doctype", "attached_to_name", "attached_to_field"],
+		order_by="creation asc",
+	):
+		mine = (row.attached_to_doctype, row.attached_to_name) == (doc.doctype, doc.name)
+		if mine and row.attached_to_field == "file":
+			attached = attached or row
+		elif mine and not row.attached_to_field:
+			half = half or row
+		elif not row.attached_to_name:
+			orphan = orphan or row
+
+	row = attached or half or orphan
+	if row:
+		return frappe.get_doc("File", row.name)
 
 	name = frappe.db.get_value(
 		"File",
@@ -193,20 +224,4 @@ def _file_of(doc):
 		"name",
 		order_by="creation asc",
 	)
-	if name:
-		return frappe.get_doc("File", name)
-
-	owned = orphan = None
-	for row in frappe.get_all(
-		"File",
-		filters={"file_url": doc.file},
-		fields=["name", "attached_to_doctype", "attached_to_name"],
-		order_by="creation asc",
-	):
-		if (row.attached_to_doctype, row.attached_to_name) == (doc.doctype, doc.name):
-			owned = owned or row
-		elif not row.attached_to_name:
-			orphan = orphan or row
-
-	row = owned or orphan
-	return frappe.get_doc("File", row.name) if row else None
+	return frappe.get_doc("File", name) if name else None

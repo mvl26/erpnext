@@ -131,6 +131,36 @@ class TestFilePlacement(FrappeTestCase):
 		doc = self._make_document("hdsd_tieng_viet", [self.auth.name])
 		self.assertEqual(frappe.db.get_value("File", {"file_url": doc.file}, "is_private"), 1)
 
+	def test_replacing_the_attachment_keeps_the_file_the_user_just_chose(self):
+		"""Thay tệp A bằng tệp B rồi lưu — B phải thắng, không được lặng lẽ quay về A.
+
+		`place_file` chạy TRƯỚC hook lõi `attach_files_to_document`, nên ngay lúc đó
+		B còn mồ côi trong khi A vẫn gắn đủ ba trường vào bản ghi. Nếu `_file_of` ưu
+		tiên hàng đã gắn thì nó vớ đúng A, rồi `_sync_file_url` ghi URL của A đè lên
+		`doc.file` — chỉnh sửa người dùng vừa làm biến mất không một lời báo, còn B
+		nằm lại `Home/Attachments` mãi mãi.
+		"""
+		doc = self._make_document("hdsd_tieng_viet", [self.auth.name], so_hieu="SH-THAY")
+		doc.reload()
+		old_url = doc.file
+
+		new = attach_pdf()
+		self.assertNotEqual(new.file_url, old_url)
+
+		doc.file = new.file_url
+		doc.save(ignore_permissions=True)
+		doc.reload()
+		new.reload()
+
+		self.assertEqual(doc.file, new.file_url)
+		self.assertNotEqual(doc.file, old_url)
+		self.assertEqual(
+			(new.attached_to_doctype, new.attached_to_name, new.attached_to_field),
+			("TBYT Regulatory Document", doc.name, "file"),
+		)
+		self.assertEqual(new.file_name, "HDSD__SH-THAY__2026-02-03.pdf")
+		self.assertEqual(new.folder, f"Home/TBYT/03-So-luu-hanh/{slugify(self.auth.so_luu_hanh)}")
+
 	def test_forcing_private_rewrites_the_record_link_instead_of_breaking_it(self):
 		"""Ép riêng tư làm ĐỔI `file_url` — trường `file` phải đi theo, không được ở lại.
 
