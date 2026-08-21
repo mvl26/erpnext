@@ -337,6 +337,10 @@ doc_events = {
 			"erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.check_for_running_deletion_job",
 		],
 	},
+	"Item": {
+		"before_insert": "erpnext.tbyt.item_hooks.set_default_medical_flag",
+		"validate": "erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
+	},
 	tuple(period_closing_doctypes): {
 		"validate": "erpnext.accounts.doctype.accounting_period.accounting_period.validate_accounting_period_on_doc_save",
 	},
