@@ -60,20 +60,28 @@ class TestExpiryJob(FrappeTestCase):
 		)
 
 	def test_indefinite_document_never_appears_in_the_warning_list(self):
-		make_regulatory_document("hdsd_tieng_viet", AUTH_DOCTYPE, self.auth.name)
-		keys = {row["document_type"] for row in get_expiring_documents()}
-		self.assertNotIn("hdsd_tieng_viet", keys)
+		"""Giấy vô thời hạn không bao giờ lọt vào danh sách cảnh báo.
+
+		Khẳng định trên `name` của chính bản ghi vừa tạo, không phải trên
+		`document_type`: loại chứng từ là giá trị dùng chung, mà
+		`get_expiring_documents()` truy vấn TOÀN CỤC. Kiểm theo loại thì rác của
+		test khác — hoặc dữ liệu thật trên site — cũng làm khẳng định này đúng
+		hoặc sai vì lý do chẳng liên quan gì tới điều nó tuyên bố.
+		"""
+		doc = make_regulatory_document("hdsd_tieng_viet", AUTH_DOCTYPE, self.auth.name)
+		names = {row["name"] for row in get_expiring_documents()}
+		self.assertNotIn(doc.name, names)
 
 	def test_document_inside_the_window_appears_in_the_warning_list(self):
-		make_regulatory_document(
+		doc = make_regulatory_document(
 			"tai_lieu_ky_thuat_bao_duong",
 			AUTH_DOCTYPE,
 			self.auth.name,
 			khong_thoi_han=0,
 			ngay_het_han=add_days(today(), 10),
 		)
-		keys = {row["document_type"] for row in get_expiring_documents()}
-		self.assertIn("tai_lieu_ky_thuat_bao_duong", keys)
+		names = {row["name"] for row in get_expiring_documents()}
+		self.assertIn(doc.name, names)
 
 	def test_job_lapses_an_authorization_whose_date_has_passed(self):
 		auth = make_authorization(
