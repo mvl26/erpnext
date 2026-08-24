@@ -88,6 +88,28 @@ ITEM_STATUSES = (
 	ITEM_STATUS_OK,
 )
 
+# Loại hình suy trực tiếp từ phân loại, không phải lựa chọn độc lập: Nghị định
+# 98/2021 cho A/B công bố tiêu chuẩn áp dụng, còn C/D phải đăng ký lưu hành.
+# Bảng quy tắc đã seed cũng mã hóa đúng ràng buộc này (so_cong_bo_tieu_chuan chỉ
+# áp dụng ở A/B, gcn_dang_ky_luu_hanh chỉ ở C/D).
+LOAI_HINH_CONG_BO = "Số công bố tiêu chuẩn"
+LOAI_HINH_DANG_KY = "Số đăng ký lưu hành"
+
+LOAI_HINH_BY_CLASS = {
+	"A": LOAI_HINH_CONG_BO,
+	"B": LOAI_HINH_CONG_BO,
+	"C": LOAI_HINH_DANG_KY,
+	"D": LOAI_HINH_DANG_KY,
+}
+
+# Chứng từ chứng minh chính số lưu hành đó — dùng để điền sẵn khi tải lên.
+AUTH_DOCUMENT_BY_CLASS = {
+	"A": "so_cong_bo_tieu_chuan",
+	"B": "so_cong_bo_tieu_chuan",
+	"C": "gcn_dang_ky_luu_hanh",
+	"D": "gcn_dang_ky_luu_hanh",
+}
+
 # Số ngày trước hạn thì bắt đầu cảnh báo.
 EXPIRY_WARNING_DAYS = 90
 

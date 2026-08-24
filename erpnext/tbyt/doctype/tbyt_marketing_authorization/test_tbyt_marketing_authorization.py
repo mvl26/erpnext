@@ -122,3 +122,46 @@ class TestTBYTMarketingAuthorization(FrappeTestCase):
 			get_condition_context(doc.name),
 			{"miyano_la_chu_so_huu": 0, "hang_nhap_khau": 1},
 		)
+
+	def test_loai_hinh_is_derived_from_the_class(self):
+		doc = make_authorization(so_luu_hanh="_TEST-SLH-LOAIHINH-C", phan_loai="C")
+		self.assertEqual(doc.loai_hinh, constants.LOAI_HINH_DANG_KY)
+
+	def test_loai_hinh_overrides_a_contradictory_value(self):
+		"""API/import là đường duy nhất còn khai sai được — read-only chỉ chặn ở trình duyệt."""
+		doc = make_authorization(
+			so_luu_hanh="_TEST-SLH-LOAIHINH-CONTRADICT",
+			phan_loai="D",
+			loai_hinh="Số công bố tiêu chuẩn",
+		)
+		self.assertEqual(doc.loai_hinh, constants.LOAI_HINH_DANG_KY)
+		self.assertEqual(
+			frappe.db.get_value(DOCTYPE, doc.name, "loai_hinh"),
+			constants.LOAI_HINH_DANG_KY,
+		)
+
+	def test_class_a_derives_the_declaration_type(self):
+		doc = make_authorization(so_luu_hanh="_TEST-SLH-LOAIHINH-A", phan_loai="A")
+		self.assertEqual(doc.loai_hinh, constants.LOAI_HINH_CONG_BO)
+
+	def test_get_authorization_documents_lists_only_this_authorization(self):
+		from erpnext.tbyt.doctype.tbyt_marketing_authorization.tbyt_marketing_authorization import (
+			get_authorization_documents,
+		)
+		from erpnext.tbyt.tests.test_expiry import make_regulatory_document
+
+		suffix = frappe.generate_hash(length=6)
+		auth_one = make_authorization(so_luu_hanh=f"_TEST-SLH-GETDOC-1-{suffix}", phan_loai="A")
+		auth_two = make_authorization(so_luu_hanh=f"_TEST-SLH-GETDOC-2-{suffix}", phan_loai="A")
+		regulatory_doc = make_regulatory_document(
+			"so_cong_bo_tieu_chuan",
+			DOCTYPE,
+			auth_one.name,
+			so_hieu=f"_TEST-SH-GETDOC-{suffix}",
+		)
+
+		rows_for_one = get_authorization_documents(auth_one.name)
+		self.assertEqual([row["name"] for row in rows_for_one], [regulatory_doc.name])
+
+		rows_for_two = get_authorization_documents(auth_two.name)
+		self.assertEqual(rows_for_two, [])

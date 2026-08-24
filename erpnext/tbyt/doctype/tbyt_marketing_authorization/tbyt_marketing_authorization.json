@@ -19,7 +19,9 @@
   "khong_thoi_han",
   "column_break_ma_2",
   "ngay_cap",
-  "ngay_het_han"
+  "ngay_het_han",
+  "section_break_ct",
+  "chung_tu_html"
  ],
  "fields": [
   {
@@ -39,10 +41,12 @@
    "unique": 1
   },
   {
+   "description": "Suy từ Phân loại: A/B là Số công bố tiêu chuẩn, C/D là Số đăng ký lưu hành. Không sửa tay.",
    "fieldname": "loai_hinh",
    "fieldtype": "Select",
    "label": "Loại hình",
    "options": "Số công bố tiêu chuẩn\nSố đăng ký lưu hành",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -115,6 +119,16 @@
    "fieldtype": "Date",
    "label": "Ngày hết hạn",
    "mandatory_depends_on": "eval:doc.trang_thai !== \"Đang đăng ký\" && !doc.khong_thoi_han"
+  },
+  {
+   "fieldname": "section_break_ct",
+   "fieldtype": "Section Break",
+   "label": "Chứng từ đã gắn"
+  },
+  {
+   "fieldname": "chung_tu_html",
+   "fieldtype": "HTML",
+   "label": "Chứng từ đã gắn"
   }
  ],
  "index_web_pages_for_search": 1,

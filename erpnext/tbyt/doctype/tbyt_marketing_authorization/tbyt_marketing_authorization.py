@@ -13,18 +13,31 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, getdate
 
-from erpnext.tbyt.constants import AUTH_STATUS_PENDING
+from erpnext.tbyt.constants import AUTH_STATUS_PENDING, LOAI_HINH_BY_CLASS
 from erpnext.tbyt.refresh import refresh_for_authorization
 
 
 class TBYTMarketingAuthorization(Document):
 	def validate(self):
+		self._derive_loai_hinh()
 		self._validate_dates_required_unless_pending()
 		self._validate_expiry_is_unambiguous()
 		self._validate_date_order()
 
 	def on_update(self):
 		refresh_for_authorization(self)
+
+	def _derive_loai_hinh(self):
+		"""`loai_hinh` không phải lựa chọn độc lập — nó suy trực tiếp từ `phan_loai`
+		theo Nghị định 98/2021 (A/B công bố tiêu chuẩn, C/D đăng ký lưu hành).
+
+		`read_only` trong JSON chỉ là trang trí phía trình duyệt — Data Import,
+		API hay `bench console` đều với qua được. Ghi đè im lặng ở đây mới là
+		ràng buộc thật, và không throw vì giá trị sai chỉ có thể đến từ những
+		đường vòng đó, và sửa lại đúng chính là hành vi mong muốn.
+		"""
+		if self.phan_loai in LOAI_HINH_BY_CLASS:
+			self.loai_hinh = LOAI_HINH_BY_CLASS[self.phan_loai]
 
 	def _validate_dates_required_unless_pending(self):
 		"""`mandatory_depends_on` trên JSON chỉ có tác dụng ở trình duyệt (JS) —
@@ -80,3 +93,24 @@ def get_condition_context(authorization: str) -> dict:
 		"miyano_la_chu_so_huu": cint(row.miyano_la_chu_so_huu),
 		"hang_nhap_khau": cint(row.hang_nhap_khau),
 	}
+
+
+@frappe.whitelist()
+def get_authorization_documents(authorization: str) -> list[dict]:
+	"""Các chứng từ đang gắn vào số lưu hành này, cho bảng trên form."""
+	frappe.has_permission("TBYT Marketing Authorization", doc=authorization, throw=True)
+	return frappe.db.sql(
+		"""
+		select rd.name, rd.document_type, rd.so_hieu, rd.ngay_het_han,
+			rd.khong_thoi_han, rd.trang_thai
+		from `tabTBYT Regulatory Document` rd
+		inner join `tabTBYT Document Scope` sc on sc.parent = rd.name
+		where rd.is_active = 1
+			and sc.parenttype = 'TBYT Regulatory Document'
+			and sc.scope_doctype = 'TBYT Marketing Authorization'
+			and sc.scope_name = %(authorization)s
+		order by rd.document_type
+		""",
+		{"authorization": authorization},
+		as_dict=True,
+	)
