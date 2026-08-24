@@ -1,0 +1,360 @@
+# Nghiệm thu hồ sơ pháp lý TBYT
+
+> **Chạy trên:** site `miyano`, nhánh `feat/vn-tbyt-ho-so-phap-ly`
+> **Thời lượng:** 45–60 phút · **28 ca** · làm tuần tự, phần sau dùng dữ liệu phần trước
+> **Điểm xuất phát:** site trống — 0 chủ sở hữu, 0 số lưu hành, 0 chứng từ
+
+---
+
+## 1. Đọc cột kết quả trước khi bắt đầu
+
+Trong tính năng này, **có những lần "đạt" trông hệt như "hỏng"**. Hệ thống từ chối lưu có thể là
+đúng; báo đỏ mà vẫn lưu được cũng có thể là đúng. Mỗi ca ghi rõ nó thuộc loại nào — đối chiếu
+đúng loại rồi mới tick.
+
+| Nhãn | Nghĩa | Thế nào là hỏng |
+|---|---|---|
+| **CHO QUA** | Thao tác phải thành công | Không lưu được |
+| **PHẢI CHẶN** | Hệ thống phải từ chối và báo lỗi | Lưu được |
+| **CẢNH BÁO, VẪN LƯU** | Hiện cảnh báo **nhưng vẫn lưu được** | Bị chặn — thiếu giấy tờ không được cản trở nghiệp vụ |
+
+## 2. Máy đã kiểm phần nào rồi
+
+123 test tự động phủ logic phân giải, chống trùng, ba trạng thái hết hạn, quyền truy cập và báo
+cáo. Bảng này **không lặp lại** những thứ đó. Nó tập trung vào phần chỉ người mới kiểm được:
+giao diện, luồng thao tác thật, và cảm giác dùng.
+
+**Một mục chưa ai xác minh:** nút "Tải chứng từ lên" ở Phần 3 mới chỉ được kiểm ở tầng mã nguồn.
+Chuỗi bấm → mở form → dòng phạm vi hiện ra thì **chưa ai thấy tận mắt**. Đó là ca đáng chú ý nhất
+trong bảng này.
+
+**Nếu thiếu thời gian:** chạy Phần 3 và Phần 5. Phần 3 vì chưa ai kiểm; Phần 5 vì nó chứng minh
+điều khiến thiết kế này khác thiết kế ban đầu. Phần 0 vẫn phải làm trước.
+
+---
+
+## Phần 0 — Chuẩn bị dữ liệu nền
+
+Ba bước này phải xong trước, nếu không sẽ kẹt ngay ở Phần 1.
+
+- [ ] **0.1 — Tạo ít nhất một `Manufacturer`** · *CHO QUA*
+
+  Tìm **Manufacturer** → New → điền **Short Name** → Save.
+
+  **Kết quả:** bản ghi lưu được, tên tài liệu chính là Short Name vừa nhập.
+
+  > **Vì sao trước tiên:** chủ sở hữu là trường bắt buộc của số lưu hành. Chưa có hãng nào thì
+  > không tạo nổi số lưu hành ở bước sau.
+
+- [ ] **0.2 — Bật cờ "Là nhóm thiết bị y tế"** · *CHO QUA*
+
+  Mở **Item Group** → lần lượt ba nhóm *Vật tư y tế tiêu hao*, *Hóa chất - sinh phẩm*,
+  *Thiết bị y tế và phụ kiện* → tích **Là nhóm thiết bị y tế** → Save.
+
+  **Kết quả:** cả ba nhóm lưu được với cờ đã bật.
+
+  > **Cờ này chỉ là gợi ý.** Nó làm form tự tích ô "Là thiết bị / vật tư y tế" khi chọn nhóm lúc
+  > tạo mặt hàng mới — nhưng người dùng vẫn bỏ tích được, và hệ thống nghe theo người dùng. Nhóm
+  > *Thiết bị y tế và phụ kiện* có cả phụ kiện không phải thiết bị đăng ký, nên bỏ tích là thao
+  > tác chính đáng.
+
+- [ ] **0.3 — Xác nhận danh mục chứng từ đã nạp đủ** · *CHO QUA*
+
+  Mở danh sách **TBYT Document Type**.
+
+  **Kết quả:** đúng **23** bản ghi. Mở `hop_chuan_hop_quy` — bảng quy tắc phải là
+  **A: NC · B: NC · C: TH · D: TH**.
+
+  > **Vì sao kiểm đúng dòng này:** nó là dòng duy nhất trong 23 loại có mức *lật* giữa A/B và C/D.
+  > Nếu ai đó chép danh sách A sang C thì mọi dòng khác vẫn đúng, chỉ dòng này sai — nên nó là que
+  > thử tốt nhất cho cả bảng.
+
+---
+
+## Phần 1 — Số lưu hành và ràng buộc Loại hình
+
+Đây là thực thể trung tâm. Hồ sơ pháp lý gắn vào số lưu hành, không gắn vào từng mã hàng — nên
+mọi thứ ở các phần sau đều dựa vào phần này.
+
+- [ ] **1.1 — Tạo số lưu hành loại C, quan sát trường Loại hình** · *CHO QUA*
+
+  **TBYT Marketing Authorization** → New · **Phân loại** = C · **Chủ sở hữu** = hãng ở 0.1 ·
+  **Trạng thái** = Còn hiệu lực · **Ngày cấp** = hôm nay · tích **Vô thời hạn** ·
+  **Số lưu hành** cố ý dùng số có dấu gạch chéo: `220000123/PCBA-HN`.
+
+  **Kết quả:** **Loại hình** tự thành *Số đăng ký lưu hành* và **không sửa được**. Bản ghi lưu
+  được; tên tài liệu có dạng `TBYT-LH-2026-00001`, còn tiêu đề hiển thị là số thật.
+
+  > **Hai điều đang được kiểm cùng lúc.** Loại hình bị khóa theo phân loại — A/B là số công bố,
+  > C/D là số đăng ký, không có ngoại lệ. Và số thật chứa dấu `/` không được dùng làm tên tài
+  > liệu vì nó sẽ phá đường dẫn — nên hệ thống đánh số riêng và chỉ *hiển thị* số thật.
+
+- [ ] **1.2 — Đổi Phân loại sang A** · *CHO QUA*
+
+  **Kết quả:** **Loại hình** tự đổi thành *Số công bố tiêu chuẩn* ngay, không cần lưu.
+
+  > Đổi lại về **C** trước khi sang ca tiếp theo — các phần sau giả định số lưu hành này là loại C.
+
+- [ ] **1.3 — Tạo số lưu hành thứ hai, trạng thái "Đang đăng ký", bỏ trống số và ngày** · *CHO QUA*
+
+  **Kết quả:** lưu được, dù **Số lưu hành** và **Ngày cấp** đều trống.
+
+  > **Có chủ ý.** Thực tế phải tạo mã hàng để báo giá hoặc nhập hàng mẫu *trước* khi Cục cấp số.
+  > Bắt buộc có số thật ngay từ đầu sẽ chặn nghiệp vụ có thật.
+
+- [ ] **1.4 — Đổi bản ghi 1.3 sang "Còn hiệu lực" nhưng vẫn để trống Ngày cấp** · *PHẢI CHẶN*
+
+  **Kết quả:** không lưu được, hệ thống đòi Ngày cấp.
+
+- [ ] **1.5 — Tích "Vô thời hạn" đồng thời điền "Ngày hết hạn"** · *PHẢI CHẶN*
+
+  **Kết quả:** không lưu được — *"Đã tích Vô thời hạn thì không được điền Ngày hết hạn."*
+
+  > **Vì sao không cho khai cả hai:** nếu ô ngày trống mang đồng thời hai nghĩa — "vô thời hạn" và
+  > "chưa nhập" — thì cảnh báo hết hạn hằng ngày hoặc báo động giả liên tục, hoặc im lặng bỏ sót
+  > đúng tờ giấy sắp hết hạn. Cả hai đều giết mục tiêu của tính năng.
+
+---
+
+## Phần 2 — Mặt hàng và ràng buộc cứng duy nhất
+
+Toàn bộ tính năng chỉ có **một** thứ bị chặn cứng: mặt hàng y tế phải có số lưu hành. Mọi giấy tờ
+khác chỉ cảnh báo.
+
+- [ ] **2.1 — Item nhóm y tế, tích cờ TBYT, bỏ trống Số lưu hành** · *PHẢI CHẶN*
+
+  Item → New → chọn nhóm y tế → tab **Hồ sơ TBYT** → tích ô đầu tiên → Save.
+
+  **Kết quả:** không lưu được — *"Mặt hàng là thiết bị y tế thì bắt buộc phải có Số lưu hành."*
+
+  > **Đây là ràng buộc cứng duy nhất của cả tính năng.** Số lưu hành là cơ sở pháp lý để hàng
+  > được phép lưu thông — không có nó thì mã hàng không có lý do tồn tại.
+
+- [ ] **2.2 — Chọn số lưu hành loại C ở ca 1.1, rồi lưu** · *CẢNH BÁO, VẪN LƯU*
+
+  **Kết quả:** **Phân loại TBYT** tự điền **C** và không sửa được. Khi lưu, hiện hộp thoại liệt kê
+  chứng từ còn thiếu — **nhưng bản ghi vẫn lưu thành công**. **Tình trạng hồ sơ** =
+  *Thiếu chứng từ bắt buộc*.
+
+  > **Phân loại suy từ số lưu hành, không nhập tay.** Nhờ vậy hai mặt hàng dùng chung một số lưu
+  > hành không thể khai lệch loại — một lớp lỗi báo cáo đơn giản là không xảy ra được.
+
+- [ ] **2.3 — Kiểm bảng chứng từ trên tab "Hồ sơ TBYT"** · *CHO QUA*
+
+  **Kết quả:** bảng liệt kê từng chứng từ kèm mức, cấp lưu và trạng thái. Với loại C phải thấy
+  **8 dòng Bắt buộc**, **3 dòng BB có điều kiện**, **2 dòng Nên có**.
+
+  | Phân loại | Bắt buộc | BB có điều kiện | Nên có |
+  |:--:|:--:|:--:|:--:|
+  | A | 7 | 3 | 3 |
+  | B | 8 | 3 | 3 |
+  | C | 8 | 3 | 2 |
+  | D | 8 | 3 | 2 |
+
+  > **Nhóm "BB có điều kiện" chỉ bị đòi khi Miyano không phải chủ sở hữu số lưu hành** — ba tờ
+  > giấy đó (ủy quyền, xác nhận bảo hành, CFS) sinh ra chính vì Miyano đứng tên hộ người khác.
+  > Thử bỏ tích **Miyano là chủ sở hữu** trên số lưu hành rồi mở lại mặt hàng: ba dòng đó chuyển
+  > thành bắt buộc.
+
+- [ ] **2.4 — Item khác trong nhóm y tế nhưng BỎ TÍCH cờ TBYT** · *CHO QUA*
+
+  **Kết quả:** lưu được bình thường, không đòi số lưu hành, không cảnh báo thiếu chứng từ.
+
+  > **Ca này bảo vệ người dùng khỏi chính hệ thống.** Nhóm *Thiết bị y tế và phụ kiện* có cả phụ
+  > kiện không phải thiết bị đăng ký. Nếu hệ thống tự tích lại ô vừa bị bỏ, nó sẽ ghi đè lựa chọn
+  > của bạn rồi từ chối lưu vì thiếu số lưu hành — tức là phạt bạn vì chính việc nó vừa làm.
+
+---
+
+## Phần 3 — Tải chứng từ lên
+
+**Phần cần chú ý nhất.** Đường đi này mới được thêm và **chưa ai xác minh trên trình duyệt** — mọi
+thứ khác trong bảng đều đã có test tự động phủ, riêng chuỗi thao tác dưới đây thì chưa.
+
+> **Nếu ca 3.1 không chạy đúng:** đừng cố xoay xở. Ghi lại chính xác điều bạn thấy — nút có hiện
+> không, bấm vào có mở form mới không, form đó điền sẵn được gì — rồi báo lại. Vẫn còn đường làm
+> thủ công ở cuối phần này nên công việc không bị chặn.
+
+- [ ] **3.1 — Mở số lưu hành loại C → bấm "Tải chứng từ lên"** · *CHO QUA*
+
+  **Kết quả:** mở form **TBYT Regulatory Document** mới, trong đó **Loại chứng từ** đã điền sẵn
+  `gcn_dang_ky_luu_hanh`, và bảng **Phạm vi** đã có **một dòng** trỏ về đúng số lưu hành vừa mở.
+
+  > Nếu loại chứng từ điền sẵn là `so_cong_bo_tieu_chuan` thì số lưu hành đang là loại A hoặc B —
+  > quay lại kiểm ca 1.2 xem đã đổi phân loại về C chưa.
+
+- [ ] **3.2 — Điền và lưu chứng từ** · *CHO QUA*
+
+  **Số hiệu** dùng số có dấu gạch chéo và dấu tiếng Việt để thử, ví dụ `SLH-2026/Đ-01` ·
+  **Ngày cấp** = hôm nay · tích **Vô thời hạn** · **Tệp** đính một PDF bất kỳ → Save.
+
+  **Kết quả:** lưu được. **Trạng thái** tự thành *Còn hiệu lực*.
+
+- [ ] **3.3 — Quay lại form số lưu hành, làm mới trang** · *CHO QUA*
+
+  **Kết quả:** mục **Chứng từ đã gắn** hiện bản ghi vừa tạo, kèm số hiệu và trạng thái, bấm vào
+  mở được.
+
+- [ ] **3.4 — Kiểm tệp đã được xếp chỗ và đổi tên** · *CHO QUA*
+
+  Mở **File** → tìm tệp vừa tải lên.
+
+  **Kết quả:**
+  - Tên đổi thành dạng `SLH__SLH-2026-D-01__2026-08-24.pdf` — dấu `/` và dấu tiếng Việt đã xử lý
+  - Thư mục là `Home/TBYT/03-So-luu-hanh/<số lưu hành>/`
+  - Tệp ở chế độ **riêng tư**
+  - Chỉ có **một** bản ghi File cho tệp này, không phải hai
+
+  > **Nhìn tên là biết giấy gì, số nào, cấp ngày nào** — không cần mở ERP. Đây cũng là ca kiểm
+  > việc dấu gạch chéo trong số hiệu không tạo ra tầng thư mục ma.
+
+- [ ] **3.5 — Thay tệp đính kèm bằng một PDF khác, lưu** · *CHO QUA*
+
+  **Kết quả:** sau khi lưu và làm mới, trường **Tệp** trỏ tới **tệp mới** — không âm thầm quay về
+  tệp cũ.
+
+  > **Ca này từng hỏng và đã được sửa.** Trước đó hệ thống lặng lẽ hoàn tác lựa chọn của người
+  > dùng, đưa trường Tệp về file cũ mà không báo gì. Đáng bỏ 30 giây kiểm lại.
+
+**Đường làm thủ công, nếu nút không chạy:** **TBYT Regulatory Document** → New → **Loại chứng từ**
+= `gcn_dang_ky_luu_hanh` (loại C/D) hoặc `so_cong_bo_tieu_chuan` (loại A/B) → bảng **Phạm vi**
+thêm một dòng, chọn số lưu hành → đính tệp, điền số hiệu và ngày cấp → Save. Kết quả giống hệt;
+nút chỉ là lối tắt.
+
+---
+
+## Phần 4 — Ba trạng thái hiệu lực
+
+Một tờ giấy có thể **có hạn** hoặc **vô thời hạn**. Hệ thống phải phân biệt được hai điều đó với
+"chưa ai nhập ngày".
+
+- [ ] **4.1 — Chứng từ mới, KHÔNG tích Vô thời hạn và BỎ TRỐNG Ngày hết hạn** · *PHẢI CHẶN*
+
+  **Kết quả:** không lưu được — *"Chưa tích Vô thời hạn thì bắt buộc phải điền Ngày hết hạn."*
+
+  > **Đây là ca quan trọng nhất Phần 4.** Nó đóng khoảng mờ: sau ca này, một ô ngày trống chỉ còn
+  > đúng một nghĩa là "vô thời hạn". Nhờ vậy cảnh báo hằng ngày mới đáng tin.
+
+- [ ] **4.2 — Chứng từ `hdsd_tieng_viet` gắn vào SLH loại C, hết hạn trong vòng 90 ngày** · *CHO QUA*
+
+  **Kết quả:** **Trạng thái** = *Sắp hết hạn*.
+
+- [ ] **4.3 — Sửa ngày hết hạn về quá khứ, lưu, mở lại mặt hàng** · *CHO QUA*
+
+  **Kết quả:** chứng từ chuyển *Hết hạn*. Mặt hàng chuyển **Tình trạng hồ sơ** =
+  *Có chứng từ hết hạn*.
+
+- [ ] **4.4 — Đặt số lưu hành sang "Bị thu hồi", mở lại mặt hàng** · *CHO QUA*
+
+  **Kết quả:** **Tình trạng hồ sơ** = *Số lưu hành hết hiệu lực* — đè lên mọi trạng thái khác.
+
+  > Đặt lại về **Còn hiệu lực** trước khi sang Phần 5. Số lưu hành mất hiệu lực là sự kiện tuân
+  > thủ nặng nhất, nên nó chiếm chỗ hiển thị bất kể giấy tờ khác ra sao.
+
+---
+
+## Phần 5 — Không trùng, và thừa hưởng
+
+Đây là phần chứng minh lý do cả mô hình này tồn tại. Nếu chỉ chạy được một phần trong cả bảng,
+hãy chạy phần này.
+
+- [ ] **5.1 — Chứng từ THỨ HAI cùng loại `gcn_dang_ky_luu_hanh`, cùng số lưu hành** · *PHẢI CHẶN*
+
+  **Kết quả:** không lưu được. Thông báo nêu tên bản ghi đang giữ chỗ và nhắc dùng trường
+  **Thay thế cho**.
+
+- [ ] **5.2 — Vẫn form đó, khai "Thay thế cho" = bản ghi cũ, rồi lưu** · *CHO QUA*
+
+  **Kết quả:** lưu được. Mở bản ghi cũ: **Đang hiệu lực** đã tắt, **Trạng thái** = *Đã thay thế*.
+  Tệp của nó chuyển vào thư mục con `_Luu-tru/`.
+
+  > **Gia hạn không ghi đè.** Bản cũ vẫn tra được — cần thiết khi phải chứng minh tại thời điểm
+  > bán hàng, giấy tờ nào đang có hiệu lực.
+
+- [ ] **5.3 — Mặt hàng THỨ HAI trỏ vào CÙNG số lưu hành** · *CHO QUA*
+
+  Trước khi tạo, ghi lại số bản ghi hiện có trong danh sách **TBYT Regulatory Document**.
+
+  **Kết quả:** mặt hàng mới **đã sẵn có** mọi chứng từ mà mặt hàng thứ nhất có — không phải nhập
+  lại gì. Và số bản ghi chứng từ **không tăng**.
+
+  > **Đây là toàn bộ lý do mô hình này tồn tại.** Thiết kế ban đầu gắn tệp thẳng vào từng mã hàng
+  > — cùng tình huống này sẽ sinh ra hai bộ metadata độc lập, mỗi bộ một ngày hết hạn phải gia hạn
+  > riêng, và sót một bộ là báo cáo tuân thủ sai. Ở đây một tờ giấy tồn tại đúng một lần.
+
+- [ ] **5.4 — Một tờ CFS phủ nhiều số lưu hành** · *CHO QUA*
+
+  Tạo số lưu hành thứ ba, **cùng chủ sở hữu**, loại C, bỏ tích **Miyano là chủ sở hữu**, tích
+  **Hàng nhập khẩu**. Làm tương tự với số lưu hành ở ca 1.1. Tạo chứng từ `cfs_giay_luu_hanh`,
+  bảng **Phạm vi** thêm **hai dòng** — mỗi dòng một số lưu hành.
+
+  **Kết quả:** lưu được thành **một** bản ghi. Mọi mặt hàng thuộc cả hai số lưu hành đều thấy tờ
+  CFS đó.
+
+  > **Một CFS thật thường liệt kê nhiều sản phẩm.** Nếu buộc mỗi số lưu hành một bản ghi thì cùng
+  > tờ giấy bị nhân bản; nếu gắn ở cấp hãng thì mọi mặt hàng của hãng đều nhận vơ, kể cả mặt hàng
+  > không có trong tờ CFS. Bảng phạm vi thoát cả hai.
+
+---
+
+## Phần 6 — Làm mới tức thì và báo cáo
+
+Đã chốt hệ thống không chặn nghiệp vụ ở đâu cả — nên báo cáo là **bề mặt kiểm soát duy nhất còn
+lại**.
+
+- [ ] **6.1 — Tải lên chứng từ cấp CHỦ SỞ HỮU rồi kiểm mặt hàng ngay** · *CHO QUA*
+
+  Tạo chứng từ `thong_tin_bao_hanh`, bảng Phạm vi chọn **hãng** (không phải số lưu hành) → Save.
+  Mở lại mặt hàng, làm mới trang.
+
+  **Kết quả:** dòng *Thông tin cơ sở bảo hành* chuyển sang đã có **ngay lập tức**, không phải chờ
+  hôm sau.
+
+  > **Ca này bảo vệ lòng tin vào chỉ báo.** Nếu trạng thái chỉ được cập nhật lúc nửa đêm, người
+  > dùng vừa làm đúng việc mà hệ thống vẫn báo đỏ — và họ sẽ nhanh chóng thôi đọc chỉ báo.
+
+- [ ] **6.2 — Mở báo cáo "Tinh Trang Ho So TBYT"** · *CHO QUA*
+
+  **Kết quả:** liệt kê các mặt hàng y tế kèm số chứng từ còn thiếu theo từng mức, ngày hết hạn gần
+  nhất, và cột **Hồ sơ cấp lô**. Thử bộ lọc **Phân loại** và **Chủ sở hữu**.
+
+- [ ] **6.3 — Mặt hàng đủ hồ sơ cấp mặt hàng nhưng lô thiếu giấy — vẫn phải hiện** · *CHO QUA*
+
+  Chọn một mặt hàng, bật **Has Batch No**, tạo một **Batch** cho nó, không gắn CQ và CO cho lô đó.
+  Mở báo cáo, **giữ nguyên** bộ lọc "Chỉ hiện hồ sơ chưa đủ" đang bật sẵn.
+
+  **Kết quả:** mặt hàng đó **vẫn xuất hiện**, cột **Hồ sơ cấp lô** ghi `0/1 lô`.
+
+  > **Ca này từng hỏng và đã được sửa.** Trạng thái của mặt hàng cố ý bỏ qua chứng từ cấp lô — nên
+  > nếu bộ lọc chỉ nhìn trạng thái đó, nó sẽ giấu đi đúng khoảng trống mà cột Hồ sơ cấp lô sinh ra
+  > để phơi bày. Mà bộ lọc ấy bật sẵn.
+
+---
+
+## Giới hạn đã biết, không phải lỗi
+
+Gặp phải thì ghi nhận, đừng ghi là lỗi.
+
+| Giới hạn | Biểu hiện | Khi nào cần xử lý |
+|---|---|---|
+| **Một công ty** | Chứng từ cấp công ty chỉ phân giải theo công ty mặc định | Khi site có công ty thứ hai |
+| **Item variant** | Biến thể tạo từ mặt hàng mẫu không kế thừa cờ TBYT và số lưu hành | Trước khi bắt đầu dùng biến thể |
+| **Quy mô** | Phân giải tốn nhiều truy vấn mỗi mặt hàng; chậm dần khi danh mục lớn | Trước khi vượt vài nghìn mã hàng |
+| **Nhập hàng loạt** | Import không có cột cờ y tế sẽ tạo mặt hàng không được theo dõi; có cảnh báo khi lưu nhưng không tự bật cờ | Đưa cột đó vào mẫu import |
+
+---
+
+## Ký nhận
+
+| Mục | |
+|---|---|
+| Người nghiệm thu | |
+| Ngày | |
+| Số ca đạt / tổng | / 28 |
+| Kết luận | |
+
+**Ca không đạt và mô tả cụ thể:**
+
+<br><br><br>
+
+> Khi báo lỗi, ghi kèm: **mã ca**, **điều bạn thấy**, và **điều bảng này nói phải thấy**.
