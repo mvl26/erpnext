@@ -32,20 +32,25 @@ frappe.ui.form.on("TBYT Marketing Authorization", {
 		}
 
 		frm.add_custom_button(__("Tải chứng từ lên"), () => {
-			frappe.route_options = {
-				document_type: AUTH_DOCUMENT_BY_CLASS[frm.doc.phan_loai],
-			};
 			// `frappe.route_options` không sống nổi tới `onload` của form đích: Frappe
 			// tự đặt nó về null ngay trong `frappe.model.get_new_doc()` (create_new.js),
 			// TRƯỚC khi trang New render và bắn onload — chỉ trường khớp tên field thật
-			// (như document_type ở trên) được sao chép ra ngoài kịp lúc, bảng con thì
-			// không có cơ chế nào sao chép cả. Dùng một biến toàn cục riêng, tự quản,
-			// để mang phạm vi qua được onload.
-			frappe.tbyt_pending_scope = {
-				scope_doctype: "TBYT Marketing Authorization",
-				scope_name: frm.doc.name,
-			};
-			frappe.new_doc("TBYT Regulatory Document");
+			// (như document_type dưới đây) được sao chép ra ngoài kịp lúc, bảng con thì
+			// không có cơ chế nào sao chép cả. Một biến toàn cục trung gian cũng không
+			// ổn: `frappe.new_doc` chạy bất đồng bộ, nên nếu người dùng bỏ dở giữa lúc
+			// điều hướng, biến đó sống sót và gieo nhầm phạm vi vào bản ghi TBYT
+			// Regulatory Document TIẾP THEO được tạo qua bất kỳ đường nào khác — sai
+			// một hồ sơ pháp lý. Dùng thẳng `init_callback` (tham số thứ ba của
+			// `frappe.new_doc`, xem quick_entry.js) để gắn dòng phạm vi vào chính bản
+			// ghi vừa tạo, không qua trung gian nào.
+			frappe.new_doc(
+				"TBYT Regulatory Document",
+				{ document_type: AUTH_DOCUMENT_BY_CLASS[frm.doc.phan_loai] },
+				(doc) => {
+					const row = frappe.model.add_child(doc, "pham_vi");
+					row.scope_name = frm.doc.name;
+				}
+			);
 		}).addClass("btn-primary");
 
 		frm.trigger("render_chung_tu_html");
