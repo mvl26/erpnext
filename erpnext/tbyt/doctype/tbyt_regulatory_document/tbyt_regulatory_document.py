@@ -199,3 +199,16 @@ class TBYTRegulatoryDocument(Document):
 		previous.is_active = 0
 		previous.flags.ignore_permissions = True
 		previous.save()
+
+
+@frappe.whitelist()
+def get_scope_doctype(document_type: str) -> str | None:
+	"""DocType mà bảng Phạm vi phải trỏ tới, suy từ cấp của loại chứng từ.
+
+	Để client hỏi server thay vì chép bảng ánh xạ sang JS — bảng đó đã có ở
+	`constants.SCOPE_DOCTYPE`, nhân bản sang JS là mở đường cho hai bên trôi lệch nhau.
+	"""
+	if not document_type:
+		return None
+	scope_level = frappe.db.get_value("TBYT Document Type", document_type, "scope_level")
+	return SCOPE_DOCTYPE.get(scope_level)

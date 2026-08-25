@@ -11,7 +11,7 @@
  "fields": [
   {
    "columns": 3,
-   "description": "Suy từ cấp phạm vi của loại chứng từ — không sửa tay.",
+   "description": "Tự điền theo Loại chứng từ, không sửa tay.",
    "fieldname": "scope_doctype",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -22,10 +22,11 @@
   },
   {
    "columns": 7,
+   "description": "Chọn đúng đối tượng mà tờ giấy này cấp cho.",
    "fieldname": "scope_name",
    "fieldtype": "Dynamic Link",
    "in_list_view": 1,
-   "label": "Đối tượng",
+   "label": "Áp dụng cho",
    "options": "scope_doctype",
    "reqd": 1
   }

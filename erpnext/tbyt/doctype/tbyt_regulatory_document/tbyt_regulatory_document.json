@@ -94,7 +94,7 @@
    "label": "Phạm vi áp dụng"
   },
   {
-   "description": "Những đối tượng mà tờ giấy này thực sự phủ. Một CFS liệt kê 5 số lưu hành thì khai 5 dòng — vẫn là một bản ghi, không nhân bản.",
+   "description": "Tờ giấy này cấp cho ai. Chọn Loại chứng từ trước, ô bên dưới sẽ tự biết cần chọn Công ty, Chủ sở hữu, Số lưu hành, Lô hàng hay Mặt hàng. Một tờ CFS ghi tên 5 số lưu hành thì thêm 5 dòng — vẫn là một bản ghi, không nhân bản.",
    "fieldname": "pham_vi",
    "fieldtype": "Table",
    "label": "Phạm vi",
