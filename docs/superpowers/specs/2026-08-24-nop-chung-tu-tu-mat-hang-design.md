@@ -1,6 +1,6 @@
 # Nộp chứng từ từ mặt hàng, và tra cứu theo số hiệu
 
-> Trạng thái: **DRAFT — chờ duyệt.** Chưa viết một dòng code nào.
+> Trạng thái: **ĐÃ DUYỆT 2026-08-24.** Ba điểm ở §9 đã chốt, xem bên dưới.
 > Bổ sung cho: `docs/superpowers/specs/2026-08-20-ho-so-phap-ly-tbyt-design.md`
 > Nguồn yêu cầu: người dùng, sau khi dùng thử form thật (2026-08-24).
 
@@ -225,12 +225,27 @@ thoại — không cần hàm riêng, và giữ nguyên mọi kiểm tra ở con
 Ca cuối là ca quan trọng nhất: nó chứng minh nộp *từ* mặt hàng vẫn giữ nguyên tính thừa hưởng, tức
 là tiện lợi mới không đánh đổi bằng nguyên tắc cũ.
 
-## 9. Điểm cần xác nhận trước khi lập kế hoạch
+## 9. Ba điểm đã chốt (2026-08-24)
 
-1. **Hộp thoại có nên cho nộp nhiều tờ liên tiếp không?** Nộp đủ 8 tờ BB là 8 lần mở hộp thoại. Có
-   thể thêm nút *"Lưu và nộp tờ tiếp theo"* để đi thẳng sang dòng thiếu kế tiếp. Tiện hơn, nhưng
-   thêm một trạng thái phải quản.
-2. **Có cần nút "Nộp giấy" cho cả dòng mức NC không**, hay chỉ cho BB và BB\* đang bị đòi? Hiện
-   thiết kế cho mọi dòng chưa có, kể cả NC và TH đã tải lên.
-3. **Tra số hiệu nên chạy lúc gõ hay lúc rời ô?** Gõ tới đâu tra tới đó mượt hơn nhưng tốn truy vấn;
-   tra khi rời ô rẻ hơn.
+**9.1 — Lưu ngay, không giữ nháp.** Hộp thoại tạo và lưu bản ghi chứng từ **ngay khi bấm**, không
+giữ trạng thái trung gian. Lý do người dùng nêu: tránh mất dữ liệu nếu trang bị nạp lại.
+
+Kèm theo một ràng buộc bắt buộc: **không được gọi `frm.reload_doc()` sau khi nộp.** Mặt hàng có thể
+đang có thay đổi chưa lưu, và nạp lại sẽ xoá mất. Thay vào đó, sau khi tạo xong chỉ cập nhật **tại
+chỗ** đúng hai thứ đã đổi:
+
+- trường `tinh_trang_ho_so` — gán thẳng vào `frm.doc` rồi `refresh_field`, **không** dùng
+  `frm.set_value` (nó sẽ đánh dấu form là dirty trong khi người dùng không sửa gì)
+- bảng hồ sơ HTML — gọi lại `get_item_dashboard` và vẽ lại
+
+Hai hàm tạo và gắn đều trả về `tinh_trang_ho_so` mới để client cập nhật mà không cần hỏi lại.
+
+**9.2 — Chỉ BB và BB\*.** Nút *Nộp giấy* chỉ hiện trên dòng đang **bị đòi**: mức `BB`, và mức
+`BB*` khi điều kiện thoả. Dòng `NC` và `TH` không có nút — chúng không phải nghĩa vụ, và thêm nút ở
+đó chỉ làm loãng chỗ cần chú ý.
+
+**9.3 — Tra ngay khi gõ, vừa tra vừa nhập.** Tra cứu số hiệu chạy **trong lúc gõ**, không đợi rời ô.
+Người dùng chấp nhận chi phí truy vấn: danh mục chứng từ không lớn, và có `search_index` trên
+`so_hieu` thì tra theo số hiệu rất nhanh.
+
+Chống dội truy vấn bằng `frappe.utils.debounce` khoảng 300 ms và bỏ qua chuỗi ngắn hơn 3 ký tự.
