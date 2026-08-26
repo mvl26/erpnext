@@ -115,6 +115,17 @@ def _get_doc_type(document_key: str) -> dict | None:
 	)
 
 
+def _escape_like(value: str) -> str:
+	"""Thoát `%`, `_` và dấu gạch chéo ngược trước khi nhúng vào một mẫu LIKE.
+
+	Không thoát thì một số hiệu có gạch dưới thật (rất phổ biến, ví dụ
+	"220000123_01") sẽ khớp bất kỳ ký tự đơn nào tại vị trí đó — kết quả tra
+	cứu âm thầm rộng hơn số hiệu người dùng thực sự gõ, và người dùng không có
+	cách nào nhìn ra sai lệch đó từ hộp thoại.
+	"""
+	return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 @frappe.whitelist()
 def get_intake_context(item_code: str, document_key: str) -> dict | None:
 	"""Mọi thứ hộp thoại "Nộp chứng từ" cần để tự dựng — kể cả câu dạy mô hình.
@@ -145,6 +156,11 @@ def find_documents_by_so_hieu(
 	(§9.3 đặc tả) nên phải rẻ, và một, hai ký tự khớp cả danh mục chẳng nói lên
 	điều gì.
 	"""
+	# Hàm whitelist nên đây là cửa HTTP công khai. `TBYT Regulatory Document`
+	# chỉ cho System Manager và Item Manager đọc, nên phải chặn ở đây KHÔNG ĐIỀU
+	# KIỆN — nếu chỉ kiểm khi có `item_code` thì bỏ tham số đó đi là đọc được
+	# cả danh mục, bất kể vai trò.
+	frappe.has_permission("TBYT Regulatory Document", "read", throw=True)
 	if item_code:
 		frappe.has_permission("Item", doc=item_code, throw=True)
 
@@ -161,7 +177,7 @@ def find_documents_by_so_hieu(
 		order by rd.modified desc
 		limit 10
 		""",
-		{"pattern": f"%{so_hieu}%"},
+		{"pattern": f"%{_escape_like(so_hieu)}%"},
 		as_dict=True,
 	)
 	if not rows:

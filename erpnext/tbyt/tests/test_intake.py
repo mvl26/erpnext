@@ -136,6 +136,52 @@ class TestIntake(FrappeTestCase):
 
 		self.assertEqual(match["already_covers_item"], 1)
 
+	def test_lookup_requires_document_read_permission(self):
+		"""Không `item_code` không có nghĩa là không cần quyền — endpoint vẫn công khai.
+
+		Người dùng không giữ System Manager lẫn Item Manager (hai vai trò duy nhất
+		được đọc `TBYT Regulatory Document`) phải bị chặn, kể cả khi tra cứu không
+		gắn với mặt hàng nào.
+		"""
+		email = f"_test_intake_noperm_{self.suffix}@example.com"
+		user = frappe.new_doc("User")
+		user.email = email
+		user.first_name = "Test Intake Noperm"
+		user.send_welcome_email = 0
+		user.insert(ignore_permissions=True)
+		self.assertEqual(list(user.roles), [])
+
+		frappe.set_user(email)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				find_documents_by_so_hieu(f"_TEST-SH-NOPERM-{self.suffix}")
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_lookup_escapes_like_wildcards_in_so_hieu(self):
+		"""Gạch dưới thật trong số hiệu không được khớp bừa như ký tự đại diện.
+
+		Không thoát `_` thì tra "SH-X_01" sẽ khớp cả "SH-XA01" — hai số hiệu khác
+		nhau trông giống là cùng một tờ, đúng lỗi mà việc tra số hiệu sinh ra để
+		tránh (§4 đặc tả: chặn trùng đúng, không chặn nhầm).
+		"""
+		literal_underscore = f"_TEST-SH-ESC_{self.suffix}"
+		decoy = f"_TEST-SH-ESCX{self.suffix}"
+		auth = make_authorization(so_luu_hanh=f"_TEST-SLH-ESC-{self.suffix}")
+		doc_with_underscore = make_regulatory_document(
+			"hdsd_tieng_viet", AUTH_DOCTYPE, auth.name, so_hieu=literal_underscore
+		)
+		decoy_auth = make_authorization(so_luu_hanh=f"_TEST-SLH-ESCX-{self.suffix}")
+		decoy_doc = make_regulatory_document(
+			"cfs_giay_luu_hanh", AUTH_DOCTYPE, decoy_auth.name, so_hieu=decoy, khong_thoi_han=1
+		)
+
+		results = find_documents_by_so_hieu(literal_underscore)
+		names = {r["name"] for r in results}
+
+		self.assertIn(doc_with_underscore.name, names)
+		self.assertNotIn(decoy_doc.name, names)
+
 	# --- attach_existing_to_item: chỉ có nghĩa cho bốn loại đa phạm vi ---
 
 	def test_attach_adds_scope_row(self):
