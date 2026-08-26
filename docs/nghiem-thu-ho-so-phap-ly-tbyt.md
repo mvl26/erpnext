@@ -1,7 +1,7 @@
 # Nghiệm thu hồ sơ pháp lý TBYT
 
 > **Chạy trên:** site `miyano`, nhánh `feat/vn-tbyt-ho-so-phap-ly`
-> **Thời lượng:** 45–60 phút · **28 ca** · làm tuần tự, phần sau dùng dữ liệu phần trước
+> **Thời lượng:** 45–60 phút · **30 ca** · làm tuần tự, phần sau dùng dữ liệu phần trước
 > **Điểm xuất phát:** site trống — 0 chủ sở hữu, 0 số lưu hành, 0 chứng từ
 
 ---
@@ -24,12 +24,14 @@ Trong tính năng này, **có những lần "đạt" trông hệt như "hỏng"*
 cáo. Bảng này **không lặp lại** những thứ đó. Nó tập trung vào phần chỉ người mới kiểm được:
 giao diện, luồng thao tác thật, và cảm giác dùng.
 
-**Một mục chưa ai xác minh:** nút "Tải chứng từ lên" ở Phần 3 mới chỉ được kiểm ở tầng mã nguồn.
-Chuỗi bấm → mở form → dòng phạm vi hiện ra thì **chưa ai thấy tận mắt**. Đó là ca đáng chú ý nhất
-trong bảng này.
+**Phần 3 là phần đáng chú ý nhất.** Nó chỉ được kiểm ở tầng mã nguồn, chưa ai thấy tận mắt trên
+trình duyệt. Lần đầu có người mở form thật, một lỗi chặn đã lộ ra ngay ở bảng Phạm vi — đã sửa,
+và ca 3.6 dưới đây sinh ra để canh đúng chỗ đó. Đây là bằng chứng rõ nhất rằng test tự động chứng
+minh **mô hình đúng**, không chứng minh **form dùng được**.
 
-**Nếu thiếu thời gian:** chạy Phần 3 và Phần 5. Phần 3 vì chưa ai kiểm; Phần 5 vì nó chứng minh
-điều khiến thiết kế này khác thiết kế ban đầu. Phần 0 vẫn phải làm trước.
+**Nếu thiếu thời gian:** chạy ca **3.7** rồi Phần 5. Ca 3.7 đi trọn một mặt hàng từ trống trơn tới
+đủ hồ sơ — nó chạm gần hết cơ chế trong một lượt. Phần 5 chứng minh điều khiến thiết kế này khác
+thiết kế ban đầu. Phần 0 vẫn phải làm trước.
 
 ---
 
@@ -164,6 +166,35 @@ khác chỉ cảnh báo.
   > kiện không phải thiết bị đăng ký. Nếu hệ thống tự tích lại ô vừa bị bỏ, nó sẽ ghi đè lựa chọn
   > của bạn rồi từ chối lưu vì thiếu số lưu hành — tức là phạt bạn vì chính việc nó vừa làm.
 
+### Bản đồ hồ sơ loại C — đi đâu nộp gì
+
+Sau ca 2.2 mặt hàng báo *Thiếu chứng từ bắt buộc*. Đây là danh sách những gì còn thiếu và **mỗi
+tờ gắn vào đâu**. Phần 3 dạy cách nộp một tờ; bảng này cho biết phải nộp bao nhiêu tờ và ở đâu.
+
+| Mức | Chứng từ | Gắn vào |
+|---|---|---|
+| BB | Bản kết quả phân loại thiết bị y tế | Số lưu hành |
+| BB | Giấy chứng nhận đăng ký lưu hành | Số lưu hành |
+| BB | Hướng dẫn sử dụng bằng tiếng Việt | Số lưu hành |
+| BB | Mẫu nhãn hàng hóa lưu hành tại Việt Nam | Số lưu hành |
+| BB | Tài liệu kỹ thuật phục vụ sửa chữa, bảo dưỡng | Số lưu hành |
+| BB | Thông tin cơ sở bảo hành | **Chủ sở hữu** |
+| BB | Phiếu tiếp nhận công bố đủ điều kiện mua bán TBYT | **Công ty** |
+| BB | Thông tin niêm yết giá | **Mặt hàng** |
+| BB\* | Giấy ủy quyền của chủ sở hữu TBYT | Số lưu hành |
+| BB\* | Giấy xác nhận đủ điều kiện bảo hành | Số lưu hành |
+| BB\* | Giấy chứng nhận lưu hành tự do (CFS) | Số lưu hành |
+| NC | Giấy chứng nhận ISO 13485 của cơ sở sản xuất | **Chủ sở hữu** |
+| NC | Tài liệu mô tả tóm tắt kỹ thuật / CSDT | Số lưu hành |
+
+> **Đọc cột bên phải kỹ — đó là toàn bộ ý tưởng của thiết kế.** Chỉ **một** tờ trong 13 tờ gắn vào
+> mặt hàng (niêm yết giá). Năm tờ gắn vào số lưu hành, hai tờ vào chủ sở hữu, một tờ vào công ty.
+> Nghĩa là mặt hàng thứ hai dùng chung số lưu hành sẽ **tự có sẵn 12 trong 13 tờ** — bạn chỉ nhập
+> thêm đúng thông tin niêm yết giá. Ca 5.3 kiểm chính điều này.
+>
+> Ba tờ **BB\*** chỉ bị đòi khi bỏ tích *Miyano là chủ sở hữu số lưu hành*. Nếu Miyano tự đứng
+> tên thì ba tờ đó không cần.
+
 ---
 
 ## Phần 3 — Tải chứng từ lên
@@ -172,8 +203,11 @@ khác chỉ cảnh báo.
 thứ khác trong bảng đều đã có test tự động phủ, riêng chuỗi thao tác dưới đây thì chưa.
 
 > **Nếu ca 3.1 không chạy đúng:** đừng cố xoay xở. Ghi lại chính xác điều bạn thấy — nút có hiện
-> không, bấm vào có mở form mới không, form đó điền sẵn được gì — rồi báo lại. Vẫn còn đường làm
-> thủ công ở cuối phần này nên công việc không bị chặn.
+> không, bấm vào có mở form mới không, form đó điền sẵn được gì — rồi báo lại. Ca 3.6 đi đường New
+> trắng, không phụ thuộc cái nút, nên công việc không bị chặn.
+>
+> **Trước khi bắt đầu phần này, bấm `Ctrl+Shift+R`** để trình duyệt nạp lại script form. Nếu bảng
+> Phạm vi vẫn không nhập được, gần như chắc chắn là trang đang chạy bản script cũ.
 
 - [ ] **3.1 — Mở số lưu hành loại C → bấm "Tải chứng từ lên"** · *CHO QUA*
 
@@ -215,6 +249,50 @@ thứ khác trong bảng đều đã có test tự động phủ, riêng chuỗi
 
   > **Ca này từng hỏng và đã được sửa.** Trước đó hệ thống lặng lẽ hoàn tác lựa chọn của người
   > dùng, đưa trường Tệp về file cũ mà không báo gì. Đáng bỏ 30 giây kiểm lại.
+
+- [ ] **3.6 — Tạo chứng từ từ đường New trắng, không qua nút** · *CHO QUA*
+
+  **TBYT Regulatory Document** → New (không đi từ form số lưu hành).
+
+  1. **Loại chứng từ** = `hdsd_tieng_viet` — chọn ô này **trước tiên**
+  2. Quan sát dòng gợi ý dưới bảng **Phạm vi**: phải đổi thành *"Tờ giấy này cấp cho: chọn **Số
+     lưu hành**"*
+  3. Bảng **Phạm vi** → thêm dòng. Cột **Loại đối tượng** tự điền; cột **Áp dụng cho** bấm vào
+     phải tìm được số lưu hành
+  4. Điền số hiệu, ngày cấp, tích **Vô thời hạn**, đính tệp → Save
+
+  **Kết quả:** lưu được. Thử thêm: đổi **Loại chứng từ** sang `iso_13485_nha_san_xuat` — bảng Phạm
+  vi bị **xóa sạch** và dòng gợi ý đổi thành *"chọn **Chủ sở hữu (hãng)**"*.
+
+  > **Ca này sinh ra từ một lỗi chặn có thật.** Trước khi sửa, đường New trắng hoàn toàn không
+  > dùng được: cột *Loại đối tượng* là read-only nên không gõ được, còn cột *Áp dụng cho* là
+  > Dynamic Link nên không biết tìm ở đâu khi ô kia trống — mà cả hai đều bắt buộc. Bế tắc.
+  > 123 test không bắt được vì test nào cũng dựng bản ghi bằng code, không test nào bấm "thêm
+  > dòng" trên lưới.
+  >
+  > **Vì sao đổi loại chứng từ lại xóa bảng:** đổi loại có thể đổi luôn cấp phạm vi. Giữ lại dòng
+  > cũ nghĩa là lưu một phạm vi trỏ sai chủ thể — tệ hơn là bắt nhập lại.
+
+- [ ] **3.7 — Đi trọn: nộp đủ và xem trạng thái chuyển xanh** · *CHO QUA*
+
+  Dùng bản đồ ở cuối Phần 2. Nộp lần lượt **8 tờ BB**, mỗi tờ một bản ghi chứng từ. Với mỗi tờ:
+  chọn đúng **Loại chứng từ**, thêm một dòng Phạm vi trỏ đúng chủ thể trong cột "Gắn vào", đính
+  tệp bất kỳ, điền số hiệu và ngày cấp, tích **Vô thời hạn**, Save.
+
+  Ba tờ gắn vào **Chủ sở hữu** / **Công ty** / **Mặt hàng** là chỗ dễ nhầm nhất — đọc lại cột bên
+  phải của bản đồ trước khi làm.
+
+  Sau tờ cuối cùng, mở lại mặt hàng và làm mới trang.
+
+  **Kết quả:** **Tình trạng hồ sơ** chuyển thành *Đủ hồ sơ mặt hàng*. Bảng chứng từ trên tab
+  **Hồ sơ TBYT** không còn dòng nào ở trạng thái chưa có, trừ các dòng *Nên có*.
+
+  > **Đây là ca trả lời câu hỏi "rồi sao nữa".** Các ca trước kiểm từng cơ chế riêng lẻ; ca này đi
+  > trọn một mặt hàng từ lúc trống trơn tới lúc đủ hồ sơ. Nếu chỉ chạy được một ca trong cả Phần 3,
+  > chạy ca này.
+  >
+  > Nhãn là *Đủ hồ sơ mặt hàng*, **không phải "Đủ"** — vì chứng từ cấp lô (CQ, CO) cố ý không tính
+  > ở đây. Ca 6.3 lo phần đó.
 
 **Đường làm thủ công, nếu nút không chạy:** **TBYT Regulatory Document** → New → **Loại chứng từ**
 = `gcn_dang_ky_luu_hanh` (loại C/D) hoặc `so_cong_bo_tieu_chuan` (loại A/B) → bảng **Phạm vi**
@@ -350,7 +428,7 @@ Gặp phải thì ghi nhận, đừng ghi là lỗi.
 |---|---|
 | Người nghiệm thu | |
 | Ngày | |
-| Số ca đạt / tổng | / 28 |
+| Số ca đạt / tổng | / 30 |
 | Kết luận | |
 
 **Ca không đạt và mô tả cụ thể:**
