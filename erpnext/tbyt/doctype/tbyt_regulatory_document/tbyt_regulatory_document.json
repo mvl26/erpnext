@@ -66,7 +66,9 @@
    "fieldname": "so_hieu",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Số hiệu"
+   "in_standard_filter": 1,
+   "label": "Số hiệu",
+   "search_index": 1
   },
   {
    "fieldname": "ngay_cap",
