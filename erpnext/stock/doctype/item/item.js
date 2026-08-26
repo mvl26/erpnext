@@ -1284,6 +1284,9 @@ function erpnext_bind_tbyt_so_hieu_lookup(dialog, frm, document_key) {
 
 		const so_hieu = (dialog.get_value("so_hieu") || "").trim();
 		if (so_hieu.length < 3) {
+			// Tăng seq để mọi phản hồi đang bay trở thành cũ: người dùng xoá bớt ký
+			// tự là đã bỏ câu hỏi trước, kết quả của nó không được phép quay lại.
+			lookup_seq++;
 			$lookup_wrapper.empty();
 			return;
 		}
@@ -1296,8 +1299,11 @@ function erpnext_bind_tbyt_so_hieu_lookup(dialog, frm, document_key) {
 				$lookup_wrapper.html(erpnext_tbyt_lookup_html(r.message || []));
 			},
 			error() {
-				if (seq !== lookup_seq) return;
+				// Lỗi quyền là lỗi hệ thống, không phải của riêng truy vấn này — chốt
+				// ngay lần đầu, kể cả khi phản hồi đã cũ. Chỉ việc dọn khung mới cần
+				// xét thứ tự, để không xoá kết quả của một truy vấn mới hơn.
 				lookup_blocked = true;
+				if (seq !== lookup_seq) return;
 				$lookup_wrapper.empty();
 			},
 		});
