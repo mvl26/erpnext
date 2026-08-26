@@ -337,6 +337,12 @@ doc_events = {
 			"erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.check_for_running_deletion_job",
 		],
 	},
+	"Item": {
+		"validate": [
+			"erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
+			"erpnext.tbyt.item_hooks.warn_about_missing_documents",
+		],
+	},
 	tuple(period_closing_doctypes): {
 		"validate": "erpnext.accounts.doctype.accounting_period.accounting_period.validate_accounting_period_on_doc_save",
 	},
@@ -473,6 +479,7 @@ scheduler_events = {
 		"erpnext.accounts.utils.auto_create_exchange_rate_revaluation_daily",
 		"erpnext.accounts.utils.run_ledger_health_checks",
 		"erpnext.assets.doctype.asset_maintenance_log.asset_maintenance_log.update_asset_maintenance_log_status",
+		"erpnext.tbyt.expiry.update_document_status",
 	],
 	"weekly": [
 		"erpnext.accounts.utils.auto_create_exchange_rate_revaluation_weekly",

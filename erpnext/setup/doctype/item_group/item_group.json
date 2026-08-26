@@ -21,7 +21,8 @@
   "taxes",
   "lft",
   "old_parent",
-  "rgt"
+  "rgt",
+  "la_tbyt"
  ],
  "fields": [
   {
@@ -127,6 +128,13 @@
    "options": "Item Group",
    "print_hide": 1,
    "report_hide": 1
+  },
+  {
+   "default": "0",
+   "description": "Mặt hàng thuộc nhóm này mặc định là thiết bị / vật tư y tế và cần hồ sơ pháp lý TBYT.",
+   "fieldname": "la_tbyt",
+   "fieldtype": "Check",
+   "label": "Là nhóm thiết bị y tế"
   }
  ],
  "icon": "fa fa-sitemap",

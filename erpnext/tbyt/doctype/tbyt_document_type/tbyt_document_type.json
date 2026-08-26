@@ -1,0 +1,118 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:document_key",
+ "creation": "2026-08-21 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "document_key",
+  "short_code",
+  "document_name",
+  "column_break_dt_1",
+  "scope_level",
+  "cho_phep_nhieu_pham_vi",
+  "mac_dinh_co_thoi_han",
+  "section_break_dt_1",
+  "rules"
+ ],
+ "fields": [
+  {
+   "description": "Mã trường theo ma trận Thông tư, ví dụ: cfs_giay_luu_hanh",
+   "fieldname": "document_key",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Mã chứng từ",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "description": "Tiền tố dùng đặt tên file, ví dụ: CFS, ISO13485, HDSD",
+   "fieldname": "short_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Mã ngắn",
+   "length": 16,
+   "reqd": 1
+  },
+  {
+   "fieldname": "document_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Tên chứng từ",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_dt_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Tờ giấy này nói về chủ thể nào. Quyết định resolver tìm nó ở đâu.",
+   "fieldname": "scope_level",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Cấp phạm vi",
+   "options": "Company\nOwner\nAuthorization\nBatch\nItem\nTransaction",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Một tờ giấy phủ được nhiều đối tượng cùng cấp — ví dụ một CFS liệt kê 5 số lưu hành.",
+   "fieldname": "cho_phep_nhieu_pham_vi",
+   "fieldtype": "Check",
+   "label": "Cho phép nhiều phạm vi"
+  },
+  {
+   "default": "0",
+   "description": "CHỈ là giá trị điền sẵn khi tạo chứng từ mới. Quyền quyết định có hạn hay không nằm ở trường Vô thời hạn trên từng bản ghi chứng từ.",
+   "fieldname": "mac_dinh_co_thoi_han",
+   "fieldtype": "Check",
+   "label": "Mặc định có thời hạn"
+  },
+  {
+   "fieldname": "section_break_dt_1",
+   "fieldtype": "Section Break",
+   "label": "Mức áp dụng theo phân loại"
+  },
+  {
+   "description": "Mỗi phân loại A/B/C/D đúng một dòng. Bộ Y tế sửa thông tư thì sửa ở đây, không phải sửa code.",
+   "fieldname": "rules",
+   "fieldtype": "Table",
+   "label": "Quy tắc",
+   "options": "TBYT Document Rule"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-21 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "TBYT",
+ "name": "TBYT Document Type",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Item Manager"
+  }
+ ],
+ "show_title_field_in_link": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "document_name",
+ "track_changes": 1
+}

@@ -1014,3 +1014,355 @@ function open_form(frm, doctype, child_doctype, parentfield) {
 		]);
 	});
 }
+
+frappe.ui.form.on("Item", {
+	item_group(frm) {
+		// Nhóm hàng chỉ GỢI Ý, và chỉ lúc tạo mới. Server cố ý không tự suy cờ này:
+		// trường Check không diễn tả được "chưa khai" khác "cố ý bỏ tích", nên mọi
+		// suy đoán phía server đều có nguy cơ ghi đè lựa chọn của người dùng. Hàng
+		// tạo qua API/import phải khai cờ tường minh.
+		if (!frm.is_new()) return;
+		frappe.db.get_value("Item Group", frm.doc.item_group, "la_tbyt").then((r) => {
+			frm.set_value("la_thiet_bi_y_te", cint(r.message && r.message.la_tbyt));
+		});
+	},
+});
+
+frappe.ui.form.on("Item", {
+	refresh(frm) {
+		erpnext_render_tbyt_dossier(frm);
+	},
+	la_thiet_bi_y_te(frm) {
+		erpnext_render_tbyt_dossier(frm);
+	},
+	so_luu_hanh(frm) {
+		erpnext_render_tbyt_dossier(frm);
+	},
+});
+
+function erpnext_render_tbyt_dossier(frm) {
+	const wrapper = frm.get_field("ho_so_tbyt_html");
+	if (!wrapper) return;
+	if (frm.is_new() || !frm.doc.la_thiet_bi_y_te) {
+		wrapper.$wrapper.empty();
+		return;
+	}
+
+	frappe.call({
+		method: "erpnext.tbyt.status.get_item_dashboard",
+		args: { item_code: frm.doc.name },
+		callback(r) {
+			if (!r.message) return;
+			wrapper.$wrapper.html(erpnext_tbyt_dossier_html(r.message));
+			erpnext_bind_tbyt_dossier_actions(frm, wrapper);
+		},
+	});
+}
+
+function erpnext_tbyt_dossier_html(data) {
+	if (!data.rows.length) {
+		return `<div class="text-muted">${__("Chưa xác định được bộ chứng từ.")}</div>`;
+	}
+
+	const level_label = { BB: "Bắt buộc", "BB*": "BB có điều kiện", NC: "Nên có", TH: "Bổ sung" };
+	const body = data.rows
+		.map((row) => {
+			const expiry = row.khong_thoi_han
+				? __("Vô thời hạn")
+				: row.ngay_het_han
+				? frappe.datetime.str_to_user(row.ngay_het_han)
+				: "—";
+			// Ba trạng thái "chưa có" khác nhau: TH chưa phát sinh không phải thiếu,
+			// nên nhãn và màu của nó không được trộn với BB/BB*/NC thật sự thiếu.
+			const state = row.document
+				? `<span class="indicator-pill ${row.trang_thai === "Còn hiệu lực" ? "green" : "red"}">${
+						row.trang_thai
+				  }</span>`
+				: row.is_supplementary
+				? `<span class="indicator-pill gray">${__("Bổ sung khi cần")}</span>`
+				: `<span class="indicator-pill ${row.is_required ? "red" : "gray"}">${__("Chưa có")}</span>`;
+			const link = row.document
+				? `<a href="/app/tbyt-regulatory-document/${encodeURIComponent(
+						row.document
+				  )}">${frappe.utils.escape_html(row.so_hieu || row.document)}</a>`
+				: "";
+			// Nút "Nộp giấy" hiện ở MỌI dòng chưa có chứng từ — BB, BB*, NC lẫn TH đều
+			// cần chỗ nộp khi tình huống phát sinh, không riêng dòng đang bị đòi (server
+			// đã tính sẵn `can_intake` theo đúng luật này). Gắn qua data-attribute,
+			// không onclick nội tuyến: chuỗi này bị vẽ lại toàn bộ mỗi lần refresh nên
+			// handler phải là uỷ quyền sự kiện trên phần tử bao.
+			const action = row.can_intake
+				? `<button type="button" class="btn btn-xs btn-primary" data-tbyt-intake
+						data-document-key="${frappe.utils.escape_html(row.document_key)}">
+						${__("Nộp giấy")}</button>`
+				: "";
+			return `<tr>
+				<td>${frappe.utils.escape_html(row.document_name)}</td>
+				<td>${level_label[row.level] || row.level}</td>
+				<td>${row.scope_level}</td>
+				<td>${link}</td>
+				<td>${expiry}</td>
+				<td>${state}</td>
+				<td>${action}</td>
+			</tr>`;
+		})
+		.join("");
+
+	return `
+		<div class="mb-2"><b>${__("Tình trạng")}:</b> ${data.status || "—"}
+			${data.missing ? `· <span class="text-danger">${__("Thiếu")} ${data.missing}</span>` : ""}</div>
+		<table class="table table-bordered table-sm">
+			<thead><tr>
+				<th>${__("Chứng từ")}</th><th>${__("Mức")}</th><th>${__("Cấp lưu")}</th>
+				<th>${__("Số hiệu")}</th><th>${__("Hết hạn")}</th><th>${__("Trạng thái")}</th>
+				<th>${__("Hành động")}</th>
+			</tr></thead>
+			<tbody>${body}</tbody>
+		</table>`;
+}
+
+function erpnext_bind_tbyt_dossier_actions(frm, wrapper) {
+	// `.off` trước `.on` mỗi lần vẽ lại để không chồng handler qua các lần refresh —
+	// bản thân `wrapper.$wrapper` không bị thay, chỉ nội dung bên trong bị thay.
+	wrapper.$wrapper.off("click.tbyt-intake").on("click.tbyt-intake", "[data-tbyt-intake]", function () {
+		erpnext_open_tbyt_intake_dialog(frm, $(this).attr("data-document-key"));
+	});
+}
+
+// Sau khi tạo mới hoặc gắn thành công một chứng từ, TUYỆT ĐỐI không gọi
+// frm.reload_doc() — Item có thể đang có sửa đổi chưa lưu và nạp lại sẽ xoá
+// mất (§9.1 đặc tả). Chỉ cập nhật tại chỗ đúng hai thứ đã đổi, lấy thẳng từ
+// phản hồi của server: việc làm mới trạng thái chạy nền qua
+// enqueue_after_commit, nên đọc lại frm.doc lúc này vẫn ra giá trị cũ.
+function erpnext_apply_tbyt_intake_result(frm, result) {
+	// Gán thẳng, không dùng frm.set_value — set_value sẽ đánh dấu form dirty
+	// trong khi người dùng không sửa gì.
+	frm.doc.tinh_trang_ho_so = result.tinh_trang_ho_so;
+	frm.refresh_field("tinh_trang_ho_so");
+	erpnext_render_tbyt_dossier(frm);
+}
+
+function erpnext_open_tbyt_intake_dialog(frm, document_key) {
+	frappe.call({
+		method: "erpnext.tbyt.intake.get_intake_context",
+		args: { item_code: frm.doc.name, document_key: document_key },
+		callback(r) {
+			const ctx = r.message;
+			if (!ctx) {
+				frappe.msgprint({
+					title: __("Không nộp được"),
+					indicator: "red",
+					message: __("Không xác định được chủ thể để nộp chứng từ này cho mặt hàng."),
+				});
+				return;
+			}
+			erpnext_show_tbyt_intake_dialog(frm, document_key, ctx);
+		},
+	});
+}
+
+// Câu `explain` là chỗ người dùng hiểu ra rằng nộp TỪ mặt hàng không phải gắn
+// VÀO mặt hàng — dùng nguyên văn, không rút gọn, chỉ in đậm tên chủ thể.
+function erpnext_tbyt_intake_explain_html(ctx) {
+	const escaped_explain = frappe.utils.escape_html(ctx.explain || "");
+	const escaped_label = frappe.utils.escape_html(ctx.scope_label || "");
+	const bolded =
+		escaped_label && escaped_explain.includes(escaped_label)
+			? escaped_explain.replace(escaped_label, `<b>${escaped_label}</b>`)
+			: escaped_explain;
+	return `<div class="alert alert-info">${bolded}</div>`;
+}
+
+function erpnext_show_tbyt_intake_dialog(frm, document_key, ctx) {
+	const dialog = new frappe.ui.Dialog({
+		title: __("Nộp chứng từ") + ": " + (ctx.document_name || document_key),
+		fields: [
+			{ fieldname: "explain_html", fieldtype: "HTML", options: erpnext_tbyt_intake_explain_html(ctx) },
+			{ fieldname: "so_hieu", fieldtype: "Data", label: __("Số hiệu") },
+			{ fieldname: "lookup_html", fieldtype: "HTML" },
+			{
+				fieldname: "ngay_cap",
+				fieldtype: "Date",
+				label: __("Ngày cấp"),
+				reqd: 1,
+				default: frappe.datetime.get_today(),
+			},
+			{
+				fieldname: "khong_thoi_han",
+				fieldtype: "Check",
+				label: __("Vô thời hạn"),
+				default: ctx.mac_dinh_co_thoi_han ? 0 : 1,
+			},
+			{
+				fieldname: "ngay_het_han",
+				fieldtype: "Date",
+				label: __("Ngày hết hạn"),
+				depends_on: "eval:!doc.khong_thoi_han",
+				mandatory_depends_on: "eval:!doc.khong_thoi_han",
+			},
+			{
+				fieldname: "file_url",
+				fieldtype: "Attach",
+				label: __("Tệp đính kèm"),
+				reqd: 1,
+			},
+		],
+		primary_action_label: __("Tạo mới"),
+		primary_action(values) {
+			frappe.call({
+				method: "erpnext.tbyt.intake.create_document_for_item",
+				args: {
+					item_code: frm.doc.name,
+					document_key: document_key,
+					so_hieu: values.so_hieu,
+					ngay_cap: values.ngay_cap,
+					khong_thoi_han: values.khong_thoi_han,
+					ngay_het_han: values.ngay_het_han,
+					file_url: values.file_url,
+				},
+				freeze: true,
+				callback(r) {
+					if (!r.message) return;
+					erpnext_apply_tbyt_intake_result(frm, r.message);
+					dialog.hide();
+					frappe.show_alert({ message: __("Đã nộp chứng từ."), indicator: "green" });
+				},
+			});
+		},
+		secondary_action_label: __("Mở biểu mẫu đầy đủ"),
+		secondary_action() {
+			// Ca hiếm cần trường mà hộp thoại không có (ví dụ Thay thế cho khi gia
+			// hạn). get_values(true) lấy những gì đã gõ mà KHÔNG bắt buộc phải hợp lệ
+			// — người dùng đang chuyển sang form đầy đủ chính vì hộp thoại không đủ.
+			const values = dialog.get_values(true) || {};
+			dialog.hide();
+			// init_callback (tham số thứ ba của frappe.new_doc) là cách ĐÚNG để điền
+			// dòng phạm vi — xem tbyt_marketing_authorization.js: route_options chỉ
+			// sao chép được các trường khớp tên field thật trên bản ghi (document_type,
+			// so_hieu, ...), không có cơ chế nào sao chép bảng con, nên phạm vi phải
+			// được thêm bằng frappe.model.add_child bên trong callback này.
+			frappe.new_doc(
+				"TBYT Regulatory Document",
+				{
+					document_type: document_key,
+					so_hieu: values.so_hieu,
+					ngay_cap: values.ngay_cap,
+					khong_thoi_han: values.khong_thoi_han,
+					ngay_het_han: values.ngay_het_han,
+					file: values.file_url,
+				},
+				(doc) => {
+					const row = frappe.model.add_child(doc, "pham_vi");
+					row.scope_name = ctx.scope_name;
+				}
+			);
+		},
+	});
+
+	erpnext_bind_tbyt_so_hieu_lookup(dialog, frm, document_key);
+	dialog.show();
+}
+
+// Tra cứu số hiệu lúc gõ (§9.3 đặc tả): chống dội 300ms, bỏ qua chuỗi ngắn hơn
+// 3 ký tự — cả hai đều thực hiện lại ở đây dù server cũng đã chặn chuỗi ngắn,
+// vì bỏ qua sớm ở client tránh gọi mạng cho mọi phím gõ đầu tiên.
+function erpnext_bind_tbyt_so_hieu_lookup(dialog, frm, document_key) {
+	const $lookup_wrapper = dialog.get_field("lookup_html").$wrapper;
+
+	// Chuỗi ngắn khớp nhiều bản ghi hơn nên server trả CHẬM hơn — nếu người dùng gõ
+	// tiếp trong lúc câu trước còn treo, phản hồi cũ hoàn toàn có thể về SAU phản
+	// hồi mới và ghi đè kết quả đúng bằng kết quả rộng hơn, sai lúc người dùng đang
+	// hỏi "tờ này đã có chưa". `frappe.utils.debounce` chỉ chặn được các timer chồng
+	// nhau, không chặn được thứ tự trả về của hai request đã bắn đi — cần một số thứ
+	// tự riêng để nhận diện và bỏ qua phản hồi không còn là truy vấn mới nhất.
+	let lookup_seq = 0;
+
+	// Task A đã siết quyền đọc `TBYT Regulatory Document` (chỉ System Manager và
+	// Item Manager). Người dùng thiếu quyền sẽ bị chặn ngay từ ký tự thứ ba, và vì
+	// tra cứu chạy theo từng phím gõ, không chốt lại thì modal "Not permitted" của
+	// framework sẽ bật lại trên MỌI phím gõ tiếp theo. Chỉ để lỗi hiện một lần, sau
+	// đó ngưng tra cứu cho hết vòng đời hộp thoại này — KHÔNG dựng cơ chế thử lại.
+	let lookup_blocked = false;
+
+	const run_lookup = frappe.utils.debounce(() => {
+		if (lookup_blocked) return;
+
+		const so_hieu = (dialog.get_value("so_hieu") || "").trim();
+		if (so_hieu.length < 3) {
+			// Tăng seq để mọi phản hồi đang bay trở thành cũ: người dùng xoá bớt ký
+			// tự là đã bỏ câu hỏi trước, kết quả của nó không được phép quay lại.
+			lookup_seq++;
+			$lookup_wrapper.empty();
+			return;
+		}
+		const seq = ++lookup_seq;
+		frappe.call({
+			method: "erpnext.tbyt.intake.find_documents_by_so_hieu",
+			args: { so_hieu: so_hieu, item_code: frm.doc.name, document_key: document_key },
+			callback(r) {
+				if (seq !== lookup_seq) return;
+				$lookup_wrapper.html(erpnext_tbyt_lookup_html(r.message || []));
+			},
+			error() {
+				// Lỗi quyền là lỗi hệ thống, không phải của riêng truy vấn này — chốt
+				// ngay lần đầu, kể cả khi phản hồi đã cũ. Chỉ việc dọn khung mới cần
+				// xét thứ tự, để không xoá kết quả của một truy vấn mới hơn.
+				lookup_blocked = true;
+				if (seq !== lookup_seq) return;
+				$lookup_wrapper.empty();
+			},
+		});
+	}, 300);
+
+	dialog.get_field("so_hieu").$input.on("input", run_lookup);
+
+	$lookup_wrapper.off("click.tbyt-attach").on("click.tbyt-attach", "[data-tbyt-attach]", function () {
+		const document_name = $(this).attr("data-document-name");
+		frappe.call({
+			method: "erpnext.tbyt.intake.attach_existing_to_item",
+			args: { item_code: frm.doc.name, document_name: document_name },
+			freeze: true,
+			callback(r) {
+				if (!r.message) return;
+				erpnext_apply_tbyt_intake_result(frm, r.message);
+				dialog.hide();
+				frappe.show_alert({ message: __("Đã gắn chứng từ cho mặt hàng."), indicator: "green" });
+			},
+		});
+	});
+}
+
+function erpnext_tbyt_lookup_html(results) {
+	if (!results.length) {
+		// Không có kết quả — xoá trống, không hiện gì (§3 brief / §5.3 đặc tả).
+		return "";
+	}
+
+	const rows = results
+		.map((row) => {
+			const name = frappe.utils.escape_html(row.name);
+			const document_name = frappe.utils.escape_html(row.document_name || row.document_type || "");
+			const scope_summary = frappe.utils.escape_html(row.scope_summary || "");
+			const trang_thai = frappe.utils.escape_html(row.trang_thai || "");
+
+			let action;
+			if (row.already_covers_item) {
+				action = `<div class="text-muted">${__("Mặt hàng này đã có sẵn tờ này")}</div>`;
+			} else if (row.allows_multi) {
+				action = `<button type="button" class="btn btn-xs btn-primary" data-tbyt-attach
+						data-document-name="${name}">${__("Gắn tờ này cho mặt hàng")}</button>`;
+			} else {
+				action = `<div class="text-muted">${__(
+					"Loại này chỉ nhận một phạm vi. Nếu đây đúng là cùng một tờ giấy phủ nhiều chủ thể, báo quản trị xem loại chứng từ có cần cho phép nhiều phạm vi không."
+				)}</div>`;
+			}
+
+			return `<div class="tbyt-intake-lookup-row mb-2">
+					<div>${name} · ${document_name} · ${scope_summary} · ${trang_thai}</div>
+					${action}
+				</div>`;
+		})
+		.join("");
+
+	return `<div class="mb-2"><b>${__("Số hiệu này đã có trong hệ thống")}</b></div>${rows}`;
+}
