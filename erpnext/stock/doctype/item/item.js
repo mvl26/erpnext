@@ -1264,17 +1264,41 @@ function erpnext_show_tbyt_intake_dialog(frm, document_key, ctx) {
 function erpnext_bind_tbyt_so_hieu_lookup(dialog, frm, document_key) {
 	const $lookup_wrapper = dialog.get_field("lookup_html").$wrapper;
 
+	// Chuỗi ngắn khớp nhiều bản ghi hơn nên server trả CHẬM hơn — nếu người dùng gõ
+	// tiếp trong lúc câu trước còn treo, phản hồi cũ hoàn toàn có thể về SAU phản
+	// hồi mới và ghi đè kết quả đúng bằng kết quả rộng hơn, sai lúc người dùng đang
+	// hỏi "tờ này đã có chưa". `frappe.utils.debounce` chỉ chặn được các timer chồng
+	// nhau, không chặn được thứ tự trả về của hai request đã bắn đi — cần một số thứ
+	// tự riêng để nhận diện và bỏ qua phản hồi không còn là truy vấn mới nhất.
+	let lookup_seq = 0;
+
+	// Task A đã siết quyền đọc `TBYT Regulatory Document` (chỉ System Manager và
+	// Item Manager). Người dùng thiếu quyền sẽ bị chặn ngay từ ký tự thứ ba, và vì
+	// tra cứu chạy theo từng phím gõ, không chốt lại thì modal "Not permitted" của
+	// framework sẽ bật lại trên MỌI phím gõ tiếp theo. Chỉ để lỗi hiện một lần, sau
+	// đó ngưng tra cứu cho hết vòng đời hộp thoại này — KHÔNG dựng cơ chế thử lại.
+	let lookup_blocked = false;
+
 	const run_lookup = frappe.utils.debounce(() => {
+		if (lookup_blocked) return;
+
 		const so_hieu = (dialog.get_value("so_hieu") || "").trim();
 		if (so_hieu.length < 3) {
 			$lookup_wrapper.empty();
 			return;
 		}
+		const seq = ++lookup_seq;
 		frappe.call({
 			method: "erpnext.tbyt.intake.find_documents_by_so_hieu",
 			args: { so_hieu: so_hieu, item_code: frm.doc.name, document_key: document_key },
 			callback(r) {
+				if (seq !== lookup_seq) return;
 				$lookup_wrapper.html(erpnext_tbyt_lookup_html(r.message || []));
+			},
+			error() {
+				if (seq !== lookup_seq) return;
+				lookup_blocked = true;
+				$lookup_wrapper.empty();
 			},
 		});
 	}, 300);
