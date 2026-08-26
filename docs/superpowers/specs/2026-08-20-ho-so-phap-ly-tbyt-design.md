@@ -3,6 +3,8 @@
 > Trạng thái: **DRAFT — chờ duyệt.** Giai đoạn Specify.
 > Nguồn: `docs/ma-tran-chung-tu-tbyt-theo-phan-loai.md` (ma trận 23 chứng từ × 4 phân loại).
 > Bản sửa **2026-08-21** — vá 6 lỗi tìm được khi kiểm toán bản đầu, xem §14.
+> Bổ sung **2026-08-24** — đường nộp chứng từ từ mặt hàng và tra cứu theo số hiệu:
+> `docs/superpowers/specs/2026-08-24-nop-chung-tu-tu-mat-hang-design.md` (chờ duyệt).
 > Thiết kế này **bác bỏ §5.5 của tài liệu nguồn** và thay bằng mô hình khác — lý do ở §2.
 
 ## 1. Mục tiêu
@@ -138,7 +140,7 @@ hiển thị số thật ở mọi link field.
 |---|---|---|
 | `document_type` | Link → `TBYT Document Type` | reqd |
 | `pham_vi` | Table → `TBYT Document Scope` | reqd, ≥1 dòng — xem §4.5 |
-| `so_hieu` | Data | Số hiệu trên tờ giấy |
+| `so_hieu` | Data | Số hiệu trên tờ giấy. **Chưa có `search_index`** — bản bổ sung 2026-08-24 biến nó thành khóa tra cứu |
 | `ngay_cap` | Date | reqd |
 | `khong_thoi_han` | Check | Tờ giấy này cấp vô thời hạn; mặc định theo `mac_dinh_co_thoi_han` |
 | `ngay_het_han` | Date | `mandatory_depends_on = "eval:!doc.khong_thoi_han"` |
@@ -250,6 +252,15 @@ riêng trong report §9.
 
 Bảng HTML liệt kê: tên chứng từ · mức (BB/BB\*/NC/TH) · cấp lưu · số hiệu · ngày hết hạn hoặc
 nhãn *Vô thời hạn* · trạng thái · link mở file · nút tải lên nếu thiếu.
+
+> **Lỗ hổng đã biết, phát hiện 2026-08-24 khi người dùng dùng thử.** Cụm "nút tải lên nếu thiếu"
+> ở trên **chưa bao giờ được dựng** — bảng hiện tại chỉ để đọc, và `item.js` không có một chỗ nào
+> mở `TBYT Regulatory Document`. Hệ quả: người dùng thấy còn thiếu gì nhưng không làm được gì từ
+> đó; phải rời Item, sang DocType khác, và tự nhớ số lưu hành của mặt hàng.
+>
+> Đây là lệch pha giữa **công việc xoay quanh mặt hàng** và **mô hình xoay quanh chủ thể pháp lý**.
+> Mô hình không sai — nó là thứ mua được tính không-trùng-lặp. Sai ở chỗ mọi đường vào đều mang
+> hình dạng chủ thể. Bản bổ sung 2026-08-24 xử lý đúng chỗ đó.
 
 ## 7. Cây thư mục File
 
@@ -464,3 +475,13 @@ Ca then chốt cho R2: **thêm item thứ hai vào cùng số lưu hành → 17 
 | 4 | `tinh_trang_ho_so` ôi tới 24 tiếng vì thiếu hook trên chứng từ | §8.6 |
 | 5 | Chứng từ mức TH bị resolver loại bỏ → tải lên rồi mất | §8.1 |
 | 6 | Nhãn "Đủ" nói dối vì bỏ qua CQ/CO cấp lô; thiếu trạng thái SLH hết hiệu lực | §6, §9 |
+
+**2026-08-24 — hai lỗ hổng lộ ra khi người dùng dùng thử form thật:**
+
+| # | Lỗ hổng | Xử lý |
+|---|---|---|
+| 7 | Bảng Phạm vi không nhập được từ đường New trắng: `scope_doctype` read-only, `scope_name` là Dynamic Link không biết tìm ở đâu, cả hai bắt buộc | Đã sửa — thêm `tbyt_regulatory_document.js` điền `scope_doctype` phía client |
+| 8 | Không có đường nộp chứng từ từ mặt hàng; `so_hieu` chỉ là nhãn hiển thị, không tra cứu được | Bản bổ sung 2026-08-24, **chờ duyệt** |
+
+Cả hai đều lọt qua 123 test tự động vì test dựng bản ghi bằng code, không mở form. Suite chứng minh
+**mô hình đúng**, không chứng minh **form dùng được**.
