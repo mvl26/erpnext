@@ -92,9 +92,15 @@ def update_item_status(item_code: str) -> str | None:
 
 @frappe.whitelist()
 def get_item_dashboard(item_code: str) -> dict:
-	"""Dữ liệu cho bảng hồ sơ trên form Item."""
+	"""Dữ liệu cho bảng hồ sơ trên form Item.
+
+	`can_intake` tính sẵn ở đây để client không phải suy lại luật BB/BB* — dòng
+	có nút "Nộp giấy" là dòng đang bị đòi mà chưa có chứng từ, đúng §9.2 đặc tả.
+	"""
 	frappe.has_permission("Item", doc=item_code, throw=True)
 	rows = get_item_documents(item_code)
+	for row in rows:
+		row["can_intake"] = bool(row["is_required"] and not row["document"])
 	return {
 		"status": get_item_status(item_code),
 		"rows": rows,

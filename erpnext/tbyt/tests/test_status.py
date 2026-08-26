@@ -16,7 +16,7 @@ from erpnext.tbyt import constants
 from erpnext.tbyt.doctype.tbyt_marketing_authorization.test_tbyt_marketing_authorization import (
 	make_authorization,
 )
-from erpnext.tbyt.status import get_item_status, update_item_status
+from erpnext.tbyt.status import get_item_dashboard, get_item_status, update_item_status
 from erpnext.tbyt.tests.test_expiry import make_regulatory_document
 from erpnext.tbyt.tests.test_item_fields import make_item, make_item_group
 
@@ -151,6 +151,24 @@ class TestItemStatus(FrappeTestCase):
 			constants.ITEM_STATUS_MISSING,
 		)
 		self.assertEqual(before, after)
+
+	def test_can_intake_flags_a_missing_required_row(self):
+		"""BB thiếu là dòng có nút Nộp giấy — `hdsd_tieng_viet` là BB ở mọi phân loại."""
+		item, _ = self._make()
+		rows = {r["document_key"]: r for r in get_item_dashboard(item.name)["rows"]}
+		self.assertTrue(rows["hdsd_tieng_viet"]["can_intake"])
+
+	def test_can_intake_is_false_for_a_nice_to_have_row(self):
+		"""NC không phải nghĩa vụ — `hop_chuan_hop_quy` là NC ở phân loại A (§9.2 đặc tả)."""
+		item, _ = self._make(device_class="A")
+		rows = {r["document_key"]: r for r in get_item_dashboard(item.name)["rows"]}
+		self.assertFalse(rows["hop_chuan_hop_quy"]["can_intake"])
+
+	def test_can_intake_is_false_once_the_document_exists(self):
+		item, auth = self._make()
+		self._upload_everything_required(item, auth)
+		rows = {r["document_key"]: r for r in get_item_dashboard(item.name)["rows"]}
+		self.assertFalse(rows["hdsd_tieng_viet"]["can_intake"])
 
 	def test_saving_a_medical_item_warns_but_does_not_block(self):
 		"""Cảnh báo, không chặn — chứng từ về dần theo tiến độ nhà cung cấp gửi."""
