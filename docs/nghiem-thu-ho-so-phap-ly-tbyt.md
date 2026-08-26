@@ -1,7 +1,7 @@
 # Nghiệm thu hồ sơ pháp lý TBYT
 
 > **Chạy trên:** site `miyano`, nhánh `feat/vn-tbyt-ho-so-phap-ly`
-> **Thời lượng:** 45–60 phút · **30 ca** · làm tuần tự, phần sau dùng dữ liệu phần trước
+> **Thời lượng:** 45–60 phút · **34 ca** · làm tuần tự, phần sau dùng dữ liệu phần trước
 > **Điểm xuất phát:** site trống — 0 chủ sở hữu, 0 số lưu hành, 0 chứng từ
 
 ---
@@ -294,6 +294,59 @@ thứ khác trong bảng đều đã có test tự động phủ, riêng chuỗi
   > Nhãn là *Đủ hồ sơ mặt hàng*, **không phải "Đủ"** — vì chứng từ cấp lô (CQ, CO) cố ý không tính
   > ở đây. Ca 6.3 lo phần đó.
 
+- [ ] **3.8 — Nút "Nộp giấy" ngay trên bảng hồ sơ của mặt hàng** · *CHO QUA*
+
+  Mở mặt hàng → tab **Hồ sơ TBYT** → nhìn bảng chứng từ.
+
+  **Kết quả:** các dòng mức **Bắt buộc** và **BB có điều kiện** đang thiếu đều có nút **Nộp giấy**.
+  Dòng mức **Nên có** **không** có nút.
+
+  Bấm nút ở dòng *Giấy chứng nhận ISO 13485*. Hộp thoại mở ra, dòng đầu tiên ghi:
+  *"Tờ này sẽ gắn vào **hãng {tên hãng}** — mọi mặt hàng của hãng đều dùng chung."*
+
+  > **Đọc kỹ câu đó — nó là điểm mấu chốt của cả mô hình.** Bạn nộp giấy *từ* mặt hàng, nhưng
+  > hệ thống gắn nó *vào hãng*, vì ISO 13485 là giấy của nhà máy chứ không phải của một mã hàng.
+  > Nhờ vậy mọi mặt hàng khác của hãng đó tự có luôn.
+
+- [ ] **3.9 — Nộp xong, mặt hàng cập nhật ngay và không mất dữ liệu đang sửa** · *CHO QUA*
+
+  Trước khi bấm nút Nộp giấy, **sửa một trường bất kỳ** trên mặt hàng (ví dụ đổi Tên hàng) nhưng
+  **đừng lưu**. Rồi mới bấm Nộp giấy, điền số hiệu, ngày cấp, tích Vô thời hạn, đính tệp → Tạo mới.
+
+  **Kết quả:**
+  - Bảng hồ sơ cập nhật ngay, dòng vừa nộp chuyển sang đã có
+  - Trường **Tình trạng hồ sơ** đổi theo
+  - **Thay đổi chưa lưu của bạn vẫn còn nguyên**, và form vẫn ở trạng thái chưa lưu
+
+  > **Ca này canh một lỗi dễ mắc.** Cách làm ngây thơ là nạp lại cả bản ghi sau khi nộp — và như
+  > vậy sẽ xoá sạch những gì bạn đang sửa dở. Hệ thống cố ý chỉ cập nhật đúng hai thứ đã đổi.
+
+- [ ] **3.10 — Tra số hiệu: biết tờ giấy đã có hay chưa** · *CHO QUA*
+
+  Bấm **Nộp giấy** ở một dòng khác. Trong ô **Số hiệu**, gõ số hiệu của tờ **đã nộp ở ca 3.9**.
+
+  **Kết quả:** gõ tới ký tự thứ ba trở đi, dưới ô hiện khối kết quả nêu mã bản ghi, tên loại chứng
+  từ, phạm vi và trạng thái. Vì mặt hàng này đã có sẵn tờ đó, khối ghi *"Mặt hàng này đã có sẵn tờ
+  này"* và **không** có nút gắn.
+
+  Thử thêm: gõ 1–2 ký tự → không tra, không hiện gì.
+
+- [ ] **3.11 — Gắn một tờ CFS đã có cho mặt hàng khác** · *CHO QUA*
+
+  Cần: hai số lưu hành **cùng một hãng**, đều bỏ tích *Miyano là chủ sở hữu* và tích *Hàng nhập
+  khẩu*; mỗi số một mặt hàng.
+
+  1. Từ mặt hàng thứ nhất, nộp một tờ `cfs_giay_luu_hanh`, ghi nhớ số hiệu
+  2. Mở mặt hàng thứ hai → bấm **Nộp giấy** ở dòng CFS → gõ đúng số hiệu đó
+  3. Khối kết quả hiện tờ vừa nộp, kèm nút **Gắn tờ này cho mặt hàng** → bấm
+
+  **Kết quả:** mặt hàng thứ hai có ngay tờ CFS đó, và **số bản ghi chứng từ không tăng** — vẫn là
+  một tờ giấy, giờ phủ hai số lưu hành.
+
+  > **Đây là ca duy nhất trong bảng kiểm tra được đường "dùng lại tờ đã có".** Nó chỉ có nghĩa với
+  > 4 loại chứng từ cho phép nhiều phạm vi. Với 19 loại còn lại, nút gắn cố ý **không** hiện — vì
+  > một tờ giấy của hãng này không thể trở thành giấy của hãng khác.
+
 **Đường làm thủ công, nếu nút không chạy:** **TBYT Regulatory Document** → New → **Loại chứng từ**
 = `gcn_dang_ky_luu_hanh` (loại C/D) hoặc `so_cong_bo_tieu_chuan` (loại A/B) → bảng **Phạm vi**
 thêm một dòng, chọn số lưu hành → đính tệp, điền số hiệu và ngày cấp → Save. Kết quả giống hệt;
@@ -428,7 +481,7 @@ Gặp phải thì ghi nhận, đừng ghi là lỗi.
 |---|---|
 | Người nghiệm thu | |
 | Ngày | |
-| Số ca đạt / tổng | / 30 |
+| Số ca đạt / tổng | / 34 |
 | Kết luận | |
 
 **Ca không đạt và mô tả cụ thể:**
