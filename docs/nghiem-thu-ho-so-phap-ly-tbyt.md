@@ -298,8 +298,11 @@ thứ khác trong bảng đều đã có test tự động phủ, riêng chuỗi
 
   Mở mặt hàng → tab **Hồ sơ TBYT** → nhìn bảng chứng từ.
 
-  **Kết quả:** các dòng mức **Bắt buộc** và **BB có điều kiện** đang thiếu đều có nút **Nộp giấy**.
-  Dòng mức **Nên có** **không** có nút.
+  **Kết quả:** **mọi** dòng chưa có chứng từ đều có nút **Nộp giấy** — cả bốn mức. Với mặt hàng
+  loại C, bảng có **18 dòng**: 8 Bắt buộc, 3 BB có điều kiện, 2 Nên có, 5 Theo trường hợp.
+
+  Dòng mức **Theo trường hợp** mang nhãn *"Bổ sung khi cần"* màu xám, **không** phải *"Chưa có"* —
+  chúng không thiếu, chỉ là chưa phát sinh.
 
   Bấm nút ở dòng *Giấy chứng nhận ISO 13485*. Hộp thoại mở ra, dòng đầu tiên ghi:
   *"Tờ này sẽ gắn vào **hãng {tên hãng}** — mọi mặt hàng của hãng đều dùng chung."*

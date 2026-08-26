@@ -240,9 +240,20 @@ chỗ** đúng hai thứ đã đổi:
 
 Hai hàm tạo và gắn đều trả về `tinh_trang_ho_so` mới để client cập nhật mà không cần hỏi lại.
 
-**9.2 — Chỉ BB và BB\*.** Nút *Nộp giấy* chỉ hiện trên dòng đang **bị đòi**: mức `BB`, và mức
-`BB*` khi điều kiện thoả. Dòng `NC` và `TH` không có nút — chúng không phải nghĩa vụ, và thêm nút ở
-đó chỉ làm loãng chỗ cần chú ý.
+**9.2 — Mọi dòng chưa có chứng từ đều nộp được.** ~~Chỉ BB và BB\*.~~
+
+> **Đảo ngược 2026-08-24, sau khi người dùng dùng thử.** Quyết định ban đầu là chỉ BB và BB\* mới
+> có nút. Dùng thật rồi mới thấy hệ quả: nhóm `TH` **không có đường nộp nào cả** — resolver vốn ẩn
+> hẳn dòng TH khi chưa có giấy, nên không có gì để bấm. Mà §4 tài liệu nguồn nói rõ nhóm TH phải
+> giữ được trong danh mục *"để đính kèm thủ công khi phát sinh"*.
+
+Nút *Nộp giấy* hiện trên **mọi** dòng chưa có chứng từ, cả bốn mức. Kèm hai điều kiện:
+
+- Dòng `TH` giờ **hiện kể cả khi chưa có giấy**, nhãn là *"Bổ sung khi cần"* màu xám — không phải
+  *"Chưa có"*, vì nó không thiếu, chỉ là chưa phát sinh.
+- **Ngữ nghĩa "thiếu" không đổi.** `is_required` của TH và NC vẫn là False, nên trạng thái, số đếm
+  trên dashboard, cảnh báo lúc lưu và hai cột `bb_thieu`/`nc_thieu` của báo cáo đều giữ nguyên.
+  Kiểm chứng trên site loại C: bảng đi từ 13 lên 18 dòng, `missing` vẫn đúng 11.
 
 **9.3 — Tra ngay khi gõ, vừa tra vừa nhập.** Tra cứu số hiệu chạy **trong lúc gõ**, không đợi rời ô.
 Người dùng chấp nhận chi phí truy vấn: danh mục chứng từ không lớn, và có `search_index` trên
