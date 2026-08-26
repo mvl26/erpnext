@@ -1072,20 +1072,25 @@ function erpnext_tbyt_dossier_html(data) {
 				: row.ngay_het_han
 				? frappe.datetime.str_to_user(row.ngay_het_han)
 				: "—";
+			// Ba trạng thái "chưa có" khác nhau: TH chưa phát sinh không phải thiếu,
+			// nên nhãn và màu của nó không được trộn với BB/BB*/NC thật sự thiếu.
 			const state = row.document
 				? `<span class="indicator-pill ${row.trang_thai === "Còn hiệu lực" ? "green" : "red"}">${
 						row.trang_thai
 				  }</span>`
+				: row.is_supplementary
+				? `<span class="indicator-pill gray">${__("Bổ sung khi cần")}</span>`
 				: `<span class="indicator-pill ${row.is_required ? "red" : "gray"}">${__("Chưa có")}</span>`;
 			const link = row.document
 				? `<a href="/app/tbyt-regulatory-document/${encodeURIComponent(
 						row.document
 				  )}">${frappe.utils.escape_html(row.so_hieu || row.document)}</a>`
 				: "";
-			// Nút "Nộp giấy" chỉ hiện khi server đã tính can_intake = true (BB, hoặc
-			// BB* đang điều kiện thoả) — NC và TH không có nút (§9.2 đặc tả). Gắn qua
-			// data-attribute, không onclick nội tuyến: chuỗi này bị vẽ lại toàn bộ mỗi
-			// lần refresh nên handler phải là uỷ quyền sự kiện trên phần tử bao.
+			// Nút "Nộp giấy" hiện ở MỌI dòng chưa có chứng từ — BB, BB*, NC lẫn TH đều
+			// cần chỗ nộp khi tình huống phát sinh, không riêng dòng đang bị đòi (server
+			// đã tính sẵn `can_intake` theo đúng luật này). Gắn qua data-attribute,
+			// không onclick nội tuyến: chuỗi này bị vẽ lại toàn bộ mỗi lần refresh nên
+			// handler phải là uỷ quyền sự kiện trên phần tử bao.
 			const action = row.can_intake
 				? `<button type="button" class="btn btn-xs btn-primary" data-tbyt-intake
 						data-document-key="${frappe.utils.escape_html(row.document_key)}">

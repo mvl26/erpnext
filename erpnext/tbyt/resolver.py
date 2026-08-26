@@ -72,10 +72,11 @@ def get_item_documents(item_code: str, item: dict | None = None) -> list[dict]:
 			scope_values.get(doc_type.scope_level),
 		)
 
-		# TH không bao giờ tính là thiếu, nhưng đã tải lên thì phải hiện ra và
-		# phải được theo dõi hạn — nếu ẩn đi thì tải lên coi như mất.
-		if level == LEVEL_TH and not record:
-			continue
+		# TH KHÔNG BAO GIỜ tính là thiếu — `is_required` của nó luôn False, và mọi
+		# nơi đếm "còn thiếu" đều lọc theo `is_required` hoặc theo mức, không theo
+		# sự hiện diện của dòng. Vẫn trả dòng ra kể cả khi chưa có giấy, để người
+		# dùng có chỗ nộp khi tình huống phát sinh — §4 tài liệu nguồn nói rõ nhóm
+		# TH phải giữ được trong danh mục để đính kèm thủ công.
 
 		rows.append(
 			{

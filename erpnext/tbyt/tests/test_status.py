@@ -158,17 +158,70 @@ class TestItemStatus(FrappeTestCase):
 		rows = {r["document_key"]: r for r in get_item_dashboard(item.name)["rows"]}
 		self.assertTrue(rows["hdsd_tieng_viet"]["can_intake"])
 
-	def test_can_intake_is_false_for_a_nice_to_have_row(self):
-		"""NC không phải nghĩa vụ — `hop_chuan_hop_quy` là NC ở phân loại A (§9.2 đặc tả)."""
-		item, _ = self._make(device_class="A")
+	def test_can_intake_is_true_for_a_nice_to_have_row_when_absent(self):
+		"""Người dùng đã đổi quyết định: NC giờ cũng nộp trực tiếp được, không chỉ BB/BB*.
+
+		`hop_chuan_hop_quy` là NC ở phân loại A. Trước đây NC không có nút Nộp giấy;
+		giờ mọi dòng chưa có chứng từ đều có, kể cả NC.
+		"""
+		item, auth = self._make(device_class="A")
+		rows = {r["document_key"]: r for r in get_item_dashboard(item.name)["rows"]}
+		self.assertTrue(rows["hop_chuan_hop_quy"]["can_intake"])
+
+		make_regulatory_document("hop_chuan_hop_quy", AUTH_DOCTYPE, auth.name)
 		rows = {r["document_key"]: r for r in get_item_dashboard(item.name)["rows"]}
 		self.assertFalse(rows["hop_chuan_hop_quy"]["can_intake"])
+
+	def test_can_intake_is_true_for_a_th_row_when_absent(self):
+		"""TH cũng nộp trực tiếp được — đây chính là lý do nó phải được hiện ra.
+
+		Trước đây resolver bỏ hẳn dòng TH chưa có giấy nên không có gì để bấm. Giờ
+		dòng vẫn hiện và `can_intake` là True cho tới khi có giấy — `ke_khai_gia`
+		là TH ở mọi phân loại, phạm vi Item nên nộp thẳng không cần đụng tới Số lưu hành.
+		"""
+		item, _ = self._make(device_class="B")
+		rows = {r["document_key"]: r for r in get_item_dashboard(item.name)["rows"]}
+		self.assertTrue(rows["ke_khai_gia"]["is_supplementary"])
+		self.assertTrue(rows["ke_khai_gia"]["can_intake"])
+
+		make_regulatory_document("ke_khai_gia", "Item", item.name)
+		rows = {r["document_key"]: r for r in get_item_dashboard(item.name)["rows"]}
+		self.assertFalse(rows["ke_khai_gia"]["can_intake"])
 
 	def test_can_intake_is_false_once_the_document_exists(self):
 		item, auth = self._make()
 		self._upload_everything_required(item, auth)
 		rows = {r["document_key"]: r for r in get_item_dashboard(item.name)["rows"]}
 		self.assertFalse(rows["hdsd_tieng_viet"]["can_intake"])
+
+	def test_dashboard_missing_count_excludes_nc_and_th_rows(self):
+		"""`missing` chỉ đếm BB/BB* đang bị đòi — không cộng dồn dòng NC hay TH nào.
+
+		Từ khi resolver luôn trả cả dòng TH chưa có giấy, phải canh rằng con số này
+		không âm thầm phình lên vì những dòng không phải nghĩa vụ.
+		"""
+		item, _ = self._make(device_class="B")
+		data = get_item_dashboard(item.name)
+		rows = data["rows"]
+		optional_missing = [r for r in rows if not r["is_required"] and not r["document"]]
+		self.assertTrue(optional_missing, "Ca kiem tra vo nghia neu khong co dong tuy chon nao thieu")
+		required_missing = sum(1 for r in rows if r["is_required"] and not r["document"])
+		self.assertEqual(data["missing"], required_missing)
+
+	def test_complete_dossier_ignores_missing_nc_and_th(self):
+		"""Đủ hết BB/BB* thỏa điều kiện là ĐỦ — dù NC và TH còn chưa có giấy nào.
+
+		Từ khi resolver luôn trả cả dòng TH chưa có giấy (trước đây bị bỏ hẳn), phải
+		canh rằng trạng thái Item không âm thầm rớt xuống MISSING vì những dòng đó.
+		"""
+		from erpnext.tbyt.resolver import get_item_documents
+
+		item, auth = self._make(device_class="B")
+		self._upload_everything_required(item, auth)
+		rows = get_item_documents(item.name)
+		optional_missing = [r for r in rows if not r["is_required"] and not r["document"]]
+		self.assertTrue(optional_missing, "Ca kiem tra vo nghia neu khong con dong tuy chon nao thieu")
+		self.assertEqual(get_item_status(item.name), constants.ITEM_STATUS_OK)
 
 	def test_saving_a_medical_item_warns_but_does_not_block(self):
 		"""Cảnh báo, không chặn — chứng từ về dần theo tiến độ nhà cung cấp gửi."""

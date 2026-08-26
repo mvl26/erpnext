@@ -94,13 +94,16 @@ def update_item_status(item_code: str) -> str | None:
 def get_item_dashboard(item_code: str) -> dict:
 	"""Dữ liệu cho bảng hồ sơ trên form Item.
 
-	`can_intake` tính sẵn ở đây để client không phải suy lại luật BB/BB* — dòng
-	có nút "Nộp giấy" là dòng đang bị đòi mà chưa có chứng từ, đúng §9.2 đặc tả.
+	`can_intake` tính sẵn ở đây để client không phải suy lại luật — dòng có nút
+	"Nộp giấy" là BẤT KỲ dòng nào chưa có chứng từ, không riêng BB/BB* đang bị
+	đòi: NC và TH cũng cần chỗ nộp ngay khi tình huống phát sinh. `missing` thì
+	vẫn chỉ đếm những gì THỰC SỰ thiếu — lọc theo `is_required`, không đổi theo
+	thay đổi này.
 	"""
 	frappe.has_permission("Item", doc=item_code, throw=True)
 	rows = get_item_documents(item_code)
 	for row in rows:
-		row["can_intake"] = bool(row["is_required"] and not row["document"])
+		row["can_intake"] = not row["document"]
 	return {
 		"status": get_item_status(item_code),
 		"rows": rows,

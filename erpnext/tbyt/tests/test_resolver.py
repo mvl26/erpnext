@@ -74,12 +74,22 @@ class TestResolver(FrappeTestCase):
 		item, _ = self._item_of_class("B")
 		self.assertIn("cong_bo_dk_mua_ban", levels_by_key(get_item_documents(item.name)))
 
-	def test_hop_chuan_hop_quy_appears_for_ab_but_not_for_cd(self):
-		"""Bẫy lật mức: NC ở A/B nên hiện, TH ở C/D nên ẩn khi chưa có bản ghi."""
+	def test_hop_chuan_hop_quy_flips_level_between_ab_and_cd(self):
+		"""Bẫy lật mức: `hop_chuan_hop_quy` là NC ở A/B nhưng TH ở C/D.
+
+		Đây là loại chứng từ DUY NHẤT trong 23 loại có mức đổi giữa các phân loại.
+		Nếu ai đó chép danh sách của A sang C khi sửa danh mục thì mọi loại khác vẫn
+		đúng, chỉ dòng này sai — nên nó đáng có một test riêng.
+
+		Khẳng định trên chính giá trị mức, không phải trên việc dòng có hiện hay
+		không. Bản cũ suy mức từ sự hiện diện, mà cách suy đó chỉ đúng khi dòng TH
+		chưa có giấy bị ẩn đi. Giờ TH luôn hiện để người dùng có chỗ nộp, nên phép
+		suy gián tiếp ấy không còn phân biệt được NC với TH nữa.
+		"""
 		item_b, _ = self._item_of_class("B")
 		item_d, _ = self._item_of_class("D")
-		self.assertIn("hop_chuan_hop_quy", levels_by_key(get_item_documents(item_b.name)))
-		self.assertNotIn("hop_chuan_hop_quy", levels_by_key(get_item_documents(item_d.name)))
+		self.assertEqual(levels_by_key(get_item_documents(item_b.name))["hop_chuan_hop_quy"], "NC")
+		self.assertEqual(levels_by_key(get_item_documents(item_d.name))["hop_chuan_hop_quy"], "TH")
 
 	def test_batch_level_documents_are_not_resolved_at_item_level(self):
 		item, _ = self._item_of_class("B")
@@ -104,9 +114,19 @@ class TestResolver(FrappeTestCase):
 		domestic, _ = self._item_of_class("A", miyano_la_chu_so_huu=0, hang_nhap_khau=0)
 		self.assertNotIn("cfs_giay_luu_hanh", required_missing(get_item_documents(domestic.name)))
 
-	def test_th_document_is_hidden_when_absent(self):
+	def test_th_document_shows_up_even_when_absent(self):
+		"""TH hiện ra kể cả khi chưa có giấy — để người dùng có chỗ nộp khi phát sinh.
+
+		Trước đây resolver bỏ hẳn dòng TH chưa có giấy. Hệ quả là không có đường nào
+		nộp chứng từ theo trường hợp từ mặt hàng. Giờ dòng vẫn hiện, nhưng
+		`is_required` vẫn False nên nó KHÔNG được tính là thiếu ở bất cứ đâu.
+		"""
 		item, _ = self._item_of_class("B")
-		self.assertNotIn("ke_khai_gia", levels_by_key(get_item_documents(item.name)))
+		rows = {r["document_key"]: r for r in get_item_documents(item.name)}
+		self.assertIn("ke_khai_gia", rows)
+		self.assertFalse(rows["ke_khai_gia"]["document"])
+		self.assertFalse(rows["ke_khai_gia"]["is_required"])
+		self.assertTrue(rows["ke_khai_gia"]["is_supplementary"])
 
 	def test_th_document_shows_up_once_uploaded(self):
 		"""Tải lên rồi thì phải thấy và phải theo dõi hạn — không được nuốt mất."""

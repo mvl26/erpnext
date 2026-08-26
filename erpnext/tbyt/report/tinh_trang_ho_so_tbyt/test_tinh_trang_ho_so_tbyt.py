@@ -136,3 +136,26 @@ class TestTinhTrangHoSoTBYT(FrappeTestCase):
 		fieldnames = {c["fieldname"] for c in columns}
 		self.assertIn("ngay_het_han_gan_nhat", fieldnames)
 		self.assertIn("chung_tu_het_han", fieldnames)
+
+	def test_bb_and_nc_missing_counts_are_unaffected_by_th_rows_appearing(self):
+		"""`_count_missing` không được đếm TH — dù resolver giờ luôn trả dòng đó.
+
+		Trước khi resolver trả dòng TH ngay cả lúc chưa có giấy, `bb_thieu` và
+		`nc_thieu` đã đúng. Bài test này canh rằng con số đó KHÔNG đổi vì có thêm
+		dòng TH lọt vào danh sách chứng từ đã phân giải.
+		"""
+		from erpnext.tbyt.report.tinh_trang_ho_so_tbyt.tinh_trang_ho_so_tbyt import _count_missing
+		from erpnext.tbyt.resolver import get_item_documents
+
+		documents = get_item_documents(self.item.name)
+		th_rows = [d for d in documents if d["level"] == constants.LEVEL_TH]
+		self.assertTrue(th_rows, "Ca kiem tra vo nghia neu khong co dong TH nao trong danh muc")
+		self.assertTrue(all(not r["document"] for r in th_rows))
+
+		counts = _count_missing(documents)
+		self.assertNotIn(constants.LEVEL_TH, counts)
+
+		_columns, rows = execute({})
+		row = self._row(rows)
+		self.assertEqual(row["bb_thieu"], counts[constants.LEVEL_BB])
+		self.assertEqual(row["nc_thieu"], counts[constants.LEVEL_NC])
