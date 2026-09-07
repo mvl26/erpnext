@@ -541,3 +541,40 @@ Quy tắc seed: chạy lại **không** ghi đè bản ghi đã tồn tại (ngh
 | 6 | Nhắc hạn = 3 bản ghi Notification "Days Before" mỗi loại | **1 job hằng ngày quét cả 3 mốc + chống gửi trùng** | Ít bản ghi hơn, kiểm chứng được qua Dispatch Log, chạy bù an toàn |
 | 7 | Đính PDF cho PO / DN / Payment Request | **Chỉ Delivery Note** | Chưa có mẫu in tiếng Việt cho PO và Payment Request (D4); mở lại sau khi có mẫu |
 | 8 | Bảng Jinja 4.4 | **Sửa 3 chỗ sai** | Xem cuối Phụ lục B |
+
+---
+
+## Phụ lục E — Trạng thái build (cập nhật 08/09/2026)
+
+Toàn bộ phần mã nguồn của §12 đã xong và có kiểm thử. Ba việc còn lại thuộc vận
+hành và dữ liệu, không phải code.
+
+| Bước §12 | Trạng thái | Ghi chú |
+|---|---|---|
+| 1 · Bật scheduler | ⏸ **Chờ quyết định** | Email Queue đang tồn **2.221 thư `Not Sent`**; bật scheduler là gửi thật toàn bộ số đó từ hộp thư sống. Phải dọn tồn trước — xem §3.2-a |
+| 2 · Module + Module Def | ✅ | `Supply Notification` trong `modules.txt`, patch `add_supply_notification_module_def` |
+| 3 · 4 DocType + quyền | ✅ | Role `Quản trị thông báo` sửa được cấu hình, chỉ đọc nhật ký gửi |
+| 4 · resolver | ✅ | 16 test |
+| 5 · Xem trước người nhận | ✅ | Nút trên form; chạy thật trên site đã báo đúng cảnh báo thiếu `user_id` |
+| 6 · setup idempotent | ✅ | Chạy `migrate` hai lần: vẫn 12 điểm, 2 phòng ban, không nhân đôi |
+| 7 · content + template | ✅ | 12 test |
+| 8 · dispatch + chống trùng | ✅ | 10 test |
+| 9 · doc_events | ✅ | 8 DocType; `Payment Invoice`/`Payment Entry` nối vào khối sẵn có, 6 chứng từ còn lại dùng một khoá tuple chung |
+| 10 · Toast + âm báo | ✅ | Đã vào `erpnext.bundle.js`, `bench build` xanh |
+| 11 · Nhắc hạn + cron 08:00 | ✅ | 6 test, gồm ca chạy lại trong ngày và ca hoá đơn đã tất toán |
+| 12 · Patch + `patches.txt` | ✅ | Thêm `after_migrate` để site mới tự có cấu hình |
+| 13 · Bộ test | ✅ | **50 test**, toàn bộ xanh |
+| 14 · Nghiệm thu staging | ⏸ **Chờ dữ liệu** | Cần §3.2-b (gắn `user_id`) và §3.2-d (liên hệ NCC/khách) |
+
+**Sai khác nhỏ so với §12 khi hiện thực:**
+- Thêm `after_migrate` gọi lại hàm cài đặt (ngoài patch) để site mới và site khôi
+  phục đều tự có đủ cấu hình.
+- Nhật ký gửi được dọn tự động sau 180 ngày bằng một job hằng ngày.
+- Câu chữ trong cấu hình render bằng **Jinja hộp cát** (`SandboxedEnvironment`)
+  thay vì `frappe.render_template`, để giữ đúng cam kết ở §8.5 là người sửa câu
+  chữ không với được vào `frappe`.
+
+**Kiểm chứng không hồi quy:** bộ test `sales_order` của lõi hỏng sẵn vì môi trường
+(site không có `_Test Company` / `_Test Warehouse - _TC`), không liên quan thay đổi
+này. Bộ `einvoice` end-to-end — có ghi sổ Phiếu giao hàng, tức đi qua NTF-07 — vẫn
+xanh 12/12.
