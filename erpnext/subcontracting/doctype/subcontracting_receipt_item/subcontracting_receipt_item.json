@@ -101,6 +101,7 @@
    "fieldtype": "Data",
    "in_global_search": 1,
    "label": "Item Name",
+   "length": 500,
    "print_hide": 1
   },
   {
