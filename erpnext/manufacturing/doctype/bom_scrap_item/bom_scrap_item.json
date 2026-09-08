@@ -30,7 +30,8 @@
    "fieldname": "item_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Item Name"
+   "label": "Item Name",
+   "length": 500
   },
   {
    "fieldname": "quantity_and_rate",

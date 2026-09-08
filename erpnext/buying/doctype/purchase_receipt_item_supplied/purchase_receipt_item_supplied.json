@@ -191,6 +191,7 @@
    "fieldname": "item_name",
    "fieldtype": "Data",
    "label": "Item Name",
+   "length": 500,
    "read_only": 1
   },
   {

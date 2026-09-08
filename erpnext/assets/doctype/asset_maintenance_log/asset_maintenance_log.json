@@ -65,7 +65,8 @@
    "fetch_from": "asset_maintenance.item_name",
    "fieldname": "item_name",
    "fieldtype": "Read Only",
-   "label": "Item Name"
+   "label": "Item Name",
+   "length": 500
   },
   {
    "fieldname": "section_break_5",
