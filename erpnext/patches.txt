@@ -428,3 +428,5 @@ erpnext.patches.v15_0.setup_fast_einvoice
 erpnext.patches.v15_0.drop_fast_einvoice_test_mode_flag
 erpnext.patches.v15_0.add_tbyt_module_def
 erpnext.patches.v15_0.seed_tbyt_document_types
+erpnext.patches.v15_0.add_supply_notification_module_def
+erpnext.patches.v15_0.seed_supply_notification_points
