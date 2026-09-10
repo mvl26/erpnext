@@ -60,7 +60,8 @@
    "columns": 3,
    "fieldname": "item_name",
    "fieldtype": "Data",
-   "label": "Item Name"
+   "label": "Item Name",
+   "length": 500
   },
   {
    "depends_on": "eval:parent.with_operations == 1",

@@ -45,6 +45,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Item Name",
+   "length": 500,
    "print_width": "200px",
    "read_only": 1,
    "width": "200px"

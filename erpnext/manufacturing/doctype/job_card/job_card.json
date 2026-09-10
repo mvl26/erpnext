@@ -299,7 +299,8 @@
    "fetch_if_empty": 1,
    "fieldname": "item_name",
    "fieldtype": "Read Only",
-   "label": "Item Name"
+   "label": "Item Name",
+   "length": 500
   },
   {
    "fieldname": "current_time",

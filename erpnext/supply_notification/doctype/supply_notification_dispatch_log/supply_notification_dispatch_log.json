@@ -1,0 +1,153 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-09-08 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "point",
+  "reference_doctype",
+  "reference_name",
+  "column_break_head",
+  "milestone",
+  "sent_on",
+  "status",
+  "channel_section",
+  "channel_email",
+  "channel_inapp",
+  "channel_external",
+  "recipient_section",
+  "recipients",
+  "external_recipients",
+  "remark"
+ ],
+ "fields": [
+  {
+   "fieldname": "point",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Điểm thông báo",
+   "options": "Supply Notification Point",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Loại chứng từ",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Chứng từ",
+   "options": "reference_doctype",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "submit",
+   "description": "submit, d7, d3 hoặc d1.",
+   "fieldname": "milestone",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Mốc",
+   "length": 16,
+   "reqd": 1
+  },
+  {
+   "fieldname": "sent_on",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm gửi"
+  },
+  {
+   "default": "Sent",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Kết quả",
+   "options": "Sent\nSkipped\nFailed"
+  },
+  {
+   "fieldname": "channel_section",
+   "fieldtype": "Section Break",
+   "label": "Kênh đã gửi"
+  },
+  {
+   "default": "0",
+   "fieldname": "channel_email",
+   "fieldtype": "Check",
+   "label": "Email nội bộ"
+  },
+  {
+   "default": "0",
+   "fieldname": "channel_inapp",
+   "fieldtype": "Check",
+   "label": "In-app"
+  },
+  {
+   "default": "0",
+   "fieldname": "channel_external",
+   "fieldtype": "Check",
+   "label": "Email ra ngoài"
+  },
+  {
+   "fieldname": "recipient_section",
+   "fieldtype": "Section Break",
+   "label": "Người nhận"
+  },
+  {
+   "fieldname": "recipients",
+   "fieldtype": "Small Text",
+   "label": "Người nhận nội bộ"
+  },
+  {
+   "fieldname": "external_recipients",
+   "fieldtype": "Small Text",
+   "label": "Người nhận ngoài"
+  },
+  {
+   "fieldname": "remark",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú"
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-08 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Supply Notification",
+ "name": "Supply Notification Dispatch Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1
+  },
+  {
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Quản trị thông báo"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -20,3 +20,5 @@ Bulk Transaction
 Subcontracting
 EDI
 Einvoice
+TBYT
+Supply Notification
