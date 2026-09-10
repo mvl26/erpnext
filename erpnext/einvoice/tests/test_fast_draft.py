@@ -18,6 +18,7 @@ from erpnext.einvoice.constants import (
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
 from erpnext.einvoice.tests.test_fixtures import make_delivery_note, minimal_pdf_bytes
+from erpnext.einvoice.validation import validate_before_send
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -108,15 +109,30 @@ class TestPreviewDraft(FrappeTestCase):
 		self.assertIn("Thiếu thông tin bắt buộc", self.fei.error_message)
 		self.assertFalse(self.fei.draft_pdf)
 
-	def test_blocking_validation_stops_before_any_network_call(self):
-		"""Dữ liệu sai thì không tốn một lời gọi nào với Fast."""
+	def test_blocking_validation_does_not_stop_a_draft_preview(self):
+		"""Dữ liệu sai vẫn phải xem được nháp — đó là cách nhìn ra mình sai ở đâu.
+
+		Chặn xem nháp vì chứng từ đang lỗi là khóa đúng cái cửa dẫn tới chỗ sửa.
+		Bản nháp không tiêu số hóa đơn, nên cái giá của một lần gọi hỏng chỉ là
+		một vòng mạng. Chốt chặn vẫn nguyên ở `issue_invoice`.
+		"""
 		frappe.db.set_value(FEI, self.fei.name, "amount_in_words", "")
-		client = self._client(pdf_response())
+		self.assertTrue(validate_before_send(frappe.get_doc(FEI, self.fei.name)).blocking)
 
+		result = preview_draft(self.fei.name, client=self._client(pdf_response()))
+
+		self.assertTrue(result["ok"])
+		self.assertTrue(self.transport.calls)
+		self.fei.reload()
+		self.assertEqual(self.fei.status, STATUS_DRAFT_VIEWED)
+
+	def test_issuing_is_still_blocked_by_the_same_bad_data(self):
+		"""Bỏ chốt ở bản nháp không được nới lỏng chỗ thật sự tiêu số hóa đơn."""
+		from erpnext.einvoice.issue import issue_invoice
+
+		frappe.db.set_value(FEI, self.fei.name, "amount_in_words", "")
 		with self.assertRaises(frappe.ValidationError):
-			preview_draft(self.fei.name, client=client)
-
-		self.assertEqual(self.transport.calls, [])
+			issue_invoice(self.fei.name, client=self._client(pdf_response()))
 
 	def test_issued_invoice_cannot_be_previewed_as_a_draft(self):
 		frappe.db.set_value(FEI, self.fei.name, "status", STATUS_ISSUED)

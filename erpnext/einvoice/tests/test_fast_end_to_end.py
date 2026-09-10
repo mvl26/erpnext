@@ -242,14 +242,28 @@ class TestScenario6DoubleClick(EndToEndBase):
 
 
 class TestScenario3ValidationStopsBeforeFast(EndToEndBase):
-	"""Kịch bản 3: có MST nhưng xóa địa chỉ — chặn tại ERP, không gọi API."""
+	"""Kịch bản 3: có MST nhưng xóa địa chỉ.
 
-	def test_nothing_is_sent_when_the_address_is_missing(self):
+	Chốt chặn chỉ đứng ở nút phát hành. Bản nháp vẫn xem được — đó là cách kế
+	toán nhìn ra mình thiếu địa chỉ; khóa nó lại là khóa đúng cái cửa dẫn tới
+	chỗ sửa. Bản nháp không tiêu số hóa đơn nên không có gì để mất.
+	"""
+
+	def test_the_draft_is_still_viewable_so_the_mistake_can_be_found(self):
 		frappe.db.set_value(FEI, self.fei, "address", "")
-		client = self.client(pdf())
+
+		result = preview_draft(self.fei, client=self.client(pdf()))
+
+		self.assertTrue(result["ok"])
+		self.assertEqual(self.status(), STATUS_DRAFT_VIEWED)
+
+	def test_nothing_is_sent_to_fast_when_issuing_without_an_address(self):
+		frappe.db.set_value(FEI, self.fei, "address", "")
+		frappe.db.set_value(FEI, self.fei, "status", STATUS_CUSTOMER_APPROVED)
+		client = self.client(NOT_FOUND, ISSUE_OK)
 
 		with self.assertRaises(frappe.ValidationError):
-			preview_draft(self.fei, client=client)
+			issue_invoice(self.fei, client=client)
 
 		self.assertEqual(self.transport.calls, [])
-		self.assertEqual(self.status(), STATUS_DRAFT)
+		self.assertEqual(self.status(), STATUS_CUSTOMER_APPROVED)

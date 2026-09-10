@@ -205,6 +205,13 @@ def get_form_state(fei):
 
 
 def _buttons_for(doc, settings):
+	"""Các nút dùng được ở trạng thái hiện tại.
+
+	Lọc theo **trạng thái chứng từ**, không theo kết quả kiểm tra dữ liệu: lỗi dữ
+	liệu chỉ chặn đúng nút phát hành, và chốt đó nằm ở `issue_invoice` chứ không
+	nằm ở đây. Chứng từ đang có lỗi vẫn đồng bộ lại, vẫn xem nháp, vẫn gửi nháp
+	cho khách được — đó là cách sửa được lỗi.
+	"""
 	chief = is_chief_accountant()
 	buttons = []
 	for name, label, method, level, statuses, needs_chief in BUTTONS:

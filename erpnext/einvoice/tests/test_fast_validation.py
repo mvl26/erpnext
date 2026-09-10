@@ -223,8 +223,13 @@ class TestValidationRules(FrappeTestCase):
 
 	# --- Quy tắc 11: ngày hóa đơn ----------------------------------------
 
-	def test_invoice_date_before_the_last_issued_one_is_blocked(self):
-		"""Lá chắn cho lỗi 819."""
+	def test_invoice_date_before_the_last_issued_one_only_warns(self):
+		"""Lỗi 819 là phán quyết của Fast — ERP nói trước, nhưng không chặn.
+
+		ERP chỉ nhìn thấy hóa đơn đi qua chính nó; hóa đơn phát hành thẳng trên
+		portal hay ở sổ khác thì không thấy. Chặn theo cái nhìn thiếu đó là chặn
+		nhầm người đang làm đúng.
+		"""
 		issued = make_fei(fast_key="TRUOCDO")
 		issued.insert()
 		frappe.db.set_value(
@@ -233,8 +238,14 @@ class TestValidationRules(FrappeTestCase):
 			{"status": STATUS_ISSUED, "invoice_date": "2026-08-07"},
 		)
 
-		backdated = make_fei(fast_key="SAUDO", invoice_date="2026-08-01")
-		self.assertIn(11, rules_hit(check(backdated), "block"))
+		result = check(make_fei(fast_key="SAUDO", invoice_date="2026-08-01"))
+		self.assertIn(11, rules_hit(result, "warn"))
+		self.assertNotIn(11, rules_hit(result, "block"))
+		self.assertTrue(result.ok)
+
+	def test_missing_invoice_date_still_blocks(self):
+		"""Fast bắt buộc InvoiceDate — thiếu là chắc chắn hỏng, phải chặn."""
+		self.assertIn(11, rules_hit(check(make_fei(invoice_date=None)), "block"))
 
 	# --- Quy tắc 13 & 14: cảnh báo ---------------------------------------
 
@@ -255,9 +266,22 @@ class TestValidationRules(FrappeTestCase):
 
 	# --- Quy tắc 16 + khoảng trống 8% ------------------------------------
 
-	def test_tax_group_buckets_must_add_up_to_the_master_tax(self):
-		fei = make_fei(tax_amount_10=0)
-		self.assertIn(16, rules_hit(check(fei), "block"))
+	def test_tax_group_buckets_that_do_not_match_only_warn(self):
+		"""Bốn ô nhóm lệch thì nói ra, nhưng không khóa việc phát hành.
+
+		Fast không dùng bốn ô này để dựng tờ khai — đã đối chứng trên môi trường
+		thử: hóa đơn có bốn ô cộng thiếu 100.000 vẫn được Fast nhận và Cơ quan
+		Thuế chấp nhận. Chặn ở đây là ERP từ chối gửi thứ Fast sẵn sàng nhận.
+		"""
+		result = check(make_fei(tax_amount_10=0))
+
+		self.assertIn(16, rules_hit(result, "warn"))
+		self.assertNotIn(16, rules_hit(result, "block"))
+		self.assertTrue(result.ok)
+
+	def test_the_grand_total_still_blocks_because_it_is_printed(self):
+		"""Trái với quy tắc 16: Tổng thanh toán sai thì hóa đơn tự mâu thuẫn."""
+		self.assertIn(9, rules_hit(check(make_fei(total_amount=123)), "block"))
 
 	def test_eight_percent_lines_warn_about_the_missing_bucket(self):
 		"""Bốn thẻ nhóm của Phần I không có ô cho 8% — kế toán phải biết."""
