@@ -151,14 +151,25 @@ def _has_diacritics(value):
 def _rule_1_key(fei, result):
 	key = (fei.fast_key or "").strip()
 	if not key:
-		result.add(1, BLOCK, "fast_key", _("Chưa có Key chống trùng."))
+		result.add(1, BLOCK, "fast_key", _("Chưa có Key chống trùng (lỗi 813)."))
 		return
 	if len(key) > MAX_LEN["fast_key"]:
 		result.add(
-			1, BLOCK, "fast_key", _("Key dài {0} ký tự, tối đa {1}.").format(len(key), MAX_LEN["fast_key"])
+			1,
+			BLOCK,
+			"fast_key",
+			_("Key dài {0} ký tự, tối đa {1} (lỗi 812).").format(len(key), MAX_LEN["fast_key"]),
 		)
 	if _has_diacritics(key):
-		result.add(1, BLOCK, "fast_key", _("Key không được có dấu tiếng Việt hoặc ký tự đặc biệt."))
+		result.add(
+			1,
+			WARN,
+			"fast_key",
+			_(
+				"Key có dấu tiếng Việt hoặc ký tự đặc biệt. Tài liệu Fast không cấm điều này ở "
+				"thẻ Key nên không chặn, nhưng Key còn là khóa tra cứu hóa đơn — để ASCII cho chắc."
+			),
+		)
 
 	clash = frappe.get_all(
 		"Fast EInvoice Document",
@@ -188,9 +199,19 @@ def _rule_2_buyer_identity(fei, result):
 	if not (fei.customer_tax_code or "").strip():
 		return
 	if not (fei.customer_name or "").strip():
-		result.add(2, BLOCK, "customer_name", _("Có mã số thuế thì bắt buộc có tên đơn vị mua."))
+		result.add(
+			2,
+			BLOCK,
+			"customer_name",
+			_("Có mã số thuế thì bắt buộc có tên đơn vị mua — Fast từ chối, lỗi 836."),
+		)
 	if not (fei.address or "").strip():
-		result.add(2, BLOCK, "address", _("Có mã số thuế thì bắt buộc có địa chỉ."))
+		result.add(
+			2,
+			BLOCK,
+			"address",
+			_("Có mã số thuế thì bắt buộc có địa chỉ — Fast từ chối, lỗi 836."),
+		)
 
 
 def _rule_3_tax_code(fei, result):
@@ -230,7 +251,7 @@ def _rule_4_id_card(fei, result):
 	if not code:
 		return
 	if not code.isdigit() or len(code) not in (9, 12):
-		result.add(4, BLOCK, "id_card_no", _("Số CCCD phải đúng 9 hoặc 12 chữ số."))
+		result.add(4, BLOCK, "id_card_no", _("Số CCCD phải đúng 9 hoặc 12 chữ số (lỗi 836)."))
 
 
 # --- 5. Đọc tiền bằng chữ ----------------------------------------------------
@@ -239,7 +260,7 @@ def _rule_4_id_card(fei, result):
 def _rule_5_amount_in_words(fei, result):
 	words = (fei.amount_in_words or "").lower()
 	if not words:
-		result.add(5, BLOCK, "amount_in_words", _("Chưa có số tiền bằng chữ."))
+		result.add(5, BLOCK, "amount_in_words", _("Chưa có số tiền bằng chữ (lỗi 813)."))
 		return
 	keyword = CURRENCY_WORDS.get((fei.currency or "").upper(), fei.currency or "")
 	if keyword and keyword.lower() not in words:
@@ -282,7 +303,7 @@ def _rule_7_lengths(fei, result):
 				7,
 				BLOCK,
 				fieldname,
-				_("“{0}” dài {1} ký tự, tối đa {2}.").format(fieldname, len(value), limit),
+				_("“{0}” dài {1} ký tự, tối đa {2} (lỗi 812).").format(fieldname, len(value), limit),
 			)
 
 	for line in fei.lines or []:
@@ -300,7 +321,7 @@ def _rule_7_lengths(fei, result):
 				7,
 				BLOCK,
 				"lines",
-				_("Dòng {0}: mã hàng dài quá {1} ký tự.").format(line.idx, MAX_LEN["item_code"]),
+				_("Dòng {0}: mã hàng dài quá {1} ký tự (lỗi 812).").format(line.idx, MAX_LEN["item_code"]),
 			)
 
 
@@ -328,9 +349,10 @@ def _rule_8_line_basics(fei, result):
 				8,
 				BLOCK,
 				"lines",
-				_("Dòng {0}: chưa chọn mã hàng — dòng {1} phải trỏ tới một mặt hàng trong danh mục.").format(
-					line.idx, PROCESS_TYPE_LABELS.get(process_type, process_type)
-				),
+				_(
+					"Dòng {0}: chưa chọn mã hàng — dòng {1} phải trỏ tới một mặt hàng trong "
+					"danh mục. Gửi ItemCode rỗng thì Fast từ chối, lỗi 813."
+				).format(line.idx, PROCESS_TYPE_LABELS.get(process_type, process_type)),
 			)
 
 
@@ -402,7 +424,7 @@ def _rule_9_totals(fei, result):
 				9,
 				level,
 				fieldname,
-				_("{0} đang là {1}, nhưng dòng hàng cho ra {2}.").format(
+				_("{0} đang là {1}, nhưng dòng hàng cho ra {2} (lỗi 836 — lỗi về số liệu).").format(
 					label, flt(fei.get(fieldname)), flt(expected[fieldname])
 				),
 			)
@@ -462,7 +484,7 @@ def _rule_11_invoice_date(fei, result):
 	quy tắc 3.
 	"""
 	if not fei.invoice_date:
-		result.add(11, BLOCK, "invoice_date", _("Chưa có ngày hóa đơn."))
+		result.add(11, BLOCK, "invoice_date", _("Chưa có ngày hóa đơn (lỗi 813)."))
 		return
 
 	latest = frappe.db.get_value(
@@ -573,7 +595,15 @@ def _rule_16_tax_groups(fei, result):
 	Kiểm riêng từng ô chứ không chỉ kiểm tổng: hai ô 5% và 10% đổi chỗ nhau thì
 	tổng vẫn đúng, mà tờ khai thì sai.
 
-	Cả hai quy tắc ở đây đều là **cảnh báo**, không chặn phát hành.
+	Quy tắc này là **cảnh báo**, không chặn phát hành.
+
+	Trước đây còn một quy tắc 17 đi kèm, cảnh báo mỗi khi có tiền thuế 8% nằm
+	ngoài bốn ô nhóm. Đã bỏ hẳn: 8% là thuế suất phổ thông của giai đoạn giảm
+	thuế, nên nó nổ ở gần như mọi hóa đơn, mà nội dung lại kết thúc bằng "không
+	cần xử lý gì". Một cảnh báo luôn hiện và luôn bảo đừng làm gì thì chỉ dạy
+	người dùng bỏ qua cả bảng cảnh báo — kéo theo cả những cảnh báo thật sự cần
+	đọc (ngày hóa đơn lùi, MST sai số kiểm tra). Điều nó muốn nói đã nằm ở đây
+	và ở `compute_tax_groups`, là chỗ đúng của một quyết định thiết kế.
 
 	Đã đối chứng trên môi trường thử ngày 2026-09-08: hóa đơn một dòng 5% và một
 	dòng 8% — tiền thuế 150.000 mà bốn ô chỉ cộng được 50.000, lệch 100.000 — vẫn
@@ -609,15 +639,3 @@ def _rule_16_tax_groups(fei, result):
 					"bấm Lưu là số tự tính lại cho khớp."
 				).format(label, flt(fei.get(fieldname)), expected),
 			)
-
-	if flt(groups["unbucketed"]) > AMOUNT_TOLERANCE:
-		result.add(
-			17,
-			WARN,
-			"tax_amount_10",
-			_(
-				"Ghi chú: {0} tiền thuế ở thuế suất 8% nằm ngoài bốn ô nhóm, nên "
-				"TaxAmountFree/0/5/10 cộng lại sẽ thiếu đúng khoản này. Hóa đơn vẫn hợp lệ và "
-				"phát hành bình thường — 8% đi theo từng dòng hàng. Không cần xử lý gì."
-			).format(flt(groups["unbucketed"])),
-		)

@@ -6,6 +6,9 @@ Mỗi quy tắc chặn được ở ERP là một lời gọi hỏng tiết ki�
 lệnh phát hành thì còn là một số hóa đơn không bị tiêu oan.
 """
 
+import re
+from typing import ClassVar
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
@@ -73,8 +76,16 @@ class TestValidationRules(FrappeTestCase):
 	def test_key_longer_than_32_chars_is_blocked(self):
 		self.assertIn(1, rules_hit(check(make_fei(fast_key="X" * 33)), "block"))
 
-	def test_key_with_vietnamese_diacritics_is_blocked(self):
-		self.assertIn(1, rules_hit(check(make_fei(fast_key="ĐƠNHÀNG01")), "block"))
+	def test_key_with_vietnamese_diacritics_only_warns(self):
+		"""Tài liệu Fast không cấm dấu ở thẻ Key — không có mã lỗi thì không chặn.
+
+		`fast_key_for()` vốn đã bỏ dấu khi sinh Key, nên đây chỉ là lưới cho Key
+		gõ tay. Key còn dùng làm khóa tra cứu nên vẫn đáng nhắc.
+		"""
+		result = check(make_fei(fast_key="ĐƠNHÀNG01"))
+
+		self.assertIn(1, rules_hit(result, "warn"))
+		self.assertNotIn(1, rules_hit(result, "block"))
 
 	def test_key_already_used_by_an_issued_invoice_is_blocked(self):
 		"""Quy tắc 1 — đây chính là lá chắn cho lỗi 809/835."""
@@ -283,12 +294,24 @@ class TestValidationRules(FrappeTestCase):
 		"""Trái với quy tắc 16: Tổng thanh toán sai thì hóa đơn tự mâu thuẫn."""
 		self.assertIn(9, rules_hit(check(make_fei(total_amount=123)), "block"))
 
-	def test_eight_percent_lines_warn_about_the_missing_bucket(self):
-		"""Bốn thẻ nhóm của Phần I không có ô cho 8% — kế toán phải biết."""
+	def test_an_eight_percent_invoice_raises_nothing_at_all(self):
+		"""Hóa đơn 8% là hóa đơn bình thường — không lỗi, không cả cảnh báo.
+
+		Bốn ô nhóm của Fast không có ô cho 8% nên chúng cộng thiếu đúng phần đó,
+		nhưng Fast không dùng bốn ô ấy để kê khai (đã đối chứng trên môi trường
+		thử). Từng có một cảnh báo nói chuyện này; đã bỏ vì nó nổ ở gần như mọi
+		hóa đơn mà lại kết thúc bằng "không cần xử lý gì", tức là chỉ dạy người
+		dùng bỏ qua bảng cảnh báo.
+		"""
 		fei = make_fei(tax_rate="8", tax_amount=800_000, total_amount=10_800_000, tax_amount_10=0)
 		fei.lines[0].tax_rate = "8"
 		fei.lines[0].tax_amount = 800_000
-		self.assertIn(17, rules_hit(check(fei), "warn"))
+
+		result = check(fei)
+
+		self.assertTrue(result.ok)
+		self.assertEqual(result.blocking, [])
+		self.assertEqual(result.warnings, [])
 
 
 class TestSourceDeliveryNoteRule(FrappeTestCase):
@@ -334,3 +357,81 @@ class TestSourceDeliveryNoteRule(FrappeTestCase):
 	def test_missing_delivery_note_is_blocked(self):
 		fei = make_fei(delivery_note="KHONG-CO-THAT")
 		self.assertIn(15, rules_hit(validate_before_send(fei), "block"))
+
+
+class TestNothingBlocksMoreThanFastDoes(FrappeTestCase):
+	"""Fast mới là bên quyết. ERP chặn thứ Fast sẵn sàng nhận là chặn sai.
+
+	Chặn thừa không phải lỗi vô hại: nó dừng một hóa đơn hoàn toàn hợp lệ, và kế
+	toán thì không có đường nào đi tiếp ngoài việc gọi người viết phần mềm. Cả
+	một buổi làm việc đã mất vì đúng chuyện này.
+
+	Nên mỗi điểm chặn phải trả lời được câu "Fast từ chối cái này ở đâu?" — hoặc
+	bằng một mã lỗi có thật trong tài liệu của họ, hoặc bằng việc nằm trong danh
+	sách luật nghiệp vụ Miyano ghi ngay dưới đây. Thêm một điểm chặn mới mà không
+	làm một trong hai việc đó thì test này hỏng.
+	"""
+
+	# Quy tắc chặn vì **luật nghiệp vụ của Miyano**, không phải vì Fast từ chối.
+	# Mỗi mục phải nói được vì sao nó đáng chặn dù Fast vẫn nhận.
+	ERP_BUSINESS_RULES: ClassVar[dict[int, str]] = {
+		15: "Chứng từ nguồn: phiếu giao phải có thật, đã submit, không phải phiếu trả, "
+		"chưa có hóa đơn khác. Fast không biết phiếu giao là gì nên không có mã lỗi nào "
+		"tương ứng — đây là luật kế toán của Miyano, không phải luật của Fast.",
+	}
+
+	def _blocking_points(self):
+		"""Mọi lời gọi result.add(..., BLOCK, ...) trong module, kèm nội dung."""
+		import inspect
+
+		from erpnext.einvoice import validation
+
+		source = inspect.getsource(validation)
+		calls = list(re.finditer(r"result\.add\(\s*(\d+),\s*(BLOCK|WARN|level)\b", source))
+		found = []
+		for n, match in enumerate(calls):
+			if match.group(2) == "WARN":
+				continue
+			# Cửa sổ đọc phải dừng ở lời gọi kế tiếp **và** ở đầu hàm kế tiếp.
+			# Quét rộng hơn thì docstring hay thông báo của quy tắc sau lọt vào,
+			# và một quy tắc không nêu căn cứ sẽ mượn được mã lỗi của hàng xóm —
+			# tức là test này tự mù.
+			stop = calls[n + 1].start() if n + 1 < len(calls) else len(source)
+			nxt_def = source.find("\ndef ", match.end())
+			if 0 < nxt_def < stop:
+				stop = nxt_def
+			found.append((int(match.group(1)), source[match.end() : stop]))
+		return found
+
+	def test_every_blocking_rule_names_a_real_fast_error_or_a_business_reason(self):
+		for rule, text in self._blocking_points():
+			with self.subTest(rule=rule):
+				cites_fast = bool(re.search(r"lỗi \d{3,5}", text))
+				self.assertTrue(
+					cites_fast or rule in self.ERP_BUSINESS_RULES,
+					f"Quy tắc {rule} chặn mà không nói Fast từ chối ở đâu. Hoặc dẫn mã lỗi Fast "
+					f"vào thông báo, hoặc hạ xuống WARN, hoặc ghi lý do nghiệp vụ vào "
+					f"ERP_BUSINESS_RULES.",
+				)
+
+	def test_the_business_rule_list_stays_honest(self):
+		"""Danh sách miễn trừ chỉ được chứa quy tắc thật sự còn chặn."""
+		blocking_rules = {rule for rule, _text in self._blocking_points()}
+		for rule in self.ERP_BUSINESS_RULES:
+			with self.subTest(rule=rule):
+				self.assertIn(
+					rule,
+					blocking_rules,
+					f"Quy tắc {rule} không còn chặn nữa — bỏ nó khỏi ERP_BUSINESS_RULES.",
+				)
+
+	def test_a_plain_eight_percent_invoice_sails_through(self):
+		"""Không quy tắc nào được đụng tới một hóa đơn 8% bình thường."""
+		fei = make_fei(tax_rate="8", tax_amount=800_000, total_amount=10_800_000, tax_amount_10=0)
+		fei.lines[0].tax_rate = "8"
+		fei.lines[0].tax_amount = 800_000
+
+		result = check(fei)
+
+		self.assertEqual(result.blocking, [])
+		self.assertEqual(result.warnings, [])

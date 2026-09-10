@@ -597,7 +597,7 @@ Hàm `validate_before_send()` chạy ở **3 thời điểm**: khi tạo bản g
 | 14 | `email_deliver` đúng định dạng, ≤256 ký tự                                                                             | Cảnh báo | 836                          |
 | 15 | DN nguồn: đã submit, không phải trả hàng, chưa có FEI khác đang sống                                                 | Chặn      | —                           |
 | 16 | Hóa đơn nhiều thuế suất → đã điền đủ TaxAmount0/5/10/Free                                                           | **Cảnh báo** — Fast không dùng bốn ô này để kê khai (đối chứng TEST 2026-09-08) | — |
-| 17 | Thuế 8% không có ô nhóm nào nhận (Fast chưa có TaxAmount8)                                                          | Cảnh báo | — (đã đối chứng TEST) |
+| ~~17~~ | ~~Thuế 8% không có ô nhóm nào nhận~~ — **đã bỏ**: nổ ở gần như mọi hóa đơn mà không đòi hành động nào, chỉ làm người dùng bỏ qua bảng cảnh báo. Fast không dùng bốn ô này để kê khai (đối chứng TEST 2026-09-08) | — | — |
 
 Kết quả validate hiển thị dạng bảng ngay trên form (đỏ = chặn, vàng = cảnh báo), kèm nút nhảy tới trường bị lỗi.
 
@@ -624,6 +624,90 @@ Kết quả validate hiển thị dạng bảng ngay trên form (đỏ = chặn,
 | 78011/78012            | Chứng thư/hình thức chưa đăng ký                 | "Khai báo trên portal Fast chưa đúng"                                     | Báo admin                                                 |
 | 78013                  | MST người mua không hợp lệ                          | "Mã số thuế khách hàng không hợp lệ"                                   | Mở form Customer để sửa                                |
 | 63505/63503/8031/10000 | Lỗi hệ thống ký số HSM                              | "Hệ thống ký số đang gặp sự cố — thử lại sau"                       | Cho retry; kiểm tra ký tự đặc biệt trong tên hàng  |
+
+---
+
+## PHẦN G2 — BẢNG MÃ LỖI ĐẦY ĐỦ CỦA FAST (tra cứu tại chỗ)
+
+Chép nguyên từ mục 18 "Danh sách mã lỗi" của `HDDT Fast - HĐ Cấp mã CQT- Không mã hóa RSA.pdf`
+(trang 40–47). Để ở đây để không phải mở lại file PDF mỗi lần tra.
+
+**Luật của Phần F:** mọi quy tắc mức **Chặn** phải trỏ được về một mã trong bảng này. ERP
+không tự đặt thêm điều kiện chặn của riêng mình — Fast mới là bên quyết định hóa đơn có phát
+hành được hay không. Cột cuối cho biết quy tắc nào đang gác mã nào; `TestNothingBlocksMoreThanFastDoes`
+trong `test_fast_validation.py` bắt lỗi ngay nếu có ai thêm một điểm chặn không nêu được căn cứ.
+
+**Ngoại lệ duy nhất — quy tắc 15 (chứng từ nguồn):** phiếu giao phải có thật, đã submit, không
+phải phiếu trả hàng, và chưa có hóa đơn nào khác đang sống. Fast không biết phiếu giao là gì
+nên không có mã lỗi tương ứng. Đây là luật kế toán của Miyano, được ghi thành ngoại lệ có tên
+trong test chứ không lẫn vào các quy tắc khác.
+
+| Mã | Nghiệp vụ | Fast mô tả | Ghi chú của Fast | Quy tắc ERP |
+| --- | --- | --- | --- | --- |
+| `101` | Phát hành token | Không tìm thấy thông tin hóa đơn gốc. | | — |
+| `131` | Phát hành HSM | Không lấy được thông tin chữ ký số. | | — |
+| `132` | Phát hành HSM | Không lấy được thông tin thanh toán của tài khoản ký số hoặc thông tin thanh toán không hợp lệ. | | — |
+| `133` | Phát hành HSM | Chưa có thông tin thanh toán của tài khoản ký số. | | — |
+| `134` | Phát hành HSM | Thông tin thanh toán của tài khoản ký số không hợp lệ. | | — |
+| `135` | Phát hành HSM | Hệ thống không phản hồi kết quả ký số. | | — |
+| `136` | Phát hành HSM | Hệ thống không phản hồi thông tin thanh toán của tài khoản ký số. | | — |
+| `152` | Phát hành token | Tồn tại hóa đơn đọc tiền bằng chữ không hợp lệ. | Kiểm tra chữ “đồng” với VND, “đô la Mỹ” với USD, “Euro” với EUR. Chỉ hỗ trợ 4 mã: VND, USD, JPY, EUR. | QT5 |
+| `435` | Phát hành token | Chứng thư số không hợp lệ. | | — |
+| `460` | Phát hành token | Tồn tại hóa đơn (treo) trên hệ thống. | | — |
+| `500` | Phát hành token | Thông tin chứng thư chưa có trên hệ thống. | | — |
+| `501` | Phát hành token | Chứng thư chưa đến thời điểm sử dụng. | | — |
+| `502` | Phát hành token | Chứng thư đã hết hạn. | | — |
+| `601` | Phát hành token | Hóa đơn đã sử dụng hết hoặc có lỗi chưa xác định, chương trình không thể phát hành tiếp được. | | — |
+| `602` | Phát hành token | Thiết lập hình thức ký số chưa đúng. | | — |
+| `604` | Phát hành token | Thông tin chứng thư số hệ thống (HSM) không hợp lệ. | | — |
+| `611` | Phát hành token | Thông tin hóa đơn điều chỉnh không đúng. | | — |
+| `701` | Phát hành token | Chưa khai báo sử dụng quyển cho đơn vị. | | — |
+| `702` | Phát hành token | Ngày hóa đơn không thuộc giới hạn trong phân loại hóa đơn. | | — |
+| `703` | Phát hành token | Chưa khai báo quyển ngầm định cho cho đơn vị. | | — |
+| `705` | Phát hành token | Số lượng hóa đơn truyền vào lớn hơn số lượng cho phép. | | — |
+| `711` | Phát hành token | Loại hóa đơn không đúng. Vui lòng kiểm tra lại. | | — |
+| `730` | Phát hành token | Ngày hóa đơn vượt quá số ngày được phép phát hành sau ngày hiện tại. | | — |
+| `731` | Phát hành token | Ngày hóa đơn không hợp lệ. | | — |
+| `800` | Phát hành token | Hệ thống không nhận dạng được tệp đầu vào. | | — |
+| `801` | Phát hành token | Hệ thống không nhận dạng được tệp đầu vào. | | — |
+| `802` | Hủy | Tài khoản không đúng hoặc không có quyền thực hiện chức năng này. | | — |
+| `803` | Phát hành token | Thông tin đơn vị không đúng hoặc không còn sử dụng. | | — |
+| `804` | Phát hành token | Thông tin loại hóa đơn không được trống. | | — |
+| `807` | Phát hành token | Mẫu số và ký hiệu không phù hợp. | | — |
+| `808` | Phát hành token | Dãy số hóa đơn cũ đã hết. | | — |
+| `809` | Phát hành token | Có hóa đơn trùng khóa trong chuỗi dữ liệu. | | QT1 |
+| `810` | Phát hành token | Lỗi chưa xác định khi xử lý dữ liệu. | | — |
+| `812` | Phát hành token | Lỗi dữ liệu đầu vào vượt quá giới hạn cho phép. | Ví dụ tên mặt hàng > 500 ký tự, tên người mua > 128 ký tự. | QT1 · QT7 |
+| `813` | Phát hành token | Lỗi dữ liệu đầu vào không được rỗng. | | QT1 · QT5 · QT8 · QT11 |
+| `814` | Phát hành token | Chuỗi kiểm tra không đúng với dữ liệu. | | — |
+| `815` | Phát hành token | Lỗi khi tạo xml cho hóa đơn. | | — |
+| `816` | Phát hành token | Lỗi khi tạo khóa tra cứu cho hóa đơn. | | — |
+| `817` | Phát hành token | Ngày hóa đơn không hợp lệ. | | — |
+| `818` | Phát hành token | Ngày hóa đơn không thuộc giới hạn phát hành cho phép. | Giới hạn số ngày được phép phát hành so với ngày hiện tại. | — |
+| `819` | Phát hành token | Tồn tại hóa đơn có ngày nhỏ hơn hóa đơn đã có. | | QT11 (cảnh báo) |
+| `825` | Phát hành token | Tên hàng hóa hoặc tên khách hàng, địa chỉ chứa ký tự xuống dòng. | | QT6 |
+| `835` | Phát hành token | Hóa đơn này đã tồn tại. Vui lòng kiểm tra lại. | | — |
+| `836` | Phát hành HSM | Không phát hành được hóa đơn do lỗi về số liệu — hệ thống chặn không cho xuất. | Fast liệt kê các nguyên nhân: tính chất hàng hóa rỗng · email người mua có ký tự ẩn hoặc vượt giới hạn · có MST người mua nhưng thiếu tên đơn vị mua và địa chỉ · họ tên người mua > 100 ký tự. | QT2 · QT4 · QT8 · QT9 |
+| `900` | Phát hành token | Không tồn tại hóa đơn cần điều chỉnh/thay thế/hủy. | | — |
+| `901` | Phát hành token | Hóa đơn đã bị điều chỉnh hoặc thay thế. | | — |
+| `902` | Hủy | Tồn tại hóa đơn điều chỉnh cho hóa đơn này chưa được hủy. | | — |
+| `1002` | Phát hành token | Lỗi số hóa đơn đã được cấp. Bị trùng số. | | — |
+| `1011` | Phát hành token | Không được phát hành hóa đơn điều chỉnh cho loại hóa đơn này. | | — |
+| `3000` | Phát hành token | Tồn tại hóa đơn có số lượng dòng vượt quá số lượng cho phép. | Mỗi XML hóa đơn truyền sang cơ quan thuế tối đa 1MB. | QT10 |
+| `8031` | Phát hành HSM | access_token null. | | — |
+| `10000` | Phát hành HSM | Lỗi không xác định khi dùng chữ ký số HSM của SmartSign Vina. | | — |
+| `63503` | Phát hành HSM | xml invalid. | | — |
+| `63505` | Phát hành HSM | signature invalid. | | QT13 (cảnh báo) |
+| `78001` | Phát hành token | Chưa khai báo doanh nghiệp truyền nhận dữ liệu cơ quan thuế. | | — |
+| `78010` | Phát hành token | Mã số thuế trong chứng thư số không khớp với thông tin đơn vị. | | — |
+| `78011` | Phát hành token | Thông tin chứng thư số chưa đăng ký trên tờ khai sử dụng hóa đơn điện tử. | | — |
+| `78012` | Phát hành token | Hình thức hóa đơn của khai báo phân loại không phù hợp. | | — |
+| `78013` | Phát hành token | Mã số thuế người mua không hợp lệ. | | QT3 |
+| `78014` | Phát hành token | Thông tin đơn vị bán hàng có dữ liệu vượt quá giới hạn cho phép. | | — |
+| `78015` | Phát hành token | Thông tin đơn vị bán hàng có dữ liệu không hợp lệ. | | — |
+| `78016` | Phát hành token | Không được hủy hóa đơn điều chỉnh. | | — |
+| `78017` | Hủy | Không được hủy hóa đơn thay thế. | | — |
+| `78025` | Phát hành token | Thuế suất cần cập nhật giá trị khi tính chất khác ghi chú/diễn giải. | | QT12 |
 
 ---
 
