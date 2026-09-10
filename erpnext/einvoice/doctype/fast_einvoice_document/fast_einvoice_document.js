@@ -13,12 +13,18 @@
 // form hiện một số rồi chứng từ lưu một số khác thì đắt hơn nhiều.
 
 frappe.ui.form.on("Fast EInvoice Document", {
-	refresh(frm) {
+	// `await` chứ không bắn rồi bỏ đấy: Frappe xóa sạch nút tùy biến trong
+	// `refresh_header()` **trước** khi gọi script của form ("header must be
+	// refreshed before client methods because add_custom_button"). Không chờ thì
+	// nút được thêm sau khi cả chuỗi refresh đã xong, và lần refresh kế tiếp bất
+	// kỳ sẽ quét sạch chúng — bảng cảnh báo thì sống sót vì nó nằm ở dashboard,
+	// nên triệu chứng là "có cảnh báo mà không có nút".
+	async refresh(frm) {
 		apply_totals_lock(frm);
 		render_override_banner(frm);
 		set_item_query(frm);
 		if (frm.is_new()) return;
-		frm.trigger("load_einvoice_state");
+		await frm.trigger("load_einvoice_state");
 	},
 
 	async load_einvoice_state(frm) {

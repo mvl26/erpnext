@@ -16,6 +16,7 @@ from erpnext.einvoice.constants import (
 	INVOICE_TYPE_ADJUSTMENT,
 	INVOICE_TYPE_ORIGINAL,
 	INVOICE_TYPE_REPLACEMENT,
+	ISSUED_STATUSES,
 	STATUS_DRAFT,
 )
 
@@ -109,6 +110,60 @@ class FastEInvoiceDocument(Document):
 		self._validate_fast_key_is_immutable()
 		self._validate_lineage()
 		self._guard_locked_data()
+
+	def on_trash(self):
+		"""Gỡ chứng từ ra khỏi mọi thứ đang trỏ tới nó, rồi mới để Frappe xóa.
+
+		Phiếu giao có trường `fast_einvoice` trỏ ngược về đây, còn chứng từ này
+		lại trỏ sang phiếu giao — hai Link vòng vào nhau nên Frappe từ chối xóa cả
+		hai đầu, không có lối ra nào ngoài `force`. Frappe chạy `on_trash` **trước**
+		`check_if_doc_is_linked` (frappe/model/delete_doc.py:126 rồi 133), nên dọn
+		ở đây là vừa kịp.
+
+		Hóa đơn đã tiêu số thật thì không xóa: đó là chứng từ pháp lý Cơ quan Thuế
+		đang giữ, xóa bản ghi ERP chỉ làm mất dấu vết chứ không làm hóa đơn biến
+		mất. Sai nội dung thì lập hóa đơn điều chỉnh hoặc thay thế.
+		"""
+		if self.status in ISSUED_STATUSES or self.fast_invoice_no:
+			frappe.throw(
+				_(
+					"Hóa đơn {0} đã phát hành (số {1}) nên không xóa được — đây là chứng từ pháp lý. "
+					"Cần sửa nội dung thì lập hóa đơn điều chỉnh hoặc thay thế."
+				).format(self.name, self.fast_invoice_no or self.status),
+				frappe.PermissionError,
+			)
+
+		self._release_delivery_note()
+		self._drop_own_logs()
+
+	def _release_delivery_note(self):
+		"""Xóa dấu vết của chứng từ này trên phiếu giao.
+
+		Giữ lại `fast_key_search` — trường đó vốn được đặt ra làm bản sao dự phòng
+		"phòng khi chứng từ HĐĐT bị xóa" (xem `einvoice/setup.py`), nên đây đúng là
+		lúc nó có việc để làm.
+		"""
+		if not self.delivery_note or not frappe.db.exists("Delivery Note", self.delivery_note):
+			return
+		if frappe.db.get_value("Delivery Note", self.delivery_note, "fast_einvoice") != self.name:
+			# Phiếu giao đang trỏ tới một chứng từ khác — không đụng vào.
+			return
+
+		frappe.db.set_value(
+			"Delivery Note",
+			self.delivery_note,
+			{"fast_einvoice": "", "fast_einvoice_status": "", "fast_invoice_no": ""},
+			update_modified=False,
+		)
+
+	def _drop_own_logs(self):
+		"""Nhật ký là hội thoại **của riêng** chứng từ này, đi cùng nó.
+
+		Để lại thì thành hàng mồ côi trỏ tới một bản ghi không còn tồn tại, mà
+		hàng mồ côi kiểu đó về sau làm hỏng những form chẳng liên quan gì.
+		"""
+		for name in frappe.get_all("Fast EInvoice Log", filters={"fei_document": self.name}, pluck="name"):
+			frappe.delete_doc("Fast EInvoice Log", name, ignore_permissions=True, delete_permanently=True)
 
 	def _compute_totals(self):
 		"""Tính lại dòng hàng và tổng hợp — công thức nằm ở `einvoice.totals`.

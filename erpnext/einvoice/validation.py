@@ -392,7 +392,7 @@ def _rule_9_totals(fei, result):
 
 	expected = summarise(
 		fei.lines,
-		amount_precision(fei.currency),
+		fei.currency,
 		fei.deduction_amount,
 		fei.deduction_amount_other,
 	)
@@ -448,6 +448,19 @@ def _rule_10_line_count(fei, result):
 
 
 def _rule_11_invoice_date(fei, result):
+	"""Ngày hóa đơn: thiếu thì chặn, ra trước hóa đơn khác thì chỉ cảnh báo.
+
+	Fast bắt buộc có ``InvoiceDate`` nên thiếu là chắc chắn hỏng — chặn.
+
+	Nhưng thứ tự ngày thì **Fast mới là bên biết**, không phải mình. Câu truy vấn
+	dưới đây chỉ nhìn thấy những hóa đơn đi qua ERP này; nó không thấy hóa đơn
+	phát hành thẳng trên portal, hóa đơn của sổ khác, hay hóa đơn từ hệ thống cũ.
+	Chặn dựa trên một cái nhìn thiếu như vậy là chặn nhầm người đang làm đúng, mà
+	cái giá phải trả là kế toán ngồi im không thao tác được gì. Fast có kiểm
+	(lỗi 819) và câu trả lời của họ mới là câu trả lời thật — nên nói ra để biết
+	mà lường trước, rồi để Fast quyết. Cùng cách xử lý với số kiểm tra MST ở
+	quy tắc 3.
+	"""
 	if not fei.invoice_date:
 		result.add(11, BLOCK, "invoice_date", _("Chưa có ngày hóa đơn."))
 		return
@@ -461,11 +474,13 @@ def _rule_11_invoice_date(fei, result):
 	if latest and getdate(fei.invoice_date) < getdate(latest):
 		result.add(
 			11,
-			BLOCK,
+			WARN,
 			"invoice_date",
-			_("Ngày hóa đơn {0} nhỏ hơn hóa đơn đã phát hành gần nhất ({1}) — lỗi 819.").format(
-				getdate(fei.invoice_date).strftime("%d/%m/%Y"), getdate(latest).strftime("%d/%m/%Y")
-			),
+			_(
+				"Ngày hóa đơn {0} nhỏ hơn hóa đơn đã phát hành gần nhất trong ERP ({1}). "
+				"Fast không cho phát hành lùi ngày (lỗi 819) — nhiều khả năng sẽ bị từ chối, "
+				"nhưng Fast mới là bên biết chắc nên vẫn gửi được."
+			).format(getdate(fei.invoice_date).strftime("%d/%m/%Y"), getdate(latest).strftime("%d/%m/%Y")),
 		)
 
 
@@ -557,8 +572,27 @@ def _rule_16_tax_groups(fei, result):
 
 	Kiểm riêng từng ô chứ không chỉ kiểm tổng: hai ô 5% và 10% đổi chỗ nhau thì
 	tổng vẫn đúng, mà tờ khai thì sai.
+
+	Cả hai quy tắc ở đây đều là **cảnh báo**, không chặn phát hành.
+
+	Đã đối chứng trên môi trường thử ngày 2026-09-08: hóa đơn một dòng 5% và một
+	dòng 8% — tiền thuế 150.000 mà bốn ô chỉ cộng được 50.000, lệch 100.000 — vẫn
+	phát hành trót lọt: Fast cấp số 4 ký hiệu C26TAA, rồi Cơ quan Thuế chấp nhận.
+	Fast **không** dùng bốn ô này để dựng tờ khai; họ dựng từ thuế suất của từng
+	dòng hàng, đúng như tài liệu của họ nói về giá trị -9 ("xml thẻ thuế suất bỏ
+	trống"). Bốn ô chỉ là số tổng hợp phụ.
+
+	Nên chặn ở đây là ERP từ chối gửi thứ mà Fast sẵn sàng nhận — chặn thừa, và
+	cái giá là kế toán không phát hành được một hóa đơn hoàn toàn hợp lệ. Khác với
+	quy tắc 9: ở đó là Tổng thanh toán, con số in trên chứng từ pháp lý và khách
+	hàng phải trả, sai là hóa đơn tự mâu thuẫn — nên quy tắc 9 vẫn chặn.
+
+	Ngoài ra hai ô này gần như không bao giờ lệch được: `compute_document_totals`
+	tính lại chúng ở **mỗi lần Lưu**, bằng đúng hàm mà quy tắc này đem ra đối
+	chiếu. Lệch chỉ xảy ra khi đang ghi đè tay, hoặc khi bản ghi còn giữ số cũ từ
+	trước một lần đổi công thức — cả hai đều là chuyện cần nói ra, không phải
+	chuyện cần khóa tay người dùng.
 	"""
-	level = WARN if fei.get("totals_manual_override") else BLOCK
 	groups = compute_tax_groups(fei.lines or [])
 	precision = amount_precision(fei.currency)
 
@@ -567,11 +601,13 @@ def _rule_16_tax_groups(fei, result):
 		if abs(expected - flt(fei.get(fieldname))) > AMOUNT_TOLERANCE:
 			result.add(
 				16,
-				level,
+				WARN,
 				fieldname,
-				_("Ô tiền thuế {0} đang là {1}, nhưng dòng hàng cho ra {2}.").format(
-					label, flt(fei.get(fieldname)), expected
-				),
+				_(
+					"Ô tiền thuế {0} đang là {1}, nhưng dòng hàng cho ra {2}. "
+					"Fast không dùng bốn ô này để kê khai nên vẫn phát hành được; "
+					"bấm Lưu là số tự tính lại cho khớp."
+				).format(label, flt(fei.get(fieldname)), expected),
 			)
 
 	if flt(groups["unbucketed"]) > AMOUNT_TOLERANCE:
@@ -580,8 +616,8 @@ def _rule_16_tax_groups(fei, result):
 			WARN,
 			"tax_amount_10",
 			_(
-				"Có {0} tiền thuế ở thuế suất không có ô nhóm nào nhận (thường là 8%). "
-				"Bốn thẻ TaxAmountFree/0/5/10 của Fast không có ô cho 8% — cần xác nhận với Fast "
-				"trước khi phát hành, số liệu kê khai theo nhóm sẽ thiếu khoản này."
+				"Ghi chú: {0} tiền thuế ở thuế suất 8% nằm ngoài bốn ô nhóm, nên "
+				"TaxAmountFree/0/5/10 cộng lại sẽ thiếu đúng khoản này. Hóa đơn vẫn hợp lệ và "
+				"phát hành bình thường — 8% đi theo từng dòng hàng. Không cần xử lý gì."
 			).format(flt(groups["unbucketed"])),
 		)

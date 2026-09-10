@@ -250,11 +250,11 @@ Thứ tự dưới đây **chính là thứ tự cột** trong `structure.master
 | 36     | PaymentMethod                                         | `payment_method`                                                         | Select                        | ✔  | mặc định                             | `TM` / `CK` / `TM/CK`                                                                                       |
 | 37     | Currency                                              | `currency`                                                               | Data                          | ✔  | `currency`                            | ISO 3 ký tự. Hỗ trợ sẵn VND/USD/JPY/EUR (152)                                                                |
 | 38     | ExchangeRate                                          | `exchange_rate`                                                          | Float                         | ✔  | `conversion_rate`                     | VND = 1.0                                                                                                         |
-| 39     | Amount                                                | `amount`                                                                 | Currency                      | ✔  | `net_total`                           | = Σ Amount các dòng                                                                                            |
-| 40     | TotalAmount                                           | `total_amount`                                                           | Currency                      | ✔  | `grand_total`                         | = Amount + TaxAmount − giảm trừ                                                                                |
+| 39     | Amount                                                | `amount`                                                                 | Currency                      | ✔  | `net_total`                           | = Σ Amount các dòng. **Giữ 2 số lẻ, không làm tròn về đồng nguyên**                                                                                            |
+| 40     | TotalAmount                                           | `total_amount`                                                           | Currency                      | ✔  | `grand_total`                         | = Amount + TaxAmount − giảm trừ, **làm tròn thành số nguyên** (VND/JPY). Chênh lệch làm tròn ≤ 0,5                                                                                |
 | 41     | TaxRate                                               | `tax_rate`                                                               | Select                        | ✔  | bảng thuế DN                          | `0` `5` `8` `10` `-1`KCT `-2`KKNT `-8`KHAC `-9`rỗng                                              |
-| 42     | TaxAmount                                             | `tax_amount`                                                             | Currency                      | ✔  | `total_taxes_and_charges`             | = Σ TaxAmount các dòng                                                                                         |
-| 43–46 | TaxAmountFree / TaxAmount0 / TaxAmount5 / TaxAmount10 | `tax_amount_free`, `tax_amount_0`, `tax_amount_5`, `tax_amount_10` | Currency                      |     | tính                                   | **Bắt buộc điền đủ khi hóa đơn nhiều thuế suất**                                                |
+| 42     | TaxAmount                                             | `tax_amount`                                                             | Currency                      | ✔  | `total_taxes_and_charges`             | = Σ TaxAmount các dòng. **Giữ 2 số lẻ, không làm tròn về đồng nguyên**                                                                                         |
+| 43–46 | TaxAmountFree / TaxAmount0 / TaxAmount5 / TaxAmount10 | `tax_amount_free`, `tax_amount_0`, `tax_amount_5`, `tax_amount_10` | Currency                      |     | tính                                   | **Bắt buộc điền đủ khi hóa đơn nhiều thuế suất.** Không có ô cho 8% — phần 8% để ngoài. Đối chứng TEST 2026-09-08: Fast nhận, CQT chấp nhận                                                |
 | 47     | DiscountAmount                                        | `discount_amount`                                                        | Currency                      |     | `discount_amount`                     |                                                                                                                   |
 | 48     | PromotionAmount                                       | `promotion_amount`                                                       | Currency                      |     |                                         |                                                                                                                   |
 | 49     | DeductionAmount                                       | `deduction_amount`                                                       | Currency                      |     |                                         | Giảm trừ không chịu thuế                                                                                     |
@@ -350,7 +350,7 @@ Bảng tổng hợp. Chi tiết từng nút ở Phần E.
 | --- | -------------------------------------- | ------------- | --------------------- | --------------------------------------------- | ------------------------------------ | ----------------------------------------------------------- |
 | 1   | Tạo hóa đơn điện tử             | Delivery Note | —                    | DN submitted, chưa có FEI                   | 1                                    | Tạo bản ghi FEI, status=01                                |
 | 2   | Đồng bộ lại từ DN                 | FEI           | —                    | 01, 02, 03, 04, 99                            | 1                                    | Ghi đè master+lines, revision_count+1                     |
-| 3   | Xem bản nháp PDF                     | FEI           | action=600 / m=310    | 01→04, 99                                    | 1                                    | `draft_pdf`, `draft_pdf_time`, status→02               |
+| 3   | Xem bản nháp PDF                     | FEI           | action=600 / m=310    | 01→04, 99 (**không chặn theo validate**)     | 1                                    | `draft_pdf`, `draft_pdf_time`, status→02               |
 | 4   | Gửi bản nháp cho khách             | FEI           | — (email ERP)        | 02, 03, 04                                    | 2                                    | `draft_sent_*`, `draft_send_count`+1, status→03        |
 | 5   | Ghi nhận ý kiến khách              | FEI           | —                    | 03                                            | 2                                    | `customer_feedback`, status→01                           |
 | 6   | Khách đã duyệt                     | FEI           | —                    | 03                                            | 2                                    | `customer_approved_*`, status→04                         |
@@ -575,7 +575,9 @@ Từ đây bản ghi mới đi lại **đúng vòng đời từ trạng thái 01
 
 ## PHẦN F — QUY TẮC VALIDATE TRƯỚC KHI GỬI
 
-Hàm `validate_before_send()` chạy ở **3 thời điểm**: khi tạo bản ghi (chỉ cảnh báo), khi bấm xem nháp, và **bắt buộc lại** ngay trước khi phát hành phía server.
+Hàm `validate_before_send()` chạy ở **3 thời điểm**: khi tạo bản ghi, khi mở form (bảng kết quả hiện ngay trên chứng từ), và **bắt buộc lại** ngay trước khi phát hành phía server.
+
+**Chỉ nút PHÁT HÀNH bị chặn.** Xem bản nháp PDF chạy được kể cả khi chứng từ đang có lỗi mức Chặn: bản nháp không tiêu số hóa đơn, và nó chính là cách kế toán nhìn ra mình sai ở đâu — chặn nó lại là khóa đúng cái cửa dẫn tới chỗ sửa. Dữ liệu sai thì Fast trả lỗi, và mã lỗi của Fast nói đúng chỗ hơn phỏng đoán của ERP. Đồng bộ lại từ phiếu giao cũng không bao giờ bị chặn, vì đó là đường sửa dữ liệu.
 
 | #  | Quy tắc                                                                                                                         | Mức       | Mã lỗi Fast tránh được |
 | -- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------------------------- |
@@ -589,12 +591,13 @@ Hàm `validate_before_send()` chạy ở **3 thời điểm**: khi tạo bản g
 | 8  | Mọi dòng có`process_type` khác rỗng                                                                                       | Chặn      | 836                          |
 | 9  | Σ Amount dòng == master`amount`; Σ TaxAmount dòng == master `tax_amount`; `total_amount` == amount + tax − giảm trừ | Chặn      | lỗi số liệu               |
 | 10 | Số dòng ≤ 300                                                                                                                 | Chặn      | 3000                         |
-| 11 | `invoice_date` không nhỏ hơn ngày hóa đơn đã phát hành gần nhất                                                   | Chặn      | 819                          |
+| 11 | `invoice_date` có mặt (chặn) · không nhỏ hơn ngày hóa đơn đã phát hành gần nhất (**cảnh báo** — Fast mới là bên phán quyết) | Chặn / Cảnh báo | 819 |
 | 12 | Mọi dòng có`tax_rate` thuộc bộ mã hợp lệ                                                                               | Chặn      | 78025                        |
 | 13 | Tên hàng/tên KH không chứa`&`, `<`, `>` (hoặc phải escape đúng)                                                   | Cảnh báo | 63505                        |
 | 14 | `email_deliver` đúng định dạng, ≤256 ký tự                                                                             | Cảnh báo | 836                          |
 | 15 | DN nguồn: đã submit, không phải trả hàng, chưa có FEI khác đang sống                                                 | Chặn      | —                           |
-| 16 | Hóa đơn nhiều thuế suất → đã điền đủ TaxAmount0/5/10/Free                                                           | Chặn      | lỗi số liệu               |
+| 16 | Hóa đơn nhiều thuế suất → đã điền đủ TaxAmount0/5/10/Free                                                           | **Cảnh báo** — Fast không dùng bốn ô này để kê khai (đối chứng TEST 2026-09-08) | — |
+| 17 | Thuế 8% không có ô nhóm nào nhận (Fast chưa có TaxAmount8)                                                          | Cảnh báo | — (đã đối chứng TEST) |
 
 Kết quả validate hiển thị dạng bảng ngay trên form (đỏ = chặn, vàng = cảnh báo), kèm nút nhảy tới trường bị lỗi.
 
@@ -686,8 +689,9 @@ Kịch bản test bắt buộc trên môi trường test:
 | -- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | 1  | Khách doanh nghiệp có MST, 1 dòng hàng, VAT 10%             | Phát hành thành công                                                          |
 | 2  | Khách cá nhân không MST, có CCCD                            | Thành công                                                                      |
-| 3  | Có MST nhưng xóa địa chỉ                                   | Validate chặn tại ERP,**không** gọi API                                 |
+| 3  | Có MST nhưng xóa địa chỉ                                   | Xem nháp **vẫn được** (để thấy chỗ sai); phát hành bị chặn tại ERP, **không** gọi API |
 | 4  | Hóa đơn nhiều thuế suất (0% + 5% + 10%)                    | Tổng theo nhóm đúng                                                           |
+| 4b | Hóa đơn 5% + 8%                                            | Fast nhận, CQT chấp nhận; bốn ô nhóm cộng thiếu phần 8% là bình thường          |
 | 5  | Hóa đơn 250 dòng                                             | Thành công, không timeout                                                      |
 | 6  | Bấm nút phát hành 2 lần liên tiếp                         | Lần 2 bị lock chặn, chỉ 1 hóa đơn ra đời                                 |
 | 7  | Ngắt mạng giữa lúc phát hành                               | Trạng thái "Cần đối soát", 370 xác định đúng, không phát hành đúp |

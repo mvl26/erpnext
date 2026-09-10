@@ -27,7 +27,6 @@ from erpnext.einvoice.fast_settings import check_enabled
 from erpnext.einvoice.gateway import call_fast
 from erpnext.einvoice.payload import build_payload
 from erpnext.einvoice.setup import DRAFT_TEMPLATE, ISSUED_TEMPLATE
-from erpnext.einvoice.validation import validate_before_send
 
 FEI = "Fast EInvoice Document"
 
@@ -55,13 +54,19 @@ def preview_draft(fei, client=None):
 
 	Không tiêu số hóa đơn: ``action=600`` chỉ dựng bản in thử. PDF thu được là
 	**bản nháp không có giá trị pháp lý** cho tới khi thực sự phát hành.
+
+	**Không** chạy chốt chặn dữ liệu ở đây, dù chứng từ đang có lỗi mức Chặn.
+	Xem nháp chính là cách kế toán nhìn ra mình sai ở đâu; chặn nó lại vì dữ liệu
+	sai là khóa đúng cái cửa dẫn tới chỗ sửa. Bản nháp không tiêu số hóa đơn nên
+	cái giá đắt nhất của một lần gọi hỏng chỉ là một vòng mạng — rẻ hơn nhiều so
+	với việc kế toán ngồi đoán. Nếu dữ liệu thật sự sai thì Fast trả lỗi, và mã
+	lỗi của Fast còn nói đúng chỗ hơn phỏng đoán của mình.
+
+	Chốt chặn vẫn nguyên vẹn ở `issue_invoice` — nơi thực sự tiêu một số hóa đơn.
 	"""
 	check_enabled()
 	doc = frappe.get_doc(FEI, fei)
 	_assert_status(doc, DRAFT_PREVIEW_STATUSES, _("xem bản nháp"))
-
-	# Chặn trước khi tốn một lời gọi nào với Fast.
-	validate_before_send(doc).throw_if_blocking()
 
 	response = call_fast(
 		doc,

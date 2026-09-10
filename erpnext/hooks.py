@@ -414,6 +414,13 @@ doc_events = {
 	"Integration Request": {
 		"validate": "erpnext.accounts.doctype.payment_request.payment_request.validate_payment"
 	},
+	# Chứng từ HĐĐT trỏ tới phiếu giao bằng một Link, nên mặc định Frappe từ chối
+	# hủy phiếu giao khi còn bất kỳ chứng từ nào trỏ tới — kể cả bản nháp. Hook này
+	# chỉ chặn khi hóa đơn đã thật sự tiêu số, và nói rõ vì sao.
+	"Delivery Note": {
+		"before_cancel": "erpnext.einvoice.builder.before_delivery_note_cancel",
+		"on_cancel": "erpnext.einvoice.builder.on_delivery_note_cancel",
+	},
 	# Thông báo chuỗi cung ứng: sáu chứng từ còn lại chưa có on_submit riêng.
 	# Purchase Invoice và Payment Entry đã được nối ở khối của chúng phía trên.
 	(
@@ -427,6 +434,13 @@ doc_events = {
 		"on_submit": "erpnext.supply_notification.events.on_submit",
 	},
 }
+
+# Nhật ký HĐĐT là vết kiểm toán, không phải quan hệ nghiệp vụ: nó không được
+# khóa việc xóa chính chứng từ mà nó ghi lại. Cùng loại với Version / Activity
+# Log / Comment trong danh sách mặc định của Frappe.
+ignore_links_on_delete = [
+	"Fast EInvoice Log",
+]
 
 # function should expect the variable and doc as arguments
 naming_series_variables = {
