@@ -39,11 +39,24 @@ class TestSinhDungChuan(FrappeTestCase):
 			{"khu": "8B", "day": "01", "khoang": "01", "tang": "01", "o": "01"},
 		)
 
-	def test_khu_lay_dung_tu_tham_so_khong_go_lai(self):
+	def test_khu_sinh_ra_khop_qua_trong_tai_doc_lap(self):
+		"""Trọng tài ĐỘC LẬP với công thức dựng chuỗi trong `sinh_ma.py`.
+
+		Bản trước (`kq["ma_mau"][0].startswith("8C")`) so chuỗi kết quả với
+		chính chuỗi "8C" đã truyền vào — hai vế cùng đi qua một f-string thuần
+		trong `sinh_ma.py`, tức cùng một nguồn, nên bài xanh bất kể logic đúng
+		sai (Vòng sửa 1, review điều phối). Ở đây dùng `phan_tich_ma()` — bộ
+		regex của `ma_vi_tri.py`, một đường code KHÁC — làm trọng tài: mọi mã
+		sinh ra phải qua được nó (đúng định dạng đủ 5 thành phần) VÀ thành
+		phần `khu` nó tách ra phải khớp khu đã truyền vào. Sinh 2 ô (so_day=2)
+		để trọng tài xét hơn một mã, không chỉ mã đầu.
+		"""
 		kq = xem_truoc_sinh(
-			KHO, khu="8C", so_day=1, so_khoang_moi_day=1, so_tang_moi_khoang=1, so_o_moi_tang=1
+			KHO, khu="8C", so_day=2, so_khoang_moi_day=1, so_tang_moi_khoang=1, so_o_moi_tang=1
 		)
-		self.assertTrue(kq["ma_mau"][0].startswith("8C"))
+		self.assertEqual(kq["so_o"], 2)
+		for ma in kq["ma_mau"]:
+			self.assertEqual(phan_tich_ma(ma)["khu"], "8C")
 
 	def test_thu_tu_lay_hang_tang_dan_theo_thu_tu_sinh(self):
 		sinh(KHO, khu="8D", so_day=1, so_khoang_moi_day=1, so_tang_moi_khoang=1, so_o_moi_tang=3)

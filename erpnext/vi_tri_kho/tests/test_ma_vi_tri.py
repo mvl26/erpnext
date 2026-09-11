@@ -49,6 +49,14 @@ class TestPhanTichMa(FrappeTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			phan_tich_ma("B101040302")
 
+	def test_chu_thuong_bi_tu_choi(self):
+		# §1.1 quy tắc mã hoá: chỉ A-Z in hoa. Sau Task 1 không còn bài nào khoá
+		# điều này (Vòng sửa 1, review điều phối) — MAU_CAP không có IGNORECASE
+		# nhưng một .upper() hay flag lỡ tay sau này sẽ lọt, mà mã sai thì đã in
+		# thẳng lên tem dán cứng lên kệ, không sửa lại được.
+		with self.assertRaises(frappe.ValidationError):
+			phan_tich_ma("1b01040302")
+
 	def test_in_nhan(self):
 		self.assertEqual(dinh_dang_nhan("1B01040302"), "1B0104-0302")
 
@@ -72,6 +80,18 @@ class TestPhanTichMa(FrappeTestCase):
 		self.assertEqual(ma_cha("1B01040302"), "1B010403")
 		self.assertEqual(ma_cha("1B01"), "1B")
 		self.assertIsNone(ma_cha("1B"), "Khu là gốc, không có cha")
+
+	def test_ma_nut_nhom_bao_loi_rieng_khong_lan_voi_sai_dinh_dang(self):
+		# Nhánh MỚI của Task 1 (§ phan_tich_ma khi khớp cấp 1-4 nhưng không phải
+		# cấp 5): có đường gọi thật (storage_location.py gọi phan_tich_ma khi
+		# người dùng gõ ma_o ngắn) nhưng không bài nào khoá thông điệp riêng của
+		# nó (Vòng sửa 1, review điều phối) — ai gộp nhánh này về thông báo sai
+		# định dạng chung chung thì không ai bắt được.
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			phan_tich_ma("1B0104")
+		loi = str(ctx.exception)
+		self.assertIn("nút nhóm", loi.lower())
+		self.assertNotIn("không đúng chuẩn", loi, "mã 1B0104 hợp lệ ở cấp 3, không phải mã sai định dạng")
 
 	def test_thong_bao_loi_tieng_viet_neu_ro_mau_dung(self):
 		with self.assertRaises(frappe.ValidationError) as ctx:
