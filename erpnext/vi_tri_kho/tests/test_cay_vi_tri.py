@@ -139,3 +139,29 @@ class TestCaySuyTuMa(FrappeTestCase):
 		thong_bao = str(cm.exception)
 		self.assertIn("kho", thong_bao.lower(), "thông báo phải nói về việc THIẾU kho")
 		self.assertNotIn("None", thong_bao, "không được lộ chuỗi Python 'None' ra thông báo")
+
+
+class TestKhongGhiSoVaoNutNhom(FrappeTestCase):
+	def test_ghi_vao_nut_nhom_bi_chan(self):
+		"""Nếu lọt, báo cáo gộp theo cấp sẽ đếm HAI LẦN cùng một lượng hàng:
+		một lần ở nút nhóm, một lần khi cộng dồn các ô lá bên dưới.
+		"""
+		from erpnext.vi_tri_kho.vitri import so
+
+		_o("9Z18010101")
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			so.ghi_dong_so(
+				o="9Z1801",
+				kho=KHO,
+				vat_tu="_Test Item",
+				so_lo=None,
+				so_luong=5,
+				chung_tu_type="Storage Location",
+				chung_tu="9Z1801",
+				chung_tu_row="r",
+				sle=None,
+				ngay="2026-09-01",
+				thoi_diem="2026-09-01 08:00:00",
+				company="Miyano Việt Nam",
+			)
+		self.assertIn("nhóm", str(ctx.exception).lower())

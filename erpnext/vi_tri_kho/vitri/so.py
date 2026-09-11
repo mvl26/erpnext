@@ -19,6 +19,7 @@ giờ tự tạo NULL nữa.
 """
 
 import frappe
+from frappe import _
 from frappe.utils import flt, now_datetime
 
 
@@ -48,6 +49,13 @@ def ghi_dong_so(
 	da_huy=0,
 ) -> str:
 	"""Ghi một dòng sổ vị trí và cập nhật bộ đệm tồn. Trả tên dòng sổ."""
+	if frappe.db.get_value("Storage Location", o, "is_group"):
+		frappe.throw(
+			_(
+				"{0} là nút nhóm (cấp Khu/Dãy/Khoang/Tầng), không chứa hàng được. "
+				"Chỉ ô lá 10 ký tự mới giữ hàng."
+			).format(o)
+		)
 	dong = frappe.get_doc(
 		{
 			"doctype": "Location Ledger Entry",
