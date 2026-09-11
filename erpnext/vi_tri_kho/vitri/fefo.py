@@ -221,6 +221,23 @@ def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float, pham_vi: str | None = None)
 				)
 			)
 
+		if pham_vi:
+			# VÒNG SỬA 1/5 (review điều phối): mặt trái của rủi ro brief cảnh
+			# báo. Brief lo "mách sai nhánh" (đã chặn ở trên — `pham_vi` áp
+			# vào cả hai truy vấn). Nhưng câu chung "tại kho {2}: cần {3}, chỉ
+			# có {4}" đọc như số liệu TOÀN KHO, trong khi `co`/`can` ở đây chỉ
+			# tính trên các ứng viên ĐÃ LỌC theo `pham_vi` — đo thật: phạm vi
+			# tồn 2, cần 5 → báo "chỉ có 2, thiếu 3", trong khi kho thật có
+			# 12. Người đọc sẽ đi tìm một vấn đề tồn kho không tồn tại. Nêu
+			# đích danh `pham_vi` và nói rõ số liệu chỉ tính trong phạm vi đó.
+			frappe.throw(
+				_(
+					"Không đủ hàng trong phạm vi {0}. Mặt hàng {1}{2} tại kho {3}: trong "
+					"phạm vi này cần {4}, chỉ có {5}, thiếu {6}. Kho có thể còn hàng ở các vị "
+					"trí khác ngoài phạm vi này."
+				).format(pham_vi, vat_tu, ten_lo, kho, flt(so_luong), co, can)
+			)
+
 		frappe.throw(
 			_("Không đủ hàng để xuất. Mặt hàng {0}{1} tại kho {2}: cần {3}, chỉ có {4}, thiếu {5}.").format(
 				vat_tu,

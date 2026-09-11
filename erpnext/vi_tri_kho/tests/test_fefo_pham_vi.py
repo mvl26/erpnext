@@ -253,14 +253,26 @@ class TestPhamViGioiHanTrongNhanh(FrappeTestCase):
 		self.assertTrue(all(d["o"].startswith("9Z1802") for d in ket), ket)
 
 	def test_pham_vi_rong_giu_nguyen_hanh_vi_cu(self):
-		# Bài khoá quan trọng nhất: `pham_vi=None` (mặc định, và truyền tay)
-		# phải cho kết quả Y HỆT nhau — mọi luồng xuất hiện có (hook
-		# `Stock Ledger Entry.on_submit`) gọi `chon_o_xuat` không truyền
-		# `pham_vi` phải không hề bị ảnh hưởng bởi tham số mới này.
-		self.assertEqual(
-			chon_o_xuat(KHO, self.item, None, 5),
-			chon_o_xuat(KHO, self.item, None, 5, pham_vi=None),
-		)
+		"""VÒNG SỬA 1/5 (review điều phối): bản trước so hai lời gọi
+		`chon_o_xuat` với nhau — cả hai đều rơi vào `if pham_vi:` → False,
+		cùng một câu SQL, CÙNG MỘT đường code. Đó là bài tự-so-với-chính-
+		mình: cơ chế tham số mặc định của Python đã đảm bảo sẵn, bài không
+		khoá thêm gì — gọi nó "quan trọng nhất" là overclaim.
+
+		Sửa: vế kỳ vọng dựng TAY (không gọi lại `chon_o_xuat`). `ngoai_pham_vi`
+		có hạn GẦN HƠN (2026-10-01) và một mình đủ 5, nên FEFO không-giới-hạn
+		phải chọn ĐÚNG nó, đủ số — biết trước từ chính fixture ở `setUp`,
+		không suy ra từ công thức đang kiểm.
+
+		Bằng chứng THẬT cho "hành vi cũ không đổi" không phải bài này — mà là
+		các bài Task 1-4 sẵn có (`test_fefo.py`, `test_cay_vi_tri.py`, ...):
+		chúng gọi `chon_o_xuat` với 4 tham số VỊ TRÍ (không có `pham_vi`) và
+		vẫn xanh sau khi thêm tham số thứ 5 có mặc định — đó mới là hồi quy
+		được khoá thật, không phải phép so sánh vòng ở đây.
+		"""
+		ky_vong = [{"o": self.ngoai_pham_vi, "so_luong": 5.0}]
+		self.assertEqual(chon_o_xuat(KHO, self.item, None, 5), ky_vong)
+		self.assertEqual(chon_o_xuat(KHO, self.item, None, 5, pham_vi=None), ky_vong)
 
 	def test_pham_vi_khong_ton_tai_bao_loi_tieng_viet(self):
 		with self.assertRaises(frappe.ValidationError) as ctx:
@@ -298,6 +310,14 @@ class TestPhamViApDungCaHaiTruyVan(FrappeTestCase):
 		frappe.db.set_value("Storage Location", self.ngoai_pham_vi_tat, "disabled", 0)
 
 	def test_khong_mach_hang_ngung_dung_ngoai_pham_vi(self):
+		"""VÒNG SỬA 1/5 (review điều phối): bài này rơi đúng vào câu throw
+		"không đủ hàng" chung — review chỉ ra câu đó đọc như số liệu TOÀN
+		KHO ("cần 5, chỉ có 2, thiếu 3") trong khi kho thật có 12 (2 trong
+		phạm vi + 10 ở ô ngừng dùng ngoài phạm vi). Bài trước chỉ khoá
+		"không nhắc ô ngoài phạm vi", không khoá câu chữ mới phải NÊU TÊN
+		`pham_vi` và nói rõ số liệu chỉ tính trong phạm vi đó — thêm hai
+		assert dưới để khớp câu đã sửa.
+		"""
 		with self.assertRaises(frappe.ValidationError) as ctx:
 			chon_o_xuat(KHO, self.item, None, 5, pham_vi="9Z1802")
 		loi = str(ctx.exception)
@@ -314,6 +334,17 @@ class TestPhamViApDungCaHaiTruyVan(FrappeTestCase):
 			"câu 'không đủ hàng' thông thường, không phải câu nhắc ô ngừng dùng",
 		)
 		self.assertIn("thiếu", loi.lower())
+		self.assertIn(
+			"9Z1802",
+			loi,
+			"số liệu chỉ tính trong phạm vi này — câu phải nêu đích danh phạm vi, "
+			"không để người đọc hiểu nhầm 2/5 là số liệu toàn kho",
+		)
+		self.assertIn(
+			"phạm vi",
+			loi.lower(),
+			"phải nói rõ đây là thiếu hàng TRONG PHẠM VI, không phải toàn kho",
+		)
 		self.assertNotIn("Traceback", loi)
 
 
