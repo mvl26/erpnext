@@ -1,0 +1,171 @@
+{
+ "charts": [],
+ "content": "[{\"id\": \"vtk-tieu-de\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Vị trí kho</b></span>\", \"col\": 12}}, {\"id\": \"vtk-loi-tat\", \"type\": \"paragraph\", \"data\": {\"text\": \"Giá kệ, ô kệ và sổ tồn theo từng ô. Mở rộng của <b>Warehouse</b>.\", \"col\": 12}}, {\"id\": \"vtk-sc-1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Ô kệ\", \"col\": 3}}, {\"id\": \"vtk-sc-2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bật quản lý vị trí\", \"col\": 3}}, {\"id\": \"vtk-sc-3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sinh mã ô\", \"col\": 3}}, {\"id\": \"vtk-sc-4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Tồn kho theo vị trí\", \"col\": 3}}, {\"id\": \"vtk-sc-5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Hàng chưa xếp vị trí\", \"col\": 3}}, {\"id\": \"vtk-sc-6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đối soát tồn vị trí\", \"col\": 3}}, {\"id\": \"vtk-sp\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"vtk-card-1\", \"type\": \"card\", \"data\": {\"card_name\": \"Thiết lập\", \"col\": 4}}, {\"id\": \"vtk-card-2\", \"type\": \"card\", \"data\": {\"card_name\": \"Báo cáo\", \"col\": 4}}, {\"id\": \"vtk-card-3\", \"type\": \"card\", \"data\": {\"card_name\": \"Sổ vị trí\", \"col\": 4}}]",
+ "creation": "2026-09-11 00:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "stock",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Vi Tri Kho",
+ "links": [
+  {
+   "hidden": 0,
+   "label": "Thiết lập",
+   "link_count": 3,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Warehouse Location Setup",
+   "link_count": 0,
+   "link_to": "Warehouse Location Setup",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Location Generator",
+   "link_count": 0,
+   "link_to": "Location Generator",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Storage Location",
+   "link_count": 0,
+   "link_to": "Storage Location",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "label": "Báo cáo",
+   "link_count": 3,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Tồn kho theo vị trí",
+   "link_count": 0,
+   "link_to": "Ton Kho Theo Vi Tri",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Hàng chưa xếp vị trí",
+   "link_count": 0,
+   "link_to": "Hang Chua Xep Vi Tri",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Đối soát tồn vị trí",
+   "link_count": 0,
+   "link_to": "Doi Soat Ton Vi Tri",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "label": "Sổ vị trí",
+   "link_count": 2,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Location Ledger Entry",
+   "link_count": 0,
+   "link_to": "Location Ledger Entry",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Location Balance",
+   "link_count": 0,
+   "link_to": "Location Balance",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-09-11 14:50:23.326310",
+ "modified_by": "Administrator",
+ "module": "Vi Tri Kho",
+ "name": "Vi Tri Kho",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 40.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "label": "Ô kệ",
+   "link_to": "Storage Location",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "label": "Bật quản lý vị trí",
+   "link_to": "Warehouse Location Setup",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "label": "Sinh mã ô",
+   "link_to": "Location Generator",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Tồn kho theo vị trí",
+   "link_to": "Ton Kho Theo Vi Tri",
+   "report_ref_doctype": "Location Balance",
+   "type": "Report"
+  },
+  {
+   "doc_view": "",
+   "label": "Hàng chưa xếp vị trí",
+   "link_to": "Hang Chua Xep Vi Tri",
+   "report_ref_doctype": "Location Balance",
+   "type": "Report"
+  },
+  {
+   "doc_view": "",
+   "label": "Đối soát tồn vị trí",
+   "link_to": "Doi Soat Ton Vi Tri",
+   "report_ref_doctype": "Location Balance",
+   "type": "Report"
+  }
+ ],
+ "title": "Vị trí kho"
+}

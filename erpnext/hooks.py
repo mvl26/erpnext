@@ -36,6 +36,12 @@ doctype_js = {
 	"Event": "public/js/event.js",
 	"Newsletter": "public/js/newsletter.js",
 	"Contact": "public/js/contact.js",
+	# Mở rộng Warehouse theo vị trí — thêm nút vào phiếu kho mà không phải sửa
+	# `stock/doctype/warehouse/warehouse.js` của upstream (bớt một điểm xung đột
+	# mỗi lần merge). Mất dòng này thì phiếu kho trông vẫn bình thường, chỉ là
+	# không còn đường vào quản lý vị trí — `vi_tri_kho/tests/test_giao_dien.py`
+	# khoá việc đó.
+	"Warehouse": "public/js/vi_tri_kho/warehouse.js",
 }
 doctype_list_js = {
 	"Code List": [
