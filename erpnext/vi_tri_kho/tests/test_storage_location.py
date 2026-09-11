@@ -201,3 +201,102 @@ class TestOChuaXepDuocMienKiemDinhDang(FrappeTestCase):
 		o.insert(ignore_permissions=True)
 		self.assertEqual(o.name, ten)
 		self.assertIsNone(o.khu)
+
+
+# --- Dọn nhãn an toàn giả `loai_vi_tri` và trường chết `custom_ma_kho_spd` (Task 7) ---
+
+
+class TestLoaiViTriKhongConCachLy(FrappeTestCase):
+	def test_loai_vi_tri_khong_con_cach_ly(self):
+		"""'Cách ly' là nhãn an toàn GIẢ: không chỗ nào trong vitri/ đọc nó, nên
+		hàng ở ô 'cách ly' vẫn bị FEFO lấy ra bán. Cách ly thật phải là Warehouse.
+
+		LƯU Ý: `get_meta` đọc `tabDocField` trong CSDL, không đọc file JSON
+		trong repo trực tiếp — bài này chỉ đỏ đúng nếu site đã `migrate` sau
+		khi sửa JSON. Vế đọc thẳng file nằm ở
+		`test_json_doctype_khong_con_cach_ly` bên dưới.
+		"""
+		meta = frappe.get_meta("Storage Location")
+		lua_chon = meta.get_field("loai_vi_tri").options.split("\n")
+		self.assertNotIn("Cách ly", lua_chon)
+		self.assertNotIn("Trả hàng", lua_chon)
+		self.assertIn("Lưu trữ", lua_chon)
+
+	def test_json_doctype_khong_con_cach_ly(self):
+		"""Vế đọc THẲNG file JSON — nguồn sự thật của schema trong repo.
+
+		Bài `test_loai_vi_tri_khong_con_cach_ly` ở trên đọc `tabDocField` qua
+		`get_meta`, nên nó xanh/đỏ theo việc site erptest.local đã `migrate`
+		hay chưa — không theo đúng file đang nằm trong git. Bài này không phụ
+		thuộc migrate: sửa JSON là đỏ ngay.
+		"""
+		import json
+		import os
+
+		import erpnext
+
+		duong = os.path.join(
+			os.path.dirname(erpnext.__file__),
+			"vi_tri_kho",
+			"doctype",
+			"storage_location",
+			"storage_location.json",
+		)
+		with open(duong, encoding="utf-8") as f:
+			dt = json.load(f)
+		truong = next(t for t in dt["fields"] if t["fieldname"] == "loai_vi_tri")
+		lua_chon = truong["options"].split("\n")
+		self.assertNotIn("Cách ly", lua_chon)
+		self.assertNotIn("Trả hàng", lua_chon)
+		self.assertIn("Lưu trữ", lua_chon)
+
+
+class TestPatchDonLoaiViTriKhongHopLe(_CoTienDeKho):
+	"""Chạy trực tiếp patch dọn dữ liệu — không chỉ kiểm danh sách lựa chọn.
+
+	Site đã sống trước khi options đổi có thể còn bản ghi mang giá trị cũ
+	('Cách ly'/'Trả hàng') hoặc còn Custom Field `custom_ma_kho_spd`. Bài
+	này dựng đúng tình huống đó rồi khẳng định patch dọn sạch, không suy
+	diễn từ chính công thức đang kiểm.
+	"""
+
+	def test_patch_don_gia_tri_loai_vi_tri_khong_con_hop_le(self):
+		from erpnext.patches.v15_0.don_loai_vi_tri_khong_hop_le import execute
+
+		o = _tao_o("9Z97010101")
+		# Bỏ qua validate của controller — mô phỏng đúng dữ liệu CŨ ghi từ
+		# thời options còn "Cách ly", nay đã không còn hợp lệ với schema mới.
+		frappe.db.set_value("Storage Location", o.name, "loai_vi_tri", "Cách ly", update_modified=False)
+		self.assertEqual(frappe.db.get_value("Storage Location", o.name, "loai_vi_tri"), "Cách ly")
+
+		execute()
+
+		self.assertFalse(frappe.db.get_value("Storage Location", o.name, "loai_vi_tri"))
+
+	def test_patch_xoa_custom_field_ma_kho_spd(self):
+		from erpnext.patches.v15_0.don_loai_vi_tri_khong_hop_le import execute
+
+		ten = "Warehouse-custom_ma_kho_spd"
+		if not frappe.db.exists("Custom Field", ten):
+			# `.insert()` bình thường sẽ chạy `CustomField.on_update()` ->
+			# `frappe.db.updatedb()` -> ALTER TABLE thật trên `tabWarehouse`. DDL
+			# tự COMMIT trong MySQL, xoá luôn rollback-theo-class của
+			# FrappeTestCase — rò cả bài NÀY lẫn bài kia cùng lớp ra CSDL thật
+			# (thấy tận mắt khi đo lần đầu). Dùng `db_insert()` thẳng: chỉ ghi
+			# đúng dòng `tabCustom Field`, không đụng schema, không DDL.
+			doc = frappe.get_doc(
+				{
+					"doctype": "Custom Field",
+					"dt": "Warehouse",
+					"fieldname": "custom_ma_kho_spd",
+					"label": "Mã kho SPD (2 ký tự)",
+					"fieldtype": "Data",
+				}
+			)
+			doc.name = ten
+			doc.db_insert()
+		self.assertTrue(frappe.db.exists("Custom Field", ten))
+
+		execute()
+
+		self.assertFalse(frappe.db.exists("Custom Field", ten))

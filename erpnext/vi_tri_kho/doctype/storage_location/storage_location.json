@@ -95,7 +95,7 @@
    "fieldname": "loai_vi_tri",
    "fieldtype": "Select",
    "label": "Loại vị trí",
-   "options": "Lưu trữ\nSoạn hàng\nCách ly\nTrả hàng",
+   "options": "\nLưu trữ\nSoạn hàng",
    "default": "Lưu trữ",
    "reqd": 1,
    "description": "SPD_VanHanh_PhanTichMaViTriKho §5.5 — bảng master vị trí"
