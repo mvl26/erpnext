@@ -1,40 +1,81 @@
-"""Vị trí kho — một bản ghi là MỘT Ô chứa hàng.
+"""Vị trí kho — một bản ghi là MỘT Ô chứa hàng, hoặc một NÚT NHÓM tổ tiên của nó.
 
-Mô hình PHẲNG theo `SPD_VanHanh_PhanTichMaViTriKho_20260907_v2` §5.5: bảng
-master vị trí có mã 10 ký tự cộng 5 trường thành phần. Phân cấp Khu → Dãy →
-Khoang → Tầng → Ô nằm NGAY TRONG mã, nên cộng dồn theo khu/dãy làm bằng
-`GROUP BY` chứ không cần cây nested set.
+Mô hình theo `SPD_VanHanh_PhanTichMaViTriKho_20260907_v2` §5.5: bảng master
+vị trí có mã 10 ký tự cộng 5 trường thành phần. Phân cấp Khu → Dãy → Khoang →
+Tầng → Ô nằm NGAY TRONG mã — mỗi cấp là TIỀN TỐ của cấp sau — nên cây nested
+set (`is_group`, `parent_storage_location`, `lft/rgt`) không phải một phân
+cấp độc lập phải tự tay giữ đồng bộ: nó là HÌNH CHIẾU của mã, `validate()`
+tính lại từ mã mỗi lần lưu và ghi đè mọi giá trị `parent` mà nơi khác đặt.
 
-Bản trước dùng `NestedSet` (`is_group`, `parent_storage_location`, `lft/rgt`,
-`cap_do`). Đã bỏ vì không mã sản phẩm nào đọc tới nó — chỉ doctype và vài bài
-test — trong khi nó là một phân cấp thứ hai phải tự tay giữ đồng bộ với mã.
-Giữ một cây không ai bảo trì đúng là loại "cờ chết" mà dự án này đã bắt nhiều
-lần.
+Bản trước (Task ngày 2026-09-09) đã bỏ hẳn `NestedSet` với đúng lý do "hai
+nguồn sự thật cho cùng một phân cấp". Lý do đó chỉ đứng vững khi cây được
+khai TAY. Task 2 (2026-09-11) dựng lại cây, nhưng suy nó THẲNG TỪ MÃ — không
+còn là dữ liệu thứ hai, nên không còn nguy cơ lệch: xem
+`erpnext/vi_tri_kho/tests/test_cay_vi_tri.py` để thấy phép thử khoá đúng
+điều đó ("không tồn tại thao tác nào đặt được cây lệch khỏi mã").
 """
 
 import frappe
 from frappe import _
+from frappe.utils.nestedset import NestedSet
 
-from erpnext.vi_tri_kho.vitri.ma_vi_tri import dinh_dang_nhan, phan_tich_ma
+from erpnext.vi_tri_kho.vitri.ma_vi_tri import cap_do, dinh_dang_nhan, ma_cha, phan_tich_ma
 
 
-class StorageLocation(frappe.model.document.Document):
+class StorageLocation(NestedSet):
+	nsm_parent_field = "parent_storage_location"
+
 	def validate(self):
 		self.kiem_tra_ma_o_khong_doi()
+		self.dung_cho_trong_cay()
 		self.tach_thanh_phan_ma()
 		self.kiem_tra_kho()
 		self.kiem_tra_khong_doi_dang_o_chua_xep()
 		if not self.barcode:
 			self.barcode = self.ma_o
 
+	def dung_cho_trong_cay(self):
+		"""Tính `is_group` và `parent` TỪ MÃ, ghi đè mọi giá trị người dùng đặt.
+
+		Ghi đè chứ không phải báo lỗi: `parent` là read_only trên form nên
+		người dùng bình thường không đặt được, còn đường API/Data Import thì
+		đặt được — và ở đó im lặng sửa về đúng tốt hơn là chặn một thao tác
+		nhập liệu hàng loạt.
+		"""
+		if self.la_o_chua_xep:
+			self.is_group = 0
+			self.parent_storage_location = None
+			return
+
+		cap = cap_do(self.ma_o)
+		self.is_group = 1 if cap < 5 else 0
+		self.parent_storage_location = self.dam_bao_to_tien()
+
+	def dam_bao_to_tien(self) -> str | None:
+		"""Tạo các nút cha còn thiếu, từ gốc xuống. Trả tên cha trực tiếp."""
+		cha = ma_cha(self.ma_o)
+		if not cha:
+			return None
+		if not frappe.db.exists("Storage Location", cha):
+			frappe.get_doc({"doctype": "Storage Location", "ma_o": cha, "kho": self.kho}).insert(
+				ignore_permissions=True
+			)
+		return cha
+
 	def tach_thanh_phan_ma(self):
-		"""Cưỡng chế chuẩn 10 ký tự và tách sẵn 5 thành phần (§5.5).
+		"""Ô LÁ tách đủ 5 thành phần; nút nhóm chỉ điền phần nó có.
 
 		Ô "Chưa xếp vị trí" được MIỄN: nó là ô lô-gic, không ứng với chỗ nào
 		ngoài kho và không bao giờ in lên tem. Ép nó vào chuẩn là bịa ra một
 		địa chỉ vật lý không tồn tại.
 		"""
 		if self.la_o_chua_xep:
+			return
+		if self.is_group:
+			phan = ("khu", "day", "khoang", "tang")[: cap_do(self.ma_o)]
+			for i, ten in enumerate(phan):
+				setattr(self, ten, self.ma_o[i * 2 : i * 2 + 2])
+			self.ma_in_nhan = None
 			return
 		p = phan_tich_ma(self.ma_o)
 		self.khu, self.day = p["khu"], p["day"]
@@ -117,6 +158,17 @@ class StorageLocation(frappe.model.document.Document):
 		=1`) mà KHÔNG có ô gom hàng nào — lần nhập kế tiếp sẽ ném lỗi
 		"chưa có ô Chưa xếp vị trí" (xem `hook_sle.py::_bat_buoc_o_chua_xep`)
 		giữa `Stock Ledger Entry.on_submit`.
+
+		Task 2 (2026-09-11) — ĐIỀU PHỐI: từ khi `StorageLocation` kế thừa
+		`NestedSet`, override này PHẢI gọi `super().on_trash()`. Nó dọn
+		`lft/rgt` của toàn cây (đóng lại khoảng mà nút bị xoá chừa ra) và tự
+		chặn xoá một nút còn con (`validate_if_child_exists`). Override mà
+		không gọi super vẫn "xoá được" ở tầng document — chỉ là để lại một
+		khoảng `lft/rgt` mồ côi trong bảng, hỏng lặng lẽ, không ai báo lỗi.
+		Gọi SAU khi chặn ô hệ thống: chặn ô CHUA-XEP là điều kiện MẠNH hơn
+		điều kiện "không còn con" của `NestedSet` (ô CHUA-XEP không có con
+		nên super sẽ không tự chặn nó) — thứ tự này giữ nguyên logic chặn có
+		sẵn, chỉ thêm dọn cây cho những nút được phép xoá.
 		"""
 		if self.la_o_chua_xep:
 			frappe.throw(
@@ -125,3 +177,4 @@ class StorageLocation(frappe.model.document.Document):
 					"lý vị trí phải luôn có đúng một ô này."
 				).format(self.name, self.kho)
 			)
+		super().on_trash()

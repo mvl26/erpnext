@@ -77,6 +77,15 @@ def sinh(kho, khu, so_day, so_khoang_moi_day, so_tang_moi_khoang, so_o_moi_tang)
 
 	Kiểm hết rồi mới ghi — không phải ghi rồi vỡ giữa chừng, vì "sinh 40 ô rồi
 	vỡ ở ô 41" để lại kho nửa vời mà không ai biết ô nào đã có (§5.3).
+
+	Task 2 (2026-09-11): mỗi ô lá tự sinh đủ 4 nút cha còn thiếu khi
+	`insert()` (`StorageLocation.dam_bao_to_tien()`), nên về lý thuyết vòng
+	lặp bên dưới không cần tạo nút nhóm trước. Vẫn tạo trước, TỪ GỐC XUỐNG,
+	để tránh hàng trăm/nghìn lần `insert()` ô lá cùng đệ quy tạo/kiểm tra
+	cùng một nút cha lồng nhau — mỗi lần `dam_bao_to_tien()` gọi `insert()`
+	là một lượt tranh khoá `lft/rgt` của `update_nsm`; tạo nút nhóm một lần
+	ở đây rồi để vòng lặp ô lá chỉ còn `frappe.db.exists()` (không insert)
+	tránh lồng khoá không cần thiết trên một batch có thể hàng nghìn ô.
 	"""
 	_kiem_tra_quyen("sinh", "mã ô")
 	ma, kq = _liet_ke(kho, khu, so_day, so_khoang_moi_day, so_tang_moi_khoang, so_o_moi_tang)
@@ -88,6 +97,13 @@ def sinh(kho, khu, so_day, so_khoang_moi_day, so_tang_moi_khoang, so_o_moi_tang)
 				"Đổi khu hoặc kích thước rồi thử lại."
 			).format(len(kq["trung"]), ", ".join(kq["trung"][:5]))
 		)
+
+	nhom = sorted({m[:i] for m in ma for i in (2, 4, 6, 8)}, key=len)
+	for n in nhom:
+		if not frappe.db.exists("Storage Location", n):
+			frappe.get_doc({"doctype": "Storage Location", "ma_o": n, "kho": kho}).insert(
+				ignore_permissions=True
+			)
 
 	for i, m in enumerate(ma, start=1):
 		frappe.get_doc(

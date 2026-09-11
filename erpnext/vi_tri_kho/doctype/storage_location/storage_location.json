@@ -11,6 +11,8 @@
   "ten_o",
   "col_1",
   "kho",
+  "is_group",
+  "parent_storage_location",
   "loai_vi_tri",
   "disabled",
   "sec_tp",
@@ -31,7 +33,10 @@
   "suc_chua_dvt",
   "col_3",
   "cho_tron_mat_hang",
-  "cho_tron_lo"
+  "cho_tron_lo",
+  "lft",
+  "rgt",
+  "old_parent"
  ],
  "fields": [
   {
@@ -69,6 +74,22 @@
    "in_list_view": 1,
    "search_index": 1,
    "reqd": 1
+  },
+  {
+   "fieldname": "is_group",
+   "fieldtype": "Check",
+   "label": "Là nút nhóm",
+   "read_only": 1,
+   "description": "Nút nhóm là cấp Khu/Dãy/Khoang/Tầng — không chứa hàng."
+  },
+  {
+   "fieldname": "parent_storage_location",
+   "fieldtype": "Link",
+   "label": "Thuộc",
+   "options": "Storage Location",
+   "read_only": 1,
+   "search_index": 1,
+   "description": "Tự tính từ mã ô. Sửa mã thì sửa luôn chỗ đứng trong cây."
   },
   {
    "fieldname": "loai_vi_tri",
@@ -194,14 +215,40 @@
    "fieldtype": "Check",
    "label": "Cho trộn nhiều lô",
    "default": "1"
+  },
+  {
+   "fieldname": "lft",
+   "fieldtype": "Int",
+   "label": "lft",
+   "hidden": 1,
+   "no_copy": 1,
+   "print_hide": 1
+  },
+  {
+   "fieldname": "rgt",
+   "fieldtype": "Int",
+   "label": "rgt",
+   "hidden": 1,
+   "no_copy": 1,
+   "print_hide": 1
+  },
+  {
+   "fieldname": "old_parent",
+   "fieldtype": "Data",
+   "label": "old_parent",
+   "hidden": 1,
+   "no_copy": 1,
+   "print_hide": 1
   }
  ],
  "index_web_pages_for_search": 0,
+ "is_tree": 1,
  "links": [],
  "modified": "2026-09-09 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vi Tri Kho",
  "name": "Storage Location",
+ "nsm_parent_field": "parent_storage_location",
  "owner": "Administrator",
  "permissions": [
   {
