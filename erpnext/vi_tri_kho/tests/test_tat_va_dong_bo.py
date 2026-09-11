@@ -364,7 +364,7 @@ class TestDongBoLaiOAmKhongTuSua(FrappeTestCase):
 		_nhap(self.item_am, 10)
 		o_chua_xep = vk.o_chua_xep(KHO)
 
-		o_gan = "K19Z47010101"
+		o_gan = "9Z47010101"
 		if not frappe.db.exists("Storage Location", o_gan):
 			frappe.get_doc(
 				{

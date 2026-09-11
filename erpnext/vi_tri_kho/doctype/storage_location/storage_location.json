@@ -14,7 +14,6 @@
   "loai_vi_tri",
   "disabled",
   "sec_tp",
-  "ma_kho",
   "khu",
   "day",
   "col_tp",
@@ -43,14 +42,14 @@
    "unique": 1,
    "set_only_once": 1,
    "in_list_view": 1,
-   "description": "12 ký tự chuẩn SPD: [Kho][Khu][Dãy][Khoang][Tầng][Ô] — ví dụ K11B01040302. Khoá lại sau khi tạo."
+   "description": "10 ký tự chuẩn SPD: [Khu][Dãy][Khoang][Tầng][Ô] — ví dụ 1B01040302. Khoá lại sau khi tạo."
   },
   {
    "fieldname": "ma_in_nhan",
    "fieldtype": "Data",
    "label": "Mã in trên nhãn",
    "read_only": 1,
-   "description": "Dạng in ở ô F8 của nhãn 50×30, ví dụ K11B0104-0302"
+   "description": "Dạng in ở ô F8 của nhãn 50×30, ví dụ 1B0104-0302"
   },
   {
    "fieldname": "ten_o",
@@ -89,14 +88,8 @@
   {
    "fieldname": "sec_tp",
    "fieldtype": "Section Break",
-   "label": "Sáu thành phần của mã",
-   "description": "Tự tách từ Mã ô — §5.5 đòi bảng master có cả mã 12 ký tự lẫn 6 trường thành phần"
-  },
-  {
-   "fieldname": "ma_kho",
-   "fieldtype": "Data",
-   "label": "Kho (2)",
-   "read_only": 1
+   "label": "Năm thành phần của mã",
+   "description": "Tự tách từ Mã ô — §5.5 đòi bảng master có cả mã 10 ký tự lẫn 5 trường thành phần"
   },
   {
    "fieldname": "khu",

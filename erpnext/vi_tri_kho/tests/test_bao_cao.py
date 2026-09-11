@@ -62,8 +62,8 @@ class TestBaoCaoTonTheoViTri(FrappeTestCase):
 		from erpnext.vi_tri_kho.report.ton_kho_theo_vi_tri.ton_kho_theo_vi_tri import execute
 
 		item = _tao_item("_Test BC Thu Tu Lay Hang")
-		o_truoc = "K19Z99010101"  # thu_tu_lay_hang=1, alphabet đứng SAU "A-..."
-		o_sau = "K19Z01010101"  # thu_tu_lay_hang=2, alphabet đứng TRƯỚC "Z-..."
+		o_truoc = "9Z99010101"  # thu_tu_lay_hang=1, alphabet đứng SAU "A-..."
+		o_sau = "9Z01010101"  # thu_tu_lay_hang=2, alphabet đứng TRƯỚC "Z-..."
 
 		for ma_o, thu_tu in ((o_truoc, 1), (o_sau, 2)):
 			if not frappe.db.exists("Storage Location", ma_o):
@@ -115,7 +115,7 @@ class TestBaoCaoHangChuaXep(FrappeTestCase):
 	def test_khong_liet_ke_o_khac(self):
 		from erpnext.vi_tri_kho.report.hang_chua_xep_vi_tri.hang_chua_xep_vi_tri import execute
 
-		o_thuong = "K19Z03010101"
+		o_thuong = "9Z03010101"
 		if not frappe.db.exists("Storage Location", o_thuong):
 			frappe.get_doc(
 				{
@@ -215,7 +215,7 @@ class TestBaoCaoDoiSoat(FrappeTestCase):
 		item = _tao_item("_Test BC DoiSoat OAm")
 		_nhap(item, 10)
 		o_chua_xep = frappe.db.get_value("Location Balance", {"kho": KHO, "vat_tu": item}, "o")
-		o_gan = "K19Z02010101"
+		o_gan = "9Z02010101"
 		if not frappe.db.exists("Storage Location", o_gan):
 			frappe.get_doc(
 				{

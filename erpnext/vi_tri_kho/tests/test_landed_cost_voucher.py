@@ -101,7 +101,7 @@ class TestLcvKhongDayHangVaoChuaXep(FrappeTestCase):
 	def setUp(self):
 		_tat_kho_tho(KHO)  # PR submit lúc kho CHƯA bật — xem docstring module
 		self.item = _tao_item("_Test WMS LCV")
-		self.o_gan = _o("K19Z22010101", thu_tu=1)
+		self.o_gan = _o("9Z22010101", thu_tu=1)
 
 	def tearDown(self):
 		_tat_kho_tho(KHO)

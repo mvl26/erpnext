@@ -1,98 +1,82 @@
-"""Mã vị trí 12 ký tự theo chuẩn SPD.
+"""Mã vị trí 10 ký tự theo chuẩn SPD của Miyano Việt Nam.
 
-Nguồn: SPD_VanHanh_PhanTichMaViTriKho_20260907_v2 §5.2, xác nhận lại ở
-SPD_PhanMem_DacTaNhanNhapKho_50x30_20260908_v2 trường F8.
+    [Khu 2][Dãy 2][Khoang 2][Tầng 2][Ô 2]  →  1B01040302
 
-    [Kho 2][Khu 2][Dãy 2][Khoang 2][Tầng 2][Ô 2] = K11B01040302
+Nguồn: `SPD_VanHanh_PhanTichMaViTriKho_20260907_v2` §5.2, xác nhận lại ở
+`SPD_PhanMem_DacTaNhanNhapKho_50x30_20260908_v2` trường F8.
 
-Lưu trong CSDL 12 ký tự KHÔNG dấu gạch; in lên nhãn dạng K11B0104-0302.
+Khu viết SỐ trước CHỮ (1B, 3B, 4B). §5.2 mô tả bằng lời là "chữ cái A-Z + số
+tầng nhà" nhưng mọi ví dụ trong cả ba tài liệu — kể cả ảnh chụp kho MSC — đều
+ngược lại. Chủ dự án chốt theo ví dụ (10/09/2026).
 
-MỘT MÂU THUẪN TRONG TÀI LIỆU, ĐÃ CHỐT: §5.2 mô tả Khu là "chữ cái A-Z + số
-tầng nhà" (chữ trước số) nhưng MỌI ví dụ trong cả ba tài liệu đều là SỐ trước
-CHỮ (1B, 3B, 4B — kể cả ảnh chụp kho MSC). Chủ dự án chốt theo ví dụ.
-
-Dải giá trị (§5.2): Dãy 01-99 · Khoang 01-99 · Tầng 01-09 · Ô 01-99.
-Tầng chỉ tới 09 vì kệ kho không cao hơn 9 tầng — đây là ràng buộc thật, không
-phải giới hạn kỹ thuật, nên regex phải cưỡng chế chứ không chỉ kiểm độ dài.
+Bỏ 2 ký tự mã kho (Task 1, 2026-09-11): bản ghi `Storage Location` đã có
+trường `kho` trỏ `Warehouse`; lưu thêm mã kho trong CHÍNH mã ô là hai nguồn
+sự thật cho cùng một thông tin, dễ lệch. `cap_do()` và `ma_cha()` là nền cho
+cây vị trí ở Task 2: mỗi cấp là tiền tố của cấp sau nên mã cha luôn là
+`ma[:-2]`, không cần bảng tra nào.
 """
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from erpnext.vi_tri_kho.vitri.ma_vi_tri import dinh_dang_nhan, phan_tich_ma
+from erpnext.vi_tri_kho.vitri.ma_vi_tri import cap_do, dinh_dang_nhan, ma_cha, phan_tich_ma
 
 
-class TestPhanTichMaHopLe(FrappeTestCase):
-	def test_tach_dung_sau_thanh_phan(self):
+class TestPhanTichMa(FrappeTestCase):
+	def test_tach_du_nam_thanh_phan(self):
 		self.assertEqual(
-			phan_tich_ma("K11B01040302"),
-			{"ma_kho": "K1", "khu": "1B", "day": "01", "khoang": "04", "tang": "03", "o": "02"},
+			phan_tich_ma("1B01040302"),
+			{"khu": "1B", "day": "01", "khoang": "04", "tang": "03", "o": "02"},
 		)
 
-	def test_kho_ve_tinh_benh_vien(self):
-		# B1…B9 = kho vệ tinh trong bệnh viện (§5.2)
-		self.assertEqual(phan_tich_ma("B93A99990901")["ma_kho"], "B9")
-
-
-class TestDaiGiaTri(FrappeTestCase):
-	def test_tang_khong_duoc_qua_09(self):
+	def test_dung_10_ky_tu(self):
+		# 12 ký tự là chuẩn CŨ — phải bị từ chối, không được "vẫn nhận cho lành"
 		with self.assertRaises(frappe.ValidationError):
-			phan_tich_ma("K11B01041002")
+			phan_tich_ma("K11B01040302")
 
-	def test_tang_khong_duoc_bang_00(self):
+	def test_chan_so_khong(self):
+		for sai in ("1B00040302", "1B01000302", "1B01040002", "1B01040300"):
+			with self.assertRaises(frappe.ValidationError):
+				phan_tich_ma(sai)
+
+	def test_tang_toi_da_09(self):
+		phan_tich_ma("1B01040902")
 		with self.assertRaises(frappe.ValidationError):
-			phan_tich_ma("K11B01040002")
+			phan_tich_ma("1B01041002")
 
-	def test_day_khong_duoc_bang_00(self):
+	def test_khu_so_truoc_chu(self):
+		phan_tich_ma("1B01040302")
 		with self.assertRaises(frappe.ValidationError):
-			phan_tich_ma("K11B00040302")
+			phan_tich_ma("B101040302")
 
-	def test_o_khong_duoc_bang_00(self):
-		with self.assertRaises(frappe.ValidationError):
-			phan_tich_ma("K11B01040300")
+	def test_in_nhan(self):
+		self.assertEqual(dinh_dang_nhan("1B01040302"), "1B0104-0302")
 
+	def test_in_nhan_vua_gioi_han_nhan(self):
+		# Trường F8 của đặc tả nhãn 50x30 v2 giới hạn 16 ký tự kể cả tiền tố
+		self.assertLessEqual(len("VT " + dinh_dang_nhan("1B01040302")), 16)
 
-class TestDinhDangSai(FrappeTestCase):
-	def test_thieu_ky_tu(self):
-		with self.assertRaises(frappe.ValidationError):
-			phan_tich_ma("K11B010403")
+	def test_cap_do(self):
+		self.assertEqual(cap_do("1B"), 1)
+		self.assertEqual(cap_do("1B01"), 2)
+		self.assertEqual(cap_do("1B0104"), 3)
+		self.assertEqual(cap_do("1B010403"), 4)
+		self.assertEqual(cap_do("1B01040302"), 5)
 
-	def test_khu_dat_chu_truoc_so_bi_tu_choi(self):
-		# "B1" thay vì "1B" — chốt theo ví dụ trong tài liệu
-		with self.assertRaises(frappe.ValidationError):
-			phan_tich_ma("K1B101040302")
+	def test_cap_do_chan_ma_sai(self):
+		for sai in ("1B0", "1B0104030222", "XX"):
+			with self.assertRaises(frappe.ValidationError):
+				cap_do(sai)
 
-	def test_chu_thuong_bi_tu_choi(self):
-		# §1.1 quy tắc mã hoá: chỉ A-Z in hoa
-		with self.assertRaises(frappe.ValidationError):
-			phan_tich_ma("k11b01040302")
-
-	def test_co_dau_gach_bi_tu_choi(self):
-		# dạng có gạch là để IN, không phải để lưu
-		with self.assertRaises(frappe.ValidationError):
-			phan_tich_ma("K11B0104-0302")
+	def test_ma_cha(self):
+		self.assertEqual(ma_cha("1B01040302"), "1B010403")
+		self.assertEqual(ma_cha("1B01"), "1B")
+		self.assertIsNone(ma_cha("1B"), "Khu là gốc, không có cha")
 
 	def test_thong_bao_loi_tieng_viet_neu_ro_mau_dung(self):
 		with self.assertRaises(frappe.ValidationError) as ctx:
 			phan_tich_ma("SAI")
 		loi = str(ctx.exception)
-		self.assertIn("12 ký tự", loi)
-		self.assertIn("K11B01040302", loi)
+		self.assertIn("10 ký tự", loi)
+		self.assertIn("1B01040302", loi)
 		self.assertNotIn("Traceback", loi)
-
-
-class TestDangInTrenNhan(FrappeTestCase):
-	"""Mã LƯU 12 ký tự liền; mã IN có đúng một dấu gạch.
-
-	Tài liệu có HAI dạng hiển thị cho cùng 12 ký tự: §5.2 viết
-	`K1-1B01-04-0302` (ba gạch), còn trường F8 của đặc tả nhãn v2 viết
-	`VT K11B0104-0302` (một gạch). Chốt theo NHÃN, vì đó là thứ dán lên kệ và
-	là thứ nhân viên đọc — tài liệu nhãn cũng là bản mới hơn.
-	"""
-
-	def test_chen_dung_mot_gach_truoc_tang_o(self):
-		self.assertEqual(dinh_dang_nhan("K11B01040302"), "K11B0104-0302")
-
-	def test_ma_sai_dinh_dang_thi_tu_choi_chu_khong_in_bua(self):
-		with self.assertRaises(frappe.ValidationError):
-			dinh_dang_nhan("SAI")

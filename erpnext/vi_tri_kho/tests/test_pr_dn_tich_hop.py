@@ -75,7 +75,7 @@ def _bin_qty(item, kho=KHO):
 class TestPurchaseReceiptTichHop(FrappeTestCase):
 	def setUp(self):
 		_bat_kho_tho(KHO)
-		self.o_khac = _o("K19Z24010101", thu_tu=-5)
+		self.o_khac = _o("9Z24010101", thu_tu=-5)
 
 	def tearDown(self):
 		_tat_kho_tho(KHO)
@@ -135,7 +135,7 @@ class TestDeliveryNoteTichHop(FrappeTestCase):
 
 	def setUp(self):
 		_bat_kho_tho(KHO)
-		self.o_gan = _o("K19Z23010101", thu_tu=1)
+		self.o_gan = _o("9Z23010101", thu_tu=1)
 
 	def tearDown(self):
 		_tat_kho_tho(KHO)

@@ -372,7 +372,7 @@ class TestOAm(FrappeTestCase):
 
 	def setUp(self):
 		_bat_kho_tho(KHO)
-		self.o_gan = _o("K19Z11010101", thu_tu=1)
+		self.o_gan = _o("9Z11010101", thu_tu=1)
 
 	def tearDown(self):
 		_tat_kho_tho(KHO)
@@ -439,7 +439,7 @@ class TestLechBoDem(FrappeTestCase):
 
 	def setUp(self):
 		_bat_kho_tho(KHO)
-		self.o_gan = _o("K19Z10010101", thu_tu=1)
+		self.o_gan = _o("9Z10010101", thu_tu=1)
 
 	def tearDown(self):
 		_tat_kho_tho(KHO)

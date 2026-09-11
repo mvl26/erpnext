@@ -116,7 +116,7 @@ class TestChonTheoDuongDi(FrappeTestCase):
 		# thật (xem task-8-report.md, "Vòng sửa 2"): xoá khoá sort đi, bài
 		# NÀY đỏ đúng như kỳ vọng; phục hồi thì xanh lại.
 		item = _dam_bao_item("_Test FEFO CungLo")
-		xa, gan = _o("K19Z01010101", thu_tu=9), _o("K19Z99010101", thu_tu=1)
+		xa, gan = _o("9Z01010101", thu_tu=9), _o("9Z99010101", thu_tu=1)
 		_dat(xa, item, None, 10)
 		_dat(gan, item, None, 10)
 		ket_qua = chon_o_xuat(KHO, item, None, 4)
@@ -127,7 +127,7 @@ class TestChonTheoDuongDi(FrappeTestCase):
 		# ô lấy SAU (thu_tu=2) đặt tên xếp TRƯỚC — trước sửa "A" (lấy trước)
 		# < "B" (lấy sau) tình cờ khớp thứ tự.
 		item = _dam_bao_item("_Test FEFO KhongDu")
-		a, b = _o("K19Z98010101", thu_tu=1), _o("K19Z02010101", thu_tu=2)
+		a, b = _o("9Z98010101", thu_tu=1), _o("9Z02010101", thu_tu=2)
 		_dat(a, item, None, 3)
 		_dat(b, item, None, 10)
 		ket_qua = chon_o_xuat(KHO, item, None, 7)
@@ -135,7 +135,7 @@ class TestChonTheoDuongDi(FrappeTestCase):
 
 	def test_bo_qua_o_het_hang(self):
 		item = _dam_bao_item("_Test FEFO BoQuaHet")
-		het, con = _o("K19Z03010101", thu_tu=1), _o("K19Z04010101", thu_tu=2)
+		het, con = _o("9Z03010101", thu_tu=1), _o("9Z04010101", thu_tu=2)
 		_dat(het, item, None, 5)
 		_dat(het, item, None, -5)
 		_dat(con, item, None, 6)
@@ -150,7 +150,7 @@ class TestChonTheoHanDung(FrappeTestCase):
 	# có hạn gần hơn cả lô "co_han" của bài đó, làm sai lệch kết quả.
 	def test_han_gan_nhat_di_truoc(self):
 		item = _dam_bao_item("_Test FEFO HanGanNhat")
-		som, muon = _o("K19Z96010101", thu_tu=9), _o("K19Z06010101", thu_tu=1)
+		som, muon = _o("9Z96010101", thu_tu=9), _o("9Z06010101", thu_tu=1)
 		l_som, l_muon = _lo("_T-FEFO-SOM", item, "2026-10-01"), _lo("_T-FEFO-MUON", item, "2027-10-01")
 		_dat(som, item, l_som, 5)
 		_dat(muon, item, l_muon, 5)
@@ -168,7 +168,7 @@ class TestChonTheoHanDung(FrappeTestCase):
 		# (ưu tiên, đi trước) đặt tên xếp SAU, ô không hạn (đi sau) đặt tên
 		# xếp TRƯỚC. Đã đo thật: xoá khoá sort hạn dùng, bài NÀY đỏ.
 		item = _dam_bao_item("_Test FEFO KhongHan")
-		co_han, khong_han = _o("K19Z95010101", thu_tu=1), _o("K19Z07010101", thu_tu=1)
+		co_han, khong_han = _o("9Z95010101", thu_tu=1), _o("9Z07010101", thu_tu=1)
 		l_han = _lo("_T-FEFO-CO-HAN", item, "2027-01-01")
 		l_khong = _lo("_T-FEFO-KHONG-HAN", item, None)
 		_dat(co_han, item, l_han, 5)
@@ -183,7 +183,7 @@ class TestChonDungLoDuocChiDinh(FrappeTestCase):
 
 	def test_chi_dinh_lo_thi_khong_dung_lo_khac(self):
 		item = self.item
-		a, b = _o("K19Z08010101", thu_tu=1), _o("K19Z09010101", thu_tu=2)
+		a, b = _o("9Z08010101", thu_tu=1), _o("9Z09010101", thu_tu=2)
 		l1, l2 = _lo("_T-FEFO-L1", item, "2026-11-01"), _lo("_T-FEFO-L2", item, "2026-12-01")
 		_dat(a, item, l1, 5)
 		_dat(b, item, l2, 5)
@@ -207,7 +207,7 @@ class TestSoLuongLe(FrappeTestCase):
 		# Tên ô ngược alphabet so với thu_tu_lay_hang (vòng sửa 2), cùng lý
 		# do các bài trên: ô lấy trước (thu_tu=1) đặt tên xếp SAU alphabet.
 		item = _dam_bao_item("_Test FEFO SoLe")
-		nhieu, it = _o("K19Z94010101", thu_tu=1), _o("K19Z12010101", thu_tu=2)
+		nhieu, it = _o("9Z94010101", thu_tu=1), _o("9Z12010101", thu_tu=2)
 		_dat(nhieu, item, None, 0.7)
 		_dat(it, item, None, 0.1)
 		ket_qua = chon_o_xuat(KHO, item, None, 0.8)
@@ -223,7 +223,7 @@ class TestKhongDuTon(FrappeTestCase):
 		_dam_bao_item()
 
 	def test_bao_loi_tieng_viet_neu_ro_thieu_bao_nhieu(self):
-		o = _o("K19Z13010101", thu_tu=1)
+		o = _o("9Z13010101", thu_tu=1)
 		_dat(o, "_Test FEFO Item", None, 2)
 		with self.assertRaises(frappe.ValidationError) as ctx:
 			chon_o_xuat(KHO, "_Test FEFO Item", None, 10)
@@ -249,8 +249,8 @@ class TestThieuViONgungDung(FrappeTestCase):
 
 	def test_thong_bao_neu_ro_o_ngung_dung_khong_phai_thieu_hang_that(self):
 		item = _dam_bao_item("_Test FEFO NgungDung")
-		dang_dung = _o("K19Z14010101", thu_tu=1)
-		ngung_dung = _o("K19Z15010101", thu_tu=2)
+		dang_dung = _o("9Z14010101", thu_tu=1)
+		ngung_dung = _o("9Z15010101", thu_tu=2)
 		_dat(dang_dung, item, None, 2)
 		_dat(ngung_dung, item, None, 5)
 		frappe.db.set_value("Storage Location", ngung_dung, "disabled", 1)
@@ -267,8 +267,8 @@ class TestThieuViONgungDung(FrappeTestCase):
 		"không đủ hàng" thông thường — không được lúc nào cũng đổi sang câu
 		mới chỉ vì CÓ ô disabled tồn tại trong kho (kể cả khi nó rỗng)."""
 		item = _dam_bao_item("_Test FEFO NgungDungRong")
-		dang_dung = _o("K19Z16010101", thu_tu=1)
-		ngung_dung_rong = _o("K19Z17010101", thu_tu=2)
+		dang_dung = _o("9Z16010101", thu_tu=1)
+		ngung_dung_rong = _o("9Z17010101", thu_tu=2)
 		_dat(dang_dung, item, None, 2)
 		frappe.db.set_value("Storage Location", ngung_dung_rong, "disabled", 1)
 
@@ -362,8 +362,8 @@ class TestXuatQuaHookThatVaBatBien(FrappeTestCase):
 		# 9999, mà mọi mã ô hợp lệ đều mở đầu bằng mã kho (chữ cái) nên luôn
 		# xếp trước "ZZZ-..." — tên và ưu tiên của ô hệ thống giờ LUÔN đồng
 		# thuận, không tạo được mâu thuẫn với nó nữa. Phải lấy hai ô thật.
-		xa = _o("K19Z18010101", thu_tu=5)
-		gan = _o("K19Z18010102", thu_tu=1)
+		xa = _o("9Z18010101", thu_tu=5)
+		gan = _o("9Z18010102", thu_tu=1)
 
 		# San hàng từ CHUA-XEP sang hai ô thật — CHỈ để seed dữ liệu test (mô
 		# phỏng xếp vị trí thủ công), không phải logic sản phẩm của Task 8;

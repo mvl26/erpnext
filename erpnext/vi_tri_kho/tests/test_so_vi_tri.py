@@ -125,18 +125,18 @@ class TestGhiSo(_TuDonSauMoiBai):
 		_tao_item("_Test Item VT2")
 
 	def test_ghi_mot_dong_thi_ton_o_tang(self):
-		o = _o("K19Z30010101")
+		o = _o("9Z30010101")
 		_ghi(o, "_Test Item VT", "LO-A", 10)
 		self.assertEqual(so.ton_o(o, "_Test Item VT", "LO-A"), 10)
 
 	def test_ghi_am_thi_ton_giam(self):
-		o = _o("K19Z30010102")
+		o = _o("9Z30010102")
 		_ghi(o, "_Test Item VT", "LO-A", 10)
 		_ghi(o, "_Test Item VT", "LO-A", -4)
 		self.assertEqual(so.ton_o(o, "_Test Item VT", "LO-A"), 6)
 
 	def test_hai_lo_khac_nhau_khong_gop_lam_mot(self):
-		o = _o("K19Z30010103")
+		o = _o("9Z30010103")
 		_ghi(o, "_Test Item VT", "LO-A", 10)
 		_ghi(o, "_Test Item VT", "LO-B", 5)
 		self.assertEqual(so.ton_o(o, "_Test Item VT", "LO-A"), 10)
@@ -144,7 +144,7 @@ class TestGhiSo(_TuDonSauMoiBai):
 		self.assertEqual(so.tong_ton_vi_tri(KHO, "_Test Item VT", "LO-A"), 10)
 
 	def test_hang_khong_lo_dung_so_lo_rong(self):
-		o = _o("K19Z30010104")
+		o = _o("9Z30010104")
 		_ghi(o, "_Test Item Khong Lo", None, 7)
 		self.assertEqual(so.ton_o(o, "_Test Item Khong Lo", None), 7)
 		# tong_ton_vi_tri cũng phải chuẩn hoá so_lo=None giống ton_o — không
@@ -152,7 +152,7 @@ class TestGhiSo(_TuDonSauMoiBai):
 		self.assertEqual(so.tong_ton_vi_tri(KHO, "_Test Item Khong Lo", None), 7)
 
 	def test_tong_ton_cong_qua_nhieu_o(self):
-		a, b = _o("K19Z30010105"), _o("K19Z30010106")
+		a, b = _o("9Z30010105"), _o("9Z30010106")
 		_ghi(a, "_Test Item VT2", "LO-C", 3)
 		_ghi(b, "_Test Item VT2", "LO-C", 4)
 		self.assertEqual(so.tong_ton_vi_tri(KHO, "_Test Item VT2", "LO-C"), 7)
@@ -161,7 +161,7 @@ class TestGhiSo(_TuDonSauMoiBai):
 		"""Việc 4: bỏ ignore_links khỏi đường ghi sổ. Trước đây `ghi_dong_so`
 		âm thầm chấp nhận `chung_tu` không có thật — sổ vị trí là nguồn sự
 		thật cho Task 5-10, không được hở như vậy."""
-		o = _o("K19Z30010112")
+		o = _o("9Z30010112")
 		with self.assertRaises(frappe.LinkValidationError):
 			so.ghi_dong_so(
 				o=o,
@@ -182,7 +182,7 @@ class TestGhiSo(_TuDonSauMoiBai):
 		"""Việc 2: so_lo của hàng không quản lý lô phải là chuỗi rỗng '',
 		KHÔNG phải NULL, ở cả Location Ledger Entry lẫn Location Balance —
 		đọc thẳng bằng SQL, không suy luận qua ifnull()."""
-		o = _o("K19Z30010113")
+		o = _o("9Z30010113")
 		ten = _ghi(o, "_Test Item Khong Lo", None, 5)
 
 		gia_tri_so_sql = frappe.db.sql("select so_lo from `tabLocation Ledger Entry` where name=%s", (ten,))[
@@ -209,7 +209,7 @@ class TestGhiSo(_TuDonSauMoiBai):
 		tới — Task 9 sẽ dùng nó cho bút toán đảo. Ghi với da_huy=1 phải ghi
 		đúng cờ và vẫn cộng dồn tồn bình thường (bản thân ghi_dong_so không
 		diễn giải ý nghĩa của da_huy, chỉ lưu lại — xem docstring module)."""
-		o = _o("K19Z30010114")
+		o = _o("9Z30010114")
 		ten = so.ghi_dong_so(
 			o=o,
 			kho=KHO,
@@ -235,7 +235,7 @@ class TestSoChiGhiThem(_TuDonSauMoiBai):
 		_tao_item("_Test Item VT3")
 
 	def test_ghi_khong_sua_dong_cu(self):
-		o = _o("K19Z30010107")
+		o = _o("9Z30010107")
 		t1 = _ghi(o, "_Test Item VT3", "LO-D", 5)
 		_ghi(o, "_Test Item VT3", "LO-D", -2)
 		self.assertEqual(frappe.db.get_value("Location Ledger Entry", t1, "so_luong"), 5)
@@ -249,7 +249,7 @@ class TestDungLaiTon(_TuDonSauMoiBai):
 		_tao_item("_Test Item VT5")
 
 	def test_pha_bo_dem_roi_dung_lai_thi_dung(self):
-		o = _o("K19Z30010108")
+		o = _o("9Z30010108")
 		_ghi(o, "_Test Item VT4", "LO-E", 12)
 		_ghi(o, "_Test Item VT4", "LO-E", -5)
 
@@ -269,7 +269,7 @@ class TestDungLaiTon(_TuDonSauMoiBai):
 		self.assertGreaterEqual(so_dong, 1)
 
 	def test_dung_lai_khong_de_lai_dong_thua(self):
-		o = _o("K19Z30010109")
+		o = _o("9Z30010109")
 		_ghi(o, "_Test Item VT5", "LO-F", 4)
 		frappe.get_doc(
 			{
@@ -294,7 +294,7 @@ class TestDungLaiTon(_TuDonSauMoiBai):
 		rộng. Các bài khác chỉ gọi `dung_lai_ton_vi_tri(KHO)`, nhánh này chưa
 		ai kiểm chứng nếu bỏ qua bài này.
 		"""
-		o = _o("K19Z30010110")
+		o = _o("9Z30010110")
 		_ghi(o, "_Test Item VT5", "LO-G", 3)
 		# phá bộ đệm bằng cách xoá thẳng dòng tồn — không qua engine.
 		frappe.db.sql("delete from `tabLocation Balance` where o=%s", (o,))
@@ -320,7 +320,7 @@ class TestRangBuocDuyNhat(_TuDonSauMoiBai):
 		_tao_item("_Test Item VT9")
 
 	def test_trung_khoa_bi_chan_o_tang_db(self):
-		o = _o("K19Z30010111")
+		o = _o("9Z30010111")
 		frappe.get_doc(
 			{
 				"doctype": "Location Balance",
@@ -376,7 +376,7 @@ class TestCongDonTonNguyenTu(FrappeTestCase):
 	  báo lỗi, kết quả đúng 1 dòng với tổng đúng.
 	"""
 
-	O = "K19Z30010115"
+	O = "9Z30010115"
 	VAT_TU = "_Test Item VT Race"
 
 	@classmethod

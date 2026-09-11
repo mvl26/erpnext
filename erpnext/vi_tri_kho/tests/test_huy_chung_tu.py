@@ -114,8 +114,8 @@ class TestHuyPhieuXuat(FrappeTestCase):
 
 	def setUp(self):
 		_bat_kho_tho(KHO)
-		self.o_xa = _o("K19Z21010101", thu_tu=9)
-		self.o_gan = _o("K19Z20010101", thu_tu=1)
+		self.o_xa = _o("9Z21010101", thu_tu=9)
+		self.o_gan = _o("9Z20010101", thu_tu=1)
 
 	def tearDown(self):
 		_tat_kho_tho(KHO)
@@ -269,7 +269,7 @@ class TestHuyPhieuNhap(FrappeTestCase):
 		trước (thu_tu nhỏ hơn) — khoá bằng cách khẳng định ô này KHÔNG bị
 		đụng sau khi huỷ `se`.
 		"""
-		o_khac = _o("K19Z93010101", thu_tu=-5)
+		o_khac = _o("9Z93010101", thu_tu=-5)
 		_nhap_kho(self.item, 4)
 		_seed_o(self.item, o_khac, 4)
 		self.assertEqual(so.ton_o(o_khac, self.item, None), 4, "tiền đề: ô khác đã có sẵn hàng")

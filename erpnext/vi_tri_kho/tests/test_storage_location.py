@@ -55,24 +55,24 @@ class _CoTienDeKho(FrappeTestCase):
 
 class TestDatTen(_CoTienDeKho):
 	def test_name_chinh_la_ma_o(self):
-		o = _tao_o("K19Z01010101")
-		self.assertEqual(o.name, "K19Z01010101")
+		o = _tao_o("9Z01010101")
+		self.assertEqual(o.name, "9Z01010101")
 
 	def test_ma_o_khong_duoc_trung(self):
-		_tao_o("K19Z01010102")
+		_tao_o("9Z01010102")
 		with self.assertRaises(frappe.DuplicateEntryError):
-			_tao_o("K19Z01010102")
+			_tao_o("9Z01010102")
 
 
 class TestRangBuocKho(_CoTienDeKho):
 	def test_o_la_bat_buoc_co_kho(self):
-		doc = frappe.get_doc({"doctype": "Storage Location", "ma_o": "K19Z01010201"})
+		doc = frappe.get_doc({"doctype": "Storage Location", "ma_o": "9Z01010201"})
 		with self.assertRaises(frappe.ValidationError):
 			doc.insert(ignore_permissions=True)
 
 	def test_khong_nhan_warehouse_nhom(self):
 		with self.assertRaises(frappe.ValidationError) as ctx:
-			_tao_o("K19Z01010202", kho="All Warehouses - MYN")
+			_tao_o("9Z01010202", kho="All Warehouses - MYN")
 		self.assertIn("kho tổng", str(ctx.exception).lower())
 
 
@@ -85,8 +85,8 @@ class TestKhoaMaO(_CoTienDeKho):
 	"""
 
 	def test_khong_duoc_sua_ma_o_sau_khi_tao(self):
-		o = _tao_o("K19Z02010101")
-		o.ma_o = "K19Z02010102"
+		o = _tao_o("9Z02010101")
+		o.ma_o = "9Z02010102"
 		with self.assertRaises(frappe.ValidationError):
 			o.save(ignore_permissions=True)
 
@@ -100,9 +100,9 @@ class TestBarcode(_CoTienDeKho):
 	"""
 
 	def test_barcode_khong_duoc_trung(self):
-		_tao_o("K19Z03010101")
+		_tao_o("9Z03010101")
 		with self.assertRaises(frappe.ValidationError):
-			_tao_o("K19Z03010102", barcode="K19Z03010101")
+			_tao_o("9Z03010102", barcode="9Z03010101")
 
 
 class TestKhoaOChuaXep(_CoTienDeKho):
@@ -136,20 +136,20 @@ class TestKhoaOChuaXep(_CoTienDeKho):
 	def test_o_thuong_van_vo_hieu_hoa_duoc(self):
 		"""Đối chứng: ràng buộc CHỈ áp dụng cho ô la_o_chua_xep=1, không phải
 		mọi ô — nếu không sẽ chặn nhầm thao tác vận hành bình thường."""
-		o = _tao_o("K19Z04010101")
+		o = _tao_o("9Z04010101")
 		o.disabled = 1
 		o.save(ignore_permissions=True)  # không được ném lỗi
 		o.reload()
 		self.assertTrue(o.disabled)
 
 
-# --- Chuẩn mã 12 ký tự SPD (chốt 10/09/2026) -------------------------------
+# --- Chuẩn mã 10 ký tự SPD (chốt 10/09/2026, rút gọn Task 1 11/09/2026) ----
 
-MA_HOP_LE = "K19Z01040302"
+MA_HOP_LE = "9Z01040302"
 
 
 class TestCuongCheDinhDangMa(FrappeTestCase):
-	"""Mã ô phải đúng chuẩn 12 ký tự — §5.5 đòi phần mềm kiểm định dạng khi tạo.
+	"""Mã ô phải đúng chuẩn 10 ký tự — §5.5 đòi phần mềm kiểm định dạng khi tạo.
 
 	Trước đây `ma_o` là ô chữ tự do, gõ gì cũng nhận. Đó là chỗ mà một mã sai
 	lọt vào rồi được IN LÊN TEM dán kệ — sửa sau khi dán tem là thứ §5.3 cảnh
@@ -164,24 +164,24 @@ class TestCuongCheDinhDangMa(FrappeTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			_tao_o("TEST-TU-CHE")
 
-	def test_tach_du_sau_thanh_phan_vao_truong_rieng(self):
-		# §5.5: bảng master phải có "mã 12 ký tự VÀ 6 trường thành phần"
-		o = _tao_o("K19Z07120405")
+	def test_tach_du_nam_thanh_phan_vao_truong_rieng(self):
+		# §5.5: bảng master phải có "mã 10 ký tự VÀ 5 trường thành phần"
+		o = _tao_o("9Z07120405")
 		self.assertEqual(
-			(o.ma_kho, o.khu, o.day, o.khoang, o.tang, o.o),
-			("K1", "9Z", "07", "12", "04", "05"),
+			(o.khu, o.day, o.khoang, o.tang, o.o),
+			("9Z", "07", "12", "04", "05"),
 		)
 
 	def test_luu_san_dang_in_tren_nhan(self):
-		o = _tao_o("K19Z08010203")
-		self.assertEqual(o.ma_in_nhan, "K19Z0801-0203")
+		o = _tao_o("9Z08010203")
+		self.assertEqual(o.ma_in_nhan, "9Z0801-0203")
 
 
 class TestOChuaXepDuocMienKiemDinhDang(FrappeTestCase):
 	"""Ô CHUA-XEP là ô LÔ-GIC, không phải vị trí vật lý.
 
 	Nó không bao giờ được in lên tem và không ứng với chỗ nào ngoài kho. Ép nó
-	vào chuẩn 12 ký tự là bịa ra một địa chỉ không tồn tại — nên nó được miễn,
+	vào chuẩn 10 ký tự là bịa ra một địa chỉ không tồn tại — nên nó được miễn,
 	qua chính cờ `la_o_chua_xep`.
 	"""
 
@@ -200,4 +200,4 @@ class TestOChuaXepDuocMienKiemDinhDang(FrappeTestCase):
 		)
 		o.insert(ignore_permissions=True)
 		self.assertEqual(o.name, ten)
-		self.assertIsNone(o.ma_kho)
+		self.assertIsNone(o.khu)

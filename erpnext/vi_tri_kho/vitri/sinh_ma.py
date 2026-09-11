@@ -1,13 +1,14 @@
-"""Sinh mã ô hàng loạt theo chuẩn 12 ký tự SPD.
+"""Sinh mã ô hàng loạt theo chuẩn 10 ký tự SPD.
 
 Định dạng do BA chốt (`SPD_VanHanh_PhanTichMaViTriKho_20260907_v2` §5.2) nên
 bộ sinh KHÔNG nhận "mẫu mã tự do" như bản trước. Để người dùng tự chế mẫu là
 mở đường lệch chuẩn — mà mã ô khoá cứng sau khi tạo và đã in lên tem dán kệ,
 nên sửa sau là thứ §5.3 cảnh báo riêng.
 
-Hai ký tự đầu (mã kho) lấy từ `Warehouse.custom_ma_kho_spd`, KHÔNG gõ tay ở
-đây: mã đó phải giống nhau cho mọi ô của cùng một kho, để người dùng nhập lại
-mỗi lần sinh là mời gọi hai lô ô cùng kho mang hai mã khác nhau.
+`Warehouse.custom_ma_kho_spd` KHÔNG còn được dùng ở đây (Task 1, 2026-09-11):
+mã ô bỏ 2 ký tự mã kho, kho được xác định qua trường `kho` (Link Warehouse)
+của chính bản ghi `Storage Location`, không còn qua tiền tố trong mã. Field
+này trên Warehouse sẽ được gỡ hẳn ở Task 7.
 """
 
 import frappe
@@ -18,19 +19,6 @@ from erpnext.vi_tri_kho.vitri.ma_vi_tri import MAU_MA, VI_DU, phan_tich_ma
 
 # §5.2: Dãy 01-99 · Khoang 01-99 · Tầng 01-09 · Ô 01-99.
 GIOI_HAN = {"so_day": 99, "so_khoang_moi_day": 99, "so_tang_moi_khoang": 9, "so_o_moi_tang": 99}
-
-
-def _ma_kho_cua(kho: str) -> str:
-	ma = (frappe.db.get_value("Warehouse", kho, "custom_ma_kho_spd") or "").strip().upper()
-	if not ma:
-		frappe.throw(
-			_(
-				"Kho {0} chưa khai mã kho SPD. Mở phiếu kho đó và điền ô "
-				'"Mã kho SPD (2 ký tự)" — ví dụ K1 cho kho trung tâm, B1–B9 cho kho '
-				"vệ tinh trong bệnh viện."
-			).format(kho)
-		)
-	return ma
 
 
 def _so_nguyen(ten: str, gia_tri) -> int:
@@ -46,7 +34,6 @@ def _so_nguyen(ten: str, gia_tri) -> int:
 
 def _liet_ke(kho, khu, so_day, so_khoang_moi_day, so_tang_moi_khoang, so_o_moi_tang):
 	"""Trả (danh sách mã, tóm tắt). KHÔNG kiểm quyền — chỗ gọi tự kiểm."""
-	ma_kho = _ma_kho_cua(kho)
 	khu = (khu or "").strip().upper()
 
 	so_day = _so_nguyen("so_day", so_day)
@@ -55,7 +42,7 @@ def _liet_ke(kho, khu, so_day, so_khoang_moi_day, so_tang_moi_khoang, so_o_moi_t
 	so_o_moi_tang = _so_nguyen("so_o_moi_tang", so_o_moi_tang)
 
 	ma = [
-		f"{ma_kho}{khu}{d:02d}{k:02d}{t:02d}{o:02d}"
+		f"{khu}{d:02d}{k:02d}{t:02d}{o:02d}"
 		for d in range(1, so_day + 1)
 		for k in range(1, so_khoang_moi_day + 1)
 		for t in range(1, so_tang_moi_khoang + 1)
@@ -63,8 +50,8 @@ def _liet_ke(kho, khu, so_day, so_khoang_moi_day, so_tang_moi_khoang, so_o_moi_t
 	]
 
 	# Tự soi mã đầu tiên bằng chính bộ phân tích dùng ở `Storage Location`:
-	# bắt sai mã kho / sai khu NGAY ở bước xem trước, thay vì để 500 lệnh
-	# insert lần lượt vỡ giữa chừng.
+	# bắt sai khu NGAY ở bước xem trước, thay vì để 500 lệnh insert lần lượt
+	# vỡ giữa chừng.
 	phan_tich_ma(ma[0])
 
 	da_co = set(frappe.get_all("Storage Location", filters={"name": ("in", ma)}, pluck="name"))

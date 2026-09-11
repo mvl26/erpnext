@@ -1,7 +1,7 @@
 """Vị trí kho — một bản ghi là MỘT Ô chứa hàng.
 
 Mô hình PHẲNG theo `SPD_VanHanh_PhanTichMaViTriKho_20260907_v2` §5.5: bảng
-master vị trí có mã 12 ký tự cộng 6 trường thành phần. Phân cấp Khu → Dãy →
+master vị trí có mã 10 ký tự cộng 5 trường thành phần. Phân cấp Khu → Dãy →
 Khoang → Tầng → Ô nằm NGAY TRONG mã, nên cộng dồn theo khu/dãy làm bằng
 `GROUP BY` chứ không cần cây nested set.
 
@@ -28,7 +28,7 @@ class StorageLocation(frappe.model.document.Document):
 			self.barcode = self.ma_o
 
 	def tach_thanh_phan_ma(self):
-		"""Cưỡng chế chuẩn 12 ký tự và tách sẵn 6 thành phần (§5.5).
+		"""Cưỡng chế chuẩn 10 ký tự và tách sẵn 5 thành phần (§5.5).
 
 		Ô "Chưa xếp vị trí" được MIỄN: nó là ô lô-gic, không ứng với chỗ nào
 		ngoài kho và không bao giờ in lên tem. Ép nó vào chuẩn là bịa ra một
@@ -37,7 +37,7 @@ class StorageLocation(frappe.model.document.Document):
 		if self.la_o_chua_xep:
 			return
 		p = phan_tich_ma(self.ma_o)
-		self.ma_kho, self.khu, self.day = p["ma_kho"], p["khu"], p["day"]
+		self.khu, self.day = p["khu"], p["day"]
 		self.khoang, self.tang, self.o = p["khoang"], p["tang"], p["o"]
 		self.ma_in_nhan = dinh_dang_nhan(self.ma_o)
 
