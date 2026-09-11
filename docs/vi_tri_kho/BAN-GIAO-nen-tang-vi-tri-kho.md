@@ -2,7 +2,8 @@
 
 Nay là **module `Vi Tri Kho` trong app `erpnext`** (fork `mvl26/erpnext`), nhánh
 `feat/mo-rong-vi-tri-kho-warehouse` · **182/182 test xanh**
-Spec: `erpnext/vi_tri_kho/docs/superpowers/specs/2026-09-09-miyano-wms-vi-tri-kho-design.md`
+Spec: `docs/superpowers/specs/2026-09-09-miyano-wms-vi-tri-kho-design.md`
+Mã nguồn: `erpnext/vi_tri_kho/` · Tài liệu: `docs/vi_tri_kho/`
 
 > **Chuyển nhà 11/09/2026 — không còn app riêng `miyano_wms`.**
 > Chủ dự án chốt: đây là **mở rộng của `Warehouse`**, nên thuộc về cây ERP chứ không
@@ -19,6 +20,11 @@ Spec: `erpnext/vi_tri_kho/docs/superpowers/specs/2026-09-09-miyano-wms-vi-tri-kh
 > Đường chạy test đổi theo: `bench --site erptest.local run-tests --module
 > erpnext.vi_tri_kho.tests.<tên>`. **Đừng** chạy `--app erpnext` nếu chỉ muốn kiểm phần
 > này — nó kéo theo hàng nghìn bài của upstream.
+>
+> Tài liệu KHÔNG nằm cạnh mã nguồn: repo có cổng cưỡng chế vị trí file
+> (`scripts/file_structure/gate.py`), và bản đồ của nó chỉ cho tài liệu ở `docs/` gốc
+> repo — `.zip`/`.docx` thì không được phép nằm dưới `erpnext/` ở bất kỳ đâu. Kiểm bằng
+> `python3 -m scripts.file_structure --audit` trước khi commit.
 
 > **Cập nhật 10/09/2026 — mã ô đổi sang chuẩn 12 ký tự của SPD.**
 > Chủ dự án đưa `docs/SPD_VanHanh_PhanTichMaViTriKho_20260907_v2.docx` và chốt mã ô
