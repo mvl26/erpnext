@@ -121,7 +121,16 @@ class TestBaoCaoTonTheoViTri(FrappeTestCase):
 	def test_gop_theo_khu_bang_tong_cac_o_la(self):
 		"""Vế đối chiếu KHÔNG lấy từ chính báo cáo: cộng thẳng `Location Balance`
 		bằng SQL riêng trong bài kiểm — xem lý do ở docstring đầu file (GHI ĐÈ
-		so với brief)."""
+		so với brief).
+
+		VÒNG SỬA 1/5 (review điều phối): hai vế PHẢI cùng phạm vi. Vế báo cáo
+		lọc `vat_tu=item`; vế SQL đối chiếu ban đầu KHÔNG lọc `vat_tu` — hôm
+		đó không đỏ giả chỉ vì trong transaction chưa có mặt hàng thứ hai nào
+		trùng tiền tố `9Z`, thuần may rủi, không phải do thiết kế đúng. Seed
+		thêm `item_khac` (mặt hàng KHÁC, không liên quan tới `item`) vào một
+		ô `9Z…` để buộc hai vế phải cùng lọc `vat_tu` mới khớp — xem
+		task-6-report.md, "Vòng sửa 1/5" cho cặp đo (SQL không lọc `vat_tu`
+		hỏng thật với fixture này, SQL có lọc thì đúng)."""
 		from erpnext.vi_tri_kho.report.ton_kho_theo_vi_tri import ton_kho_theo_vi_tri
 
 		item = _tao_item("_Test BC Gop Theo Khu")
@@ -145,15 +154,31 @@ class TestBaoCaoTonTheoViTri(FrappeTestCase):
 				}
 			).insert(ignore_permissions=True)
 
+		# Mặt hàng THỨ HAI, không liên quan, cùng chung một ô "9Z…" của
+		# `item` — chỉ để buộc lộ ra việc hai vế phải cùng lọc `vat_tu`.
+		item_khac = _tao_item("_Test BC Gop Theo Khu Khac")
+		frappe.get_doc(
+			{
+				"doctype": "Location Balance",
+				"o": "9Z50010101",
+				"kho": KHO,
+				"vat_tu": item_khac,
+				"so_lo": "",
+				"so_luong": 1000,
+			}
+		).insert(ignore_permissions=True)
+
 		_, dong = ton_kho_theo_vi_tri.execute({"kho": KHO, "vat_tu": item})
 		theo_o = {d["o"]: d for d in dong}
 
 		# Vế đối chiếu ĐỘC LẬP: đi thẳng vào tabLocation Balance, không đọc
 		# lại `dong`/`theo_o` ở trên — nếu báo cáo cộng sai (ví dụ bỏ sót
-		# một dòng thật), vế này vẫn thấy đúng số thật trong CSDL.
+		# một dòng thật), vế này vẫn thấy đúng số thật trong CSDL. PHẢI lọc
+		# cùng `vat_tu=item` như vế báo cáo — không lọc thì `item_khac` (1000
+		# đơn vị, không liên quan) lẫn vào, hai vế lệch phạm vi.
 		tong_doc_lap = frappe.db.sql(
-			"select sum(so_luong) from `tabLocation Balance` where kho=%s and o like '9Z%%'",
-			(KHO,),
+			"select sum(so_luong) from `tabLocation Balance` where kho=%s and o like '9Z%%' and vat_tu=%s",
+			(KHO, item),
 		)[0][0]
 
 		self.assertIn("9Z", theo_o, "báo cáo phải trả dòng nút nhóm Khu '9Z' gộp tồn")
