@@ -150,6 +150,41 @@ class TestTatNutChaThiTatCaNhanh(FrappeTestCase):
 		)
 		self.assertNotIn("Traceback", loi)
 
+	def test_cau_khuyen_chi_duong_len_nut_cha(self):
+		"""VÒNG SỬA 1 (review điều phối): câu khuyên không được dẫn vào ngõ cụt.
+
+		Từ khi `disabled` thừa kế, danh sách "ô đã ngừng dùng" trong thông báo
+		gồm CẢ những ô mà bản thân chúng `disabled = 0` — chỉ một nút cha bị
+		tắt. Câu khuyên cũ ("...hoặc bật lại ô đó rồi xuất lại") đúng với đời
+		trước, giờ thì sai đường: thủ kho mở đúng `9Z18010101`, thấy ô Ngừng
+		dùng ĐANG TRỐNG, và bế tắc — không manh mối nào dẫn về nút `9Z1801`
+		mới là thứ đang chặn.
+
+		Bài này dựng đúng tình huống đó (nút cha tắt, ô lá vẫn bật) và khoá
+		câu chữ phải chỉ đường LÊN TRÊN. Không khoá tên đích danh nút cha:
+		`tt` không có phạm vi ngoài `EXISTS` nên nêu tên nó phải nhân bản khối
+		`_TO_TIEN_TAT` — việc của một task riêng, nếu cần.
+		"""
+		frappe.db.set_value("Storage Location", "9Z1801", "disabled", 1)
+		self.assertEqual(
+			frappe.db.get_value("Storage Location", self.trong_day_tat, "disabled"),
+			0,
+			"tiền đề: CHÍNH ô lá vẫn đang bật, chỉ nút cha bị tắt",
+		)
+		# Cần 15 trong khi ô còn dùng được chỉ có 10 + 2 → thiếu thật, mới dựng
+		# tới câu thông báo có danh sách ô ngừng dùng.
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			chon_o_xuat(KHO, self.item, None, 15)
+		loi = str(ctx.exception)
+		self.assertIn("9Z18010101", loi, "tiền đề: ô lá (đang bật) vẫn bị liệt kê")
+		self.assertIn(
+			"nút cha",
+			loi.lower(),
+			"câu khuyên phải nói rõ có thể do một nút cha đang tắt, không thì người "
+			"đọc mở ô ra thấy nó vẫn bật rồi bế tắc",
+		)
+		self.assertNotIn("Traceback", loi)
+
 
 class TestONgoaiCayKhongKeoNhauXuong(FrappeTestCase):
 	"""Bản ghi `lft = rgt = 0` không được coi nhau là tổ tiên.

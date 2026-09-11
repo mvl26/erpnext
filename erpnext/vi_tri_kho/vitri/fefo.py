@@ -135,12 +135,24 @@ def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float) -> list[dict]:
 
 		if o_ngung_dung:
 			ket_ngung_dung = ", ".join(f"{d.o} ({flt(d.so_luong)})" for d in o_ngung_dung)
+			# VÒNG SỬA 1 (review điều phối): câu khuyên phải chỉ được đường LÊN
+			# TRÊN. Từ khi `disabled` thừa kế xuống cả nhánh, danh sách này gồm
+			# cả những ô mà bản thân chúng đang BẬT — chỉ một nút cha bị tắt.
+			# Câu cũ ("hoặc bật lại ô đó") đúng với đời trước, giờ dẫn vào ngõ
+			# cụt: thủ kho mở đúng ô được nêu tên, thấy ô Ngừng dùng đang
+			# trống, và không có manh mối nào dẫn về nút cha mới là thứ đang
+			# chặn. KHÔNG nêu đích danh nút cha ở đây: `tt` không có phạm vi
+			# ngoài `EXISTS` nên muốn lấy tên nó phải dán `_TO_TIEN_TAT` lần
+			# thứ hai — nhân bản đúng khối logic mà cả task này dựng ra để
+			# dùng chung. Cần nêu tên thì đó là một task riêng.
 			frappe.throw(
 				_(
 					"Không đủ hàng ở các ô đang dùng để xuất. Mặt hàng {0}{1} tại kho {2}: "
 					"cần {3}, ô đang dùng chỉ có {4} (thiếu {5}), nhưng còn {6} nằm ở ô đã "
-					"ngừng dùng: {7}. Chuyển hàng ra khỏi ô ngừng dùng hoặc bật lại ô đó rồi "
-					"xuất lại."
+					"ngừng dùng: {7}. Chuyển hàng ra khỏi những ô đó, hoặc bật lại chúng rồi "
+					"xuất lại. Nếu mở ra thấy ô vẫn đang bật thì một NÚT CHA của nó "
+					"(khu/dãy/khoang/tầng) đang tắt — cả nhánh dưới nút đó ngừng dùng theo: "
+					"lần ngược lên trên trong cây vị trí để tìm và bật nút cha đó."
 				).format(
 					vat_tu,
 					ten_lo,
