@@ -39,24 +39,36 @@ class TestSinhDungChuan(FrappeTestCase):
 			{"khu": "8B", "day": "01", "khoang": "01", "tang": "01", "o": "01"},
 		)
 
-	def test_khu_sinh_ra_khop_qua_trong_tai_doc_lap(self):
-		"""Trọng tài ĐỘC LẬP với công thức dựng chuỗi trong `sinh_ma.py`.
+	def test_tap_ma_sinh_dung_tich_descartes(self):
+		"""Vế đối chiếu dựng TAY, không gọi bất kỳ hàm nào của `sinh_ma`/`ma_vi_tri`.
 
-		Bản trước (`kq["ma_mau"][0].startswith("8C")`) so chuỗi kết quả với
-		chính chuỗi "8C" đã truyền vào — hai vế cùng đi qua một f-string thuần
-		trong `sinh_ma.py`, tức cùng một nguồn, nên bài xanh bất kể logic đúng
-		sai (Vòng sửa 1, review điều phối). Ở đây dùng `phan_tich_ma()` — bộ
-		regex của `ma_vi_tri.py`, một đường code KHÁC — làm trọng tài: mọi mã
-		sinh ra phải qua được nó (đúng định dạng đủ 5 thành phần) VÀ thành
-		phần `khu` nó tách ra phải khớp khu đã truyền vào. Sinh 2 ô (so_day=2)
-		để trọng tài xét hơn một mã, không chỉ mã đầu.
+		Vòng sửa 2 (review điều phối): bản Vòng sửa 1 dùng `phan_tich_ma()["khu"]`
+		làm "trọng tài", nhưng đó vẫn là `ma[0:2]` — đúng phép toán mà
+		`.startswith()` bản gốc đã làm, chỉ viết khác đi — và `phan_tich_ma`
+		không hề độc lập với SUT: `_liet_ke()` trong chính `sinh_ma.py` cũng gọi
+		nó để tự soi mã đầu tiên. `khu` đi thẳng từ tham số vào chuỗi, không qua
+		phép biến đổi nào đáng kể nên gần như không đáng một bài riêng — thứ
+		ĐÁNG khoá là TOÀN BỘ tập mã: cận vòng lặp, đệm số 0, và thứ tự ghép bốn
+		chiều dãy→khoang→tầng→ô. Ở đây dựng cả tập `mong_doi` bằng một tích
+		Descartes viết tay trong TEST, so thẳng với `kq["ma_mau"]` — không đường
+		code sản xuất nào tham gia vế phải.
+
+		Cố ý chọn 4 chiều KHÔNG bằng nhau (2x3x2x1, không phải 2x2x2x2) để một
+		đột biến hoán vị khoang<->tầng cũng bị bắt — nếu hai chiều bằng nhau, hoán
+		vị chúng cho ra đúng tập mã cũ, bài sẽ không bắt được kiểu lỗi đó.
 		"""
 		kq = xem_truoc_sinh(
-			KHO, khu="8C", so_day=2, so_khoang_moi_day=1, so_tang_moi_khoang=1, so_o_moi_tang=1
+			KHO, khu="8C", so_day=2, so_khoang_moi_day=3, so_tang_moi_khoang=2, so_o_moi_tang=1
 		)
-		self.assertEqual(kq["so_o"], 2)
-		for ma in kq["ma_mau"]:
-			self.assertEqual(phan_tich_ma(ma)["khu"], "8C")
+		mong_doi = {
+			f"8C{d:02d}{k:02d}{t:02d}{o:02d}"
+			for d in range(1, 3)
+			for k in range(1, 4)
+			for t in range(1, 3)
+			for o in range(1, 2)
+		}
+		self.assertEqual(kq["so_o"], 12)
+		self.assertEqual(set(kq["ma_mau"]), mong_doi)
 
 	def test_thu_tu_lay_hang_tang_dan_theo_thu_tu_sinh(self):
 		sinh(KHO, khu="8D", so_day=1, so_khoang_moi_day=1, so_tang_moi_khoang=1, so_o_moi_tang=3)
