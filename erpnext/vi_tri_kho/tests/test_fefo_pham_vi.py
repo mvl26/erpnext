@@ -225,3 +225,131 @@ class TestONgoaiCayKhongKeoNhauXuong(FrappeTestCase):
 			[{"o": self.lanh, "so_luong": 3}],
 			"ô lành cùng dạng lft=rgt=0 phải vẫn chọn được; chỉ ô bị tắt bị loại",
 		)
+
+
+class TestPhamViGioiHanTrongNhanh(FrappeTestCase):
+	"""TASK 5: `pham_vi` ép chọn hàng chỉ trong MỘT nhánh, dù ngược FEFO.
+
+	Nhánh NGOÀI phạm vi ("9Z1801") có hạn dùng GẦN HƠN nhánh TRONG phạm vi
+	("9Z1802"). Cố ý ngược: nếu `pham_vi` không có tác dụng gì (mutation:
+	tham số bị bỏ qua, hoặc `loc_pham_vi` không được chèn vào truy vấn chọn
+	ứng viên), FEFO bình thường đã chọn đúng nhánh ngoài rồi (hạn gần hơn) —
+	bài 1 sẽ đỏ vì kết quả chứa ô KHÔNG bắt đầu bằng "9Z1802". Nếu dựng hai
+	nhánh với hạn dùng ngược lại (trong phạm vi hạn gần hơn), `pham_vi` có
+	bị bỏ qua hoàn toàn thì FEFO vẫn tình cờ chọn đúng nhánh đó — bài không
+	chứng minh được gì (xem yêu cầu điều phối).
+	"""
+
+	def setUp(self):
+		self.item = _dam_bao_item("_Test FEFO PhamVi GioiHan")
+		self.trong_pham_vi = _o("9Z18020101", thu_tu=1)
+		self.ngoai_pham_vi = _o("9Z18010101", thu_tu=2)
+		_dam_bao_ton(self.trong_pham_vi, self.item, _lo("_T-PV-XA", self.item, "2027-10-01"), 10)
+		_dam_bao_ton(self.ngoai_pham_vi, self.item, _lo("_T-PV-GAN", self.item, "2026-10-01"), 10)
+
+	def test_pham_vi_gioi_han_trong_nhanh(self):
+		# dãy 02 có hạn dùng XA HƠN, FEFO bình thường sẽ không chọn nó
+		ket = chon_o_xuat(KHO, self.item, None, 5, pham_vi="9Z1802")
+		self.assertTrue(all(d["o"].startswith("9Z1802") for d in ket), ket)
+
+	def test_pham_vi_rong_giu_nguyen_hanh_vi_cu(self):
+		# Bài khoá quan trọng nhất: `pham_vi=None` (mặc định, và truyền tay)
+		# phải cho kết quả Y HỆT nhau — mọi luồng xuất hiện có (hook
+		# `Stock Ledger Entry.on_submit`) gọi `chon_o_xuat` không truyền
+		# `pham_vi` phải không hề bị ảnh hưởng bởi tham số mới này.
+		self.assertEqual(
+			chon_o_xuat(KHO, self.item, None, 5),
+			chon_o_xuat(KHO, self.item, None, 5, pham_vi=None),
+		)
+
+	def test_pham_vi_khong_ton_tai_bao_loi_tieng_viet(self):
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			chon_o_xuat(KHO, self.item, None, 5, pham_vi="9Z9999")
+		self.assertIn("không tồn tại", str(ctx.exception).lower())
+		self.assertNotIn("Traceback", str(ctx.exception))
+		self.assertNotIn("None", str(ctx.exception))
+
+
+class TestPhamViApDungCaHaiTruyVan(FrappeTestCase):
+	"""TASK 5, nhấn lại của điều phối (không có nguyên văn trong brief):
+	`pham_vi` phải áp vào CẢ HAI truy vấn — chọn ứng viên VÀ dựng thông báo
+	thiếu hàng — không chỉ truy vấn thứ nhất.
+
+	Dựng: ô ĐANG DÙNG trong phạm vi chỉ có 2 (thiếu so với cần 5), còn một ô
+	NGOÀI phạm vi (dãy khác) đang NGỪNG DÙNG giữ 10. Nếu `pham_vi` chỉ được
+	chèn vào truy vấn chọn ứng viên (mutation: quên chèn `{loc_pham_vi}` vào
+	truy vấn `o_ngung_dung`), truy vấn thứ hai sẽ thấy ô ngoài phạm vi đó
+	đang giữ hàng và đổi sang thông báo "còn hàng kẹt ở ô ngừng dùng: <ô
+	ngoài phạm vi>" — mách một nhánh mà lệnh gọi không hề hỏi tới. Bài này
+	khoá: trong tình huống đó, thông báo phải là câu "không đủ hàng" bình
+	thường (không nhánh nào TRONG phạm vi đang ngừng dùng), và không được
+	nêu tên ô ngoài phạm vi.
+	"""
+
+	def setUp(self):
+		self.item = _dam_bao_item("_Test FEFO PhamVi CaHaiTruyVan")
+		self.trong_pham_vi = _o("9Z18020102", thu_tu=1)
+		self.ngoai_pham_vi_tat = _o("9Z18010102", thu_tu=2)
+		_dam_bao_ton(self.trong_pham_vi, self.item, None, 2)
+		_dam_bao_ton(self.ngoai_pham_vi_tat, self.item, None, 10)
+		frappe.db.set_value("Storage Location", self.ngoai_pham_vi_tat, "disabled", 1)
+
+	def tearDown(self):
+		frappe.db.set_value("Storage Location", self.ngoai_pham_vi_tat, "disabled", 0)
+
+	def test_khong_mach_hang_ngung_dung_ngoai_pham_vi(self):
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			chon_o_xuat(KHO, self.item, None, 5, pham_vi="9Z1802")
+		loi = str(ctx.exception)
+		self.assertNotIn(
+			self.ngoai_pham_vi_tat,
+			loi,
+			"ô ngừng dùng nằm NGOÀI phạm vi được hỏi — không được nêu tên trong "
+			"thông báo của một lệnh gọi chỉ xin xuất trong phạm vi khác",
+		)
+		self.assertNotIn(
+			"ngừng dùng",
+			loi.lower(),
+			"trong PHẠM VI được hỏi không có ô nào ngừng dùng giữ hàng — phải là "
+			"câu 'không đủ hàng' thông thường, không phải câu nhắc ô ngừng dùng",
+		)
+		self.assertIn("thiếu", loi.lower())
+		self.assertNotIn("Traceback", loi)
+
+
+class TestPhamViNgoaiCayKhongDuocGioiHanSai(FrappeTestCase):
+	"""`pham_vi` trên một bản ghi NGOÀI CÂY (`lft = rgt = 0`, 129 bản ghi cũ
+	trên site này — xem `_TO_TIEN_TAT`) dính đúng cái bẫy `_TO_TIEN_TAT` được
+	viết ra để tránh, nhưng ở PHÍA LỌC PHẠM VI: điều kiện trở thành
+	`sl.lft between 0 and 0` = `sl.lft = 0`, khớp MỌI bản ghi 0/0 khác — kể cả
+	những ô không liên quan gì tới nhánh của `pham_vi`. Đã ĐO THẬT (xem
+	task-5-report.md): `pham_vi=<ô A, lft=rgt=0, tồn 2>` xuất 4 khi có ô B
+	KHÔNG liên quan (cũng lft=rgt=0, tồn 5) trả về CẢ hai ô — hàng của ô B lọt
+	vào một lệnh gọi tưởng chỉ giới hạn trong ô A.
+
+	Không tự sinh SAI (khác hướng `_TO_TIEN_TAT`): `_TO_TIEN_TAT` lệch bằng
+	cách LOẠI OAN (đóng băng cả kho); bẫy này lệch bằng cách GỘP OAN (lấy
+	nhầm hàng của nhánh khác). Không thể dùng lại vị từ `<`/`>` chặt của
+	`_TO_TIEN_TAT` ở đây — `pham_vi` không so hai bản ghi tuỳ ý, mà so
+	CHÍNH bản ghi đó với các ô khác qua tọa độ của riêng nó, và tọa độ đó
+	chính là thứ bị hỏng khi ngoài cây. Nên chặn ở NGUỒN: từ chối dùng một
+	bản ghi ngoài cây làm `pham_vi`, báo tiếng Việt rõ ràng thay vì lặng lẽ
+	trả sai.
+	"""
+
+	def setUp(self):
+		self.item = _dam_bao_item("_Test FEFO PhamVi NgoaiCay GioiHan")
+		self.trong_pham_vi = _o("9U18010101", thu_tu=1)
+		self.khong_lien_quan = _o("9U18010102", thu_tu=2)
+		_dam_bao_ton(self.trong_pham_vi, self.item, None, 2)
+		_dam_bao_ton(self.khong_lien_quan, self.item, None, 5)
+		for o in (self.trong_pham_vi, self.khong_lien_quan):
+			frappe.db.set_value("Storage Location", o, {"lft": 0, "rgt": 0}, update_modified=False)
+
+	def test_pham_vi_ngoai_cay_bao_loi_khong_lay_nham_o_khac(self):
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			chon_o_xuat(KHO, self.item, None, 4, pham_vi=self.trong_pham_vi)
+		loi = str(ctx.exception)
+		self.assertIn("cây vị trí", loi.lower())
+		self.assertNotIn("Traceback", loi)
+		self.assertNotIn("None", loi)

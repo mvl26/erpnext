@@ -38,6 +38,31 @@ Vị từ `_TO_TIEN_TAT` dưới đây thay luôn phép kiểm `sl.disabled` cũ
 truy vấn (xem chú thích của hằng: hai truy vấn dùng nó theo hai chiều ngược
 nhau, sửa một chỗ quên chỗ kia thì hàng dưới nút đã tắt biến mất khỏi cả
 hai — không được chọn, cũng không được nhắc tới).
+
+TASK 5 (2026-09-11) — CHỈ ĐỊNH LẤY HÀNG TRONG MỘT NHÁNH: `pham_vi` nhận tên
+một `Storage Location` bất kỳ cấp nào (khu/dãy/khoang/tầng/ô); `None` (mặc
+định) = toàn kho, tức HÀNH VI CŨ — mọi nơi gọi không truyền `pham_vi` (kể cả
+hook `Stock Ledger Entry.on_submit`, đường gọi phổ biến nhất) phải thấy kết
+quả y hệt trước khi có tham số này. Lọc bằng `sl.lft between pv_lft and
+pv_rgt` — chuẩn "nằm trong nhánh, gồm cả chính nút" của nested set.
+
+BẪY GIỐNG `_TO_TIEN_TAT` NHƯNG LỆCH HƯỚNG, có đo (xem task-5-report.md và
+`TestPhamViNgoaiCayKhongDuocGioiHanSai`): nếu `pham_vi` chỉ tên một trong 129
+bản ghi cũ mang `lft = rgt = 0`, điều kiện trên thành `sl.lft between 0 and
+0` = `sl.lft = 0` — khớp MỌI bản ghi 0/0 khác, không riêng nhánh của
+`pham_vi`. `_TO_TIEN_TAT` lệch bằng cách LOẠI OAN (đóng băng cả kho khi so
+hai bản ghi 0/0 TUỲ Ý); bẫy này lệch bằng cách GỘP OAN — lấy nhầm hàng của ô
+không liên quan vào một lệnh gọi tưởng đã giới hạn phạm vi. Không vá được
+bằng lại vị từ `<`/`>` chặt của `_TO_TIEN_TAT`: ở đó so hai bản ghi tuỳ ý,
+còn ở đây so CHÍNH toạ độ của `pham_vi` — toạ độ đó mới là thứ hỏng. Chặn ở
+nguồn: `pham_vi` ngoài cây (`lft`/`rgt` bằng 0) bị từ chối bằng
+`frappe.throw` tiếng Việt, không được lặng lẽ trả sai.
+
+`pham_vi` áp vào CẢ HAI truy vấn dưới đây, không chỉ truy vấn chọn ứng viên:
+áp một chiều thì câu thông báo thiếu hàng sẽ đi mách hàng đang kẹt ở NHÁNH
+KHÁC — nhánh mà lệnh gọi không hề hỏi tới — vừa gây nhiễu vừa sai ngữ nghĩa
+của tham số (người gọi xin xuất trong dãy X thì không có lý do được nghe kể
+về hàng ngừng dùng ở dãy Y).
 """
 
 
@@ -80,16 +105,45 @@ _TO_TIEN_TAT = """exists (
 )"""
 
 
-def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float) -> list[dict]:
+def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float, pham_vi: str | None = None) -> list[dict]:
 	"""Chọn các ô để lấy đủ `so_luong` (số dương). Không đủ → throw.
 
 	`so_lo` có giá trị thì chỉ lấy đúng lô đó; None thì lấy mọi lô theo FEFO.
+	`pham_vi` có giá trị thì chỉ xét trong nhánh của `Storage Location` đó
+	(bất kỳ cấp nào); `None` (mặc định) = toàn kho, hành vi cũ.
 	"""
 	can = flt(so_luong, _DO_CHINH_XAC_SO_LUONG)
 	if can <= 0:
 		return []
 
 	dieu_kien = "and ifnull(lb.so_lo,'') = %(so_lo)s" if so_lo else ""
+	tham_so = {"kho": kho, "vat_tu": vat_tu, "so_lo": so_lo or "", "han_xa": HAN_XA}
+	loc_pham_vi = ""
+	if pham_vi:
+		moc = frappe.db.get_value("Storage Location", pham_vi, ["lft", "rgt"], as_dict=True)
+		if not moc:
+			frappe.throw(_("Vị trí {0} không tồn tại.").format(pham_vi))
+		if not moc.lft or not moc.rgt:
+			# Bẫy GIỐNG `_TO_TIEN_TAT` nhưng LỆCH HƯỚNG: 129 bản ghi cũ (tạo
+			# trước Task 2) mang lft = rgt = 0. Nếu cho qua, điều kiện dưới
+			# thành `sl.lft between 0 and 0` = `sl.lft = 0` — khớp MỌI bản ghi
+			# 0/0 khác, không riêng nhánh của `pham_vi`: một `pham_vi` ngoài
+			# cây sẽ GỘP OAN hàng của những ô hoàn toàn không liên quan (đã đo
+			# thật, xem task-5-report.md và
+			# test_fefo_pham_vi.py::TestPhamViNgoaiCayKhongDuocGioiHanSai).
+			# Không vá được bằng vị từ `<`/`>` chặt như `_TO_TIEN_TAT` — ở đó
+			# so hai bản ghi TUỲ Ý với nhau, còn ở đây so CHÍNH toạ độ của
+			# `pham_vi`, và toạ độ đó mới là thứ hỏng. Chặn ở nguồn.
+			frappe.throw(
+				_(
+					"Vị trí {0} chưa nằm trong cây vị trí (chưa có toạ độ trong cây) nên "
+					"không dùng được để giới hạn phạm vi lấy hàng. Cập nhật lại vị trí này "
+					"(lưu lại để cây tính lại toạ độ) trước khi dùng làm phạm vi."
+				).format(pham_vi)
+			)
+		loc_pham_vi = "and sl.lft between %(pv_lft)s and %(pv_rgt)s"
+		tham_so.update({"pv_lft": moc.lft, "pv_rgt": moc.rgt})
+
 	ung_vien = frappe.db.sql(
 		f"""
 		select lb.o, lb.so_lo, lb.so_luong
@@ -99,11 +153,12 @@ def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float) -> list[dict]:
 		where lb.kho = %(kho)s and lb.vat_tu = %(vat_tu)s and lb.so_luong > 0
 		      and not {_TO_TIEN_TAT}
 		      {dieu_kien}
+		      {loc_pham_vi}
 		order by ifnull(b.expiry_date, %(han_xa)s) asc,
 		         ifnull(sl.thu_tu_lay_hang, 0) asc,
 		         lb.o asc
 		""",
-		{"kho": kho, "vat_tu": vat_tu, "so_lo": so_lo or "", "han_xa": HAN_XA},
+		tham_so,
 		as_dict=True,
 	)
 
@@ -127,9 +182,10 @@ def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float) -> list[dict]:
 			where lb.kho = %(kho)s and lb.vat_tu = %(vat_tu)s and lb.so_luong > 0
 			      and {_TO_TIEN_TAT}
 			      {dieu_kien}
+			      {loc_pham_vi}
 			order by lb.o asc
 			""",
-			{"kho": kho, "vat_tu": vat_tu, "so_lo": so_lo or ""},
+			tham_so,
 			as_dict=True,
 		)
 
