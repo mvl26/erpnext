@@ -20,3 +20,9 @@ def execute():
 		   where ifnull(loai_vi_tri, '') not in ('', 'Lưu trữ', 'Soạn hàng')"""
 	)
 	frappe.db.delete("Custom Field", {"dt": "Warehouse", "fieldname": "custom_ma_kho_spd"})
+	# `frappe.db.delete` là DML thẳng, không chạy `CustomField.on_trash()` nên
+	# không tự clear cache như xoá qua UI/API bình thường vẫn làm. `bench
+	# migrate` tự clear cache ở cuối nên patch chạy qua migrate không sao,
+	# nhưng gọi patch tay ngoài migrate (console, test) sẽ để lại meta
+	# `Warehouse` còn field cũ trong cache Redis — clear tay cho chắc.
+	frappe.clear_cache(doctype="Warehouse")

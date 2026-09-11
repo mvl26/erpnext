@@ -261,6 +261,13 @@ class TestPatchDonLoaiViTriKhongHopLe(_CoTienDeKho):
 	"""
 
 	def test_patch_don_gia_tri_loai_vi_tri_khong_con_hop_le(self):
+		"""Chốt cả hai chiều: dọn đúng dòng SAI, KHÔNG đụng dòng ĐÚNG.
+
+		Chỉ khẳng định "dòng sai đã sạch" là bỏ nửa nguy hiểm của một patch
+		phá huỷ — một `WHERE` bị viết rộng (vd. `1=1`) NULL luôn mọi
+		`Storage Location` hợp lệ trên site, và `loai_vi_tri` lại `reqd: 1`
+		nên hậu quả là gãy toàn bộ doctype. Bài này khoá cả hai vế.
+		"""
 		from erpnext.patches.v15_0.don_loai_vi_tri_khong_hop_le import execute
 
 		o = _tao_o("9Z97010101")
@@ -269,34 +276,71 @@ class TestPatchDonLoaiViTriKhongHopLe(_CoTienDeKho):
 		frappe.db.set_value("Storage Location", o.name, "loai_vi_tri", "Cách ly", update_modified=False)
 		self.assertEqual(frappe.db.get_value("Storage Location", o.name, "loai_vi_tri"), "Cách ly")
 
+		# Chốt âm: một ô mang giá trị HỢP LỆ, dựng qua insert() bình thường
+		# (không bypass) — patch không được đụng vào dòng này.
+		o_hop_le = _tao_o("9Z97010102", loai_vi_tri="Soạn hàng")
+		self.assertEqual(frappe.db.get_value("Storage Location", o_hop_le.name, "loai_vi_tri"), "Soạn hàng")
+
 		execute()
 
 		self.assertFalse(frappe.db.get_value("Storage Location", o.name, "loai_vi_tri"))
+		self.assertEqual(
+			frappe.db.get_value("Storage Location", o_hop_le.name, "loai_vi_tri"),
+			"Soạn hàng",
+			"Patch dọn quá tay: ô mang giá trị HỢP LỆ bị NULL theo — WHERE lọc sai phạm vi",
+		)
 
 	def test_patch_xoa_custom_field_ma_kho_spd(self):
+		"""Chốt cả hai chiều: xoá đúng field CHẾT, KHÔNG đụng field khác trên Warehouse.
+
+		Chỉ khẳng định "field chết đã bị xoá" là bỏ nửa nguy hiểm: một bộ lọc
+		`frappe.db.delete` bị viết thiếu `fieldname` (chỉ còn `{"dt":
+		"Warehouse"}`) xoá SẠCH mọi Custom Field của Warehouse — kể cả
+		`custom_quan_ly_vi_tri`, cờ bật quản lý vị trí mà cả module
+		`vi_tri_kho` treo lên. Bài này khoá cả hai vế.
+		"""
 		from erpnext.patches.v15_0.don_loai_vi_tri_khong_hop_le import execute
 
 		ten = "Warehouse-custom_ma_kho_spd"
-		if not frappe.db.exists("Custom Field", ten):
-			# `.insert()` bình thường sẽ chạy `CustomField.on_update()` ->
-			# `frappe.db.updatedb()` -> ALTER TABLE thật trên `tabWarehouse`. DDL
-			# tự COMMIT trong MySQL, xoá luôn rollback-theo-class của
-			# FrappeTestCase — rò cả bài NÀY lẫn bài kia cùng lớp ra CSDL thật
-			# (thấy tận mắt khi đo lần đầu). Dùng `db_insert()` thẳng: chỉ ghi
-			# đúng dòng `tabCustom Field`, không đụng schema, không DDL.
-			doc = frappe.get_doc(
-				{
-					"doctype": "Custom Field",
-					"dt": "Warehouse",
-					"fieldname": "custom_ma_kho_spd",
-					"label": "Mã kho SPD (2 ký tự)",
-					"fieldtype": "Data",
-				}
-			)
-			doc.name = ten
-			doc.db_insert()
+		# Luôn tạo mới bằng tay, không có nhánh "nếu chưa có" — nhánh điều
+		# kiện làm bài phụ thuộc site erptest.local đã `migrate` (xoá field
+		# thật) hay chưa, và phụ thuộc thứ tự chạy alphabet với bài kia
+		# trong cùng lớp. Dọn trước (nếu sót) rồi tạo lại cho chắc độc lập.
+		frappe.db.delete("Custom Field", {"name": ten})
+		# `.insert()` bình thường sẽ chạy `CustomField.on_update()` ->
+		# `frappe.db.updatedb()` -> ALTER TABLE thật trên `tabWarehouse`. DDL
+		# tự COMMIT trong MySQL, xoá luôn rollback-theo-class của
+		# FrappeTestCase — rò cả bài NÀY lẫn bài kia cùng lớp ra CSDL thật
+		# (thấy tận mắt khi đo lần đầu). Dùng `db_insert()` thẳng: chỉ ghi
+		# đúng dòng `tabCustom Field`, không đụng schema, không DDL.
+		doc = frappe.get_doc(
+			{
+				"doctype": "Custom Field",
+				"dt": "Warehouse",
+				"fieldname": "custom_ma_kho_spd",
+				"label": "Mã kho SPD (2 ký tự)",
+				"fieldtype": "Data",
+			}
+		)
+		doc.name = ten
+		doc.db_insert()
 		self.assertTrue(frappe.db.exists("Custom Field", ten))
+
+		# Chốt âm: field ĐANG SỐNG khác trên Warehouse — nạn nhân thật nếu
+		# bộ lọc bị viết rộng quá tay. Không dựng giả, dùng đúng field thật
+		# đang có trên site (do patch `them_co_quan_ly_vi_tri` tạo).
+		con_song = "Warehouse-custom_quan_ly_vi_tri"
+		self.assertTrue(
+			frappe.db.exists("Custom Field", con_song),
+			"Tiền đề thiếu: Custom Field 'custom_quan_ly_vi_tri' trên Warehouse phải có sẵn "
+			"trên site erptest.local — bài này dùng nó làm chốt âm.",
+		)
 
 		execute()
 
 		self.assertFalse(frappe.db.exists("Custom Field", ten))
+		self.assertTrue(
+			frappe.db.exists("Custom Field", con_song),
+			"Patch xoá quá tay: Custom Field 'custom_quan_ly_vi_tri' (không phải mục tiêu của "
+			"patch) đã bị xoá theo",
+		)
