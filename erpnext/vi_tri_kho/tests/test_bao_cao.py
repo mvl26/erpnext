@@ -13,10 +13,28 @@ tên ô tình cờ trùng thứ tự alphabet). Bài mới đặt tên ô MÂU T
 `thu_tu_lay_hang` (ô "Z..." phải đứng TRƯỚC ô "A..." vì thu_tu_lay_hang
 nhỏ hơn) để không thể xanh nhờ khoá sắp xếp phụ (tên ô, vốn cũng có mặt
 trong `order by` làm khoá phá vỡ đồng hạng).
+
+TASK 6 (2026-09-11): báo cáo trả thêm dòng NÚT NHÓM (gộp cộng dồn từ
+`parent_storage_location`, xem docstring `ton_kho_theo_vi_tri.py`) và đổi
+dạng dòng từ list sang dict (`d["o"]` thay cho `d[0]`) để mang thêm cột
+`parent_o`/`is_group`. `test_thu_tu_theo_thu_tu_lay_hang_...` phải lọc
+`not d.get("is_group")` trước khi so khớp danh sách CHÍNH XÁC 2 phần tử —
+không lọc thì các dòng nút nhóm tự sinh (tổ tiên của hai ô test) chen vào
+làm độ dài danh sách lệch, bài đỏ giả vì lý do không liên quan tới thứ tự.
+
+`test_gop_theo_khu_bang_tong_cac_o_la`: GHI ĐÈ so với snippet gốc ở
+task-6-brief.md — brief dựng vế "tổng ô lá" bằng cách lọc lại từ chính
+`dong` (báo cáo tự so với báo cáo). Theo chuẩn nghiệm thu của kế hoạch
+(so cả hai vế từ CÙNG báo cáo là bài rỗng — xanh cả khi báo cáo cộng sai
+nếu cả hai vế cùng sai theo nhau), vế đối chiếu ở đây cộng THẲNG từ
+`tabLocation Balance` bằng SQL riêng, không đọc lại `dong`. Xem
+task-6-report.md, mục "đột biến khoá thêm" cho cặp đột biến chứng minh
+bài yếu (dong-vs-dong) xanh giả trong khi bài này đỏ đúng.
 """
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import flt
 
 from erpnext.vi_tri_kho.tests.test_bat_kho import _don_sach
 from erpnext.vi_tri_kho.tests.test_hook_nhap import _nhap_kho as _nhap
@@ -88,7 +106,10 @@ class TestBaoCaoTonTheoViTri(FrappeTestCase):
 			).insert(ignore_permissions=True)
 
 		_, dong = execute({"kho": KHO, "vat_tu": item})
-		thu_tu_o = [d[0] for d in dong]
+		# TASK 6: lọc bỏ các dòng NÚT NHÓM tự sinh (tổ tiên của o_truoc/o_sau)
+		# trước khi so khớp — chúng cũng lọt vào `dong` từ Task 6 trở đi,
+		# không liên quan gì tới điều bài này khoá (thứ tự các Ô LÁ).
+		thu_tu_o = [d["o"] for d in dong if not d.get("is_group")]
 		self.assertEqual(
 			thu_tu_o,
 			[o_truoc, o_sau],
@@ -96,6 +117,147 @@ class TestBaoCaoTonTheoViTri(FrappeTestCase):
 			f"theo alphabet tên ô (alphabet sẽ cho '{o_sau}' trước '{o_truoc}', "
 			f"ngược lại). Thứ tự thấy được: {thu_tu_o}",
 		)
+
+	def test_gop_theo_khu_bang_tong_cac_o_la(self):
+		"""Vế đối chiếu KHÔNG lấy từ chính báo cáo: cộng thẳng `Location Balance`
+		bằng SQL riêng trong bài kiểm — xem lý do ở docstring đầu file (GHI ĐÈ
+		so với brief)."""
+		from erpnext.vi_tri_kho.report.ton_kho_theo_vi_tri import ton_kho_theo_vi_tri
+
+		item = _tao_item("_Test BC Gop Theo Khu")
+		for ma_o, so_luong in (
+			("9Z50010101", 5),
+			("9Z50010102", 7),
+			("9Z51010101", 3),
+		):
+			if not frappe.db.exists("Storage Location", ma_o):
+				frappe.get_doc({"doctype": "Storage Location", "ma_o": ma_o, "kho": KHO}).insert(
+					ignore_permissions=True
+				)
+			frappe.get_doc(
+				{
+					"doctype": "Location Balance",
+					"o": ma_o,
+					"kho": KHO,
+					"vat_tu": item,
+					"so_lo": "",
+					"so_luong": so_luong,
+				}
+			).insert(ignore_permissions=True)
+
+		_, dong = ton_kho_theo_vi_tri.execute({"kho": KHO, "vat_tu": item})
+		theo_o = {d["o"]: d for d in dong}
+
+		# Vế đối chiếu ĐỘC LẬP: đi thẳng vào tabLocation Balance, không đọc
+		# lại `dong`/`theo_o` ở trên — nếu báo cáo cộng sai (ví dụ bỏ sót
+		# một dòng thật), vế này vẫn thấy đúng số thật trong CSDL.
+		tong_doc_lap = frappe.db.sql(
+			"select sum(so_luong) from `tabLocation Balance` where kho=%s and o like '9Z%%'",
+			(KHO,),
+		)[0][0]
+
+		self.assertIn("9Z", theo_o, "báo cáo phải trả dòng nút nhóm Khu '9Z' gộp tồn")
+		self.assertAlmostEqual(flt(theo_o["9Z"]["so_luong"]), flt(tong_doc_lap), places=4)
+
+		# VÒNG SỬA (review advisor): khoá đúng "từng cấp", không chỉ cấp Khu —
+		# vế đối chiếu ở đây dựng TAY từ chính fixture (hai nhánh biết trước
+		# giá trị), không đọc lại `dong`/SQL. Không có hai dòng dưới, một đột
+		# biến cộng dồn KHÔNG theo đúng nhánh cha-con (ví dụ cộng vào MỌI nút
+		# đã biết thay vì đi theo chuỗi `parent_o` của từng lá) vẫn có thể giữ
+		# đúng tổng Khu "9Z" (vì "9Z" là tổ tiên chung của cả hai nhánh) mà sai
+		# ở cấp trong — xem task-6-report.md, mục đột biến #2.
+		self.assertIn("9Z50", theo_o, "phải có dòng nút nhóm Dãy '9Z50'")
+		self.assertIn("9Z51", theo_o, "phải có dòng nút nhóm Dãy '9Z51'")
+		self.assertAlmostEqual(
+			flt(theo_o["9Z50"]["so_luong"]), 12.0, places=4, msg="9Z50 = 5+7, KHÔNG lẫn 9Z51"
+		)
+		self.assertAlmostEqual(
+			flt(theo_o["9Z51"]["so_luong"]), 3.0, places=4, msg="9Z51 riêng, KHÔNG lẫn 9Z50"
+		)
+
+	def test_moi_dong_co_indent_va_xep_cha_truoc_con(self):
+		"""KHOÁ đúng thứ Frappe THẬT SỰ dùng để vẽ cây, không phải thứ brief
+		nói tới.
+
+		Đọc mã nguồn gói `frappe-datatable` (`datamanager.js`/`rowmanager.js`,
+		xem task-6-report.md): thư viện suy `isLeaf`/mối quan hệ cha-con
+		HOÀN TOÀN từ (a) trường số `indent` trên MỖI dòng và (b) THỨ TỰ CÁC
+		DÒNG TRONG MẢNG (dòng cha phải đứng ngay trước cụm con của nó) —
+		KHÔNG hề đọc `parent_field`/`name_field` khai trong `.js` để tự dựng
+		cây. `query_report.js` chỉ coi báo cáo là cây
+		(`this.tree_report = this.data.some(d => "indent" in d)`) khi có ít
+		nhất một dòng mang khoá `indent`. Thiếu `indent` → dù `.js` đã khai
+		`tree: true` báo cáo vẫn hiện PHẲNG. Đây là lỗ hổng brief không nói
+		tới; không có bài này, việc "trả thêm parent_o" (đúng theo brief) có
+		thể xanh hết mà báo cáo thực tế không hiện dạng cây.
+		"""
+		from erpnext.vi_tri_kho.report.ton_kho_theo_vi_tri import ton_kho_theo_vi_tri
+
+		item = _tao_item("_Test BC Indent Cay")
+		for ma_o, so_luong in (("9Z50010101", 5),):
+			if not frappe.db.exists("Storage Location", ma_o):
+				frappe.get_doc({"doctype": "Storage Location", "ma_o": ma_o, "kho": KHO}).insert(
+					ignore_permissions=True
+				)
+			frappe.get_doc(
+				{"doctype": "Location Balance", "o": ma_o, "kho": KHO, "vat_tu": item, "so_luong": so_luong}
+			).insert(ignore_permissions=True)
+
+		_, dong = ton_kho_theo_vi_tri.execute({"kho": KHO})
+		do_sau = {d["o"]: d.get("indent") for d in dong}
+		vi_tri = {d["o"]: i for i, d in enumerate(dong)}
+
+		for ten in ("9Z", "9Z50", "9Z5001", "9Z500101", "9Z50010101"):
+			self.assertIn(ten, do_sau, f"thiếu dòng {ten}")
+
+		self.assertEqual(do_sau["9Z"], 0, "Khu là gốc, indent=0")
+		self.assertEqual(do_sau["9Z50"], 1)
+		self.assertEqual(do_sau["9Z5001"], 2)
+		self.assertEqual(do_sau["9Z500101"], 3)
+		self.assertEqual(do_sau["9Z50010101"], 4, "ô lá sâu nhất, indent=4")
+
+		# Cha phải đứng NGAY TRƯỚC cụm con của nó trong mảng — đúng thứ tự
+		# rowmanager.js dò quét để suy children/isLeaf.
+		self.assertLess(vi_tri["9Z"], vi_tri["9Z50"])
+		self.assertLess(vi_tri["9Z50"], vi_tri["9Z5001"])
+		self.assertLess(vi_tri["9Z5001"], vi_tri["9Z500101"])
+		self.assertLess(vi_tri["9Z500101"], vi_tri["9Z50010101"])
+
+	def test_o_chua_xep_ngoai_cay_van_hien_trong_bao_cao(self):
+		"""Yêu cầu bắt buộc của kế hoạch: mất `ZZZ-CHUA-XEP` khỏi báo cáo là
+		"mất dấu 100% hàng" của kho — chưa bài nào khoá riêng điều này
+		(`test_chay_duoc_va_co_dong` chỉ khẳng định `dong` không rỗng, vẫn
+		xanh dù toàn bộ dòng CHUA-XEP biến mất, miễn còn dòng khác).
+
+		LƯU Ý ĐO ĐƯỢC khi viết bài này: `bat()` nạp lại TOÀN BỘ tồn có sẵn
+		của kho thật vào CHUA-XEP (xem `bat_kho.py::bat`, gọi `_ton_hien_co`)
+		— trên `KHO` (kho thật, đã dùng nhiều tháng) ô này giữ RẤT NHIỀU mặt
+		hàng khác nhau cùng lúc. Báo cáo trả MỘT DÒNG cho MỖI (o, vật tư, lô)
+		— đúng thiết kế từ trước Task 6 — nên so khớp phải lọc theo ĐÚNG mặt
+		hàng của bài này (`vat_tu=item`), không so tổng-mọi-mặt-hàng của ô
+		với một dòng bất kỳ: `dict theo_o = {d["o"]: d ...}` sẽ ÂM THẦM chỉ
+		giữ dòng CUỐI CÙNG trùng "o" nếu không lọc — tự đo được lỗi này khi
+		viết bài (300 != 24035, xem task-6-report.md)."""
+		from erpnext.vi_tri_kho.report.ton_kho_theo_vi_tri import ton_kho_theo_vi_tri
+
+		item = _tao_item("_Test BC ChuaXep Hien")
+		_nhap(item, 9)
+
+		_, dong = ton_kho_theo_vi_tri.execute({"kho": KHO, "vat_tu": item})
+		o = vk.o_chua_xep(KHO)
+		theo_o = {d["o"]: d for d in dong}
+
+		tong_doc_lap = frappe.db.sql(
+			"select sum(so_luong) from `tabLocation Balance` where o=%s and vat_tu=%s", (o, item)
+		)[0][0]
+
+		self.assertIn(o, theo_o, "ô ngoài cây (CHUA-XEP) phải còn trong báo cáo")
+		self.assertAlmostEqual(flt(theo_o[o]["so_luong"]), flt(tong_doc_lap), places=4)
+		self.assertAlmostEqual(
+			flt(tong_doc_lap), 9.0, places=4, msg="phải đúng 9 vừa nhập, không lẫn mặt hàng khác"
+		)
+		self.assertIsNone(theo_o[o].get("parent_o"), "CHUA-XEP đứng ngoài cây, không có cha")
+		self.assertEqual(theo_o[o].get("indent"), 0, "đứng ngoài cây thì hiện ở gốc, indent=0")
 
 
 class TestBaoCaoHangChuaXep(FrappeTestCase):
