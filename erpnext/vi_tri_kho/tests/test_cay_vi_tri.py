@@ -97,3 +97,21 @@ class TestCaySuyTuMa(FrappeTestCase):
 		_o("9Z19010101")
 		with self.assertRaises(NestedSetChildExistsError):
 			frappe.delete_doc("Storage Location", "9Z190101", ignore_permissions=True)
+
+	def test_nut_cha_trung_ten_khac_kho_bi_chan(self):
+		"""VÒNG SỬA 1 (review điều phối): `ma_o` mất 2 ký tự mã kho (Task 1) nên
+		giờ là khoá chính TOÀN HỆ, không phải duy nhất trong một kho. Hai kho
+		khác nhau cùng đặt Khu `9Y` sẽ đụng đúng một bản ghi nút nhóm — nếu
+		`dam_bao_to_tien()` không kiểm `kho` của nút cha đã tồn tại, nhánh của
+		kho B sẽ âm thầm gắn vào nút cha thuộc kho A (hoặc ngược lại), không có
+		lỗi nào báo.
+		"""
+		_o("9Y18010101")  # nút cha "9Y" được tạo, thuộc KHO ("Kho Miyano - MYN")
+		kho_b = "Stores - MYN"
+		with self.assertRaises(frappe.ValidationError) as cm:
+			frappe.get_doc({"doctype": "Storage Location", "ma_o": "9Y18010102", "kho": kho_b}).insert(
+				ignore_permissions=True
+			)
+		thong_bao = str(cm.exception)
+		self.assertIn(KHO, thong_bao, "thông báo phải nêu tên kho ĐANG giữ nút cha")
+		self.assertIn(kho_b, thong_bao, "thông báo phải nêu tên kho đang cố gắn vào")

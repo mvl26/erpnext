@@ -410,6 +410,20 @@ class TestCongDonTonNguyenTu(FrappeTestCase):
 		frappe.db.delete("Location Ledger Entry", {"o": cls.O})
 		frappe.db.delete("Location Balance", {"o": cls.O})
 		frappe.db.delete("Storage Location", {"name": cls.O})
+		# VÒNG SỬA 1 (review điều phối, task-2 kho-mismatch): từ khi cây vị
+		# trí (Task 2) tự sinh 4 nút cha khi `insert()` ô lá `cls.O`, xoá
+		# đúng `cls.O` không còn đủ — 4 nút nhóm tổ tiên ("9Z", "9Z30",
+		# "9Z3001", "9Z300101") vẫn còn, và vì lớp này COMMIT tường minh
+		# (không dùng savepoint như `_TuDonSauMoiBai`), chúng ở lại VĨNH VIỄN
+		# trong site `erptest.local` sau khi module này chạy — rò rỉ sang cả
+		# những lần chạy module KHÁC sau đó (đã bắt được:
+		# `test_storage_location.py::test_khong_nhan_warehouse_nhom` đỏ giả
+		# vì "9Z" đã bị nút này chiếm mất, gán cho kho KHO = "Kho Miyano -
+		# MYN" từ trước). Xoá thêm cả 4 tiền tố tổ tiên; thứ tự không quan
+		# trọng vì đây là xoá bảng thô (`frappe.db.delete`), không qua
+		# `on_trash`/kiểm tra còn con.
+		for i in (8, 6, 4, 2):
+			frappe.db.delete("Storage Location", {"name": cls.O[:i]})
 		frappe.db.delete("Item", {"name": cls.VAT_TU})
 		frappe.db.commit()
 		super().tearDownClass()

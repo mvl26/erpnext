@@ -52,13 +52,33 @@ class StorageLocation(NestedSet):
 		self.parent_storage_location = self.dam_bao_to_tien()
 
 	def dam_bao_to_tien(self) -> str | None:
-		"""Tạo các nút cha còn thiếu, từ gốc xuống. Trả tên cha trực tiếp."""
+		"""Tạo các nút cha còn thiếu, từ gốc xuống. Trả tên cha trực tiếp.
+
+		VÒNG SỬA 1 (review điều phối): `ma_o` bỏ 2 ký tự mã kho (Task 1) nên
+		là khoá chính TOÀN HỆ, không phải duy nhất trong một kho. Nếu nút cha
+		ĐÃ tồn tại, phải kiểm nó thuộc đúng `self.kho` — không kiểm thì hai
+		kho khác nhau cùng đặt trùng ký hiệu khu (ví dụ cả hai đặt Khu `1B`)
+		sẽ đụng đúng một bản ghi nút nhóm: nhánh của kho sau âm thầm gắn vào
+		cây của kho trước, không có lỗi nào báo. Hôm nay chỉ một kho bật quản
+		lý vị trí nên chưa lộ; cái giá lộ ra đúng lúc thêm kho thứ hai — khi
+		tem đã dán lên kệ.
+		"""
 		cha = ma_cha(self.ma_o)
 		if not cha:
 			return None
-		if not frappe.db.exists("Storage Location", cha):
+		kho_cha = frappe.db.get_value("Storage Location", cha, "kho")
+		if kho_cha is None:
 			frappe.get_doc({"doctype": "Storage Location", "ma_o": cha, "kho": self.kho}).insert(
 				ignore_permissions=True
+			)
+		elif kho_cha != self.kho:
+			frappe.throw(
+				_(
+					"Không tạo được ô {0}: nút nhóm {1} đã thuộc kho {2}, không phải kho {3}. "
+					"Mã ô không còn chứa mã kho (bỏ từ khi đổi chuẩn 10 ký tự) nên phải duy "
+					"nhất trên TOÀN HỆ, không riêng từng kho — hai kho không được dùng trùng "
+					"ký hiệu khu/dãy/khoang/tầng. Chọn một ký hiệu khu khác cho kho {3}."
+				).format(self.ma_o, cha, kho_cha, self.kho)
 			)
 		return cha
 
