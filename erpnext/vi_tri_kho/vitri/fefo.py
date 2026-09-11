@@ -30,7 +30,16 @@ nhưng phần thiếu đang kẹt ở (các) ô đã ngừng dùng — người 
 CÁC Ô ĐANG disabled cùng (kho, vat_tu[, so_lo]) — nếu > 0, đổi sang thông
 báo nêu rõ ô nào, còn bao nhiêu, và việc cần làm (chuyển hàng ra khỏi ô
 ngừng dùng, hoặc bật lại ô).
+
+TASK 4 (2026-09-11) — `disabled` THỪA KẾ XUỐNG CẢ NHÁNH: trước đây chỉ kiểm
+cờ của CHÍNH ô lá. Người vận hành tắt cả một dãy để sửa kệ, hệ vẫn rút hàng
+từ dãy đó và KHÔNG CÓ GÌ BÁO — đối soát §3 vẫn khớp vì tổng tồn không đổi.
+Vị từ `_TO_TIEN_TAT` dưới đây thay luôn phép kiểm `sl.disabled` cũ ở CẢ HAI
+truy vấn (xem chú thích của hằng: hai truy vấn dùng nó theo hai chiều ngược
+nhau, sửa một chỗ quên chỗ kia thì hàng dưới nút đã tắt biến mất khỏi cả
+hai — không được chọn, cũng không được nhắc tới).
 """
+
 
 import frappe
 from frappe import _
@@ -38,6 +47,37 @@ from frappe.utils import flt
 
 HAN_XA = "9999-12-31"
 _DO_CHINH_XAC_SO_LUONG = 6  # khớp vitri/lo.py
+
+# Tổ-tiên-HOẶC-CHÍNH-NÓ đang bị tắt. Dùng ở HAI chỗ theo HAI CHIỀU ngược
+# nhau: truy vấn chọn ứng viên phủ định nó (loại ô), truy vấn dựng thông báo
+# khẳng định nó (tìm đúng những ô đó để nói hàng đang kẹt ở đâu). Sửa một
+# chỗ quên chỗ kia thì hàng nằm dưới một nút cha bị tắt biến mất khỏi cả
+# hai: không được chọn, mà cũng không được nhắc tới trong thông báo thiếu
+# hàng — người dùng tắt cả dãy rồi nhận đúng câu "thiếu hàng" vô nghĩa.
+#
+# LỆCH KHỎI BRIEF, có đo (xem task-4-report.md). Brief viết
+# `tt.lft <= sl.lft and tt.rgt >= sl.rgt` cho gọn — "đúng cho cả chính nút
+# đó". Đúng với cây lành, nhưng trên site này CẢ 129 bản ghi cũ (tạo trước
+# khi có cây, Task 2) mang `lft = rgt = 0`, KỂ CẢ ô hệ thống
+# `ZZZ-CHUA-XEP-<kho>` đang giữ toàn bộ tồn của kho thật. Hai bản ghi `0/0`
+# bất kỳ đều thoả `0 <= 0 and 0 >= 0`, nên tắt MỘT ô cũ — một thao tác hoàn
+# toàn hợp lệ, đúng thứ tính năng này sinh ra để làm — sẽ loại luôn mọi ô cũ
+# khác VÀ ô CHUA-XEP khỏi ứng viên: `frappe.throw` giữa
+# `Stock Ledger Entry.on_submit`, cuộn ngược mọi phiếu xuất của kho. Đúng
+# thảm hoạ "một checkbox làm đứng cả kho" đã ghi ở
+# `storage_location.py::kiem_tra_khong_doi_dang_o_chua_xep`, lần này validate
+# không chặn được vì ô bị tắt là ô THƯỜNG.
+#
+# Nên: CHẶT ở phần tổ tiên (`<`/`>` — một nút không bao giờ là tổ tiên thật
+# sự của chính nó) và khớp chính-nó bằng TÊN. Bản ghi ngoài cây vì thế hành
+# xử đúng như phép kiểm `sl.disabled` cũ: không thừa kế cho ai, không nhận
+# thừa kế từ ai. Khoá bằng
+# `test_fefo_pham_vi.py::TestONgoaiCayKhongKeoNhauXuong`.
+_TO_TIEN_TAT = """exists (
+	select 1 from `tabStorage Location` tt
+	where ifnull(tt.disabled, 0) = 1
+	  and (tt.name = sl.name or (tt.lft < sl.lft and tt.rgt > sl.rgt))
+)"""
 
 
 def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float) -> list[dict]:
@@ -57,7 +97,7 @@ def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float) -> list[dict]:
 		left join `tabBatch` b on b.name = lb.so_lo
 		join `tabStorage Location` sl on sl.name = lb.o
 		where lb.kho = %(kho)s and lb.vat_tu = %(vat_tu)s and lb.so_luong > 0
-		      and ifnull(sl.disabled, 0) = 0
+		      and not {_TO_TIEN_TAT}
 		      {dieu_kien}
 		order by ifnull(b.expiry_date, %(han_xa)s) asc,
 		         ifnull(sl.thu_tu_lay_hang, 0) asc,
@@ -85,7 +125,7 @@ def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float) -> list[dict]:
 			from `tabLocation Balance` lb
 			join `tabStorage Location` sl on sl.name = lb.o
 			where lb.kho = %(kho)s and lb.vat_tu = %(vat_tu)s and lb.so_luong > 0
-			      and ifnull(sl.disabled, 0) = 1
+			      and {_TO_TIEN_TAT}
 			      {dieu_kien}
 			order by lb.o asc
 			""",
