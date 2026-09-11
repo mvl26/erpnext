@@ -52,7 +52,9 @@ class _CoTienDeKho(FrappeTestCase):
 
 class TestCustomField(FrappeTestCase):
 	def test_field_ton_tai(self):
-		self.assertTrue(frappe.db.exists("Custom Field", {"dt": "Warehouse", "fieldname": "custom_quan_ly_vi_tri"}))
+		self.assertTrue(
+			frappe.db.exists("Custom Field", {"dt": "Warehouse", "fieldname": "custom_quan_ly_vi_tri"})
+		)
 
 	def test_field_la_read_only(self):
 		ro = frappe.db.get_value(

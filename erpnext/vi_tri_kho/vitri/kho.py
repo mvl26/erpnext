@@ -62,17 +62,25 @@ def kiem_tra_dang_o_chua_xep(kho: str, ten: str) -> None:
 	module này lập ra để phòng.
 	"""
 	hien_co = frappe.db.get_value(
-		"Storage Location", ten, ["kho", "la_o_chua_xep", "is_group", "disabled"], as_dict=True,
+		"Storage Location",
+		ten,
+		["kho", "la_o_chua_xep", "is_group", "disabled"],
+		as_dict=True,
 	)
 	dung_dang = (
-		hien_co and hien_co.kho == kho and hien_co.la_o_chua_xep
-		and not hien_co.is_group and not hien_co.disabled
+		hien_co
+		and hien_co.kho == kho
+		and hien_co.la_o_chua_xep
+		and not hien_co.is_group
+		and not hien_co.disabled
 	)
 	if not dung_dang:
 		frappe.throw(
-			_("Ô {0} không đúng dạng ô \"Chưa xếp vị trí\" của kho {1} (sai kho, không "
-			  "đánh dấu ô gom hàng, là ô nhóm, hoặc đã bị vô hiệu hoá). Kiểm tra lại ô "
-			  "này trước khi tiếp tục.").format(ten, kho)
+			_(
+				'Ô {0} không đúng dạng ô "Chưa xếp vị trí" của kho {1} (sai kho, không '
+				"đánh dấu ô gom hàng, là ô nhóm, hoặc đã bị vô hiệu hoá). Kiểm tra lại ô "
+				"này trước khi tiếp tục."
+			).format(ten, kho)
 		)
 
 

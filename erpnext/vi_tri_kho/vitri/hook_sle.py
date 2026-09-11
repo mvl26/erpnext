@@ -196,8 +196,10 @@ def _bat_buoc_o_chua_xep(kho):
 	o = o_chua_xep(kho)
 	if not o:
 		frappe.throw(
-			_("Kho {0} bật quản lý vị trí nhưng chưa có ô \"Chưa xếp vị trí\". "
-			  "Chạy lại chức năng bật quản lý vị trí cho kho này.").format(kho)
+			_(
+				'Kho {0} bật quản lý vị trí nhưng chưa có ô "Chưa xếp vị trí". '
+				"Chạy lại chức năng bật quản lý vị trí cho kho này."
+			).format(kho)
 		)
 	return o
 
@@ -255,8 +257,11 @@ def _tra_lai_o_da_dao(sle, so_lo, so_luong) -> list[dict]:
 		"so_luong": ("<", 0),
 	}
 	moi_nhat = frappe.get_all(
-		"Location Ledger Entry", filters=khoa, fields=["sle"],
-		order_by="creation desc", limit=1,
+		"Location Ledger Entry",
+		filters=khoa,
+		fields=["sle"],
+		order_by="creation desc",
+		limit=1,
 	)
 	if not moi_nhat or not moi_nhat[0].sle:
 		return [{"o": _bat_buoc_o_chua_xep(sle.warehouse), "so_luong": so_luong}]
@@ -300,10 +305,12 @@ def _tra_lai_o_da_dao(sle, so_lo, so_luong) -> list[dict]:
 		ket_qua.append({"o": d.o, "so_luong": phan})
 		da_chia += phan
 	d_cuoi = o_cu[-1]
-	ket_qua.append({
-		"o": d_cuoi.o,
-		"so_luong": flt(so_luong - da_chia, _DO_CHINH_XAC_SO_LUONG),
-	})
+	ket_qua.append(
+		{
+			"o": d_cuoi.o,
+			"so_luong": flt(so_luong - da_chia, _DO_CHINH_XAC_SO_LUONG),
+		}
+	)
 	return ket_qua
 
 

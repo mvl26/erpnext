@@ -52,17 +52,19 @@ class TestHangKhongLo(FrappeTestCase):
 
 class TestHangCoLo(FrappeTestCase):
 	def setUp(self):
-		self.bundle = frappe.get_doc({
-			"doctype": "Serial and Batch Bundle",
-			"item_code": "_Test Item Lo",
-			"warehouse": "Kho Miyano - MYN",
-			"type_of_transaction": "Inward",
-			"voucher_type": "Stock Entry",
-			"entries": [
-				{"batch_no": "_T-LO-1", "qty": 6},
-				{"batch_no": "_T-LO-2", "qty": 4},
-			],
-		})
+		self.bundle = frappe.get_doc(
+			{
+				"doctype": "Serial and Batch Bundle",
+				"item_code": "_Test Item Lo",
+				"warehouse": "Kho Miyano - MYN",
+				"type_of_transaction": "Inward",
+				"voucher_type": "Stock Entry",
+				"entries": [
+					{"batch_no": "_T-LO-1", "qty": 6},
+					{"batch_no": "_T-LO-2", "qty": 4},
+				],
+			}
+		)
 
 	def test_mot_sle_nhieu_lo_tra_nhieu_dong(self):
 		# dùng bundle giả trong DB để không phụ thuộc dữ liệu sẵn có
@@ -159,14 +161,16 @@ class TestHangCoLo(FrappeTestCase):
 		"""Vòng sửa 2 (review): nhánh `not dong` chưa có bài test riêng —
 		bundle có thật nhưng không có dòng Serial and Batch Entry con nào
 		(ví dụ dữ liệu hỏng) phải rơi về một dòng chung, không được lỗi."""
-		bundle_rong = frappe.get_doc({
-			"doctype": "Serial and Batch Bundle",
-			"item_code": "_Test Item Lo",
-			"warehouse": "Kho Miyano - MYN",
-			"type_of_transaction": "Inward",
-			"voucher_type": "Stock Entry",
-			"entries": [],
-		})
+		bundle_rong = frappe.get_doc(
+			{
+				"doctype": "Serial and Batch Bundle",
+				"item_code": "_Test Item Lo",
+				"warehouse": "Kho Miyano - MYN",
+				"type_of_transaction": "Inward",
+				"voucher_type": "Stock Entry",
+				"entries": [],
+			}
+		)
 		ten = _luu_bundle_tho(bundle_rong)
 		ket_qua = tach_theo_lo(_SleGia(bundle=ten), delta=5)
 		self.assertEqual(ket_qua, [{"so_lo": None, "so_luong": 5}])
@@ -179,23 +183,26 @@ class TestHangCoLo(FrappeTestCase):
 		nhánh scale rồi CHIA CHO SỐ GẦN-0 → số lượng từng lô cỡ ±1e16 dù
 		tổng vẫn đúng bằng delta (đối soát Task 10 không bắt được). Bài
 		này khẳng định không có số nào vượt quá |delta| — không nổ số."""
-		bundle_gan_khong = frappe.get_doc({
-			"doctype": "Serial and Batch Bundle",
-			"item_code": "_Test Item Lo",
-			"warehouse": "Kho Miyano - MYN",
-			"type_of_transaction": "Inward",
-			"voucher_type": "Stock Entry",
-			"entries": [
-				{"batch_no": "_T-LO-GK-1", "qty": 0.1},
-				{"batch_no": "_T-LO-GK-2", "qty": 0.2},
-				{"batch_no": "_T-LO-GK-3", "qty": -0.3},
-			],
-		})
+		bundle_gan_khong = frappe.get_doc(
+			{
+				"doctype": "Serial and Batch Bundle",
+				"item_code": "_Test Item Lo",
+				"warehouse": "Kho Miyano - MYN",
+				"type_of_transaction": "Inward",
+				"voucher_type": "Stock Entry",
+				"entries": [
+					{"batch_no": "_T-LO-GK-1", "qty": 0.1},
+					{"batch_no": "_T-LO-GK-2", "qty": 0.2},
+					{"batch_no": "_T-LO-GK-3", "qty": -0.3},
+				],
+			}
+		)
 		ten = _luu_bundle_tho(bundle_gan_khong)
 		ket_qua = tach_theo_lo(_SleGia(bundle=ten), delta=5)
 		for d in ket_qua:
 			self.assertLessEqual(
-				abs(d["so_luong"]), 5,
+				abs(d["so_luong"]),
+				5,
 				f"số lượng {d['so_luong']} vượt quá |delta|=5 — mẫu số gần-0 đã bị chia",
 			)
 		self.assertEqual(sum(d["so_luong"] for d in ket_qua), 5)
@@ -203,18 +210,20 @@ class TestHangCoLo(FrappeTestCase):
 
 def _bundle_ba_lo_bang_nhau():
 	"""Bundle ba lô bằng nhau (1,1,1) — dùng cho các bài scale lẻ."""
-	return frappe.get_doc({
-		"doctype": "Serial and Batch Bundle",
-		"item_code": "_Test Item Lo",
-		"warehouse": "Kho Miyano - MYN",
-		"type_of_transaction": "Inward",
-		"voucher_type": "Stock Entry",
-		"entries": [
-			{"batch_no": "_T-LO-LE-1", "qty": 1},
-			{"batch_no": "_T-LO-LE-2", "qty": 1},
-			{"batch_no": "_T-LO-LE-3", "qty": 1},
-		],
-	})
+	return frappe.get_doc(
+		{
+			"doctype": "Serial and Batch Bundle",
+			"item_code": "_Test Item Lo",
+			"warehouse": "Kho Miyano - MYN",
+			"type_of_transaction": "Inward",
+			"voucher_type": "Stock Entry",
+			"entries": [
+				{"batch_no": "_T-LO-LE-1", "qty": 1},
+				{"batch_no": "_T-LO-LE-2", "qty": 1},
+				{"batch_no": "_T-LO-LE-3", "qty": 1},
+			],
+		}
+	)
 
 
 def _luu_bundle_tho(doc):

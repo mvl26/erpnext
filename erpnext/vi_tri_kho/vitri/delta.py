@@ -61,7 +61,6 @@ from frappe.utils import flt
 from erpnext.stock.doctype.inventory_dimension.inventory_dimension import (
 	get_inventory_dimensions,
 )
-
 from erpnext.vi_tri_kho.vitri.so import tong_ton_vi_tri
 
 

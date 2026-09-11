@@ -29,10 +29,10 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt
 
-from erpnext.vi_tri_kho.vitri import kho as vk
-from erpnext.vi_tri_kho.vitri import so
 from erpnext.vi_tri_kho.tests.test_hook_nhap import _bat_kho_tho, _nhap_kho, _tao_item, _tat_kho_tho
 from erpnext.vi_tri_kho.tests.test_huy_chung_tu import _o, _seed_o
+from erpnext.vi_tri_kho.vitri import kho as vk
+from erpnext.vi_tri_kho.vitri import so
 
 KHO = "Kho Miyano - MYN"
 COMPANY = "Miyano Việt Nam"
@@ -41,24 +41,28 @@ CUSTOMER = "Bệnh viện DEMO Miyano E2E"
 
 
 def _nhap_pr(item, qty, kho=KHO, rate=1000):
-	pr = frappe.get_doc({
-		"doctype": "Purchase Receipt",
-		"supplier": SUPPLIER,
-		"company": COMPANY,
-		"items": [{"item_code": item, "qty": qty, "rate": rate, "warehouse": kho}],
-	})
+	pr = frappe.get_doc(
+		{
+			"doctype": "Purchase Receipt",
+			"supplier": SUPPLIER,
+			"company": COMPANY,
+			"items": [{"item_code": item, "qty": qty, "rate": rate, "warehouse": kho}],
+		}
+	)
 	pr.insert(ignore_permissions=True)
 	pr.submit()
 	return pr
 
 
 def _giao_hang(item, qty, kho=KHO, rate=2000):
-	dn = frappe.get_doc({
-		"doctype": "Delivery Note",
-		"customer": CUSTOMER,
-		"company": COMPANY,
-		"items": [{"item_code": item, "qty": qty, "rate": rate, "warehouse": kho}],
-	})
+	dn = frappe.get_doc(
+		{
+			"doctype": "Delivery Note",
+			"customer": CUSTOMER,
+			"company": COMPANY,
+			"items": [{"item_code": item, "qty": qty, "rate": rate, "warehouse": kho}],
+		}
+	)
 	dn.insert(ignore_permissions=True)
 	dn.submit()
 	return dn
@@ -86,7 +90,9 @@ class TestPurchaseReceiptTichHop(FrappeTestCase):
 
 		self.assertEqual(so.ton_o(o_cx, item, None), 10, "PR không khai vị trí phải vào CHUA-XEP")
 		dong = frappe.get_all(
-			"Location Ledger Entry", filters={"chung_tu": pr.name}, fields=["chung_tu_type", "so_luong"],
+			"Location Ledger Entry",
+			filters={"chung_tu": pr.name},
+			fields=["chung_tu_type", "so_luong"],
 		)
 		self.assertEqual(len(dong), 1)
 		self.assertEqual(dong[0].chung_tu_type, "Purchase Receipt")
@@ -115,7 +121,8 @@ class TestPurchaseReceiptTichHop(FrappeTestCase):
 
 		self.assertEqual(so.ton_o(o_cx, item, None), 0, "PR phải quay về đúng ô đã nhập (CHUA-XEP)")
 		self.assertEqual(
-			so.ton_o(self.o_khac, item, None), 4,
+			so.ton_o(self.o_khac, item, None),
+			4,
 			"ô khác (thu_tu nhỏ hơn CHUA-XEP) KHÔNG được bị FEFO rút nhầm vào",
 		)
 		self.assertEqual(_bin_qty(item), 4, "tiền đề: ERPNext đã đưa tồn kho về 4 sau huỷ PR")
@@ -154,7 +161,9 @@ class TestDeliveryNoteTichHop(FrappeTestCase):
 		self.assertEqual(so.ton_o(self.o_gan, item, None), 6, "DN không khai vị trí phải tự FEFO chọn o_gan")
 		self.assertEqual(so.ton_o(o_cx, item, None), 0, "CHUA-XEP không được bị đụng — không có hàng ở đó")
 		dong = frappe.get_all(
-			"Location Ledger Entry", filters={"chung_tu": dn.name}, fields=["chung_tu_type", "o", "so_luong"],
+			"Location Ledger Entry",
+			filters={"chung_tu": dn.name},
+			fields=["chung_tu_type", "o", "so_luong"],
 		)
 		self.assertEqual(len(dong), 1)
 		self.assertEqual(dong[0].chung_tu_type, "Delivery Note")
@@ -173,11 +182,13 @@ class TestDeliveryNoteTichHop(FrappeTestCase):
 		dn.cancel()
 
 		self.assertEqual(
-			so.ton_o(self.o_gan, item, None), 10,
+			so.ton_o(self.o_gan, item, None),
+			10,
 			"hàng phải quay về ĐÚNG o_gan (nơi đã lấy), không phải một ô khác",
 		)
 		self.assertEqual(
-			so.ton_o(vk.o_chua_xep(KHO), item, None), 0,
+			so.ton_o(vk.o_chua_xep(KHO), item, None),
+			0,
 			"KHÔNG được rơi xuống CHUA-XEP — đó là nơi hàng sẽ tới nếu huỷ DN không đi "
 			"qua dao_theo_o_goc (chạy lại FEFO/CHUA-XEP thay vì trả đúng ô gốc)",
 		)

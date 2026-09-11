@@ -18,10 +18,11 @@ trong `order by` làm khoá phá vỡ đồng hạng).
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from erpnext.vi_tri_kho.tests.test_bat_kho import _don_sach
+from erpnext.vi_tri_kho.tests.test_hook_nhap import _nhap_kho as _nhap
+from erpnext.vi_tri_kho.tests.test_hook_nhap import _tao_item
 from erpnext.vi_tri_kho.vitri import kho as vk
 from erpnext.vi_tri_kho.vitri.bat_kho import bat
-from erpnext.vi_tri_kho.tests.test_bat_kho import _don_sach
-from erpnext.vi_tri_kho.tests.test_hook_nhap import _nhap_kho as _nhap, _tao_item
 
 KHO = "Kho Miyano - MYN"
 
@@ -36,12 +37,14 @@ class TestBaoCaoTonTheoViTri(FrappeTestCase):
 
 	def test_chay_duoc_va_co_dong(self):
 		from erpnext.vi_tri_kho.report.ton_kho_theo_vi_tri.ton_kho_theo_vi_tri import execute
+
 		cot, dong = execute({"kho": KHO})
 		self.assertTrue(cot)
 		self.assertTrue(dong, "kho vừa bật có tồn nên phải có dòng")
 
 	def test_khong_hien_o_het_hang(self):
 		from erpnext.vi_tri_kho.report.ton_kho_theo_vi_tri.ton_kho_theo_vi_tri import execute
+
 		frappe.db.sql("update `tabLocation Balance` set so_luong = 0 where kho=%s", (KHO,))
 		_, dong = execute({"kho": KHO})
 		self.assertEqual(dong, [])
@@ -60,24 +63,35 @@ class TestBaoCaoTonTheoViTri(FrappeTestCase):
 
 		item = _tao_item("_Test BC Thu Tu Lay Hang")
 		o_truoc = "K19Z99010101"  # thu_tu_lay_hang=1, alphabet đứng SAU "A-..."
-		o_sau = "K19Z01010101"      # thu_tu_lay_hang=2, alphabet đứng TRƯỚC "Z-..."
+		o_sau = "K19Z01010101"  # thu_tu_lay_hang=2, alphabet đứng TRƯỚC "Z-..."
 
 		for ma_o, thu_tu in ((o_truoc, 1), (o_sau, 2)):
 			if not frappe.db.exists("Storage Location", ma_o):
-				frappe.get_doc({
-					"doctype": "Storage Location", "ma_o": ma_o, "kho": KHO, "thu_tu_lay_hang": thu_tu,
-				}).insert(ignore_permissions=True)
+				frappe.get_doc(
+					{
+						"doctype": "Storage Location",
+						"ma_o": ma_o,
+						"kho": KHO,
+						"thu_tu_lay_hang": thu_tu,
+					}
+				).insert(ignore_permissions=True)
 
 		for ma_o in (o_truoc, o_sau):
-			frappe.get_doc({
-				"doctype": "Location Balance", "o": ma_o, "kho": KHO,
-				"vat_tu": item, "so_luong": 3,
-			}).insert(ignore_permissions=True)
+			frappe.get_doc(
+				{
+					"doctype": "Location Balance",
+					"o": ma_o,
+					"kho": KHO,
+					"vat_tu": item,
+					"so_luong": 3,
+				}
+			).insert(ignore_permissions=True)
 
 		_, dong = execute({"kho": KHO, "vat_tu": item})
 		thu_tu_o = [d[0] for d in dong]
 		self.assertEqual(
-			thu_tu_o, [o_truoc, o_sau],
+			thu_tu_o,
+			[o_truoc, o_sau],
 			f"phải sắp theo thu_tu_lay_hang (1 rồi 2: {o_truoc} rồi {o_sau}), không "
 			f"theo alphabet tên ô (alphabet sẽ cho '{o_sau}' trước '{o_truoc}', "
 			f"ngược lại). Thứ tự thấy được: {thu_tu_o}",
@@ -94,20 +108,31 @@ class TestBaoCaoHangChuaXep(FrappeTestCase):
 
 	def test_liet_ke_hang_o_chua_xep(self):
 		from erpnext.vi_tri_kho.report.hang_chua_xep_vi_tri.hang_chua_xep_vi_tri import execute
+
 		_, dong = execute({"kho": KHO})
 		self.assertTrue(dong, "vừa bật xong thì mọi thứ đang ở CHUA-XEP")
 
 	def test_khong_liet_ke_o_khac(self):
 		from erpnext.vi_tri_kho.report.hang_chua_xep_vi_tri.hang_chua_xep_vi_tri import execute
+
 		o_thuong = "K19Z03010101"
 		if not frappe.db.exists("Storage Location", o_thuong):
-			frappe.get_doc({
-				"doctype": "Storage Location", "ma_o": o_thuong, "kho": KHO,
-			}).insert(ignore_permissions=True)
-		frappe.get_doc({
-			"doctype": "Location Balance", "o": o_thuong, "kho": KHO,
-			"vat_tu": _tao_item("_Test BC Item"), "so_luong": 5,
-		}).insert(ignore_permissions=True)
+			frappe.get_doc(
+				{
+					"doctype": "Storage Location",
+					"ma_o": o_thuong,
+					"kho": KHO,
+				}
+			).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Location Balance",
+				"o": o_thuong,
+				"kho": KHO,
+				"vat_tu": _tao_item("_Test BC Item"),
+				"so_luong": 5,
+			}
+		).insert(ignore_permissions=True)
 
 		_, dong = execute({"kho": KHO})
 		# GHI ĐÈ so với brief gốc (review advisor): brief chỉ khẳng định
@@ -141,27 +166,32 @@ class TestBaoCaoDoiSoat(FrappeTestCase):
 
 	def test_thieu_filter_kho_bi_chan(self):
 		from erpnext.vi_tri_kho.report.doi_soat_ton_vi_tri.doi_soat_ton_vi_tri import execute
+
 		with self.assertRaises(frappe.ValidationError):
 			execute({})
 
 	def test_khong_truyen_filters_cung_bi_chan(self):
 		from erpnext.vi_tri_kho.report.doi_soat_ton_vi_tri.doi_soat_ton_vi_tri import execute
+
 		with self.assertRaises(frappe.ValidationError):
 			execute(None)
 
 	def test_khop_thi_rong_va_dung_cot(self):
 		from erpnext.vi_tri_kho.report.doi_soat_ton_vi_tri.doi_soat_ton_vi_tri import execute
+
 		cot, dong = execute({"kho": KHO})
 		self.assertTrue(cot)
 		fieldnames = {c["fieldname"] for c in cot}
 		self.assertEqual(
-			fieldnames, {"loai", "o", "vat_tu", "so_lo", "gia_tri_1", "gia_tri_2", "lech"},
+			fieldnames,
+			{"loai", "o", "vat_tu", "so_lo", "gia_tri_1", "gia_tri_2", "lech"},
 			"báo cáo phải chiếu đủ cột của cả ba loại lệch (Critical 1b), gộp một bảng",
 		)
 		self.assertEqual(dong, [], "vừa bật xong (khớp cả ba phép đo) thì báo cáo phải rỗng")
 
 	def test_lech_tong_hien_dung_dong(self):
 		from erpnext.vi_tri_kho.report.doi_soat_ton_vi_tri.doi_soat_ton_vi_tri import execute
+
 		item = _tao_item("_Test BC DoiSoat Lech")
 		_nhap(item, 10)
 		ten = frappe.db.get_value("Location Balance", {"kho": KHO, "vat_tu": item}, "name")
@@ -181,22 +211,33 @@ class TestBaoCaoDoiSoat(FrappeTestCase):
 
 	def test_o_am_hien_dung_dong(self):
 		from erpnext.vi_tri_kho.report.doi_soat_ton_vi_tri.doi_soat_ton_vi_tri import execute
+
 		item = _tao_item("_Test BC DoiSoat OAm")
 		_nhap(item, 10)
 		o_chua_xep = frappe.db.get_value("Location Balance", {"kho": KHO, "vat_tu": item}, "o")
 		o_gan = "K19Z02010101"
 		if not frappe.db.exists("Storage Location", o_gan):
-			frappe.get_doc({
-				"doctype": "Storage Location", "ma_o": o_gan, "kho": KHO,
-			}).insert(ignore_permissions=True)
+			frappe.get_doc(
+				{
+					"doctype": "Storage Location",
+					"ma_o": o_gan,
+					"kho": KHO,
+				}
+			).insert(ignore_permissions=True)
 		frappe.db.sql(
 			"update `tabLocation Balance` set so_luong = so_luong - 13 where o=%s and vat_tu=%s",
 			(o_chua_xep, item),
 		)
-		frappe.get_doc({
-			"doctype": "Location Balance", "o": o_gan, "kho": KHO,
-			"vat_tu": item, "so_lo": "", "so_luong": 13,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Location Balance",
+				"o": o_gan,
+				"kho": KHO,
+				"vat_tu": item,
+				"so_lo": "",
+				"so_luong": 13,
+			}
+		).insert(ignore_permissions=True)
 
 		_, dong = execute({"kho": KHO})
 		# Kịch bản này cũng làm bộ đệm trôi khỏi sổ (chuyển 13 sang o_gan mà

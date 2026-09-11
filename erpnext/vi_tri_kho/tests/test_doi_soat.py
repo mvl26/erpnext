@@ -18,9 +18,10 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt
 
+from erpnext.vi_tri_kho.tests.test_hook_nhap import _bat_kho_tho, _tao_item, _tat_kho_tho
+from erpnext.vi_tri_kho.tests.test_hook_nhap import _nhap_kho as _nhap
 from erpnext.vi_tri_kho.vitri import so
 from erpnext.vi_tri_kho.vitri.doi_soat import doi_soat_kho
-from erpnext.vi_tri_kho.tests.test_hook_nhap import _bat_kho_tho, _nhap_kho as _nhap, _tao_item, _tat_kho_tho
 
 KHO = "Kho Miyano - MYN"
 
@@ -143,12 +144,15 @@ class TestSoTheoTungLo(FrappeTestCase):
 
 		lech = [d for d in kq["dong_lech"] if d["vat_tu"] == self.item]
 		self.assertEqual(
-			len(lech), 2,
+			len(lech),
+			2,
 			f"phải ra đúng 2 dòng cho mặt hàng này: lô rỗng thừa 10, lô thật thiếu 10 — thấy: {lech}",
 		)
 		tong = sum(d["lech"] for d in lech)
 		self.assertAlmostEqual(
-			tong, 0, places=6,
+			tong,
+			0,
+			places=6,
 			msg=(
 				"tổng lệch của hai dòng lô phải bằng 0 — đây chính là điều "
 				"làm so TỔNG mù mắt: cộng lại thấy khớp trong khi so THEO "
@@ -180,15 +184,21 @@ class TestKiemKeHangKhongLoVanKhop(FrappeTestCase):
 		lech_sau_nhap = [d for d in doi_soat_kho(KHO)["dong_lech"] if d["vat_tu"] == self.item]
 		self.assertEqual(lech_sau_nhap, [], "tiền đề: sau khi nhập phải khớp")
 
-		sr = frappe.get_doc({
-			"doctype": "Stock Reconciliation",
-			"company": "Miyano Việt Nam",
-			"purpose": "Stock Reconciliation",
-			"items": [{
-				"item_code": self.item, "warehouse": KHO,
-				"qty": 7, "valuation_rate": 1000,
-			}],
-		})
+		sr = frappe.get_doc(
+			{
+				"doctype": "Stock Reconciliation",
+				"company": "Miyano Việt Nam",
+				"purpose": "Stock Reconciliation",
+				"items": [
+					{
+						"item_code": self.item,
+						"warehouse": KHO,
+						"qty": 7,
+						"valuation_rate": 1000,
+					}
+				],
+			}
+		)
 		sr.insert(ignore_permissions=True)
 		sr.submit()
 
@@ -197,7 +207,8 @@ class TestKiemKeHangKhongLoVanKhop(FrappeTestCase):
 
 		lech = [d for d in doi_soat_kho(KHO)["dong_lech"] if d["vat_tu"] == self.item]
 		self.assertEqual(
-			lech, [],
+			lech,
+			[],
 			f"kiểm kê hàng không lô phải vẫn khớp — mốc quy chiếu sai (actual_qty) "
 			f"sẽ bỏ qua lần kiểm kê này và báo ton_kho=10 thay vì 7: {lech}",
 		)
@@ -227,7 +238,8 @@ class TestSoTheoTungLoHaiLo(FrappeTestCase):
 		self.assertEqual(lech, [], f"hai lô riêng biệt vẫn phải khớp: {lech}")
 
 		dong = frappe.get_all(
-			"Location Balance", filters={"kho": KHO, "vat_tu": self.item},
+			"Location Balance",
+			filters={"kho": KHO, "vat_tu": self.item},
 			fields=["name", "so_lo", "so_luong"],
 		)
 		self.assertEqual(len(dong), 2, "tiền đề: hai lần nhập phải sinh hai lô riêng")
@@ -260,11 +272,14 @@ class TestXuatHangCoLo(FrappeTestCase):
 	def test_xuat_hang_co_lo_van_khop(self):
 		_nhap(self.item, 10)
 
-		xuat = frappe.get_doc({
-			"doctype": "Stock Entry", "stock_entry_type": "Material Issue",
-			"company": "Miyano Việt Nam",
-			"items": [{"item_code": self.item, "qty": 4, "s_warehouse": KHO}],
-		})
+		xuat = frappe.get_doc(
+			{
+				"doctype": "Stock Entry",
+				"stock_entry_type": "Material Issue",
+				"company": "Miyano Việt Nam",
+				"items": [{"item_code": self.item, "qty": 4, "s_warehouse": KHO}],
+			}
+		)
 		xuat.insert(ignore_permissions=True)
 		xuat.submit()
 
@@ -303,7 +318,8 @@ class TestHuyChungTuVanKhop(FrappeTestCase):
 
 		lech_sau_huy = [d for d in doi_soat_kho(KHO)["dong_lech"] if d["vat_tu"] == self.item]
 		self.assertEqual(
-			lech_sau_huy, [],
+			lech_sau_huy,
+			[],
 			f"huỷ chứng từ phải đối soát vẫn khớp (cả hai vế cùng về 0): {lech_sau_huy}",
 		)
 
@@ -335,9 +351,14 @@ class TestNguongSaiSo(FrappeTestCase):
 
 def _o(ma_o, thu_tu=0):
 	if not frappe.db.exists("Storage Location", ma_o):
-		frappe.get_doc({
-			"doctype": "Storage Location", "ma_o": ma_o, "kho": KHO, "thu_tu_lay_hang": thu_tu,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Storage Location",
+				"ma_o": ma_o,
+				"kho": KHO,
+				"thu_tu_lay_hang": thu_tu,
+			}
+		).insert(ignore_permissions=True)
 	return ma_o
 
 
@@ -374,10 +395,16 @@ class TestOAm(FrappeTestCase):
 			"update `tabLocation Balance` set so_luong = so_luong - 13 where o=%s and vat_tu=%s",
 			(o_chua_xep, item),
 		)
-		frappe.get_doc({
-			"doctype": "Location Balance", "o": self.o_gan, "kho": KHO,
-			"vat_tu": item, "so_lo": "", "so_luong": 13,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Location Balance",
+				"o": self.o_gan,
+				"kho": KHO,
+				"vat_tu": item,
+				"so_lo": "",
+				"so_luong": 13,
+			}
+		).insert(ignore_permissions=True)
 
 		kq = doi_soat_kho(KHO)
 		lech_sau = [d for d in kq["dong_lech"] if d["vat_tu"] == item]
@@ -432,23 +459,32 @@ class TestLechBoDem(FrappeTestCase):
 			"update `tabLocation Balance` set so_luong = so_luong - 3 where o=%s and vat_tu=%s",
 			(o_chua_xep, self.item),
 		)
-		frappe.get_doc({
-			"doctype": "Location Balance", "o": self.o_gan, "kho": KHO,
-			"vat_tu": self.item, "so_lo": "", "so_luong": 3,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Location Balance",
+				"o": self.o_gan,
+				"kho": KHO,
+				"vat_tu": self.item,
+				"so_lo": "",
+				"so_luong": 3,
+			}
+		).insert(ignore_permissions=True)
 
 		kq = doi_soat_kho(KHO)
 		self.assertEqual(
-			[d for d in kq["dong_lech"] if d["vat_tu"] == self.item], [],
+			[d for d in kq["dong_lech"] if d["vat_tu"] == self.item],
+			[],
 			"tiền đề: TỔNG vẫn khớp Bin",
 		)
 		self.assertEqual(
-			[d for d in kq["o_am"] if d["vat_tu"] == self.item], [],
+			[d for d in kq["o_am"] if d["vat_tu"] == self.item],
+			[],
 			"tiền đề: không ô nào âm",
 		)
 
 		lech_cua_item = sorted(
-			(d for d in kq["lech_bo_dem"] if d["vat_tu"] == self.item), key=lambda d: d["o"],
+			(d for d in kq["lech_bo_dem"] if d["vat_tu"] == self.item),
+			key=lambda d: d["o"],
 		)
 		self.assertEqual(len(lech_cua_item), 2, f"phải bắt lệch ở CẢ HAI ô liên quan: {lech_cua_item}")
 		theo_o = {d["o"]: d for d in lech_cua_item}

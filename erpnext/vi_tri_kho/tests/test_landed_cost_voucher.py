@@ -49,9 +49,9 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt
 
+from erpnext.vi_tri_kho.tests.test_hook_nhap import _bat_kho_tho, _tao_item, _tat_kho_tho
 from erpnext.vi_tri_kho.vitri import kho as vk
 from erpnext.vi_tri_kho.vitri import so
-from erpnext.vi_tri_kho.tests.test_hook_nhap import _bat_kho_tho, _tao_item, _tat_kho_tho
 
 KHO = "Kho Miyano - MYN"
 SUPPLIER = "hoang nam"
@@ -59,19 +59,26 @@ SUPPLIER = "hoang nam"
 
 def _o(ma_o, thu_tu=0):
 	if not frappe.db.exists("Storage Location", ma_o):
-		frappe.get_doc({
-			"doctype": "Storage Location", "ma_o": ma_o, "kho": KHO, "thu_tu_lay_hang": thu_tu,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Storage Location",
+				"ma_o": ma_o,
+				"kho": KHO,
+				"thu_tu_lay_hang": thu_tu,
+			}
+		).insert(ignore_permissions=True)
 	return ma_o
 
 
 def _nhap_pr(item, qty, kho=KHO, rate=1000):
-	pr = frappe.get_doc({
-		"doctype": "Purchase Receipt",
-		"supplier": SUPPLIER,
-		"company": "Miyano Việt Nam",
-		"items": [{"item_code": item, "qty": qty, "rate": rate, "warehouse": kho}],
-	})
+	pr = frappe.get_doc(
+		{
+			"doctype": "Purchase Receipt",
+			"supplier": SUPPLIER,
+			"company": "Miyano Việt Nam",
+			"items": [{"item_code": item, "qty": qty, "rate": rate, "warehouse": kho}],
+		}
+	)
 	pr.insert(ignore_permissions=True)
 	pr.submit()
 	return pr
@@ -103,7 +110,8 @@ class TestLcvKhongDayHangVaoChuaXep(FrappeTestCase):
 		pr = _nhap_pr(self.item, 10)
 		row_name = pr.items[0].name
 		self.assertEqual(
-			frappe.db.count("Location Ledger Entry", {"chung_tu": pr.name}), 0,
+			frappe.db.count("Location Ledger Entry", {"chung_tu": pr.name}),
+			0,
 			"tiền đề: kho chưa bật lúc PR submit nên hook chưa ghi dòng nào",
 		)
 
@@ -111,9 +119,17 @@ class TestLcvKhongDayHangVaoChuaXep(FrappeTestCase):
 		# Seed đúng MỘT dòng sổ vị trí tại o_gan cho chung_tu_row của PR —
 		# mô phỏng kết quả GĐ2 Location Allocation sẽ tạo ra. Không mock.
 		so.ghi_dong_so(
-			o=self.o_gan, kho=KHO, vat_tu=self.item, so_lo=None, so_luong=10,
-			chung_tu_type="Purchase Receipt", chung_tu=pr.name, chung_tu_row=row_name,
-			sle=None, ngay="2026-09-01", thoi_diem="2026-09-01 08:30:00",
+			o=self.o_gan,
+			kho=KHO,
+			vat_tu=self.item,
+			so_lo=None,
+			so_luong=10,
+			chung_tu_type="Purchase Receipt",
+			chung_tu=pr.name,
+			chung_tu_row=row_name,
+			sle=None,
+			ngay="2026-09-01",
+			thoi_diem="2026-09-01 08:30:00",
 			company="Miyano Việt Nam",
 		)
 		self.assertEqual(so.ton_o(self.o_gan, self.item, None), 10, "tiền đề: đã seed vào o_gan")
@@ -121,14 +137,16 @@ class TestLcvKhongDayHangVaoChuaXep(FrappeTestCase):
 		_mo_phong_lcv(pr.name)
 
 		self.assertEqual(
-			so.ton_o(self.o_gan, self.item, None), 10,
+			so.ton_o(self.o_gan, self.item, None),
+			10,
 			"hàng phải Ở LẠI o_gan sau LCV — Critical 1: nếu hook dồn nhầm vào "
 			"CHUA-XEP, o_gan sẽ về 0 trong khi tổng vẫn khớp Bin (đối soát cũ "
 			"không bắt được), đúng khiếm khuyết review chỉ ra. ĐÃ ĐO: bài này ĐỎ "
 			"trước khi sửa (o_gan về 0.0, CHUA-XEP thành 10.0) — xem báo cáo.",
 		)
 		self.assertEqual(
-			so.ton_o(vk.o_chua_xep(KHO), self.item, None), 0,
+			so.ton_o(vk.o_chua_xep(KHO), self.item, None),
+			0,
 			"CHUA-XEP không được nhận thêm hàng từ LCV",
 		)
 
@@ -146,9 +164,17 @@ class TestLcvKhongDayHangVaoChuaXep(FrappeTestCase):
 		row_name = pr.items[0].name
 		_bat_kho_tho(KHO)
 		so.ghi_dong_so(
-			o=self.o_gan, kho=KHO, vat_tu=self.item, so_lo=None, so_luong=10,
-			chung_tu_type="Purchase Receipt", chung_tu=pr.name, chung_tu_row=row_name,
-			sle=None, ngay="2026-09-01", thoi_diem="2026-09-01 08:30:00",
+			o=self.o_gan,
+			kho=KHO,
+			vat_tu=self.item,
+			so_lo=None,
+			so_luong=10,
+			chung_tu_type="Purchase Receipt",
+			chung_tu=pr.name,
+			chung_tu_row=row_name,
+			sle=None,
+			ngay="2026-09-01",
+			thoi_diem="2026-09-01 08:30:00",
 			company="Miyano Việt Nam",
 		)
 
@@ -159,7 +185,8 @@ class TestLcvKhongDayHangVaoChuaXep(FrappeTestCase):
 		pr.cancel()
 
 		self.assertEqual(
-			so.ton_o(self.o_gan, self.item, None), 0,
+			so.ton_o(self.o_gan, self.item, None),
+			0,
 			"huỷ THẬT sau LCV phải trả hàng về 0 tại o_gan — dòng do 1a ghi lại "
 			"(da_huy=0) phải được dao_theo_o_goc tìm thấy và đảo đúng, không bị "
 			"coi là 'chưa từng có dòng gốc'",

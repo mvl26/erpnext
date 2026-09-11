@@ -45,8 +45,8 @@ from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt
 
 from erpnext.vi_tri_kho.vitri import kho as vk
-from erpnext.vi_tri_kho.vitri.bat_kho import tao_o_chua_xep
 from erpnext.vi_tri_kho.vitri import so
+from erpnext.vi_tri_kho.vitri.bat_kho import tao_o_chua_xep
 from erpnext.vi_tri_kho.vitri.delta import tinh_delta
 
 KHO = "Kho Miyano - MYN"
@@ -74,12 +74,14 @@ def _tat_kho_tho(kho):
 
 
 def _nhap_kho(item, qty, kho=KHO):
-	se = frappe.get_doc({
-		"doctype": "Stock Entry",
-		"stock_entry_type": "Material Receipt",
-		"company": "Miyano Việt Nam",
-		"items": [{"item_code": item, "qty": qty, "t_warehouse": kho, "basic_rate": 1000}],
-	})
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Material Receipt",
+			"company": "Miyano Việt Nam",
+			"items": [{"item_code": item, "qty": qty, "t_warehouse": kho, "basic_rate": 1000}],
+		}
+	)
 	se.insert(ignore_permissions=True)
 	se.submit()
 	return se
@@ -87,12 +89,19 @@ def _nhap_kho(item, qty, kho=KHO):
 
 def _tao_item(ma, co_lo=0):
 	if not frappe.db.exists("Item", ma):
-		frappe.get_doc({
-			"doctype": "Item", "item_code": ma, "item_name": ma,
-			"item_group": "All Item Groups", "stock_uom": "Nos",
-			"is_stock_item": 1, "has_batch_no": co_lo, "create_new_batch": co_lo,
-			"batch_number_series": f"{ma}-.###" if co_lo else None,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": ma,
+				"item_name": ma,
+				"item_group": "All Item Groups",
+				"stock_uom": "Nos",
+				"is_stock_item": 1,
+				"has_batch_no": co_lo,
+				"create_new_batch": co_lo,
+				"batch_number_series": f"{ma}-.###" if co_lo else None,
+			}
+		).insert(ignore_permissions=True)
 	return ma
 
 
@@ -138,7 +147,8 @@ class TestNhapKhongKhaiViTri(FrappeTestCase):
 		se = _nhap_kho(self.item, 3)
 		dong = frappe.get_all(
 			"Location Ledger Entry",
-			filters={"chung_tu": se.name}, fields=["chung_tu_type", "so_luong", "sle"],
+			filters={"chung_tu": se.name},
+			fields=["chung_tu_type", "so_luong", "sle"],
 		)
 		self.assertEqual(len(dong), 1)
 		self.assertEqual(dong[0].chung_tu_type, "Stock Entry")
@@ -201,15 +211,21 @@ class TestThuTuTinhDeltaTruocKhiGhi(FrappeTestCase):
 		o = vk.o_chua_xep(KHO)
 		self.assertEqual(so.ton_o(o, self.item, None), 10, "tiền đề: đã có tồn 10 trước kiểm kê")
 
-		sr = frappe.get_doc({
-			"doctype": "Stock Reconciliation",
-			"company": "Miyano Việt Nam",
-			"purpose": "Stock Reconciliation",
-			"items": [{
-				"item_code": self.item, "warehouse": KHO,
-				"qty": 17, "valuation_rate": 1000,
-			}],
-		})
+		sr = frappe.get_doc(
+			{
+				"doctype": "Stock Reconciliation",
+				"company": "Miyano Việt Nam",
+				"purpose": "Stock Reconciliation",
+				"items": [
+					{
+						"item_code": self.item,
+						"warehouse": KHO,
+						"qty": 17,
+						"valuation_rate": 1000,
+					}
+				],
+			}
+		)
 		sr.insert(ignore_permissions=True)
 		sr.submit()
 
@@ -217,7 +233,8 @@ class TestThuTuTinhDeltaTruocKhiGhi(FrappeTestCase):
 		self.assertEqual(flt(bin_qty), 17, "tiền đề: ERPNext đã chốt tồn kho = 17")
 
 		self.assertEqual(
-			so.tong_ton_vi_tri(KHO, self.item, None), 17,
+			so.tong_ton_vi_tri(KHO, self.item, None),
+			17,
 			"tồn vị trí phải theo kịp tồn kho sau kiểm kê (=17), không đứng yên ở "
 			"10 — đứng yên ở 10 nghĩa là hook đã ghi dòng sổ TRƯỚC khi tính delta, "
 			"nên tinh_delta() đọc lại đúng cái nó vừa ghi và luôn ra 0",
@@ -282,36 +299,42 @@ class TestThuTuTinhDeltaTruocKhiGhi(FrappeTestCase):
 		o = vk.o_chua_xep(KHO)
 		self.assertEqual(so.ton_o(o, item, None), 10, "tiền đề: đã có tồn 10 trước kiểm kê")
 
-		sr = frappe.get_doc({
-			"doctype": "Stock Reconciliation",
-			"company": "Miyano Việt Nam",
-			"purpose": "Stock Reconciliation",
-			"items": [{
-				"item_code": item, "warehouse": KHO,
-				"qty": 17, "valuation_rate": 1000,
-			}],
-		})
+		sr = frappe.get_doc(
+			{
+				"doctype": "Stock Reconciliation",
+				"company": "Miyano Việt Nam",
+				"purpose": "Stock Reconciliation",
+				"items": [
+					{
+						"item_code": item,
+						"warehouse": KHO,
+						"qty": 17,
+						"valuation_rate": 1000,
+					}
+				],
+			}
+		)
 		sr.insert(ignore_permissions=True)
 		sr.submit()
 		self.assertEqual(
-			so.tong_ton_vi_tri(KHO, item, None), 17,
-			"tiền đề: sau kiểm kê, sổ vị trí đã theo kịp (đường submit, đã khoá ở "
-			"bài trên)",
+			so.tong_ton_vi_tri(KHO, item, None),
+			17,
+			"tiền đề: sau kiểm kê, sổ vị trí đã theo kịp (đường submit, đã khoá ở " "bài trên)",
 		)
 
 		sr.cancel()
 
-		bin_qty_doc_lap = frappe.db.get_value(
-			"Bin", {"item_code": item, "warehouse": KHO}, "actual_qty"
-		)
+		bin_qty_doc_lap = frappe.db.get_value("Bin", {"item_code": item, "warehouse": KHO}, "actual_qty")
 		self.assertEqual(
-			flt(bin_qty_doc_lap), 10,
+			flt(bin_qty_doc_lap),
+			10,
 			"tiền đề: ERPNext (nguồn độc lập, không qua vitri/) đã đưa tồn kho về "
 			"lại 10 — giá trị TRƯỚC kiểm kê — sau khi huỷ",
 		)
 
 		self.assertEqual(
-			so.tong_ton_vi_tri(KHO, item, None), 10,
+			so.tong_ton_vi_tri(KHO, item, None),
+			10,
 			"tồn vị trí phải khớp Bin (=10) sau khi huỷ kiểm kê, KHÔNG được ra 27 "
 			"(17 giữ nguyên + actual_qty=-10 huỷ cộng nhầm theo kiểu 'giảm thêm 10 "
 			"từ 17') hay 7 (delta tính sai dấu) — cả hai đều sai vì tinh_delta() đã "
@@ -357,27 +380,33 @@ class TestThuTuTinhDeltaTruocKhiGhi(FrappeTestCase):
 		item = _tao_item("_Test WMS Huy Kiem Ke Co Lo", co_lo=1)
 		_nhap_kho(item, 10)
 
-		so_lo_dong_truoc = frappe.get_all(
-			"Location Ledger Entry", filters={"vat_tu": item}, fields=["so_lo"]
-		)
+		so_lo_dong_truoc = frappe.get_all("Location Ledger Entry", filters={"vat_tu": item}, fields=["so_lo"])
 		self.assertEqual(len(so_lo_dong_truoc), 1)
 		so_lo = so_lo_dong_truoc[0].so_lo
 		self.assertTrue(so_lo, "tiền đề: dòng nhập phải mang lô thật")
 
-		sr = frappe.get_doc({
-			"doctype": "Stock Reconciliation",
-			"company": "Miyano Việt Nam",
-			"purpose": "Stock Reconciliation",
-			"items": [{
-				"item_code": item, "warehouse": KHO,
-				"qty": 17, "valuation_rate": 1000, "batch_no": so_lo,
-				"use_serial_batch_fields": 1,
-			}],
-		})
+		sr = frappe.get_doc(
+			{
+				"doctype": "Stock Reconciliation",
+				"company": "Miyano Việt Nam",
+				"purpose": "Stock Reconciliation",
+				"items": [
+					{
+						"item_code": item,
+						"warehouse": KHO,
+						"qty": 17,
+						"valuation_rate": 1000,
+						"batch_no": so_lo,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
 		sr.insert(ignore_permissions=True)
 		sr.submit()
 		self.assertEqual(
-			so.tong_ton_vi_tri(KHO, item, so_lo), 17,
+			so.tong_ton_vi_tri(KHO, item, so_lo),
+			17,
 			"tiền đề: sau kiểm kê, sổ vị trí đã theo kịp (đường submit)",
 		)
 
@@ -390,22 +419,23 @@ class TestThuTuTinhDeltaTruocKhiGhi(FrappeTestCase):
 		# gọi (không cần SLE huỷ thứ hai) — nên đúng 4 dòng sổ cho chứng từ
 		# này: 2 gốc (da_huy=1) + 2 đảo (da_huy=1).
 		dong_sau_huy = frappe.get_all(
-			"Location Ledger Entry", filters={"chung_tu": sr.name},
+			"Location Ledger Entry",
+			filters={"chung_tu": sr.name},
 			fields=["so_luong", "da_huy"],
 		)
 		self.assertEqual(len(dong_sau_huy), 4, "2 dòng gốc (submit) + 2 dòng đảo (cancel)")
 		self.assertTrue(all(d.da_huy for d in dong_sau_huy), "sổ chỉ ghi thêm — cờ da_huy, không xoá")
 
-		bin_qty_doc_lap = frappe.db.get_value(
-			"Bin", {"item_code": item, "warehouse": KHO}, "actual_qty"
-		)
+		bin_qty_doc_lap = frappe.db.get_value("Bin", {"item_code": item, "warehouse": KHO}, "actual_qty")
 		self.assertEqual(
-			flt(bin_qty_doc_lap), 10,
+			flt(bin_qty_doc_lap),
+			10,
 			"tiền đề: ERPNext (nguồn độc lập) đã đưa tồn kho về lại 10 sau huỷ",
 		)
 
 		self.assertEqual(
-			so.tong_ton_vi_tri(KHO, item, so_lo), 10,
+			so.tong_ton_vi_tri(KHO, item, so_lo),
+			10,
 			"tồn vị trí phải khớp Bin (=10) sau khi huỷ kiểm kê hàng có lô — "
 			"trước vòng sửa 2, hai SLE huỷ cùng voucher_detail_no/kho/vat_tu "
 			"làm hook ghi thừa một dòng, tồn vị trí lệch khỏi Bin ở CẤP KHO",
@@ -424,31 +454,37 @@ class TestThuTuTinhDeltaTruocKhiGhi(FrappeTestCase):
 		# Mặt hàng CÓ lô: tồn nằm ở bucket đúng theo so_lo, KHÔNG phải bucket
 		# rỗng (None) như hàng không lô — khác `ton_o(o, item, None)` của các
 		# bài hàng-không-lô ở trên.
-		so_lo_dong_truoc = frappe.get_all(
-			"Location Ledger Entry", filters={"vat_tu": item}, fields=["so_lo"]
-		)
+		so_lo_dong_truoc = frappe.get_all("Location Ledger Entry", filters={"vat_tu": item}, fields=["so_lo"])
 		self.assertEqual(len(so_lo_dong_truoc), 1)
 		so_lo = so_lo_dong_truoc[0].so_lo
 		self.assertTrue(so_lo, "tiền đề: dòng nhập phải mang lô thật")
 		self.assertEqual(so.tong_ton_vi_tri(KHO, item, so_lo), 10, "tiền đề: đã có tồn 10 theo đúng lô")
 
-		sr = frappe.get_doc({
-			"doctype": "Stock Reconciliation",
-			"company": "Miyano Việt Nam",
-			"purpose": "Stock Reconciliation",
-			"items": [{
-				"item_code": item, "warehouse": KHO,
-				"qty": 6, "valuation_rate": 1000, "batch_no": so_lo,
-				"use_serial_batch_fields": 1,
-			}],
-		})
+		sr = frappe.get_doc(
+			{
+				"doctype": "Stock Reconciliation",
+				"company": "Miyano Việt Nam",
+				"purpose": "Stock Reconciliation",
+				"items": [
+					{
+						"item_code": item,
+						"warehouse": KHO,
+						"qty": 6,
+						"valuation_rate": 1000,
+						"batch_no": so_lo,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
 		sr.insert(ignore_permissions=True)
 		sr.submit()
 
 		bin_qty = frappe.db.get_value("Bin", {"item_code": item, "warehouse": KHO}, "actual_qty")
 		self.assertEqual(flt(bin_qty), 6)
 		self.assertEqual(
-			so.tong_ton_vi_tri(KHO, item, so_lo), 6,
+			so.tong_ton_vi_tri(KHO, item, so_lo),
+			6,
 			"kiểm kê hàng có lô ở đường thường phải khớp Bin theo đúng lô, không "
 			"bị nhánh 'không lô' của tinh_delta xử lý sai",
 		)
@@ -488,19 +524,22 @@ class TestHuyChungTu(FrappeTestCase):
 
 		sau = frappe.db.count("Location Ledger Entry", {"chung_tu": se.name})
 		self.assertEqual(
-			sau, 2,
+			sau,
+			2,
 			"huỷ phải sinh thêm đúng 1 dòng sổ vị trí nữa (đảo dấu) — nếu vẫn là "
 			"1 nghĩa là hook đã lọc bỏ dòng SLE is_cancelled=1",
 		)
 
 		dong_moi = frappe.get_all(
 			"Location Ledger Entry",
-			filters={"chung_tu": se.name}, fields=["so_luong", "da_huy"],
+			filters={"chung_tu": se.name},
+			fields=["so_luong", "da_huy"],
 			order_by="creation",
 		)
 		self.assertEqual(dong_moi[-1].so_luong, -8, "dòng đảo phải mang số lượng -8")
 		self.assertEqual(
-			dong_moi[-1].da_huy, 1,
+			dong_moi[-1].da_huy,
+			1,
 			"Task 9 (dao_theo_o_goc) đánh dấu da_huy=1 cho dòng đảo mà chính nó "
 			"ghi — cập nhật từ giá trị 0 mà Task 7 để mặc định (xem docstring cũ "
 			"đã lệch, task-9-report.md)",
@@ -509,7 +548,8 @@ class TestHuyChungTu(FrappeTestCase):
 		bin_qty = frappe.db.get_value("Bin", {"item_code": self.item, "warehouse": KHO}, "actual_qty")
 		self.assertEqual(flt(bin_qty), 0, "tiền đề: ERPNext đã đưa tồn kho về 0 sau huỷ")
 		self.assertEqual(
-			so.tong_ton_vi_tri(KHO, self.item, None), 0,
+			so.tong_ton_vi_tri(KHO, self.item, None),
+			0,
 			"tồn vị trí phải về lại 0 theo kịp tồn kho, không đứng yên ở 8 (tồn ma)",
 		)
 
@@ -548,35 +588,41 @@ class TestHuyChungTu(FrappeTestCase):
 
 		dong_sau = frappe.get_all(
 			"Location Ledger Entry",
-			filters={"chung_tu": se.name}, fields=["so_lo", "so_luong", "da_huy"],
+			filters={"chung_tu": se.name},
+			fields=["so_lo", "so_luong", "da_huy"],
 			order_by="creation",
 		)
 		self.assertEqual(len(dong_sau), 2, "huỷ phải sinh thêm đúng 1 dòng sổ đảo")
 		dong_dao = dong_sau[-1]
 		self.assertEqual(
-			dong_dao.so_lo, so_lo,
+			dong_dao.so_lo,
+			so_lo,
 			"dòng đảo phải mang ĐÚNG lô gốc (tra ngược qua dao_theo_o_goc), "
 			"không còn mất chiều lô như trước Task 9",
 		)
 		self.assertEqual(dong_dao.so_luong, -10)
 		self.assertEqual(
-			dong_dao.da_huy, 1,
+			dong_dao.da_huy,
+			1,
 			"dao_theo_o_goc tự cờ da_huy=1 cho dòng đảo mà chính nó ghi",
 		)
 		self.assertEqual(
-			dong_sau[0].da_huy, 1,
+			dong_sau[0].da_huy,
+			1,
 			"dòng gốc phải bị cờ da_huy=1 (không xoá, không sửa số liệu — chỉ cờ)",
 		)
 
 		ton_lo_cu = so.tong_ton_vi_tri(KHO, item, so_lo)
 		ton_lo_rong = so.tong_ton_vi_tri(KHO, item, None)
 		self.assertEqual(
-			ton_lo_cu, 0,
+			ton_lo_cu,
+			0,
 			"không còn tồn ma: dòng đảo trỏ đúng về lô gốc nên +10/-10 triệt "
 			"tiêu NGAY ở mức lô, không chỉ ở mức kho",
 		)
 		self.assertEqual(
-			ton_lo_rong, 0,
+			ton_lo_rong,
+			0,
 			"không còn tồn ảo: bucket 'không lô' không bị dòng đảo đụng tới nữa",
 		)
 		bin_qty = frappe.db.get_value("Bin", {"item_code": item, "warehouse": KHO}, "actual_qty")

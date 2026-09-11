@@ -41,8 +41,8 @@ VÒNG SỬA 1/5 (review điều phối sau khi Task 15 "xong"):
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from erpnext.vi_tri_kho.vitri.bat_kho import bat
 from erpnext.vi_tri_kho.tests.test_bat_kho import _don_sach
+from erpnext.vi_tri_kho.vitri.bat_kho import bat
 
 KHO = "Kho Miyano - MYN"
 
@@ -101,7 +101,8 @@ class TestKhongLoRaCong(FrappeTestCase):
 			"này im lặng bỏ qua vì danh sách rỗng)",
 		)
 		self.assertGreaterEqual(
-			len(doctype_cua_app), 5,
+			len(doctype_cua_app),
+			5,
 			f"phải thấy ít nhất 5 doctype đã biết của app, chỉ thấy {doctype_cua_app}",
 		)
 		for dt in doctype_cua_app:
@@ -109,11 +110,13 @@ class TestKhongLoRaCong(FrappeTestCase):
 			vai_tro_override = frappe.get_all("Custom DocPerm", filters={"parent": dt}, pluck="role")
 			for cam in ("Customer", "Website User", "All"):
 				self.assertNotIn(
-					cam, vai_tro,
+					cam,
+					vai_tro,
 					f"{dt} không được có DocPerm cho '{cam}' — xem docstring đầu file",
 				)
 				self.assertNotIn(
-					cam, vai_tro_override,
+					cam,
+					vai_tro_override,
 					f"{dt} không được có Custom DocPerm (override site-level) cho '{cam}'",
 				)
 
@@ -142,7 +145,8 @@ class TestPhienKhongDocDuoc(FrappeTestCase):
 		)
 		doctype_cua_app = _doctype_cua_app()
 		self.assertGreaterEqual(
-			len(doctype_cua_app), 5,
+			len(doctype_cua_app),
+			5,
 			f"phải thấy ít nhất 5 doctype đã biết của app, chỉ thấy {doctype_cua_app}",
 		)
 
@@ -190,7 +194,8 @@ class TestBaoCaoKhongMoChoCustomer(FrappeTestCase):
 			"vấn hỏng, không phải app không có report nào",
 		)
 		self.assertGreaterEqual(
-			len(report_cua_app), 3,
+			len(report_cua_app),
+			3,
 			f"phải thấy ít nhất 3 report đã biết của app, chỉ thấy {report_cua_app}",
 		)
 		for ten_report in report_cua_app:
@@ -199,6 +204,7 @@ class TestBaoCaoKhongMoChoCustomer(FrappeTestCase):
 			self.assertTrue(vai_tro, f"Report {ten_report} phải có ít nhất một role")
 			for cam in ("Customer", "Website User", "All"):
 				self.assertNotIn(
-					cam, vai_tro,
+					cam,
+					vai_tro,
 					f"Report {ten_report} không được có role '{cam}'",
 				)

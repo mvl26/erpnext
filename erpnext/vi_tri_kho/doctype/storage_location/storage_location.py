@@ -53,9 +53,11 @@ class StorageLocation(frappe.model.document.Document):
 			return
 		if self.ma_o != self.name:
 			frappe.throw(
-				_("Không sửa được mã ô của {0} (đang đổi thành {1}). Mã ô đã in lên tem "
-				  "dán kệ nên khoá lại sau khi tạo; cần mã khác thì tạo ô mới rồi ngừng "
-				  "dùng ô cũ.").format(self.name, self.ma_o)
+				_(
+					"Không sửa được mã ô của {0} (đang đổi thành {1}). Mã ô đã in lên tem "
+					"dán kệ nên khoá lại sau khi tạo; cần mã khác thì tạo ô mới rồi ngừng "
+					"dùng ô cũ."
+				).format(self.name, self.ma_o)
 			)
 
 	def kiem_tra_kho(self):
@@ -64,8 +66,10 @@ class StorageLocation(frappe.model.document.Document):
 
 		if frappe.db.get_value("Warehouse", self.kho, "is_group"):
 			frappe.throw(
-				_("{0} là kho tổng, không chứa hàng thật nên không đặt ô kệ vào đó được. "
-				  "Chọn một kho cụ thể.").format(self.kho)
+				_(
+					"{0} là kho tổng, không chứa hàng thật nên không đặt ô kệ vào đó được. "
+					"Chọn một kho cụ thể."
+				).format(self.kho)
 			)
 
 	def kiem_tra_khong_doi_dang_o_chua_xep(self):
@@ -95,9 +99,11 @@ class StorageLocation(frappe.model.document.Document):
 			return
 		if self.disabled:
 			frappe.throw(
-				_("Không thể vô hiệu hoá ô \"Chưa xếp vị trí\" {0} của kho {1} — đây là ô hệ "
-				  "thống, luôn phải hoạt động. Muốn ngừng dùng vị trí cho kho này, dùng chức "
-				  "năng \"Tắt\" ở Warehouse Location Setup.").format(self.name, self.kho)
+				_(
+					'Không thể vô hiệu hoá ô "Chưa xếp vị trí" {0} của kho {1} — đây là ô hệ '
+					"thống, luôn phải hoạt động. Muốn ngừng dùng vị trí cho kho này, dùng chức "
+					'năng "Tắt" ở Warehouse Location Setup.'
+				).format(self.name, self.kho)
 			)
 
 	def on_trash(self):
@@ -114,6 +120,8 @@ class StorageLocation(frappe.model.document.Document):
 		"""
 		if self.la_o_chua_xep:
 			frappe.throw(
-				_("Không xoá được ô \"Chưa xếp vị trí\" {0} của kho {1} — mỗi kho đã bật quản "
-				  "lý vị trí phải luôn có đúng một ô này.").format(self.name, self.kho)
+				_(
+					'Không xoá được ô "Chưa xếp vị trí" {0} của kho {1} — mỗi kho đã bật quản '
+					"lý vị trí phải luôn có đúng một ô này."
+				).format(self.name, self.kho)
 			)

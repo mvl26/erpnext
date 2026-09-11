@@ -26,9 +26,9 @@ Vòng sửa 2 (review): thứ tự so khớp phải là (1) không có dòng con
 khớp `delta` trong sai số, (3) tổng bundle ~0 (không đủ tỷ lệ để chia),
 (4) scale — KHÔNG được so `tong_bundle == 0` trước khi so khớp `delta`.
 Sai thứ tự đó có hai hậu quả: (a) một cặp lô trái dấu tổng đúng bằng 0
-(vd. đảo lô có thật, −5/+5) với delta=0 sẽ bị nuốt mất chiều lô dù đúng
+(vd. đảo lô có thật, -5/+5) với delta=0 sẽ bị nuốt mất chiều lô dù đúng
 ra rơi vào nhánh "không lệch"; (b) nguy hiểm hơn — tổng bundle gần-0 do
-sai số dấu phẩy động (vd. 0.1+0.2−0.3 = 5.55e-17, không bằng 0 tuyệt đối)
+sai số dấu phẩy động (vd. 0.1+0.2-0.3 = 5.55e-17, không bằng 0 tuyệt đối)
 sẽ lọt qua so sánh `== 0`, rơi vào nhánh scale, rồi CHIA CHO SỐ GẦN-0 →
 số lượng từng lô cỡ ±1e16 trong khi thủ thuật dồn phần dư vẫn ép tổng
 đúng bằng `delta` — sổ vị trí rác hoàn toàn ở chiều lô mà đối soát Task 10
@@ -122,8 +122,10 @@ def tach_theo_lo(sle, delta: float) -> list[dict]:
 		tong_da_chia += phan
 
 	d_cuoi = dong[-1]
-	ket_qua.append({
-		"so_lo": d_cuoi.batch_no or None,
-		"so_luong": flt(delta - tong_da_chia, _DO_CHINH_XAC_SO_LUONG),
-	})
+	ket_qua.append(
+		{
+			"so_lo": d_cuoi.batch_no or None,
+			"so_luong": flt(delta - tong_da_chia, _DO_CHINH_XAC_SO_LUONG),
+		}
+	)
 	return ket_qua

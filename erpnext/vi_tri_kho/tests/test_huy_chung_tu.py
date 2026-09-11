@@ -13,40 +13,49 @@ còn dấu vết để lần ngược. Bộ test này là lưới duy nhất.
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from erpnext.vi_tri_kho.tests.test_hook_nhap import _bat_kho_tho, _tao_item, _tat_kho_tho
 from erpnext.vi_tri_kho.vitri import kho as vk
 from erpnext.vi_tri_kho.vitri import so
-from erpnext.vi_tri_kho.tests.test_hook_nhap import _bat_kho_tho, _tao_item, _tat_kho_tho
 
 KHO = "Kho Miyano - MYN"
 
 
 def _o(ma_o, thu_tu=0):
 	if not frappe.db.exists("Storage Location", ma_o):
-		frappe.get_doc({
-			"doctype": "Storage Location", "ma_o": ma_o, "kho": KHO, "thu_tu_lay_hang": thu_tu,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Storage Location",
+				"ma_o": ma_o,
+				"kho": KHO,
+				"thu_tu_lay_hang": thu_tu,
+			}
+		).insert(ignore_permissions=True)
 	return ma_o
 
 
 def _xuat_kho(item, qty):
-	se = frappe.get_doc({
-		"doctype": "Stock Entry",
-		"stock_entry_type": "Material Issue",
-		"company": "Miyano Việt Nam",
-		"items": [{"item_code": item, "qty": qty, "s_warehouse": KHO}],
-	})
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Material Issue",
+			"company": "Miyano Việt Nam",
+			"items": [{"item_code": item, "qty": qty, "s_warehouse": KHO}],
+		}
+	)
 	se.insert(ignore_permissions=True)
 	se.submit()
 	return se
 
 
 def _nhap_kho(item, qty):
-	se = frappe.get_doc({
-		"doctype": "Stock Entry",
-		"stock_entry_type": "Material Receipt",
-		"company": "Miyano Việt Nam",
-		"items": [{"item_code": item, "qty": qty, "t_warehouse": KHO, "basic_rate": 1000}],
-	})
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Material Receipt",
+			"company": "Miyano Việt Nam",
+			"items": [{"item_code": item, "qty": qty, "t_warehouse": KHO, "basic_rate": 1000}],
+		}
+	)
 	se.insert(ignore_permissions=True)
 	se.submit()
 	return se
@@ -61,15 +70,31 @@ def _seed_o(item, o, so_luong):
 	"""
 	o_tam = vk.o_chua_xep(KHO)
 	so.ghi_dong_so(
-		o=o_tam, kho=KHO, vat_tu=item, so_lo=None, so_luong=-so_luong,
-		chung_tu_type="Storage Location", chung_tu=o_tam, chung_tu_row="r",
-		sle=None, ngay="2026-09-01", thoi_diem="2026-09-01 08:30:00",
+		o=o_tam,
+		kho=KHO,
+		vat_tu=item,
+		so_lo=None,
+		so_luong=-so_luong,
+		chung_tu_type="Storage Location",
+		chung_tu=o_tam,
+		chung_tu_row="r",
+		sle=None,
+		ngay="2026-09-01",
+		thoi_diem="2026-09-01 08:30:00",
 		company="Miyano Việt Nam",
 	)
 	so.ghi_dong_so(
-		o=o, kho=KHO, vat_tu=item, so_lo=None, so_luong=so_luong,
-		chung_tu_type="Storage Location", chung_tu=o, chung_tu_row="r",
-		sle=None, ngay="2026-09-01", thoi_diem="2026-09-01 08:30:00",
+		o=o,
+		kho=KHO,
+		vat_tu=item,
+		so_lo=None,
+		so_luong=so_luong,
+		chung_tu_type="Storage Location",
+		chung_tu=o,
+		chung_tu_row="r",
+		sle=None,
+		ngay="2026-09-01",
+		thoi_diem="2026-09-01 08:30:00",
 		company="Miyano Việt Nam",
 	)
 
@@ -118,7 +143,9 @@ class TestHuyPhieuXuat(FrappeTestCase):
 		o_tam = vk.o_chua_xep(KHO)
 		self.assertEqual(so.ton_o(o_tam, item, None), so_luong, "tiền đề: đã nhập vào CHUA-XEP")
 		_seed_o(item, self.o_gan, so_luong)
-		self.assertEqual(so.ton_o(self.o_gan, item, None), so_luong, "tiền đề: đã chuyển sổ vị trí sang o_gan")
+		self.assertEqual(
+			so.ton_o(self.o_gan, item, None), so_luong, "tiền đề: đã chuyển sổ vị trí sang o_gan"
+		)
 		self.assertEqual(so.ton_o(o_tam, item, None), 0, "tiền đề: CHUA-XEP về lại 0")
 		return item
 
@@ -140,11 +167,13 @@ class TestHuyPhieuXuat(FrappeTestCase):
 		se.cancel()
 
 		self.assertEqual(
-			so.ton_o(self.o_gan, item, None), 10,
+			so.ton_o(self.o_gan, item, None),
+			10,
 			"hàng phải quay về đúng ô đã lấy",
 		)
 		self.assertEqual(
-			so.ton_o(vk.o_chua_xep(KHO), item, None), 0,
+			so.ton_o(vk.o_chua_xep(KHO), item, None),
+			0,
 			"KHÔNG được rơi xuống đường thường (CHUA-XEP) — đó là nơi hàng "
 			"sẽ tới nếu dao_theo_o_goc không chạy ở chiều huỷ-xuất",
 		)
@@ -202,7 +231,8 @@ class TestHuyPhieuXuat(FrappeTestCase):
 			fields=["o", "so_luong"],
 		)
 		self.assertEqual(
-			len(goc), 2,
+			len(goc),
+			2,
 			"tiền đề: FEFO phải tách một dòng SLE xuất thành hai dòng sổ gốc "
 			"— một cho mỗi ô — để bài này có sức phân biệt vòng lặp",
 		)
@@ -250,7 +280,8 @@ class TestHuyPhieuNhap(FrappeTestCase):
 		se.cancel()
 		self.assertEqual(so.ton_o(o, self.item, None), 0)
 		self.assertEqual(
-			so.ton_o(o_khac, self.item, None), 4,
+			so.ton_o(o_khac, self.item, None),
+			4,
 			"ô khác (thu_tu nhỏ hơn CHUA-XEP) KHÔNG được bị FEFO rút nhầm vào — "
 			"nếu dao_theo_o_goc không chạy, FEFO sẽ ưu tiên rút từ đây trước",
 		)
@@ -278,7 +309,8 @@ class TestHuyChungTuLapTruocKhiBatViTri(FrappeTestCase):
 		_nhap_kho(self.item, 10)
 		se_xuat = _xuat_kho(self.item, 3)
 		self.assertEqual(
-			frappe.db.count("Location Ledger Entry", {"chung_tu": se_xuat.name}), 0,
+			frappe.db.count("Location Ledger Entry", {"chung_tu": se_xuat.name}),
+			0,
 			"tiền đề: chưa có dòng sổ vị trí nào cho chứng từ này (kho chưa bật)",
 		)
 
@@ -289,17 +321,20 @@ class TestHuyChungTuLapTruocKhiBatViTri(FrappeTestCase):
 		se_xuat.cancel()
 
 		dong = frappe.get_all(
-			"Location Ledger Entry", filters={"chung_tu": se_xuat.name},
+			"Location Ledger Entry",
+			filters={"chung_tu": se_xuat.name},
 			fields=["o", "so_luong", "da_huy"],
 		)
 		self.assertEqual(
-			len(dong), 1,
+			len(dong),
+			1,
 			"đúng MỘT dòng — đường thường (CHUA-XEP), không phải một cặp đảo "
 			"của dao_theo_o_goc vì không có dòng gốc để tra",
 		)
 		self.assertEqual(dong[0].o, vk.o_chua_xep(KHO))
 		self.assertEqual(dong[0].so_luong, 3)
 		self.assertEqual(
-			dong[0].da_huy, 0,
+			dong[0].da_huy,
+			0,
 			"đường thường (không phải dao_theo_o_goc) không tự cờ da_huy",
 		)

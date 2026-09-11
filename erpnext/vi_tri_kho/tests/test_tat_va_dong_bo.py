@@ -21,13 +21,13 @@ khoản khách tắt/đồng bộ được kho nội bộ. Thêm `TestTatQuyen` 
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from erpnext.vi_tri_kho.tests.kho_thu import dam_bao_kho_thu
+from erpnext.vi_tri_kho.tests.test_bat_kho import _don_sach
+from erpnext.vi_tri_kho.tests.test_hook_nhap import _tao_item
 from erpnext.vi_tri_kho.vitri import kho as vk
 from erpnext.vi_tri_kho.vitri import so
 from erpnext.vi_tri_kho.vitri.bat_kho import bat, dong_bo_lai, tat
 from erpnext.vi_tri_kho.vitri.doi_soat import doi_soat_kho
-from erpnext.vi_tri_kho.tests.kho_thu import dam_bao_kho_thu
-from erpnext.vi_tri_kho.tests.test_bat_kho import _don_sach
-from erpnext.vi_tri_kho.tests.test_hook_nhap import _tao_item
 
 # Kho THỬ — cùng lý do như `test_bat_kho.py`: nhóm bài này gọi `_don_sach()`,
 # `tat()` và `dong_bo_lai()` trên toàn bộ trạng thái chuyển đổi của kho.
@@ -36,11 +36,14 @@ WEBSITE_USER = "bvminhduc@demo.miyano"
 
 
 def _nhap(item, qty):
-	se = frappe.get_doc({
-		"doctype": "Stock Entry", "stock_entry_type": "Material Receipt",
-		"company": "Miyano Việt Nam",
-		"items": [{"item_code": item, "qty": qty, "t_warehouse": KHO, "basic_rate": 1000}],
-	})
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Material Receipt",
+			"company": "Miyano Việt Nam",
+			"items": [{"item_code": item, "qty": qty, "t_warehouse": KHO, "basic_rate": 1000}],
+		}
+	)
 	se.insert(ignore_permissions=True)
 	se.submit()
 	return se
@@ -73,7 +76,8 @@ class TestTat(FrappeTestCase):
 		truoc = frappe.db.count("Location Ledger Entry", {"kho": KHO})
 		_nhap(item, 5)
 		self.assertGreater(
-			frappe.db.count("Location Ledger Entry", {"kho": KHO}), truoc,
+			frappe.db.count("Location Ledger Entry", {"kho": KHO}),
+			truoc,
 			"kho đang bật thì nhập hàng phải ghi thêm dòng sổ",
 		)
 
@@ -85,9 +89,7 @@ class TestTat(FrappeTestCase):
 
 	def test_trang_thai_thanh_da_tat(self):
 		tat(KHO)
-		self.assertEqual(
-			frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"), "Đã tắt"
-		)
+		self.assertEqual(frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"), "Đã tắt")
 
 
 class TestChanBatThangLai(FrappeTestCase):
@@ -118,7 +120,7 @@ class TestDongBoLai(FrappeTestCase):
 
 	def test_bu_phan_lech_vao_o_chua_xep(self):
 		tat(KHO)
-		_nhap(self.item, 9)          # hook bỏ qua vì đã tắt
+		_nhap(self.item, 9)  # hook bỏ qua vì đã tắt
 		self.assertFalse(doi_soat_kho(KHO)["khop"])
 
 		kq = dong_bo_lai(KHO)
@@ -133,7 +135,8 @@ class TestDongBoLai(FrappeTestCase):
 		truoc = frappe.db.count("Location Ledger Entry", {"kho": KHO})
 		dong_bo_lai(KHO)
 		self.assertGreater(
-			frappe.db.count("Location Ledger Entry", {"kho": KHO}), truoc,
+			frappe.db.count("Location Ledger Entry", {"kho": KHO}),
+			truoc,
 			"đồng bộ phải GHI THÊM bút toán bù, không sửa dòng cũ",
 		)
 
@@ -156,10 +159,13 @@ class TestDongBoLai(FrappeTestCase):
 		self.assertIsNone(st.ngay_tat, "đồng bộ lại xong (đang bật) phải xoá ngày tắt cũ")
 		self.assertTrue(st.ngay_bat, "phải cập nhật ngày bật LẠI")
 		self.assertGreaterEqual(
-			st.ngay_bat, ngay_tat_truoc, "ngày bật lại phải không sớm hơn ngày tắt trước đó",
+			st.ngay_bat,
+			ngay_tat_truoc,
+			"ngày bật lại phải không sớm hơn ngày tắt trước đó",
 		)
 		self.assertEqual(
-			st.so_dong_chuyen_doi, 1,
+			st.so_dong_chuyen_doi,
+			1,
 			"phải phản ánh số dòng bù CỦA LẦN đồng bộ này (1 mặt hàng lệch), không phải "
 			"số dòng chuyển đổi của lần bật ĐẦU TIÊN",
 		)
@@ -168,9 +174,7 @@ class TestDongBoLai(FrappeTestCase):
 		tat(KHO)
 		_nhap(self.item, 4)
 		dong_bo_lai(KHO)
-		self.assertEqual(
-			frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"), "Đang bật"
-		)
+		self.assertEqual(frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"), "Đang bật")
 		self.assertTrue(vk.kho_co_quan_ly_vi_tri(KHO))
 
 
@@ -213,7 +217,8 @@ class TestDongBoLaiChuaTungBat(FrappeTestCase):
 		self.assertNotIn("chứng từ", str(ctx.exception).lower())
 
 		self.assertEqual(
-			frappe.db.count("Location Ledger Entry", {"kho": KHO}), 0,
+			frappe.db.count("Location Ledger Entry", {"kho": KHO}),
+			0,
 			"bị chặn sớm thì không được ghi dòng bù nào",
 		)
 
@@ -231,11 +236,10 @@ class TestDongBoLaiChuaTungBat(FrappeTestCase):
 		định vẫn bị chặn sạch — khoá đúng lỗ hổng mà bài trên (dùng tiền đề
 		"không có bản ghi nào") không chạm tới.
 		"""
-		frappe.get_doc({"doctype": "Warehouse Location Setup", "kho": KHO}).insert(
-			ignore_permissions=True
-		)
+		frappe.get_doc({"doctype": "Warehouse Location Setup", "kho": KHO}).insert(ignore_permissions=True)
 		self.assertEqual(
-			frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"), "Chưa bật",
+			frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"),
+			"Chưa bật",
 			"tiền đề: bản ghi mồ côi mang đúng giá trị mặc định của field",
 		)
 
@@ -245,10 +249,12 @@ class TestDongBoLaiChuaTungBat(FrappeTestCase):
 		self.assertNotIsInstance(ctx.exception, frappe.exceptions.LinkValidationError)
 		self.assertIn("chưa từng bật", str(ctx.exception).lower())
 		self.assertFalse(
-			vk.kho_co_quan_ly_vi_tri(KHO), "bị chặn thì cờ quản lý vị trí không được bật",
+			vk.kho_co_quan_ly_vi_tri(KHO),
+			"bị chặn thì cờ quản lý vị trí không được bật",
 		)
 		self.assertEqual(
-			frappe.db.count("Location Ledger Entry", {"kho": KHO}), 0,
+			frappe.db.count("Location Ledger Entry", {"kho": KHO}),
+			0,
 			"bị chặn sớm thì không được đổ tồn vào CHUA-XEP như bù trừ",
 		)
 
@@ -281,11 +287,13 @@ class TestTatQuyen(FrappeTestCase):
 
 		self.assertTrue(vk.kho_co_quan_ly_vi_tri(KHO), "bị chặn quyền thì cờ phải vẫn bật")
 		self.assertEqual(
-			frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"), "Đang bật",
+			frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"),
+			"Đang bật",
 			"bị chặn quyền thì trạng thái không được đổi",
 		)
 		self.assertEqual(
-			frappe.db.count("Location Ledger Entry", {"kho": KHO}), truoc,
+			frappe.db.count("Location Ledger Entry", {"kho": KHO}),
+			truoc,
 			"bị chặn quyền thì không được ghi/xoá dòng sổ nào",
 		)
 
@@ -318,14 +326,17 @@ class TestDongBoLaiQuyen(FrappeTestCase):
 			frappe.set_user("Administrator")
 
 		self.assertEqual(
-			frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"), "Đã tắt",
+			frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"),
+			"Đã tắt",
 			"bị chặn quyền thì trạng thái không được đổi",
 		)
 		self.assertFalse(
-			vk.kho_co_quan_ly_vi_tri(KHO), "bị chặn quyền thì cờ không được bật lại",
+			vk.kho_co_quan_ly_vi_tri(KHO),
+			"bị chặn quyền thì cờ không được bật lại",
 		)
 		self.assertEqual(
-			frappe.db.count("Location Ledger Entry", {"kho": KHO}), truoc,
+			frappe.db.count("Location Ledger Entry", {"kho": KHO}),
+			truoc,
 			"bị chặn quyền thì không được ghi bút toán bù nào",
 		)
 
@@ -355,9 +366,13 @@ class TestDongBoLaiOAmKhongTuSua(FrappeTestCase):
 
 		o_gan = "K19Z47010101"
 		if not frappe.db.exists("Storage Location", o_gan):
-			frappe.get_doc({
-				"doctype": "Storage Location", "ma_o": o_gan, "kho": KHO,
-			}).insert(ignore_permissions=True)
+			frappe.get_doc(
+				{
+					"doctype": "Storage Location",
+					"ma_o": o_gan,
+					"kho": KHO,
+				}
+			).insert(ignore_permissions=True)
 		# San CHUA-XEP xuống -3, o_gan bù +13 — TỔNG (dong_lech) vẫn khớp,
 		# chỉ o_am mới thấy — mô phỏng hư hỏng dữ liệu KHÔNG do lần tắt/đồng
 		# bộ đang thử gây ra.
@@ -365,10 +380,16 @@ class TestDongBoLaiOAmKhongTuSua(FrappeTestCase):
 			"update `tabLocation Balance` set so_luong = so_luong - 13 where o=%s and vat_tu=%s",
 			(o_chua_xep, self.item_am),
 		)
-		frappe.get_doc({
-			"doctype": "Location Balance", "o": o_gan, "kho": KHO,
-			"vat_tu": self.item_am, "so_lo": "", "so_luong": 13,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Location Balance",
+				"o": o_gan,
+				"kho": KHO,
+				"vat_tu": self.item_am,
+				"so_lo": "",
+				"so_luong": 13,
+			}
+		).insert(ignore_permissions=True)
 		self.assertTrue(
 			[d for d in doi_soat_kho(KHO)["o_am"] if d["vat_tu"] == self.item_am],
 			"tiền đề: đã có ô âm",
@@ -382,17 +403,21 @@ class TestDongBoLaiOAmKhongTuSua(FrappeTestCase):
 
 		thong_bao = str(ctx.exception).lower()
 		self.assertIn(
-			"âm", thong_bao,
+			"âm",
+			thong_bao,
 			f"thông báo phải nêu rõ vấn đề là Ô ÂM, không phải câu chung chung: {ctx.exception}",
 		)
 		self.assertNotIn(
-			"0 dòng lệch", thong_bao,
+			"0 dòng lệch",
+			thong_bao,
 			"không được đọc như thể không có gì lệch trong khi RPC vừa throw thật",
 		)
 		self.assertEqual(
-			frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"), "Đã tắt",
+			frappe.db.get_value("Warehouse Location Setup", KHO, "trang_thai"),
+			"Đã tắt",
 			"thất bại thì trạng thái không được đổi thành Đang bật",
 		)
 		self.assertFalse(
-			vk.kho_co_quan_ly_vi_tri(KHO), "thất bại thì cờ không được bật lại",
+			vk.kho_co_quan_ly_vi_tri(KHO),
+			"thất bại thì cờ không được bật lại",
 		)

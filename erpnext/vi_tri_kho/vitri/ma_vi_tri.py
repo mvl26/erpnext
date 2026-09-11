@@ -12,7 +12,7 @@ ghi F8 là 11 ký tự, không có trường Khoang, vì nó tự khai kế th�
 F10" trong khi đặc tả v2 nói rõ "bỏ phương án" đó). Hai trường độc lập cùng
 lệch, cùng một nguyên nhân: tài liệu đó lỗi thời, không phải một phương án khác.
 
-Khu viết SỐ trước CHỮ (1B, 3B, 4B). §5.2 mô tả bằng lời là "chữ cái A–Z + số
+Khu viết SỐ trước CHỮ (1B, 3B, 4B). §5.2 mô tả bằng lời là "chữ cái A-Z + số
 tầng nhà" nhưng mọi ví dụ trong cả ba tài liệu — kể cả ảnh chụp kho MSC — đều
 ngược lại. Chủ dự án chốt theo ví dụ (10/09/2026).
 """
@@ -23,7 +23,7 @@ import frappe
 from frappe import _
 
 # Dải giá trị theo §5.2, cưỡng chế bằng chính regex chứ không chỉ kiểm độ dài:
-# Dãy 01–99 · Khoang 01–99 · Tầng 01–09 · Ô 01–99.
+# Dãy 01-99 · Khoang 01-99 · Tầng 01-09 · Ô 01-99.
 _HAI_SO_1_99 = r"(?:0[1-9]|[1-9][0-9])"
 _HAI_SO_1_09 = r"(?:0[1-9])"
 MAU_MA = re.compile(

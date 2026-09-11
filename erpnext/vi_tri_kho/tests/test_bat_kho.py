@@ -34,11 +34,11 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt
 
+from erpnext.vi_tri_kho.tests.kho_thu import dam_bao_kho_thu
+from erpnext.vi_tri_kho.tests.test_hook_nhap import _tao_item
 from erpnext.vi_tri_kho.vitri import kho as vk
 from erpnext.vi_tri_kho.vitri.bat_kho import bat, xem_truoc
 from erpnext.vi_tri_kho.vitri.doi_soat import NGUONG_SAI_SO, doi_soat_kho, ton_kho_theo_lo
-from erpnext.vi_tri_kho.tests.kho_thu import dam_bao_kho_thu
-from erpnext.vi_tri_kho.tests.test_hook_nhap import _tao_item
 
 # KHO THỬ, không phải `Kho Miyano - MYN`. `_don_sach()` dưới đây xoá thẳng bằng
 # SQL toàn bộ sổ vị trí + tồn vị trí + ô hệ thống + hồ sơ chuyển đổi của kho
@@ -88,7 +88,8 @@ class TestBatThanhCong(FrappeTestCase):
 		bat(KHO)
 		o = vk.o_chua_xep(KHO)
 		self.assertEqual(
-			frappe.db.get_value("Storage Location", o, "thu_tu_lay_hang"), 9999,
+			frappe.db.get_value("Storage Location", o, "thu_tu_lay_hang"),
+			9999,
 			"ô 'Chưa xếp' không có vị trí trên đường đi trong kho nên phải xếp "
 			"cuối hàng đợi lấy hàng, sau mọi ô đã xếp đàng hoàng",
 		)
@@ -115,9 +116,7 @@ class TestBatThanhCong(FrappeTestCase):
 		`bat()` tự tính ra và trả về.
 		"""
 		bat(KHO)
-		dong = frappe.get_all(
-			"Location Ledger Entry", filters={"kho": KHO}, fields=["vat_tu", "so_lo"]
-		)
+		dong = frappe.get_all("Location Ledger Entry", filters={"kho": KHO}, fields=["vat_tu", "so_lo"])
 		khoa_da_ghi = {(d.vat_tu, d.so_lo or "") for d in dong}
 		self.assertEqual(len(khoa_da_ghi), len(dong), "mỗi (mặt hàng, lô) đúng một dòng")
 
@@ -127,12 +126,14 @@ class TestBatThanhCong(FrappeTestCase):
 			if abs(flt(sl)) > NGUONG_SAI_SO
 		}
 		self.assertEqual(
-			khoa_da_ghi, khoa_nguon,
+			khoa_da_ghi,
+			khoa_nguon,
 			"tập (mặt hàng, lô) đã ghi phải khớp CHÍNH XÁC nguồn tồn theo lô "
 			"(ton_kho_theo_lo) — không chỉ khớp SỐ LƯỢNG dòng với con số bat() tự báo",
 		)
 		self.assertGreater(
-			sum(1 for _, so_lo in khoa_da_ghi if so_lo), 0,
+			sum(1 for _, so_lo in khoa_da_ghi if so_lo),
+			0,
 			"kho thử có mặt hàng quản lý lô — phải có ít nhất một dòng mang so_lo thật, "
 			"không phải toàn bộ rơi vào ngăn không-lô",
 		)
@@ -154,15 +155,16 @@ class TestBatThanhCong(FrappeTestCase):
 		tong_vi_tri = frappe.db.sql(
 			"""select vat_tu, sum(so_luong) as sl from `tabLocation Balance`
 			   where kho=%s group by vat_tu""",
-			(KHO,), as_dict=True,
+			(KHO,),
+			as_dict=True,
 		)
 		self.assertGreater(len(tong_vi_tri), 0, "kho thử đã được nạp tồn nên phải có dòng")
 		for d in tong_vi_tri:
-			ton_bin = frappe.db.get_value(
-				"Bin", {"item_code": d.vat_tu, "warehouse": KHO}, "actual_qty"
-			)
+			ton_bin = frappe.db.get_value("Bin", {"item_code": d.vat_tu, "warehouse": KHO}, "actual_qty")
 			self.assertAlmostEqual(
-				flt(d.sl), flt(ton_bin), places=4,
+				flt(d.sl),
+				flt(ton_bin),
+				places=4,
 				msg=f"{d.vat_tu}: Location Balance {d.sl} != Bin {ton_bin}",
 			)
 
@@ -185,7 +187,8 @@ class TestBatThanhCong(FrappeTestCase):
 			(KHO, NGUONG_SAI_SO),
 		)[0][0]
 		self.assertEqual(
-			len(tong_vi_tri), so_mat_hang_bin,
+			len(tong_vi_tri),
+			so_mat_hang_bin,
 			"số mặt hàng có tồn vị trí phải khớp số mặt hàng có tồn (cùng ngưỡng lọc) "
 			"trên Bin — lệch nghĩa là có mặt hàng bị rớt khỏi lần chuyển đổi",
 		)
@@ -203,10 +206,14 @@ class TestBatThatBai(FrappeTestCase):
 		"""Đối soát cuối cùng lệch → phải quay về đúng như trước khi bấm."""
 		with patch(
 			"erpnext.vi_tri_kho.vitri.bat_kho.doi_soat_kho",
-			return_value={"kho": KHO, "khop": False, "so_dong_lech": 1,
-			              "dong_lech": [{"vat_tu": "X", "so_lo": None,
-			                             "ton_vi_tri": 1, "ton_kho": 2, "lech": -1}],
-			              "o_am": [], "lech_bo_dem": []},
+			return_value={
+				"kho": KHO,
+				"khop": False,
+				"so_dong_lech": 1,
+				"dong_lech": [{"vat_tu": "X", "so_lo": None, "ton_vi_tri": 1, "ton_kho": 2, "lech": -1}],
+				"o_am": [],
+				"lech_bo_dem": [],
+			},
 		):
 			with self.assertRaises(frappe.ValidationError):
 				bat(KHO)
@@ -214,7 +221,8 @@ class TestBatThatBai(FrappeTestCase):
 		self.assertIsNone(vk.o_chua_xep(KHO), "ô CHUA-XEP phải biến mất")
 		self.assertEqual(frappe.db.count("Location Ledger Entry", {"kho": KHO}), 0)
 		self.assertEqual(
-			frappe.db.count("Location Balance", {"kho": KHO}), 0,
+			frappe.db.count("Location Balance", {"kho": KHO}),
+			0,
 			"Location Balance được ghi HAI LẦN (ghi_dong_so → _cong_don_ton, rồi "
 			"dung_lai_ton_vi_tri dựng lại) — vòng sửa 1 (Q2) thêm khoá riêng cho "
 			"bảng này, trước đó không bài nào trong lớp kiểm nó dù _don_sach của "
@@ -263,7 +271,8 @@ class TestBatQuyen(FrappeTestCase):
 
 		self.assertIsNone(vk.o_chua_xep(KHO), "bị chặn quyền thì không được tạo ô nào")
 		self.assertEqual(
-			frappe.db.count("Location Ledger Entry", {"kho": KHO}), 0,
+			frappe.db.count("Location Ledger Entry", {"kho": KHO}),
+			0,
 			"bị chặn quyền thì không được ghi dòng sổ nào",
 		)
 		self.assertFalse(vk.kho_co_quan_ly_vi_tri(KHO), "bị chặn quyền thì cờ phải vẫn tắt")
@@ -302,9 +311,14 @@ class TestBatTonAm(FrappeTestCase):
 	def test_bat_that_bai_neu_co_ton_am(self):
 		item = _tao_item("_Test Bat Ton Am")
 		if not frappe.db.exists("Bin", {"item_code": item, "warehouse": KHO}):
-			frappe.get_doc({
-				"doctype": "Bin", "item_code": item, "warehouse": KHO, "actual_qty": 0,
-			}).insert(ignore_permissions=True)
+			frappe.get_doc(
+				{
+					"doctype": "Bin",
+					"item_code": item,
+					"warehouse": KHO,
+					"actual_qty": 0,
+				}
+			).insert(ignore_permissions=True)
 		frappe.db.set_value("Bin", {"item_code": item, "warehouse": KHO}, "actual_qty", -5)
 
 		kq_xem_truoc = xem_truoc(KHO)
@@ -320,6 +334,7 @@ class TestBatTonAm(FrappeTestCase):
 		self.assertFalse(vk.kho_co_quan_ly_vi_tri(KHO), "bật thất bại thì cờ phải vẫn tắt")
 		self.assertIsNone(vk.o_chua_xep(KHO), "bật thất bại thì không được để lại ô CHUA-XEP")
 		self.assertEqual(
-			frappe.db.count("Location Ledger Entry", {"kho": KHO}), 0,
+			frappe.db.count("Location Ledger Entry", {"kho": KHO}),
+			0,
 			"bật thất bại thì không được để lại dòng sổ nào (kể cả dòng mang số âm)",
 		)

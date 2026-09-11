@@ -29,19 +29,26 @@ ITEM_CO_LO = "_Test KhoThu Co Lo"
 
 def _tao_kho():
 	if not frappe.db.exists("Warehouse", TEN_KHO_THU):
-		frappe.get_doc({
-			"doctype": "Warehouse", "warehouse_name": "_Test Kho Chuyen Doi",
-			"company": "Miyano Việt Nam", "is_group": 0,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Warehouse",
+				"warehouse_name": "_Test Kho Chuyen Doi",
+				"company": "Miyano Việt Nam",
+				"is_group": 0,
+			}
+		).insert(ignore_permissions=True)
 	return TEN_KHO_THU
 
 
 def _nhap(item, qty):
-	se = frappe.get_doc({
-		"doctype": "Stock Entry", "stock_entry_type": "Material Receipt",
-		"company": "Miyano Việt Nam",
-		"items": [{"item_code": item, "qty": qty, "t_warehouse": TEN_KHO_THU, "basic_rate": 1000}],
-	})
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Material Receipt",
+			"company": "Miyano Việt Nam",
+			"items": [{"item_code": item, "qty": qty, "t_warehouse": TEN_KHO_THU, "basic_rate": 1000}],
+		}
+	)
 	se.insert(ignore_permissions=True)
 	se.submit()
 	return se
@@ -63,9 +70,7 @@ def dam_bao_kho_thu() -> str:
 	_tao_kho()
 	for item, co_lo in ((ITEM_KHONG_LO, 0), (ITEM_CO_LO, 1)):
 		_tao_item(item, co_lo=co_lo)
-		ton = frappe.db.get_value(
-			"Bin", {"item_code": item, "warehouse": TEN_KHO_THU}, "actual_qty"
-		)
+		ton = frappe.db.get_value("Bin", {"item_code": item, "warehouse": TEN_KHO_THU}, "actual_qty")
 		if not ton:
 			_nhap(item, 20)
 	return TEN_KHO_THU

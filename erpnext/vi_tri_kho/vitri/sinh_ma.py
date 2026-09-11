@@ -16,7 +16,7 @@ from frappe import _
 from erpnext.vi_tri_kho.vitri.bat_kho import _kiem_tra_quyen
 from erpnext.vi_tri_kho.vitri.ma_vi_tri import MAU_MA, VI_DU, phan_tich_ma
 
-# §5.2: Dãy 01–99 · Khoang 01–99 · Tầng 01–09 · Ô 01–99.
+# §5.2: Dãy 01-99 · Khoang 01-99 · Tầng 01-09 · Ô 01-99.
 GIOI_HAN = {"so_day": 99, "so_khoang_moi_day": 99, "so_tang_moi_khoang": 9, "so_o_moi_tang": 99}
 
 
@@ -24,9 +24,11 @@ def _ma_kho_cua(kho: str) -> str:
 	ma = (frappe.db.get_value("Warehouse", kho, "custom_ma_kho_spd") or "").strip().upper()
 	if not ma:
 		frappe.throw(
-			_("Kho {0} chưa khai mã kho SPD. Mở phiếu kho đó và điền ô "
-			  "\"Mã kho SPD (2 ký tự)\" — ví dụ K1 cho kho trung tâm, B1–B9 cho kho "
-			  "vệ tinh trong bệnh viện.").format(kho)
+			_(
+				"Kho {0} chưa khai mã kho SPD. Mở phiếu kho đó và điền ô "
+				'"Mã kho SPD (2 ký tự)" — ví dụ K1 cho kho trung tâm, B1–B9 cho kho '
+				"vệ tinh trong bệnh viện."
+			).format(kho)
 		)
 	return ma
 
@@ -38,9 +40,7 @@ def _so_nguyen(ten: str, gia_tri) -> int:
 		frappe.throw(_("{0} phải là số nguyên. Đã nhận: {1}").format(ten, gia_tri))
 	toi_da = GIOI_HAN[ten]
 	if not 1 <= n <= toi_da:
-		frappe.throw(
-			_("{0} phải nằm trong khoảng 1–{1}. Đã nhận: {2}.").format(ten, toi_da, n)
-		)
+		frappe.throw(_("{0} phải nằm trong khoảng 1–{1}. Đã nhận: {2}.").format(ten, toi_da, n))
 	return n
 
 
@@ -69,7 +69,10 @@ def _liet_ke(kho, khu, so_day, so_khoang_moi_day, so_tang_moi_khoang, so_o_moi_t
 
 	da_co = set(frappe.get_all("Storage Location", filters={"name": ("in", ma)}, pluck="name"))
 	return ma, {
-		"kho": kho, "so_o": len(ma), "ma_mau": ma[:20], "trung": sorted(da_co),
+		"kho": kho,
+		"so_o": len(ma),
+		"ma_mau": ma[:20],
+		"trung": sorted(da_co),
 	}
 
 
@@ -93,14 +96,20 @@ def sinh(kho, khu, so_day, so_khoang_moi_day, so_tang_moi_khoang, so_o_moi_tang)
 
 	if kq["trung"]:
 		frappe.throw(
-			_("{0} mã ô đã tồn tại nên không sinh ô nào cả. Ví dụ: {1}. "
-			  "Đổi khu hoặc kích thước rồi thử lại.")
-			.format(len(kq["trung"]), ", ".join(kq["trung"][:5]))
+			_(
+				"{0} mã ô đã tồn tại nên không sinh ô nào cả. Ví dụ: {1}. "
+				"Đổi khu hoặc kích thước rồi thử lại."
+			).format(len(kq["trung"]), ", ".join(kq["trung"][:5]))
 		)
 
 	for i, m in enumerate(ma, start=1):
-		frappe.get_doc({
-			"doctype": "Storage Location", "ma_o": m, "kho": kho, "thu_tu_lay_hang": i,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Storage Location",
+				"ma_o": m,
+				"kho": kho,
+				"thu_tu_lay_hang": i,
+			}
+		).insert(ignore_permissions=True)
 
 	return {"kho": kho, "so_o_da_tao": len(ma)}

@@ -129,11 +129,11 @@ def _o_am(kho) -> list[dict]:
 	dong = frappe.db.sql(
 		"""select o, vat_tu, ifnull(so_lo,'') as so_lo, so_luong
 		   from `tabLocation Balance` where kho=%s and so_luong < %s""",
-		(kho, -NGUONG_SAI_SO), as_dict=True,
+		(kho, -NGUONG_SAI_SO),
+		as_dict=True,
 	)
 	return [
-		{"o": d.o, "vat_tu": d.vat_tu, "so_lo": d.so_lo or None, "so_luong": flt(d.so_luong)}
-		for d in dong
+		{"o": d.o, "vat_tu": d.vat_tu, "so_lo": d.so_lo or None, "so_luong": flt(d.so_luong)} for d in dong
 	]
 
 
@@ -152,13 +152,15 @@ def _lech_bo_dem(kho) -> list[dict]:
 		"""select o, vat_tu, ifnull(so_lo,'') as so_lo, sum(so_luong) as sl
 		   from `tabLocation Balance` where kho=%s
 		   group by o, vat_tu, ifnull(so_lo,'')""",
-		(kho,), as_dict=True,
+		(kho,),
+		as_dict=True,
 	)
 	so_sach = frappe.db.sql(
 		"""select o, vat_tu, ifnull(so_lo,'') as so_lo, sum(so_luong) as sl
 		   from `tabLocation Ledger Entry` where kho=%s
 		   group by o, vat_tu, ifnull(so_lo,'')""",
-		(kho,), as_dict=True,
+		(kho,),
+		as_dict=True,
 	)
 	bo_dem_map = {(d.o, d.vat_tu, d.so_lo): flt(d.sl) for d in bo_dem}
 	so_sach_map = {(d.o, d.vat_tu, d.so_lo): flt(d.sl) for d in so_sach}
@@ -169,10 +171,16 @@ def _lech_bo_dem(kho) -> list[dict]:
 		b = so_sach_map.get(khoa, 0)
 		if abs(a - b) > NGUONG_SAI_SO:
 			o, vat_tu, so_lo = khoa
-			ket_qua.append({
-				"o": o, "vat_tu": vat_tu, "so_lo": so_lo or None,
-				"bo_dem": a, "so_sach": b, "lech": a - b,
-			})
+			ket_qua.append(
+				{
+					"o": o,
+					"vat_tu": vat_tu,
+					"so_lo": so_lo or None,
+					"bo_dem": a,
+					"so_sach": b,
+					"lech": a - b,
+				}
+			)
 	return ket_qua
 
 
@@ -196,13 +204,15 @@ def doi_soat_kho(kho) -> dict:
 		a = flt(ton_vt.get((vat_tu, so_lo), 0))
 		b = flt(ton_kho.get((vat_tu, so_lo), 0))
 		if abs(a - b) > NGUONG_SAI_SO:
-			lech.append({
-				"vat_tu": vat_tu,
-				"so_lo": so_lo or None,
-				"ton_vi_tri": a,
-				"ton_kho": b,
-				"lech": a - b,
-			})
+			lech.append(
+				{
+					"vat_tu": vat_tu,
+					"so_lo": so_lo or None,
+					"ton_vi_tri": a,
+					"ton_kho": b,
+					"lech": a - b,
+				}
+			)
 
 	o_am = _o_am(kho)
 	lech_bo_dem = _lech_bo_dem(kho)

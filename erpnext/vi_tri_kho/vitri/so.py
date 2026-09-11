@@ -33,27 +33,39 @@ def _ten_dong_ton(o, vat_tu, so_lo):
 
 
 def ghi_dong_so(
-	o, kho, vat_tu, so_lo, so_luong,
-	chung_tu_type, chung_tu, chung_tu_row, sle,
-	ngay, thoi_diem, company, da_huy=0,
+	o,
+	kho,
+	vat_tu,
+	so_lo,
+	so_luong,
+	chung_tu_type,
+	chung_tu,
+	chung_tu_row,
+	sle,
+	ngay,
+	thoi_diem,
+	company,
+	da_huy=0,
 ) -> str:
 	"""Ghi một dòng sổ vị trí và cập nhật bộ đệm tồn. Trả tên dòng sổ."""
-	dong = frappe.get_doc({
-		"doctype": "Location Ledger Entry",
-		"ngay": ngay,
-		"thoi_diem": thoi_diem,
-		"kho": kho,
-		"o": o,
-		"vat_tu": vat_tu,
-		"so_lo": so_lo or "",
-		"so_luong": flt(so_luong),
-		"chung_tu_type": chung_tu_type,
-		"chung_tu": chung_tu,
-		"chung_tu_row": chung_tu_row,
-		"sle": sle,
-		"da_huy": da_huy,
-		"company": company,
-	})
+	dong = frappe.get_doc(
+		{
+			"doctype": "Location Ledger Entry",
+			"ngay": ngay,
+			"thoi_diem": thoi_diem,
+			"kho": kho,
+			"o": o,
+			"vat_tu": vat_tu,
+			"so_lo": so_lo or "",
+			"so_luong": flt(so_luong),
+			"chung_tu_type": chung_tu_type,
+			"chung_tu": chung_tu,
+			"chung_tu_row": chung_tu_row,
+			"sle": sle,
+			"da_huy": da_huy,
+			"company": company,
+		}
+	)
 	# KHÔNG ignore_links ở đây (vòng sửa 1, Việc 4): Location Ledger Entry là
 	# nguồn sự thật cho Task 5-10. Trước đây ignore_links=True tắt kiểm tra
 	# khoá ngoại cho TOÀN BỘ doc — không chỉ so_lo/chung_tu mà cả o, kho,
@@ -150,15 +162,22 @@ def dung_lai_ton_vi_tri(kho=None) -> int:
 		f"""select o, kho, vat_tu, ifnull(so_lo,'') as so_lo, sum(so_luong) as sl
 		    from `tabLocation Ledger Entry` {dk_kho}
 		    group by o, kho, vat_tu, ifnull(so_lo,'')""",
-		tham_so, as_dict=True,
+		tham_so,
+		as_dict=True,
 	)
 
 	luc = now_datetime()
 	for d in dong:
-		frappe.get_doc({
-			"doctype": "Location Balance",
-			"o": d.o, "kho": d.kho, "vat_tu": d.vat_tu,
-			"so_lo": d.so_lo, "so_luong": flt(d.sl), "cap_nhat_luc": luc,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Location Balance",
+				"o": d.o,
+				"kho": d.kho,
+				"vat_tu": d.vat_tu,
+				"so_lo": d.so_lo,
+				"so_luong": flt(d.sl),
+				"cap_nhat_luc": luc,
+			}
+		).insert(ignore_permissions=True)
 
 	return len(dong)

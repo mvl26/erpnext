@@ -22,18 +22,27 @@ KHO = "Kho Miyano - MYN"
 
 def _o(ma_o, thu_tu=0):
 	if not frappe.db.exists("Storage Location", ma_o):
-		frappe.get_doc({
-			"doctype": "Storage Location", "ma_o": ma_o, "kho": KHO, "thu_tu_lay_hang": thu_tu,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Storage Location",
+				"ma_o": ma_o,
+				"kho": KHO,
+				"thu_tu_lay_hang": thu_tu,
+			}
+		).insert(ignore_permissions=True)
 	return ma_o
 
 
 def _lo(ma, item, han=None):
 	if not frappe.db.exists("Batch", ma):
-		frappe.get_doc({
-			"doctype": "Batch", "batch_id": ma, "item": item,
-			"expiry_date": han,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Batch",
+				"batch_id": ma,
+				"item": item,
+				"expiry_date": han,
+			}
+		).insert(ignore_permissions=True)
 	return ma
 
 
@@ -45,9 +54,17 @@ def _dat(o, vat_tu, so_lo, sl):
 	# sang trỏ về chính Storage Location `o` (luôn có thật, đã tạo trước khi
 	# gọi _dat), giống quy ước đã dùng ở test_so_vi_tri.py::_ghi.
 	so.ghi_dong_so(
-		o=o, kho=KHO, vat_tu=vat_tu, so_lo=so_lo, so_luong=sl,
-		chung_tu_type="Storage Location", chung_tu=o, chung_tu_row="r",
-		sle=None, ngay="2026-09-01", thoi_diem="2026-09-01 08:00:00",
+		o=o,
+		kho=KHO,
+		vat_tu=vat_tu,
+		so_lo=so_lo,
+		so_luong=sl,
+		chung_tu_type="Storage Location",
+		chung_tu=o,
+		chung_tu_row="r",
+		sle=None,
+		ngay="2026-09-01",
+		thoi_diem="2026-09-01 08:00:00",
 		company="Miyano Việt Nam",
 	)
 
@@ -68,11 +85,17 @@ def _dam_bao_item(ma_item="_Test FEFO Item"):
 	#     nếu không ERPNext báo "The selected item cannot have Batch" khi
 	#     insert Batch.
 	if not frappe.db.exists("Item", ma_item):
-		frappe.get_doc({
-			"doctype": "Item", "item_code": ma_item, "item_name": ma_item,
-			"item_group": "All Item Groups", "stock_uom": "Nos", "is_stock_item": 1,
-			"has_batch_no": 1,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": ma_item,
+				"item_name": ma_item,
+				"item_group": "All Item Groups",
+				"stock_uom": "Nos",
+				"is_stock_item": 1,
+				"has_batch_no": 1,
+			}
+		).insert(ignore_permissions=True)
 	return ma_item
 
 
@@ -305,16 +328,25 @@ class TestXuatQuaHookThatVaBatBien(FrappeTestCase):
 	def test_xuat_khong_khai_vi_tri_chon_dung_o_va_khop_bin(self):
 		item = "_Test FEFO Hook Xuat"
 		if not frappe.db.exists("Item", item):
-			frappe.get_doc({
-				"doctype": "Item", "item_code": item, "item_name": item,
-				"item_group": "All Item Groups", "stock_uom": "Nos", "is_stock_item": 1,
-			}).insert(ignore_permissions=True)
+			frappe.get_doc(
+				{
+					"doctype": "Item",
+					"item_code": item,
+					"item_name": item,
+					"item_group": "All Item Groups",
+					"stock_uom": "Nos",
+					"is_stock_item": 1,
+				}
+			).insert(ignore_permissions=True)
 
-		nhap = frappe.get_doc({
-			"doctype": "Stock Entry", "stock_entry_type": "Material Receipt",
-			"company": "Miyano Việt Nam",
-			"items": [{"item_code": item, "qty": 12, "t_warehouse": KHO, "basic_rate": 1000}],
-		})
+		nhap = frappe.get_doc(
+			{
+				"doctype": "Stock Entry",
+				"stock_entry_type": "Material Receipt",
+				"company": "Miyano Việt Nam",
+				"items": [{"item_code": item, "qty": 12, "t_warehouse": KHO, "basic_rate": 1000}],
+			}
+		)
 		nhap.insert(ignore_permissions=True)
 		nhap.submit()
 
@@ -332,15 +364,24 @@ class TestXuatQuaHookThatVaBatBien(FrappeTestCase):
 		# thuận, không tạo được mâu thuẫn với nó nữa. Phải lấy hai ô thật.
 		xa = _o("K19Z18010101", thu_tu=5)
 		gan = _o("K19Z18010102", thu_tu=1)
+
 		# San hàng từ CHUA-XEP sang hai ô thật — CHỈ để seed dữ liệu test (mô
 		# phỏng xếp vị trí thủ công), không phải logic sản phẩm của Task 8;
 		# tổng không đổi nên Bin không bị ảnh hưởng.
 		def _san(den, sl):
 			for o_, q in ((o_chua_xep, -sl), (den, sl)):
 				so.ghi_dong_so(
-					o=o_, kho=KHO, vat_tu=item, so_lo=None, so_luong=q,
-					chung_tu_type="Storage Location", chung_tu=den, chung_tu_row="seed",
-					sle=None, ngay="2026-09-01", thoi_diem="2026-09-01 09:00:00",
+					o=o_,
+					kho=KHO,
+					vat_tu=item,
+					so_lo=None,
+					so_luong=q,
+					chung_tu_type="Storage Location",
+					chung_tu=den,
+					chung_tu_row="seed",
+					sle=None,
+					ngay="2026-09-01",
+					thoi_diem="2026-09-01 09:00:00",
 					company="Miyano Việt Nam",
 				)
 
@@ -351,11 +392,14 @@ class TestXuatQuaHookThatVaBatBien(FrappeTestCase):
 		self.assertEqual(so.ton_o(xa, item, None), 4)
 
 		def _xuat(sl):
-			ct = frappe.get_doc({
-				"doctype": "Stock Entry", "stock_entry_type": "Material Issue",
-				"company": "Miyano Việt Nam",
-				"items": [{"item_code": item, "qty": sl, "s_warehouse": KHO, "basic_rate": 1000}],
-			})
+			ct = frappe.get_doc(
+				{
+					"doctype": "Stock Entry",
+					"stock_entry_type": "Material Issue",
+					"company": "Miyano Việt Nam",
+					"items": [{"item_code": item, "qty": sl, "s_warehouse": KHO, "basic_rate": 1000}],
+				}
+			)
 			ct.insert(ignore_permissions=True)
 			ct.submit()
 
@@ -369,7 +413,8 @@ class TestXuatQuaHookThatVaBatBien(FrappeTestCase):
 		self.assertEqual(so.ton_o(gan, item, None), 0, "GAN (thu_tu=1) phải bị rút hết trước")
 		self.assertEqual(so.ton_o(xa, item, None), 2, "XA (thu_tu=5) chỉ bị rút phần còn thiếu")
 		self.assertEqual(
-			so.ton_o(o_chua_xep, item, None), 3,
+			so.ton_o(o_chua_xep, item, None),
+			3,
 			"ô 'Chưa xếp' (thu_tu=9999) phải được để yên khi ô thật còn hàng",
 		)
 
@@ -382,7 +427,8 @@ class TestXuatQuaHookThatVaBatBien(FrappeTestCase):
 		bin_qty = frappe.db.get_value("Bin", {"item_code": item, "warehouse": KHO}, "actual_qty")
 		self.assertEqual(flt(bin_qty), 1, "tiền đề: ERPNext (nguồn độc lập) đã trừ tồn kho về 1")
 		self.assertEqual(
-			so.tong_ton_vi_tri(KHO, item, None), flt(bin_qty),
+			so.tong_ton_vi_tri(KHO, item, None),
+			flt(bin_qty),
 			"bất biến §3: tổng tồn các ô phải khớp Bin (nguồn độc lập), không "
 			"được tính lại từ chính sổ vị trí",
 		)

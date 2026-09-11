@@ -11,13 +11,16 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_field
 
 
 def execute():
-	create_custom_field("Warehouse", {
-		"fieldname": "custom_quan_ly_vi_tri",
-		"label": "Quản lý theo vị trí",
-		"fieldtype": "Check",
-		"default": "0",
-		"read_only": 1,
-		"search_index": 1,
-		"insert_after": "warehouse_type",
-		"description": "Chỉ đặt qua 'Warehouse Location Setup'. Không sửa tay.",
-	})
+	create_custom_field(
+		"Warehouse",
+		{
+			"fieldname": "custom_quan_ly_vi_tri",
+			"label": "Quản lý theo vị trí",
+			"fieldtype": "Check",
+			"default": "0",
+			"read_only": 1,
+			"search_index": 1,
+			"insert_after": "warehouse_type",
+			"description": "Chỉ đặt qua 'Warehouse Location Setup'. Không sửa tay.",
+		},
+	)

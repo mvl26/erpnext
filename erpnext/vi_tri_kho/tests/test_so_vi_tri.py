@@ -27,19 +27,29 @@ KHO = "Kho Miyano - MYN"
 
 def _o(ma_o):
 	if not frappe.db.exists("Storage Location", ma_o):
-		frappe.get_doc({
-			"doctype": "Storage Location", "ma_o": ma_o, "kho": KHO,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Storage Location",
+				"ma_o": ma_o,
+				"kho": KHO,
+			}
+		).insert(ignore_permissions=True)
 	return ma_o
 
 
 def _tao_item(ma, co_lo=False):
 	if not frappe.db.exists("Item", ma):
-		frappe.get_doc({
-			"doctype": "Item", "item_code": ma, "item_name": ma,
-			"item_group": "All Item Groups", "stock_uom": "Nos", "is_stock_item": 1,
-			"has_batch_no": 1 if co_lo else 0,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": ma,
+				"item_name": ma,
+				"item_group": "All Item Groups",
+				"stock_uom": "Nos",
+				"is_stock_item": 1,
+				"has_batch_no": 1 if co_lo else 0,
+			}
+		).insert(ignore_permissions=True)
 	elif co_lo and not frappe.db.get_value("Item", ma, "has_batch_no"):
 		frappe.db.set_value("Item", ma, "has_batch_no", 1)
 	return ma
@@ -51,9 +61,13 @@ def _tao_lo(vat_tu, ma_lo):
 	giờ từ chối số lô không có bản ghi Batch thật đứng sau."""
 	_tao_item(vat_tu, co_lo=True)
 	if not frappe.db.exists("Batch", ma_lo):
-		frappe.get_doc({
-			"doctype": "Batch", "batch_id": ma_lo, "item": vat_tu,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Batch",
+				"batch_id": ma_lo,
+				"item": vat_tu,
+			}
+		).insert(ignore_permissions=True)
 	return ma_lo
 
 
@@ -67,9 +81,17 @@ def _ghi(o, vat_tu, so_lo, so_luong, chung_tu=None):
 		# kiểm tra chứng từ có thật.
 		chung_tu = o
 	return so.ghi_dong_so(
-		o=o, kho=KHO, vat_tu=vat_tu, so_lo=so_lo, so_luong=so_luong,
-		chung_tu_type="Storage Location", chung_tu=chung_tu, chung_tu_row="row-1",
-		sle=None, ngay="2026-09-09", thoi_diem="2026-09-09 08:00:00",
+		o=o,
+		kho=KHO,
+		vat_tu=vat_tu,
+		so_lo=so_lo,
+		so_luong=so_luong,
+		chung_tu_type="Storage Location",
+		chung_tu=chung_tu,
+		chung_tu_row="row-1",
+		sle=None,
+		ngay="2026-09-09",
+		thoi_diem="2026-09-09 08:00:00",
 		company="Miyano Việt Nam",
 	)
 
@@ -142,10 +164,18 @@ class TestGhiSo(_TuDonSauMoiBai):
 		o = _o("K19Z30010112")
 		with self.assertRaises(frappe.LinkValidationError):
 			so.ghi_dong_so(
-				o=o, kho=KHO, vat_tu="_Test Item VT", so_lo=None, so_luong=1,
-				chung_tu_type="Storage Location", chung_tu="KHONG-TON-TAI-XYZ",
-				chung_tu_row="row-1", sle=None, ngay="2026-09-09",
-				thoi_diem="2026-09-09 08:00:00", company="Miyano Việt Nam",
+				o=o,
+				kho=KHO,
+				vat_tu="_Test Item VT",
+				so_lo=None,
+				so_luong=1,
+				chung_tu_type="Storage Location",
+				chung_tu="KHONG-TON-TAI-XYZ",
+				chung_tu_row="row-1",
+				sle=None,
+				ngay="2026-09-09",
+				thoi_diem="2026-09-09 08:00:00",
+				company="Miyano Việt Nam",
 			)
 
 	def test_so_lo_luu_chuoi_rong_khong_phai_null(self):
@@ -155,11 +185,12 @@ class TestGhiSo(_TuDonSauMoiBai):
 		o = _o("K19Z30010113")
 		ten = _ghi(o, "_Test Item Khong Lo", None, 5)
 
-		gia_tri_so_sql = frappe.db.sql(
-			"select so_lo from `tabLocation Ledger Entry` where name=%s", (ten,)
-		)[0][0]
+		gia_tri_so_sql = frappe.db.sql("select so_lo from `tabLocation Ledger Entry` where name=%s", (ten,))[
+			0
+		][0]
 		self.assertEqual(
-			gia_tri_so_sql, "",
+			gia_tri_so_sql,
+			"",
 			"so_lo trong Location Ledger Entry phải là chuỗi rỗng, không phải NULL",
 		)
 
@@ -168,7 +199,8 @@ class TestGhiSo(_TuDonSauMoiBai):
 			(o, "_Test Item Khong Lo"),
 		)[0][0]
 		self.assertEqual(
-			gia_tri_ton_sql, "",
+			gia_tri_ton_sql,
+			"",
 			"so_lo trong Location Balance phải là chuỗi rỗng, không phải NULL",
 		)
 
@@ -179,10 +211,19 @@ class TestGhiSo(_TuDonSauMoiBai):
 		diễn giải ý nghĩa của da_huy, chỉ lưu lại — xem docstring module)."""
 		o = _o("K19Z30010114")
 		ten = so.ghi_dong_so(
-			o=o, kho=KHO, vat_tu="_Test Item VT", so_lo=None, so_luong=-3,
-			chung_tu_type="Storage Location", chung_tu=o, chung_tu_row="row-1",
-			sle=None, ngay="2026-09-09", thoi_diem="2026-09-09 08:00:00",
-			company="Miyano Việt Nam", da_huy=1,
+			o=o,
+			kho=KHO,
+			vat_tu="_Test Item VT",
+			so_lo=None,
+			so_luong=-3,
+			chung_tu_type="Storage Location",
+			chung_tu=o,
+			chung_tu_row="row-1",
+			sle=None,
+			ngay="2026-09-09",
+			thoi_diem="2026-09-09 08:00:00",
+			company="Miyano Việt Nam",
+			da_huy=1,
 		)
 		self.assertEqual(frappe.db.get_value("Location Ledger Entry", ten, "da_huy"), 1)
 		self.assertEqual(so.ton_o(o, "_Test Item VT", None), -3)
@@ -198,9 +239,7 @@ class TestSoChiGhiThem(_TuDonSauMoiBai):
 		t1 = _ghi(o, "_Test Item VT3", "LO-D", 5)
 		_ghi(o, "_Test Item VT3", "LO-D", -2)
 		self.assertEqual(frappe.db.get_value("Location Ledger Entry", t1, "so_luong"), 5)
-		self.assertEqual(
-			frappe.db.count("Location Ledger Entry", {"o": o, "vat_tu": "_Test Item VT3"}), 2
-		)
+		self.assertEqual(frappe.db.count("Location Ledger Entry", {"o": o, "vat_tu": "_Test Item VT3"}), 2)
 
 
 class TestDungLaiTon(_TuDonSauMoiBai):
@@ -218,7 +257,8 @@ class TestDungLaiTon(_TuDonSauMoiBai):
 		frappe.db.set_value(
 			"Location Balance",
 			{"o": o, "vat_tu": "_Test Item VT4", "so_lo": "LO-E"},
-			"so_luong", 999,
+			"so_luong",
+			999,
 		)
 		self.assertEqual(so.ton_o(o, "_Test Item VT4", "LO-E"), 999)
 
@@ -231,10 +271,16 @@ class TestDungLaiTon(_TuDonSauMoiBai):
 	def test_dung_lai_khong_de_lai_dong_thua(self):
 		o = _o("K19Z30010109")
 		_ghi(o, "_Test Item VT5", "LO-F", 4)
-		frappe.get_doc({
-			"doctype": "Location Balance", "o": o, "kho": KHO,
-			"vat_tu": "_Test Item VT5", "so_lo": "LO-MA", "so_luong": 100,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Location Balance",
+				"o": o,
+				"kho": KHO,
+				"vat_tu": "_Test Item VT5",
+				"so_lo": "LO-MA",
+				"so_luong": 100,
+			}
+		).insert(ignore_permissions=True)
 
 		so.dung_lai_ton_vi_tri(KHO)
 		self.assertFalse(
@@ -275,18 +321,31 @@ class TestRangBuocDuyNhat(_TuDonSauMoiBai):
 
 	def test_trung_khoa_bi_chan_o_tang_db(self):
 		o = _o("K19Z30010111")
-		frappe.get_doc({
-			"doctype": "Location Balance", "o": o, "kho": KHO,
-			"vat_tu": "_Test Item VT9", "so_lo": "", "so_luong": 1,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Location Balance",
+				"o": o,
+				"kho": KHO,
+				"vat_tu": "_Test Item VT9",
+				"so_lo": "",
+				"so_luong": 1,
+			}
+		).insert(ignore_permissions=True)
 
 		with self.assertRaises(Exception) as ctx:
-			frappe.get_doc({
-				"doctype": "Location Balance", "o": o, "kho": KHO,
-				"vat_tu": "_Test Item VT9", "so_lo": "", "so_luong": 1,
-			}).insert(ignore_permissions=True)
+			frappe.get_doc(
+				{
+					"doctype": "Location Balance",
+					"o": o,
+					"kho": KHO,
+					"vat_tu": "_Test Item VT9",
+					"so_lo": "",
+					"so_luong": 1,
+				}
+			).insert(ignore_permissions=True)
 		self.assertIn(
-			"duplicate", str(ctx.exception).lower(),
+			"duplicate",
+			str(ctx.exception).lower(),
 			"phải có unique index (o, vat_tu, so_lo) chặn ở tầng DB",
 		)
 
@@ -324,14 +383,24 @@ class TestCongDonTonNguyenTu(FrappeTestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 		if not frappe.db.exists("Item", cls.VAT_TU):
-			frappe.get_doc({
-				"doctype": "Item", "item_code": cls.VAT_TU, "item_name": cls.VAT_TU,
-				"item_group": "All Item Groups", "stock_uom": "Nos", "is_stock_item": 1,
-			}).insert(ignore_permissions=True)
+			frappe.get_doc(
+				{
+					"doctype": "Item",
+					"item_code": cls.VAT_TU,
+					"item_name": cls.VAT_TU,
+					"item_group": "All Item Groups",
+					"stock_uom": "Nos",
+					"is_stock_item": 1,
+				}
+			).insert(ignore_permissions=True)
 		if not frappe.db.exists("Storage Location", cls.O):
-			frappe.get_doc({
-				"doctype": "Storage Location", "ma_o": cls.O, "kho": KHO,
-			}).insert(ignore_permissions=True)
+			frappe.get_doc(
+				{
+					"doctype": "Storage Location",
+					"ma_o": cls.O,
+					"kho": KHO,
+				}
+			).insert(ignore_permissions=True)
 		# BẮT BUỘC commit: hai luồng của bài test dùng connection riêng, chỉ
 		# thấy được dữ liệu đã commit của luồng chính.
 		frappe.db.commit()
@@ -353,14 +422,21 @@ class TestCongDonTonNguyenTu(FrappeTestCase):
 			try:
 				frappe.connect(site=site)
 				so.ghi_dong_so(
-					o=self.O, kho=KHO, vat_tu=self.VAT_TU, so_lo=None,
-					so_luong=so_luong, chung_tu_type="Storage Location",
-					chung_tu=self.O, chung_tu_row=chung_tu_row, sle=None,
-					ngay="2026-09-09", thoi_diem="2026-09-09 08:00:00",
+					o=self.O,
+					kho=KHO,
+					vat_tu=self.VAT_TU,
+					so_lo=None,
+					so_luong=so_luong,
+					chung_tu_type="Storage Location",
+					chung_tu=self.O,
+					chung_tu_row=chung_tu_row,
+					sle=None,
+					ngay="2026-09-09",
+					thoi_diem="2026-09-09 08:00:00",
 					company="Miyano Việt Nam",
 				)
 				frappe.db.commit()
-			except Exception as e:  # noqa: BLE001 — cần bắt để báo ra luồng chính
+			except Exception as e:  # cần bắt rộng để báo ra luồng chính
 				loi.append(e)
 			finally:
 				frappe.destroy()
@@ -376,7 +452,8 @@ class TestCongDonTonNguyenTu(FrappeTestCase):
 
 		so_dong = frappe.db.count("Location Balance", {"o": self.O, "vat_tu": self.VAT_TU})
 		self.assertEqual(
-			so_dong, 1,
+			so_dong,
+			1,
 			"hai luồng ghi cùng khoá (o, vat_tu, so_lo) phải gộp thành đúng 1 "
 			"dòng tồn, không được sinh dòng ma",
 		)

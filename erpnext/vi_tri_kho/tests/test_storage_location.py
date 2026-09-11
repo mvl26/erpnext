@@ -76,7 +76,6 @@ class TestRangBuocKho(_CoTienDeKho):
 		self.assertIn("kho tổng", str(ctx.exception).lower())
 
 
-
 class TestKhoaMaO(_CoTienDeKho):
 	"""Mã ô đã in lên tem dán kệ — không được đổi âm thầm sau khi tạo.
 
@@ -99,7 +98,6 @@ class TestBarcode(_CoTienDeKho):
 	ghi giờ đều là ô lá và luôn được tự điền barcode từ mã ô, nên không còn
 	tình huống hai bản ghi cùng để trống.
 	"""
-
 
 	def test_barcode_khong_duoc_trung(self):
 		_tao_o("K19Z03010101")
@@ -127,7 +125,6 @@ class TestKhoaOChuaXep(_CoTienDeKho):
 		with self.assertRaises(frappe.ValidationError) as ctx:
 			o.save(ignore_permissions=True)
 		self.assertIn("chưa xếp vị trí", str(ctx.exception).lower())
-
 
 	def test_khong_xoa_duoc_o_chua_xep(self):
 		o = _tao_o("TEST-CX-TRASH", la_o_chua_xep=1)
@@ -193,10 +190,14 @@ class TestOChuaXepDuocMienKiemDinhDang(FrappeTestCase):
 		# do `bat()` tạo và các file test khác cũng dựng, dễ đụng nhau; mà xoá
 		# đi để dọn thì `on_trash` chặn (đúng thiết kế — ô này không xoá được).
 		ten = "CHUA-XEP-TEST-MIEN-DINH-DANG"
-		o = frappe.get_doc({
-			"doctype": "Storage Location", "ma_o": ten,
-			"kho": "Kho Miyano - MYN", "la_o_chua_xep": 1,
-		})
+		o = frappe.get_doc(
+			{
+				"doctype": "Storage Location",
+				"ma_o": ten,
+				"kho": "Kho Miyano - MYN",
+				"la_o_chua_xep": 1,
+			}
+		)
 		o.insert(ignore_permissions=True)
 		self.assertEqual(o.name, ten)
 		self.assertIsNone(o.ma_kho)

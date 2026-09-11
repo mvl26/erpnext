@@ -25,7 +25,8 @@ TEN_RANG_BUOC = "unique_location_balance_o_vat_tu_so_lo"
 def execute():
 	try:
 		frappe.db.add_unique(
-			"Location Balance", ["o", "vat_tu", "so_lo"],
+			"Location Balance",
+			["o", "vat_tu", "so_lo"],
 			constraint_name=TEN_RANG_BUOC,
 		)
 	except Exception as e:

@@ -109,18 +109,19 @@ def _mo_ta_loi_doi_soat(kq: dict) -> str:
 	phan = []
 	if kq["dong_lech"]:
 		phan.append(
-			_("{0} dòng lệch TỔNG so với tồn kho (dòng đầu: {1})")
-			.format(kq["so_dong_lech"], frappe.as_json(kq["dong_lech"][:3]))
+			_("{0} dòng lệch TỔNG so với tồn kho (dòng đầu: {1})").format(
+				kq["so_dong_lech"], frappe.as_json(kq["dong_lech"][:3])
+			)
 		)
 	if kq["o_am"]:
 		phan.append(
-			_("{0} Ô đang mang tồn ÂM (ô đầu: {1})")
-			.format(len(kq["o_am"]), frappe.as_json(kq["o_am"][:3]))
+			_("{0} Ô đang mang tồn ÂM (ô đầu: {1})").format(len(kq["o_am"]), frappe.as_json(kq["o_am"][:3]))
 		)
 	if kq["lech_bo_dem"]:
 		phan.append(
-			_("{0} dòng bộ đệm trôi khỏi sổ (dòng đầu: {1})")
-			.format(len(kq["lech_bo_dem"]), frappe.as_json(kq["lech_bo_dem"][:3]))
+			_("{0} dòng bộ đệm trôi khỏi sổ (dòng đầu: {1})").format(
+				len(kq["lech_bo_dem"]), frappe.as_json(kq["lech_bo_dem"][:3])
+			)
 		)
 	return "; ".join(phan)
 
@@ -137,8 +138,10 @@ def kiem_tra_khong_phai_kho_tong(kho):
 	"""
 	if frappe.db.get_value("Warehouse", kho, "is_group"):
 		frappe.throw(
-			_("{0} là kho tổng, không chứa hàng thật nên không bật quản lý vị trí được. "
-			  "Chọn một kho cụ thể.").format(kho)
+			_(
+				"{0} là kho tổng, không chứa hàng thật nên không bật quản lý vị trí được. "
+				"Chọn một kho cụ thể."
+			).format(kho)
 		)
 
 
@@ -183,8 +186,10 @@ def _kiem_tra_da_tung_bat(kho):
 	trang_thai = frappe.db.get_value("Warehouse Location Setup", kho, "trang_thai")
 	if trang_thai not in ("Đang bật", "Đã tắt", "Cần đồng bộ lại"):
 		frappe.throw(
-			_("Kho {0} chưa từng bật quản lý vị trí. Chạy chức năng \"Bật\" trước, "
-			  "\"Đồng bộ lại\" chỉ dùng cho kho đã từng bật.").format(kho)
+			_(
+				'Kho {0} chưa từng bật quản lý vị trí. Chạy chức năng "Bật" trước, '
+				'"Đồng bộ lại" chỉ dùng cho kho đã từng bật.'
+			).format(kho)
 		)
 
 
@@ -209,8 +214,10 @@ def _kiem_tra_kho(kho, cho_phep_da_bat=False):
 	trang_thai = frappe.db.get_value("Warehouse Location Setup", kho, "trang_thai")
 	if not cho_phep_da_bat and trang_thai in ("Đã tắt", "Cần đồng bộ lại"):
 		frappe.throw(
-			_("Kho {0} từng bật rồi tắt. Trong lúc tắt kho vẫn xuất nhập nên tồn theo vị trí "
-			  "đã lệch — phải chạy \"Đồng bộ lại\" trước, không bật thẳng được.").format(kho)
+			_(
+				"Kho {0} từng bật rồi tắt. Trong lúc tắt kho vẫn xuất nhập nên tồn theo vị trí "
+				'đã lệch — phải chạy "Đồng bộ lại" trước, không bật thẳng được.'
+			).format(kho)
 		)
 
 
@@ -245,8 +252,9 @@ def xem_truoc(kho) -> dict:
 	khong_lo = [d for d in dong if not d["so_lo"]]
 	if khong_lo:
 		canh_bao.append(
-			_("{0} dòng là hàng không quản lý lô — sẽ vào ô \"Chưa xếp vị trí\" không kèm số lô.")
-			.format(len(khong_lo))
+			_('{0} dòng là hàng không quản lý lô — sẽ vào ô "Chưa xếp vị trí" không kèm số lô.').format(
+				len(khong_lo)
+			)
 		)
 	am = [d for d in dong if d["so_luong"] < 0]
 	if am:
@@ -260,9 +268,11 @@ def xem_truoc(kho) -> dict:
 		# thật — đúng loại lệch giữa "điều màn hình nói" và "điều máy làm"
 		# mà cả đợt review này được lập ra để đóng.
 		canh_bao.append(
-			_("{0} dòng đang có tồn ÂM. BẬT SẼ THẤT BẠI nếu không xử lý tồn âm "
-			  "trước — từ khi có kiểm tra ô âm, hệ thống không còn cho phép ô "
-			  "\"Chưa xếp vị trí\" mang số âm ngay từ đầu.").format(len(am))
+			_(
+				"{0} dòng đang có tồn ÂM. BẬT SẼ THẤT BẠI nếu không xử lý tồn âm "
+				"trước — từ khi có kiểm tra ô âm, hệ thống không còn cho phép ô "
+				'"Chưa xếp vị trí" mang số âm ngay từ đầu.'
+			).format(len(am))
 		)
 
 	return {
@@ -319,9 +329,17 @@ def bat(kho) -> dict:
 		luc = now_datetime()
 		for d in dong:
 			ghi_dong_so(
-				o=o, kho=kho, vat_tu=d["vat_tu"], so_lo=d["so_lo"], so_luong=d["so_luong"],
-				chung_tu_type=CHUNG_TU_CHUYEN_DOI, chung_tu=kho, chung_tu_row="chuyen-doi",
-				sle=None, ngay=nowdate(), thoi_diem=luc,
+				o=o,
+				kho=kho,
+				vat_tu=d["vat_tu"],
+				so_lo=d["so_lo"],
+				so_luong=d["so_luong"],
+				chung_tu_type=CHUNG_TU_CHUYEN_DOI,
+				chung_tu=kho,
+				chung_tu_row="chuyen-doi",
+				sle=None,
+				ngay=nowdate(),
+				thoi_diem=luc,
 				company=company,
 			)
 
@@ -330,22 +348,26 @@ def bat(kho) -> dict:
 		kq = doi_soat_kho(kho)
 		if not kq["khop"]:
 			frappe.throw(
-				_("Bật quản lý vị trí thất bại: {0}. Kho được giữ nguyên như trước.")
-				.format(_mo_ta_loi_doi_soat(kq))
+				_("Bật quản lý vị trí thất bại: {0}. Kho được giữ nguyên như trước.").format(
+					_mo_ta_loi_doi_soat(kq)
+				)
 			)
 
 		frappe.db.set_value("Warehouse", kho, "custom_quan_ly_vi_tri", 1)
 		xoa_cache_kho(kho)
-		_ghi_setup(kho, {
-			"trang_thai": "Đang bật",
-			"o_chua_xep": o,
-			"ngay_bat": luc,
-			"ngay_tat": None,
-			"so_dong_chuyen_doi": len(dong),
-			"so_lo_chuyen_doi": len({d["so_lo"] for d in dong if d["so_lo"]}),
-			"lan_doi_soat_cuoi": luc,
-			"ket_qua_doi_soat": _("Khớp"),
-		})
+		_ghi_setup(
+			kho,
+			{
+				"trang_thai": "Đang bật",
+				"o_chua_xep": o,
+				"ngay_bat": luc,
+				"ngay_tat": None,
+				"so_dong_chuyen_doi": len(dong),
+				"so_lo_chuyen_doi": len({d["so_lo"] for d in dong if d["so_lo"]}),
+				"lan_doi_soat_cuoi": luc,
+				"ket_qua_doi_soat": _("Khớp"),
+			},
+		)
 
 	except Exception:
 		# Bước 4 brief cảnh báo `Storage Location` là nested set nên
@@ -423,19 +445,21 @@ def tao_o_chua_xep(kho) -> str:
 	if frappe.db.exists("Storage Location", ma):
 		kiem_tra_dang_o_chua_xep(kho, ma)
 		return ma
-	frappe.get_doc({
-		"doctype": "Storage Location",
-		"ma_o": ma,
-		"ten_o": _("Chưa xếp vị trí"),
-		"kho": kho,
-		"cap_do": "Ô",
-		"la_o_chua_xep": 1,
-		# 9999 = lấy SAU CÙNG, có chủ đích. `thu_tu_lay_hang` là thứ tự đường đi
-		# trong kho, mà ô này không ứng với chỗ nào ngoài kho nên không có vị trí
-		# trên đường đi. Khi cùng hạn dùng, lấy từ một ô đã xếp đàng hoàng bao giờ
-		# cũng hơn lấy từ đống chưa xếp: thủ kho biết đi tới đâu.
-		"thu_tu_lay_hang": 9999,
-	}).insert(ignore_permissions=True)
+	frappe.get_doc(
+		{
+			"doctype": "Storage Location",
+			"ma_o": ma,
+			"ten_o": _("Chưa xếp vị trí"),
+			"kho": kho,
+			"cap_do": "Ô",
+			"la_o_chua_xep": 1,
+			# 9999 = lấy SAU CÙNG, có chủ đích. `thu_tu_lay_hang` là thứ tự đường đi
+			# trong kho, mà ô này không ứng với chỗ nào ngoài kho nên không có vị trí
+			# trên đường đi. Khi cùng hạn dùng, lấy từ một ô đã xếp đàng hoàng bao giờ
+			# cũng hơn lấy từ đống chưa xếp: thủ kho biết đi tới đâu.
+			"thu_tu_lay_hang": 9999,
+		}
+	).insert(ignore_permissions=True)
 	return ma
 
 
@@ -512,38 +536,51 @@ def dong_bo_lai(kho) -> dict:
 		if not bu:
 			continue
 		ghi_dong_so(
-			o=o, kho=kho, vat_tu=d["vat_tu"], so_lo=d["so_lo"], so_luong=bu,
-			chung_tu_type=CHUNG_TU_CHUYEN_DOI, chung_tu=kho, chung_tu_row="dong-bo-lai",
-			sle=None, ngay=nowdate(), thoi_diem=luc, company=company,
+			o=o,
+			kho=kho,
+			vat_tu=d["vat_tu"],
+			so_lo=d["so_lo"],
+			so_luong=bu,
+			chung_tu_type=CHUNG_TU_CHUYEN_DOI,
+			chung_tu=kho,
+			chung_tu_row="dong-bo-lai",
+			sle=None,
+			ngay=nowdate(),
+			thoi_diem=luc,
+			company=company,
 		)
 
 	kq = doi_soat_kho(kho)
 	if not kq["khop"]:
 		frappe.throw(
-			_("Đồng bộ lại đã ghi bù xong phần chênh tổng, nhưng vẫn còn: {0}. "
-			  "Bút toán bù vào \"Chưa xếp vị trí\" KHÔNG sửa được ô âm hay bộ đệm "
-			  "trôi khỏi sổ — cần kiểm tra dữ liệu trực tiếp (vd. Dựng lại tồn vị "
-			  "trí) trước khi thử lại.")
-			.format(_mo_ta_loi_doi_soat(kq))
+			_(
+				"Đồng bộ lại đã ghi bù xong phần chênh tổng, nhưng vẫn còn: {0}. "
+				'Bút toán bù vào "Chưa xếp vị trí" KHÔNG sửa được ô âm hay bộ đệm '
+				"trôi khỏi sổ — cần kiểm tra dữ liệu trực tiếp (vd. Dựng lại tồn vị "
+				"trí) trước khi thử lại."
+			).format(_mo_ta_loi_doi_soat(kq))
 		)
 
 	frappe.db.set_value("Warehouse", kho, "custom_quan_ly_vi_tri", 1)
 	xoa_cache_kho(kho)
-	_ghi_setup(kho, {
-		"trang_thai": "Đang bật",
-		"o_chua_xep": o,
-		# Việc (A) (review điều phối, sau khi 147/147 bài "xong"): trước đây
-		# chỉ đổi trang_thai — Warehouse Location Setup là ĐIỂM ĐIỀU KHIỂN
-		# DUY NHẤT (docstring module), nên nó phải hiện đúng con số của LẦN
-		# ĐỒNG BỘ NÀY, không phải giữ nguyên ngày tắt cũ và số dòng của lần
-		# bật ĐẦU TIÊN cạnh trạng thái "Đang bật" mới — đọc vào trông như
-		# vừa mới bật với đúng dữ liệu cũ, sai cả hai.
-		"ngay_bat": luc,
-		"ngay_tat": None,
-		"so_dong_chuyen_doi": len(lech),
-		"so_lo_chuyen_doi": len({d["so_lo"] for d in lech if d["so_lo"]}),
-		"lan_doi_soat_cuoi": luc,
-		"ket_qua_doi_soat": _("Khớp sau khi đồng bộ lại"),
-	})
+	_ghi_setup(
+		kho,
+		{
+			"trang_thai": "Đang bật",
+			"o_chua_xep": o,
+			# Việc (A) (review điều phối, sau khi 147/147 bài "xong"): trước đây
+			# chỉ đổi trang_thai — Warehouse Location Setup là ĐIỂM ĐIỀU KHIỂN
+			# DUY NHẤT (docstring module), nên nó phải hiện đúng con số của LẦN
+			# ĐỒNG BỘ NÀY, không phải giữ nguyên ngày tắt cũ và số dòng của lần
+			# bật ĐẦU TIÊN cạnh trạng thái "Đang bật" mới — đọc vào trông như
+			# vừa mới bật với đúng dữ liệu cũ, sai cả hai.
+			"ngay_bat": luc,
+			"ngay_tat": None,
+			"so_dong_chuyen_doi": len(lech),
+			"so_lo_chuyen_doi": len({d["so_lo"] for d in lech if d["so_lo"]}),
+			"lan_doi_soat_cuoi": luc,
+			"ket_qua_doi_soat": _("Khớp sau khi đồng bộ lại"),
+		},
+	)
 
 	return {"kho": kho, "so_dong_bu": len(lech), "doi_soat": kq}

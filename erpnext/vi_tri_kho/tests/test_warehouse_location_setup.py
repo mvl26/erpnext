@@ -15,10 +15,12 @@ from frappe.tests.utils import FrappeTestCase
 
 class TestValidateChanKhoTong(FrappeTestCase):
 	def test_validate_chan_kho_tong(self):
-		doc = frappe.get_doc({
-			"doctype": "Warehouse Location Setup",
-			"kho": "All Warehouses - MYN",
-		})
+		doc = frappe.get_doc(
+			{
+				"doctype": "Warehouse Location Setup",
+				"kho": "All Warehouses - MYN",
+			}
+		)
 		with self.assertRaises(frappe.ValidationError) as ctx:
 			doc.insert(ignore_permissions=True)
 		self.assertIn("kho tổng", str(ctx.exception).lower())

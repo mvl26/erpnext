@@ -22,7 +22,8 @@ HANDLER = "erpnext.vi_tri_kho.vitri.hook_sle.ghi_so_vi_tri"
 class TestModuleKhoiDong(FrappeTestCase):
 	def test_module_thuoc_app_erpnext(self):
 		self.assertEqual(
-			frappe.db.get_value("Module Def", "Vi Tri Kho", "app_name"), "erpnext",
+			frappe.db.get_value("Module Def", "Vi Tri Kho", "app_name"),
+			"erpnext",
 			"Module 'Vi Tri Kho' phải thuộc app erpnext — kiểm erpnext/modules.txt",
 		)
 
@@ -32,7 +33,8 @@ class TestModuleKhoiDong(FrappeTestCase):
 		if isinstance(tay_cam, str):
 			tay_cam = [tay_cam]
 		self.assertIn(
-			HANDLER, tay_cam,
+			HANDLER,
+			tay_cam,
 			f"Móc {HANDLER} không còn trong doc_events. Không có nó thì mọi chứng từ "
 			"kho vẫn chạy bình thường nhưng KHÔNG dòng sổ vị trí nào được ghi — "
 			"hỏng trong im lặng. Kiểm doc_events trong erpnext/hooks.py.",

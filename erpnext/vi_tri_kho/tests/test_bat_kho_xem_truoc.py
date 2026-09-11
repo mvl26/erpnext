@@ -8,9 +8,9 @@ ngờ cho tới khi đã muộn.
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from erpnext.vi_tri_kho.tests.test_hook_nhap import _nhap_kho, _tao_item
 from erpnext.vi_tri_kho.vitri.bat_kho import xem_truoc
 from erpnext.vi_tri_kho.vitri.doi_soat import doi_soat_kho
-from erpnext.vi_tri_kho.tests.test_hook_nhap import _nhap_kho, _tao_item
 
 KHO = "Kho Miyano - MYN"
 
@@ -27,10 +27,14 @@ KHO_THU = "_Test Kho XemTruoc - MYN"
 
 def _kho_thu():
 	if not frappe.db.exists("Warehouse", KHO_THU):
-		frappe.get_doc({
-			"doctype": "Warehouse", "warehouse_name": "_Test Kho XemTruoc",
-			"company": "Miyano Việt Nam", "is_group": 0,
-		}).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Warehouse",
+				"warehouse_name": "_Test Kho XemTruoc",
+				"company": "Miyano Việt Nam",
+				"is_group": 0,
+			}
+		).insert(ignore_permissions=True)
 	return KHO_THU
 
 
@@ -116,9 +120,10 @@ class TestXemTruoc(FrappeTestCase):
 		"""
 		_nhap_kho(_tao_item("_Test XemTruoc DoiSoat"), 6, kho=KHO_THU)
 		self.assertEqual(
-			frappe.db.count("Location Balance", {"kho": KHO_THU}), 0,
+			frappe.db.count("Location Balance", {"kho": KHO_THU}),
+			0,
 			"kho thử chưa chuyển đổi bao giờ — nếu số này khác 0 thì bài không "
-			"còn đúng tiền đề và cần xem lại."
+			"còn đúng tiền đề và cần xem lại.",
 		)
 		kq = xem_truoc(KHO_THU)
 		ds = doi_soat_kho(KHO_THU)
@@ -172,9 +177,14 @@ class TestXemTruoc(FrappeTestCase):
 		"""
 		item = _tao_item("_Test XemTruoc CanhBaoTonAm")
 		if not frappe.db.exists("Bin", {"item_code": item, "warehouse": KHO_THU}):
-			frappe.get_doc({
-				"doctype": "Bin", "item_code": item, "warehouse": KHO_THU, "actual_qty": 0,
-			}).insert(ignore_permissions=True)
+			frappe.get_doc(
+				{
+					"doctype": "Bin",
+					"item_code": item,
+					"warehouse": KHO_THU,
+					"actual_qty": 0,
+				}
+			).insert(ignore_permissions=True)
 		frappe.db.set_value("Bin", {"item_code": item, "warehouse": KHO_THU}, "actual_qty", -5)
 
 		kq = xem_truoc(KHO_THU)

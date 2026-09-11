@@ -14,14 +14,17 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_field
 
 
 def execute():
-	create_custom_field("Warehouse", {
-		"fieldname": "custom_ma_kho_spd",
-		"label": "Mã kho SPD (2 ký tự)",
-		"fieldtype": "Data",
-		"length": 2,
-		"insert_after": "custom_quan_ly_vi_tri",
-		"description": (
-			"Hai ký tự mở đầu mã vị trí: chữ + số, ví dụ K1 (kho trung tâm), "
-			"B1–B9 (kho vệ tinh bệnh viện)."
-		),
-	})
+	create_custom_field(
+		"Warehouse",
+		{
+			"fieldname": "custom_ma_kho_spd",
+			"label": "Mã kho SPD (2 ký tự)",
+			"fieldtype": "Data",
+			"length": 2,
+			"insert_after": "custom_quan_ly_vi_tri",
+			"description": (
+				"Hai ký tự mở đầu mã vị trí: chữ + số, ví dụ K1 (kho trung tâm), "
+				"B1–B9 (kho vệ tinh bệnh viện)."
+			),
+		},
+	)

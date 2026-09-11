@@ -47,7 +47,9 @@ class TestSinhDungChuan(_CoTienDe):
 		)
 
 	def test_ma_kho_lay_tu_warehouse_khong_go_tay(self):
-		kq = xem_truoc_sinh(KHO, khu="8C", so_day=1, so_khoang_moi_day=1, so_tang_moi_khoang=1, so_o_moi_tang=1)
+		kq = xem_truoc_sinh(
+			KHO, khu="8C", so_day=1, so_khoang_moi_day=1, so_tang_moi_khoang=1, so_o_moi_tang=1
+		)
 		self.assertTrue(kq["ma_mau"][0].startswith("K1"))
 
 	def test_thu_tu_lay_hang_tang_dan_theo_thu_tu_sinh(self):
@@ -63,20 +65,23 @@ class TestSinhDungChuan(_CoTienDe):
 class TestChanDauVaoSai(_CoTienDe):
 	def test_kho_chua_khai_ma_spd_bi_bao_ro(self):
 		with self.assertRaises(frappe.ValidationError) as ctx:
-			xem_truoc_sinh("Stores - MYN", khu="8E", so_day=1, so_khoang_moi_day=1,
-			               so_tang_moi_khoang=1, so_o_moi_tang=1)
+			xem_truoc_sinh(
+				"Stores - MYN", khu="8E", so_day=1, so_khoang_moi_day=1, so_tang_moi_khoang=1, so_o_moi_tang=1
+			)
 		self.assertIn("mã kho", str(ctx.exception).lower())
 
 	def test_khu_sai_dinh_dang_bi_bao_ro(self):
 		# Khu phải là SỐ rồi CHỮ (1B, 3B, 4B) — xem docstring ma_vi_tri.py
 		with self.assertRaises(frappe.ValidationError):
-			xem_truoc_sinh(KHO, khu="A8", so_day=1, so_khoang_moi_day=1,
-			               so_tang_moi_khoang=1, so_o_moi_tang=1)
+			xem_truoc_sinh(
+				KHO, khu="A8", so_day=1, so_khoang_moi_day=1, so_tang_moi_khoang=1, so_o_moi_tang=1
+			)
 
 	def test_tang_qua_09_bi_bao_ro(self):
 		with self.assertRaises(frappe.ValidationError):
-			xem_truoc_sinh(KHO, khu="8F", so_day=1, so_khoang_moi_day=1,
-			               so_tang_moi_khoang=10, so_o_moi_tang=1)
+			xem_truoc_sinh(
+				KHO, khu="8F", so_day=1, so_khoang_moi_day=1, so_tang_moi_khoang=10, so_o_moi_tang=1
+			)
 
 
 class TestXemTruocKhongGhi(_CoTienDe):
@@ -113,7 +118,6 @@ class TestKiemQuyen(_CoTienDe):
 			frappe.set_user(KHACH)
 			for fn in (xem_truoc_sinh, sinh):
 				with self.assertRaises(frappe.PermissionError):
-					fn(KHO, khu="8I", so_day=1, so_khoang_moi_day=1,
-					   so_tang_moi_khoang=1, so_o_moi_tang=1)
+					fn(KHO, khu="8I", so_day=1, so_khoang_moi_day=1, so_tang_moi_khoang=1, so_o_moi_tang=1)
 		finally:
 			frappe.set_user("Administrator")

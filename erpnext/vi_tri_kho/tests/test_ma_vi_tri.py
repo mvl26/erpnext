@@ -7,11 +7,11 @@ SPD_PhanMem_DacTaNhanNhapKho_50x30_20260908_v2 trường F8.
 
 Lưu trong CSDL 12 ký tự KHÔNG dấu gạch; in lên nhãn dạng K11B0104-0302.
 
-MỘT MÂU THUẪN TRONG TÀI LIỆU, ĐÃ CHỐT: §5.2 mô tả Khu là "chữ cái A–Z + số
+MỘT MÂU THUẪN TRONG TÀI LIỆU, ĐÃ CHỐT: §5.2 mô tả Khu là "chữ cái A-Z + số
 tầng nhà" (chữ trước số) nhưng MỌI ví dụ trong cả ba tài liệu đều là SỐ trước
 CHỮ (1B, 3B, 4B — kể cả ảnh chụp kho MSC). Chủ dự án chốt theo ví dụ.
 
-Dải giá trị (§5.2): Dãy 01–99 · Khoang 01–99 · Tầng 01–09 · Ô 01–99.
+Dải giá trị (§5.2): Dãy 01-99 · Khoang 01-99 · Tầng 01-09 · Ô 01-99.
 Tầng chỉ tới 09 vì kệ kho không cao hơn 9 tầng — đây là ràng buộc thật, không
 phải giới hạn kỹ thuật, nên regex phải cưỡng chế chứ không chỉ kiểm độ dài.
 """
@@ -63,7 +63,7 @@ class TestDinhDangSai(FrappeTestCase):
 			phan_tich_ma("K1B101040302")
 
 	def test_chu_thuong_bi_tu_choi(self):
-		# §1.1 quy tắc mã hoá: chỉ A–Z in hoa
+		# §1.1 quy tắc mã hoá: chỉ A-Z in hoa
 		with self.assertRaises(frappe.ValidationError):
 			phan_tich_ma("k11b01040302")
 
