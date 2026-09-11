@@ -349,6 +349,18 @@ doc_events = {
 	tuple(period_closing_doctypes): {
 		"validate": "erpnext.accounts.doctype.accounting_period.accounting_period.validate_accounting_period_on_doc_save",
 	},
+	# Mở rộng Warehouse theo vị trí (module "Vi Tri Kho"). MỘT móc duy nhất cho
+	# cả tầng vị trí: `stock_ledger.py` tạo mọi Stock Ledger Entry qua
+	# `make_entry()` -> `sle.submit()`, kể cả đường huỷ chứng từ (ERPNext ghi
+	# thêm dòng đảo dấu rồi mới cờ dòng cũ). Nhờ vậy không phải móc vào 8 doctype
+	# chứng từ, và doctype nào ERPNext thêm về sau cũng tự động được bắt.
+	#
+	# ĐÂY LÀ DÒNG DỄ MẤT NHẤT khi merge ERPNext bản mới. Giải xung đột sai ở đây
+	# thì hệ vẫn chạy, chứng từ vẫn ghi được, chỉ là không ô nào được ghi sổ nữa
+	# — hỏng trong im lặng. `vi_tri_kho/tests/test_app_khoi_dong.py` khoá việc này.
+	"Stock Ledger Entry": {
+		"on_submit": "erpnext.vi_tri_kho.vitri.hook_sle.ghi_so_vi_tri",
+	},
 	"Stock Entry": {
 		"on_submit": "erpnext.stock.doctype.material_request.material_request.update_completed_and_requested_qty",
 		"on_cancel": "erpnext.stock.doctype.material_request.material_request.update_completed_and_requested_qty",
