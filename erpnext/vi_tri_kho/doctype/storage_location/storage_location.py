@@ -26,10 +26,24 @@ class StorageLocation(NestedSet):
 	nsm_parent_field = "parent_storage_location"
 
 	def validate(self):
+		# VÒNG SỬA 2 (review điều phối): `kiem_tra_kho()` chạy TRƯỚC
+		# `dung_cho_trong_cay()`. Trước bản sửa này thứ tự ngược lại, nên khi
+		# `kho` để trống (chỉ `reqd=1` ở tầng client, API vẫn chèn được) mà
+		# nút cha đã tồn tại, `dam_bao_to_tien()` (gọi từ `dung_cho_trong_
+		# cay()`) so `kho_cha` (một tên kho thật) với `self.kho` (`None`) và
+		# ném NHẦM "đã thuộc kho X, không phải kho None" — sai nguyên nhân
+		# (không phải trùng kho, mà là CHƯA CHỌN kho) và lộ chuỗi Python
+		# "None" ra thông báo tiếng Việt. `kiem_tra_kho()` không đọc bất kỳ
+		# trường nào do `dung_cho_trong_cay()`/`tach_thanh_phan_ma()` tính ra
+		# (chỉ đọc `self.kho`, `self.ma_o`) và không tự đặt trường nào cho
+		# hai hàm sau đọc lại — đảo an toàn, không phá phụ thuộc nào.
+		# Đóng luôn Minor còn treo từ vòng rà đầu: bài "thiếu kho" giờ nhắc
+		# đúng bản ghi người dùng đang tạo, vì `dam_bao_to_tien()` chưa kịp
+		# tự sinh nút cha nào khi `kiem_tra_kho()` đã throw.
 		self.kiem_tra_ma_o_khong_doi()
+		self.kiem_tra_kho()
 		self.dung_cho_trong_cay()
 		self.tach_thanh_phan_ma()
-		self.kiem_tra_kho()
 		self.kiem_tra_khong_doi_dang_o_chua_xep()
 		if not self.barcode:
 			self.barcode = self.ma_o

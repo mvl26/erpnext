@@ -101,12 +101,14 @@ class TestCaySuyTuMa(FrappeTestCase):
 	def test_nut_cha_trung_ten_khac_kho_bi_chan(self):
 		"""VÒNG SỬA 1 (review điều phối): `ma_o` mất 2 ký tự mã kho (Task 1) nên
 		giờ là khoá chính TOÀN HỆ, không phải duy nhất trong một kho. Hai kho
-		khác nhau cùng đặt Khu `9Y` sẽ đụng đúng một bản ghi nút nhóm — nếu
-		`dam_bao_to_tien()` không kiểm `kho` của nút cha đã tồn tại, nhánh của
-		kho B sẽ âm thầm gắn vào nút cha thuộc kho A (hoặc ngược lại), không có
-		lỗi nào báo.
+		khác nhau cùng tạo ô lá chung tiền tố sẽ đụng đúng một bản ghi nút
+		nhóm ở cấp TỔ TIÊN GẦN NHẤT (ở đây là nút Tầng 8 ký tự "9Y180101" —
+		cấp `dam_bao_to_tien()` kiểm TRƯỚC TIÊN vì đó là cha trực tiếp của ô
+		lá, không phải nút Khu 2 ký tự) — nếu không kiểm `kho` của nút cha đã
+		tồn tại, nhánh của kho B sẽ âm thầm gắn vào nút cha thuộc kho A (hoặc
+		ngược lại), không có lỗi nào báo.
 		"""
-		_o("9Y18010101")  # nút cha "9Y" được tạo, thuộc KHO ("Kho Miyano - MYN")
+		_o("9Y18010101")  # sinh đủ tổ tiên, trong đó "9Y180101" thuộc KHO
 		kho_b = "Stores - MYN"
 		with self.assertRaises(frappe.ValidationError) as cm:
 			frappe.get_doc({"doctype": "Storage Location", "ma_o": "9Y18010102", "kho": kho_b}).insert(
@@ -115,3 +117,25 @@ class TestCaySuyTuMa(FrappeTestCase):
 		thong_bao = str(cm.exception)
 		self.assertIn(KHO, thong_bao, "thông báo phải nêu tên kho ĐANG giữ nút cha")
 		self.assertIn(kho_b, thong_bao, "thông báo phải nêu tên kho đang cố gắn vào")
+
+	def test_thieu_kho_khi_nut_cha_da_ton_tai_khong_lo_chu_none(self):
+		"""VÒNG SỬA 2 (review điều phối): bài vòng 1 chỉ kiểm mismatch giữa
+		HAI kho hợp lệ — không kiểm trường hợp `kho` để trống trong khi nút
+		cha đã tồn tại. `reqd=1` trên field `kho` chỉ chặn ở tầng client;
+		qua API/`ignore_permissions` vẫn chèn được bản ghi thiếu kho.
+
+		Trước vòng sửa 2: `dung_cho_trong_cay()` (→ `dam_bao_to_tien()`) chạy
+		TRƯỚC `kiem_tra_kho()` trong `validate()`. Khi nút cha đã tồn tại,
+		`kho_cha` (một chuỗi tên kho thật) luôn khác `self.kho` (`None`) nên
+		ném NHẦM thông báo "đã thuộc kho X, không phải kho None" — sai
+		nguyên nhân (không phải trùng kho, mà là CHƯA CHỌN kho) và lộ chuỗi
+		Python "None" ra thông báo tiếng Việt gửi người dùng.
+		"""
+		_o("9X18010101")  # sinh nút cha "9X180101" (8 ký tự) trước
+		with self.assertRaises(frappe.ValidationError) as cm:
+			frappe.get_doc({"doctype": "Storage Location", "ma_o": "9X18010102"}).insert(
+				ignore_permissions=True
+			)
+		thong_bao = str(cm.exception)
+		self.assertIn("kho", thong_bao.lower(), "thông báo phải nói về việc THIẾU kho")
+		self.assertNotIn("None", thong_bao, "không được lộ chuỗi Python 'None' ra thông báo")
