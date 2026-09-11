@@ -8,6 +8,11 @@ Phạm vi bật: **chỉ `Kho Miyano - MYN`** (công ty `Miyano Việt Nam`)
 > Bản gốc từng nằm trong repo `miyano_portal`; đã chuyển hẳn về đây 10/09/2026 để hai hệ
 > tách bạch. Nếu còn thấy bản trong `miyano_portal` thì đó là bản cũ, đừng sửa.
 >
+> **THAY THẾ MỘT PHẦN 11/09/2026:** mục §5.1 và §5.8 của tài liệu này **không còn
+> đúng**. Mã ô nay **10 ký tự** (bỏ 2 ký tự mã kho) và `Storage Location` **là cây trở
+> lại**, với cha con suy ra từ mã. Đọc `2026-09-11-cay-vi-tri-ma-10-ky-tu-design.md`.
+> Phần nền — một móc SLE, sổ chỉ ghi thêm, bất biến §3, ô ZZZ-CHUA-XEP — vẫn nguyên giá trị.
+>
 > **Cập nhật 10/09/2026:** chủ dự án chốt mã ô 12 ký tự theo
 > `docs/SPD_VanHanh_PhanTichMaViTriKho_20260907_v2.docx` §5.2. Mục 5.1 và 5.8 đã viết
 > lại; quyết định #5 ("quy tắc đặt mã là cấu hình") **không còn đúng** — quy tắc đặt mã
