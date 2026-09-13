@@ -15,6 +15,8 @@
   "parent_storage_location",
   "loai_vi_tri",
   "disabled",
+  "sec_ma_vach",
+  "xem_ma_vach",
   "sec_tp",
   "khu",
   "day",
@@ -105,6 +107,17 @@
    "fieldtype": "Check",
    "label": "Ngừng dùng",
    "default": "0"
+  },
+  {
+   "fieldname": "sec_ma_vach",
+   "fieldtype": "Section Break",
+   "label": "Mã vạch"
+  },
+  {
+   "fieldname": "xem_ma_vach",
+   "fieldtype": "HTML",
+   "label": "Mã vạch",
+   "description": "Vẽ lại từ trường Mã vạch. Máy quét trả ra đúng Mã ô."
   },
   {
    "fieldname": "sec_tp",
@@ -244,7 +257,7 @@
  "index_web_pages_for_search": 0,
  "is_tree": 1,
  "links": [],
- "modified": "2026-09-09 00:00:00.000000",
+ "modified": "2026-09-13 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vi Tri Kho",
  "name": "Storage Location",

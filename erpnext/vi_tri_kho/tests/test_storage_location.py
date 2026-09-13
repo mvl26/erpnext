@@ -665,3 +665,97 @@ class TestDamBaoCayDaDung(_CoTienDeKho):
 			"cờ auto_commit_on_many_writes vẫn treo ở 1 sau khi rebuild_tree() lỗi — nguy cơ "
 			"các thao tác ghi KHÁC của site tự commit sớm ngoài ý muốn (thiếu finally).",
 		)
+
+
+# --- Mã vạch hiện trên form (việc A, 13/09/2026) ---
+
+
+class TestManHinhMaVach(FrappeTestCase):
+	"""Khoá phần schema của tính năng vẽ mã vạch trên form.
+
+	Việc VẼ nằm trọn trong `storage_location.js`, mà bộ test của repo là
+	Python — không bài nào ở đây chứng minh được "mở form thì thấy vạch".
+	Đừng đọc file này như thể nó chứng minh điều đó. Cái nó khoá được là hai
+	tiền đề mà thiếu chúng thì phần JS hỏng trong im lặng.
+	"""
+
+	def _doc_json(self):
+		import json
+		import os
+
+		import erpnext
+
+		duong = os.path.join(
+			os.path.dirname(erpnext.__file__),
+			"vi_tri_kho",
+			"doctype",
+			"storage_location",
+			"storage_location.json",
+		)
+		with open(duong, encoding="utf-8") as f:
+			return json.load(f)
+
+	def test_truong_xem_ma_vach_la_HTML_chu_khong_phai_Barcode(self):
+		"""Fieldtype phải là HTML, và đây KHÔNG phải chuyện thẩm mỹ.
+
+		Đổi sang fieldtype "Barcode" thì form vẫn hiện vạch y hệt — nhìn bằng
+		mắt không phân biệt được. Khác biệt nằm ở chỗ control Barcode của
+		Frappe ghi NGƯỢC cả chuỗi SVG vào tài liệu khi nó gắn với một `doc`
+		(frappe/.../controls/barcode.js:36), nên 214 bản ghi ô sẽ mang 214 cục
+		SVG trong CSDL cho một thứ chỉ là hình vẽ lại của `ma_o`. HTML thì
+		không sinh cột, không lưu gì.
+		"""
+		dt = self._doc_json()
+		truong = next((t for t in dt["fields"] if t["fieldname"] == "xem_ma_vach"), None)
+		self.assertIsNotNone(
+			truong,
+			"Mất trường `xem_ma_vach` thì form không còn chỗ vẽ mã vạch — "
+			"storage_location.js thoát sớm ở `if (!truong) return`, không báo lỗi gì.",
+		)
+		self.assertEqual(
+			truong["fieldtype"],
+			"HTML",
+			"`xem_ma_vach` phải là HTML. Fieldtype Barcode trông y hệt trên form "
+			"nhưng nhét chuỗi SVG vào CSDL cho từng bản ghi ô.",
+		)
+		self.assertIn("xem_ma_vach", dt["field_order"])
+
+	def test_co_file_js_cua_doctype(self):
+		"""Frappe nạp `<doctype>.js` THEO ĐƯỜNG DẪN, không qua khai báo nào.
+
+		Nên đổi tên hay dời file là mã vạch biến mất mà không một dòng lỗi
+		nào được ghi — form vẫn mở bình thường, chỉ là mục "Mã vạch" trống.
+		"""
+		import os
+
+		import erpnext
+
+		duong = os.path.join(
+			os.path.dirname(erpnext.__file__),
+			"vi_tri_kho",
+			"doctype",
+			"storage_location",
+			"storage_location.js",
+		)
+		self.assertTrue(os.path.exists(duong), f"Không thấy {duong}")
+
+	def test_o_chua_xep_that_su_khong_theo_chuan_10_ky_tu(self):
+		"""Tiền đề của nhánh loại trừ trong JS, khẳng định tường minh.
+
+		`storage_location.js` thoát sớm khi `la_o_chua_xep = 1`. Lý do là mã
+		của ô đó không phải 10 ký tự chuẩn mà kèm cả tên kho lẫn dấu cách
+		("ZZZ-CHUA-XEP-Kho Miyano - MYN"), in tem ra thì dài vô ích. Nếu một
+		ngày ô hệ thống được đổi sang mã đúng chuẩn, nhánh loại trừ kia thành
+		thừa — bài này đỏ để nhắc xem lại, chứ không phải để chặn.
+		"""
+		from erpnext.vi_tri_kho.vitri.ma_vi_tri import MAU_MA
+
+		ma = frappe.db.get_value(
+			"Storage Location", {"la_o_chua_xep": 1, "kho": "Kho Miyano - MYN"}, "barcode"
+		)
+		self.assertIsNotNone(ma, "Kho Miyano - MYN phải có đúng một ô 'Chưa xếp vị trí'")
+		self.assertIsNone(
+			MAU_MA.match(ma),
+			f"Mã ô hệ thống {ma!r} nay đã theo chuẩn 10 ký tự — xem lại nhánh "
+			"loại trừ `la_o_chua_xep` trong storage_location.js, nó có thể đã thừa.",
+		)
