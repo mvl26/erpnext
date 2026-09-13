@@ -98,8 +98,10 @@ chạy, hai tính năng mới nằm im tới khi cây được dựng, và lỗ 
 nhật 11/09/2026 phía trên — không lặp lại ở đây, chỉ nhắc để không ai đọc bảng này rồi bỏ
 qua phần đó.**
 
-Số bài giảm từ 187 xuống 182 là do bỏ các bài đã hết đối tượng (nút nhóm của cây nested set),
-không phải bỏ bớt phạm vi kiểm.
+**Lịch sử 10/09/2026 (bản 12 ký tự, đã lỗi thời):** số bài giảm từ 187 xuống 182 lúc đó là
+do bỏ các bài đã hết đối tượng (nút nhóm của cây nested set khai tay bị bỏ ở bản 12 ký tự),
+không phải bỏ bớt phạm vi kiểm. Cây quay lại — suy từ mã, không khai tay — từ Task 2
+(11/09/2026); số bài hiện tại là 216 (mục 1 trên), không liên quan tới đợt giảm này.
 
 ---
 
