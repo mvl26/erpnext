@@ -1,219 +1,199 @@
-# Hướng dẫn sử dụng: quản lý vị trí kho (giá kệ / ô kệ)
+# Hướng dẫn sử dụng kho
 
-Module **Vi Tri Kho** trong Miyano ERP · giai đoạn 0 + 1 · site `erptest.local`
+Miyano ERP · quản lý kho và vị trí (giá kệ / ô kệ) · dành cho thủ kho và quản lý kho.
 
-> **Cập nhật 11/09/2026 — mã ô còn 10 ký tự, và ô kệ giờ là một CÂY (Khu → Dãy → Khoang →
-> Tầng → Ô), không còn danh sách phẳng.** Sơ đồ mã ở mục 1b đã đổi; mục **1c** mới nói cách
-> đọc/dùng cây (gấp/mở, ngừng dùng cả một dãy một lần); và mục 1b có thêm một đoạn về
-> **cách ly** — đọc trước khi đặt tên khu hay tích "Ngừng dùng" cho cả một nhánh.
-
----
-
-## 0. Trước hết: giai đoạn này làm được gì, CHƯA làm được gì
-
-Đọc mục này trước, để không chờ một tính năng chưa tới.
-
-### ĐÃ có
-- Khai sơ đồ kho theo **mã ô 10 ký tự chuẩn SPD**, sinh mã hàng loạt (mục 1b), dựng thành
-  **cây** để xem/thao tác theo từng cấp (mục 1c).
-- **Bật quản lý vị trí cho từng kho**, chuyển toàn bộ tồn hiện có vào sổ vị trí.
-- **Mọi phiếu nhập/xuất tự động vào sổ theo ô và theo lô** — không phải thao tác gì thêm.
-- Xuất kho **tự chọn ô theo hạn dùng gần nhất trước (FEFO)**, cùng hạn thì theo đường đi;
-  có thể giới hạn việc chọn trong một nhánh cụ thể (tham số kỹ thuật `pham_vi`, dùng ở tầng
-  lập trình, chưa có ô nhập trên màn hình).
-- **Ngừng dùng (`disabled`) một Khu/Dãy/Khoang/Tầng là ngừng dùng cả nhánh dưới nó** —
-  không phải tắt từng ô lá một (mục 1c).
-- **Huỷ phiếu trả hàng về đúng ô đã lấy**, không phải ô khác.
-- Ba báo cáo: tồn theo ô (nay hiển thị **dạng cây**, gộp theo từng cấp), hàng chưa xếp vị
-  trí, và đối soát.
-
-### CHƯA có (các giai đoạn sau)
-- **Chọn ô khi nhập hàng.** Hàng nhập về hiện dồn hết vào ô **"Chưa xếp vị trí"**; thủ kho
-  xem báo cáo rồi tự xếp ngoài thực tế. Bảng chọn ô trên phiếu là **giai đoạn 2**.
-  **Lưu ý cho giai đoạn đó:** hook nhập hiện KHÔNG lọc ô đang "Ngừng dùng" — khi có màn
-  hình khai vị trí lúc nhập, phải chặn không cho nhắm hàng vào một ô/nhánh đã tắt, nếu
-  không hàng sẽ vào được một dãy đã ngừng dùng trong khi không xuất ra được, mà đối soát
-  vẫn báo khớp (nó chỉ so tổng, không phân biệt ô nào đang tắt).
-- **Nút "Gợi ý lấy hàng" và cột Vị trí trên phiếu giao hàng.** Đây chính là thứ chủ dự án
-  muốn nhất; hệ đã tự chọn ô đúng ở phía sau, nhưng **chưa in ra phiếu** — **giai đoạn 3**.
-- **Phiếu chuyển ô và phiếu kiểm kê theo ô** — **giai đoạn 4**.
-- **Quét mã vạch vị trí** — giai đoạn 5.
+> **Tài liệu này mô tả hệ đang chạy trên site thử `erptest.local` (`http://192.168.61.129:8003`).**
+> Đây **không phải** site chạy thật. Site thật là `miyano`, nằm trên máy khác và **chưa cài**
+> phần quản lý vị trí. Làm quen trên site thử thoải mái — hỏng gì cũng không ảnh hưởng số liệu
+> công ty. Khi đưa lên site thật, làm lại toàn bộ mục 3 từ đầu.
 
 ---
 
-## 1. Vào ở đâu, ai vào được
+## 1. Kho nào đang quản lý vị trí
 
-Mở `http://192.168.61.129:8003`, gõ tên màn hình vào ô tìm kiếm (biểu tượng kính lúp trên
-thanh trên cùng), hoặc vào thẳng theo đường dẫn.
+Công ty **Miyano Việt Nam** có các kho sau:
 
-| Màn hình | Đường dẫn | Dùng để |
+| Kho | Vai trò | Quản lý vị trí |
 |---|---|---|
-| Storage Location | `/app/storage-location` | Xem và sửa danh mục ô |
-| Location Generator | `/app/location-generator` | Sinh mã ô hàng loạt |
-| Warehouse Location Setup | `/app/warehouse-location-setup` | Bật / tắt / đồng bộ theo kho |
-| Tồn kho theo vị trí | `/app/query-report/Ton Kho Theo Vi Tri` | Hàng nào đang ở ô nào |
-| Hàng chưa xếp vị trí | `/app/query-report/Hang Chua Xep Vi Tri` | Việc cần dọn của thủ kho |
-| Đối soát tồn vị trí | `/app/query-report/Doi Soat Ton Vi Tri` | Kiểm hệ có lệch không |
+| `Kho Miyano - MYN` | kho vật tư chính | **CÓ** |
+| `Hàng trả về - MYN` | hàng khách trả | không |
+| `Stores - MYN`, `Work In Progress - MYN`, `Finished Goods - MYN`, `Goods In Transit - MYN` | kho mặc định ERPNext, chưa dùng | không |
 
-**Quyền:**
-- **Sinh ô, bật/tắt kho, đồng bộ**: chỉ `System Manager` và `Stock Manager`. Đây là thao tác
-  **thiết lập**, không phải việc hằng ngày — cố ý không mở cho `Stock User`.
-- **Xem ba báo cáo và danh mục ô**: thêm `Stock User`.
-- **Khách hàng trên cổng (`Website User`) không vào được gì** — đã chặn và có kiểm thử.
+Chỉ **`Kho Miyano - MYN`** được chia ô. Các kho khác vẫn chạy bình thường như ERPNext gốc —
+có tồn kho, có nhập xuất, chỉ là không biết hàng nằm ở ô nào.
+
+> ### ⚠ Cái bẫy phải sửa trước khi dùng thật
+>
+> Trong **Stock Settings**, ô **Default Warehouse** đang là **`Stores - M`** — kho của một
+> công ty **khác** (`Miyano`, mã `M`), không phải `Miyano Việt Nam` (mã `MYN`). Nghĩa là một
+> chứng từ mới mở ra sẽ **tự điền sẵn một kho không quản lý vị trí**. Người lập phiếu không
+> để ý, bấm Lưu — hàng vào kho đó, **sổ vị trí không ghi một dòng nào**, và **đối soát vẫn
+> báo khớp** (nó chỉ kiểm những kho có bật quản lý vị trí).
+>
+> Việc cần làm: đổi Default Warehouse sang `Kho Miyano - MYN`, hoặc xoá trống ô đó để người
+> lập phiếu buộc phải tự chọn kho. Đây là việc của quản trị hệ thống, làm **một lần**.
+
+### Ai vào được gì
+
+| Việc | Vai trò cần có |
+|---|---|
+| Sinh ô, bật/tắt quản lý vị trí, đồng bộ lại | `System Manager` **hoặc** `Stock Manager` |
+| Xem ba báo cáo, xem danh mục ô | thêm `Stock User` |
+| Nhập/xuất kho như thường lệ | như ERPNext gốc, không đổi |
+
+Sinh ô và bật/tắt kho là **thao tác thiết lập**, cố ý không mở cho `Stock User` — không phải
+việc hằng ngày. Khách hàng đăng nhập cổng (`Website User`) **không vào được gì** của phần này.
+
+### Vào ở đâu
+
+Gõ tên màn hình vào ô tìm kiếm (kính lúp trên thanh trên cùng), hoặc vào thẳng đường dẫn:
+
+| Màn hình | Đường dẫn |
+|---|---|
+| **Vị trí kho** (trang tổng hợp, vào đây trước) | `/app/vi-tri-kho` |
+| Storage Location — danh mục ô | `/app/storage-location` |
+| Location Generator — sinh mã ô hàng loạt | `/app/location-generator` |
+| Warehouse Location Setup — bật/tắt/đồng bộ | `/app/warehouse-location-setup` |
+| Báo cáo **Tồn kho theo vị trí** | `/app/query-report/Ton Kho Theo Vi Tri` |
+| Báo cáo **Hàng chưa xếp vị trí** | `/app/query-report/Hang Chua Xep Vi Tri` |
+| Báo cáo **Đối soát tồn vị trí** | `/app/query-report/Doi Soat Ton Vi Tri` |
+
+*(Đường dẫn trang tổng hợp là `vi-tri-kho` — **không dấu**. Gõ `vị-trí-kho` có dấu sẽ ra trang
+"Not found".)*
 
 ---
 
-## 1b. Mã ô đọc thế nào
+## 2. Mã ô đọc thế nào
 
-Mã ô **10 ký tự**, theo tài liệu `SPD_VanHanh_PhanTichMaViTriKho_20260907_v2` §5.2 (bản chốt
-11/09/2026 — bản 10/09 có 12 ký tự và còn thêm 2 ký tự mã kho ở đầu, **đã bỏ**: kho được xác
-định qua trường **Kho** của chính ô, không còn nằm trong mã). Điểm hay là **nhìn mã biết
-ngay chỗ đứng**, không phải tra bảng:
+Mã ô **10 ký tự**, nhìn mã biết ngay chỗ đứng, không phải tra bảng:
 
 ```
 1B   01   04      03    02        →   1B01040302
 khu  dãy  khoang  tầng  ô
 ```
 
-Hệ lưu và hiển thị **đúng 10 ký tự liền** (ô **Mã ô**). Riêng ô **Mã in trên nhãn** giữ dạng
-`1B0104-0302` để in tem.
-
-*(Tài liệu SPD có lúc viết dạng có gạch nối cho dễ đọc bằng mắt. Đó chỉ là cách trình bày
-trong văn bản — phần mềm không sinh chuỗi đó cho ô Mã ô, đừng đi tìm.)*
-
 | Phần | Dài | Miền giá trị | Cách đánh số |
 |---|---|---|---|
-| Khu | 2 | số + chữ, ví dụ `1B` | theo sơ đồ mặt bằng — **cấp phát TOÀN HỆ, xem cảnh báo dưới** |
+| Khu | 2 | 1 số + 1 chữ, ví dụ `1B` | theo sơ đồ mặt bằng |
 | Dãy | 2 | `01`–`99` | |
 | Khoang | 2 | `01`–`99` | trái sang phải |
 | Tầng | 2 | `01`–`09` | **đếm từ dưới lên** |
 | Ô | 2 | `01`–`99` | trái sang phải |
 
-Hệ **chặn cứng** mã sai chuẩn — sai một ký tự là không lưu được, kèm thông báo chỉ rõ dạng
-đúng. `00` cũng bị chặn, vì tuy đủ 2 chữ số nhưng không có dãy 0 hay tầng 0 nào cả.
+Hệ lưu và hiển thị **đúng 10 ký tự liền** ở ô **Mã ô**. Ô **Mã in trên nhãn** giữ dạng có gạch
+nối `1B0104-0302` cho dễ đọc bằng mắt khi in tem.
 
-> **Mã ô không bao giờ dùng lại.** Dỡ kệ đi thì mã đó "chết" theo, không cấp cho ô khác —
-> nếu không, tem cũ còn sót lại sẽ chỉ vào chỗ sai.
+Mã sai chuẩn bị **chặn cứng** — sai một ký tự là không lưu được, kèm thông báo chỉ rõ dạng
+đúng. `00` cũng bị chặn: không có dãy 0 hay tầng 0 nào cả.
 
-> **Ký hiệu Khu phải cấp phát TOÀN HỆ, không phải theo từng kho.** Vì mã ô không còn chứa
-> mã kho, `Mã ô` là khoá chính trên **toàn bộ** danh mục `Storage Location`, không riêng
-> một kho. Hai kho khác nhau **không được** dùng trùng ký hiệu Khu (ví dụ cả hai cùng đặt
-> `1B`) — hệ sẽ chặn khi phát hiện (báo "nút nhóm đã thuộc kho khác"), nhưng phải thống
-> nhất quy ước đặt tên Khu giữa các kho **trước khi** sinh ô, đừng để phát hiện ra sau khi
-> tem đã in.
+> **Mã ô không bao giờ dùng lại.** Dỡ kệ đi thì mã đó chết theo, không cấp cho ô khác — nếu
+> không, tem cũ còn sót lại sẽ chỉ vào chỗ sai.
 
-> **Cách ly là một KHO RIÊNG, không phải một `loai_vi_tri`.** Trường "Loại vị trí" trên
-> `Storage Location` chỉ còn hai lựa chọn: "Lưu trữ", "Soạn hàng" — **không còn "Cách ly"**.
-> Lý do: trước đây gắn "Cách ly" lên một ô chỉ là một nhãn, không nơi nào trong code đọc
-> nó, nên hàng đặt ở ô đó vẫn bị hệ chọn ra để xuất bán bình thường — một nhãn an toàn
-> **giả**. Muốn cách ly hàng thật (chờ QC, hàng lỗi, hàng thu hồi…), tạo một **kho riêng**
-> (Warehouse khác) và chuyển hàng sang đó bằng phiếu chuyển kho — đây là ranh giới tồn kho
-> thật của ERPNext, không phải một giá trị chọn trên form.
+> **Mã ô cũng KHÔNG sửa được sau khi tạo.** Muốn đổi phải xoá ô và tạo lại, mà mã đã dùng thì
+> không cấp lại. Đối chiếu sơ đồ kho cho xong **trước khi** bấm sinh ô.
 
----
+> ### Ký hiệu Khu phải cấp phát TOÀN HỆ, không phải theo từng kho
+>
+> Mã ô không chứa mã kho, nên `Mã ô` là khoá chính trên **toàn bộ** danh mục — không riêng
+> một kho. Hai kho khác nhau **không được** cùng dùng ký hiệu `1B`. Hệ có chặn (báo "nút nhóm
+> đã thuộc kho khác"), nhưng phải thống nhất bảng phân bổ **Khu ↔ Kho** *trước khi* sinh ô,
+> đừng để phát hiện sau khi tem đã in.
 
-## 1c. Cây vị trí: gấp/mở, và ngừng dùng cả một dãy
-
-Từ 11/09/2026, `Storage Location` không còn là danh sách phẳng — nó là một **cây 5 cấp**
-(Khu → Dãy → Khoang → Tầng → Ô), suy thẳng từ mã: mỗi cấp là **tiền tố** của cấp sau
-(`1B` → `1B01` → `1B0104` → `1B010403` → `1B01040302`). Cây này KHÔNG khai tay — hệ tự tính
-lại từ mã mỗi lần lưu, nên không có chuyện cây lệch khỏi mã.
-
-**Xem cây ở đâu:** mở **Storage Location** ở dạng danh sách cây (Tree View) thay vì bảng —
-mỗi Khu/Dãy/Khoang/Tầng là một nút gấp được, mở ra thấy các nút con, tới tận ô lá (nút không
-gấp được, `is_group = 0`) là nơi thật sự chứa hàng.
-
-**Ngừng dùng cả một dãy trong một thao tác:** tích **"Ngừng dùng" (`disabled`) trên một nút
-cha bất kỳ** — Khu, Dãy, Khoang, hay Tầng — coi như ngừng dùng **toàn bộ ô lá bên dưới nó**,
-không cần vào tắt từng ô lá một. Ví dụ tắt cả Khoang `1B0104` (đang có mấy chục ô lá bên
-dưới) chỉ cần tích "Ngừng dùng" trên đúng một bản ghi `1B0104`.
-
-Hàng ở nhánh đã tắt: vẫn **cộng vào tồn kho tổng** (đối soát vẫn khớp), chỉ là **không được
-chọn để xuất** — phiếu xuất kế tiếp nếu cần lấy đúng nhánh đó sẽ nhận thông báo nói rõ hàng
-đang kẹt ở ô/nhánh nào, thay vì câu "thiếu hàng" chung chung. Muốn dùng lại: bỏ tích "Ngừng
-dùng" trên đúng nút đã tắt.
-
-> **Điều kiện để "ngừng dùng cả dãy" có tác dụng: cây phải đã có toạ độ thật** (`lft`/`rgt`
-> khác 0 — kỹ thuật viên kiểm bằng `frappe.db.count("Storage Location", {"lft": 0, "rgt":
-> 0})`, phải ra 0). Ngay sau khi cài đặt hoặc phục hồi trên một site, quản trị hệ thống phải
-> chạy một lần thao tác kỹ thuật dựng lại toạ độ cây (`rebuild_tree`, xem
-> `BAN-GIAO-nen-tang-vi-tri-kho.md`) — chưa chạy thì tích "Ngừng dùng" trên một nút cha
-> **không có tác dụng gì** với các ô lá bên dưới nó, dù giao diện vẫn cho tích bình thường.
+> ### Cách ly là một KHO RIÊNG, không phải một loại vị trí
+>
+> Trường **Loại vị trí** chỉ có hai lựa chọn: "Lưu trữ" và "Soạn hàng". **Không có "Cách ly"** —
+> và đó là cố ý. Trước đây có, nhưng nó chỉ là một cái nhãn: không chỗ nào trong hệ đọc tới,
+> nên hàng để ở ô "Cách ly" **vẫn bị chọn ra xuất bán bình thường**. Một nhãn an toàn giả còn
+> nguy hơn không có nhãn.
+>
+> Muốn cách ly hàng thật (chờ QC, hàng lỗi, hàng thu hồi, hàng hết hạn): tạo một **Kho riêng**
+> và chuyển hàng sang đó bằng phiếu chuyển kho. Đó mới là ranh giới tồn kho thật.
 
 ---
 
-## 2. Trình tự làm lần đầu (theo đúng thứ tự này)
+## 3. Cây vị trí: gấp/mở, và ngừng dùng cả một dãy
 
-### Bước 0 — Thống nhất ký hiệu Khu (làm một lần, giữa TẤT CẢ các kho)
+Ô kệ là một **cây 5 cấp** (Khu → Dãy → Khoang → Tầng → Ô), suy thẳng từ mã: mỗi cấp là **tiền
+tố** của cấp sau.
 
-Không còn màn hình khai "Mã kho" trên `Warehouse` — trường đó (`custom_ma_kho_spd`) đã bị
-xoá cùng patch dọn dữ liệu (Task 7, 11/09/2026), vì mã ô không còn chứa mã kho nữa.
+```
+1B                  Khu
+└─ 1B01             Dãy
+   └─ 1B0104        Khoang
+      └─ 1B010403   Tầng
+         └─ 1B01040302   Ô  ← chỉ cấp này mới thật sự chứa hàng
+```
 
-Việc phải làm trước khi sinh ô là **thống nhất bằng tay, ngoài phần mềm**: mỗi ký hiệu Khu
-(`1A`, `1B`, `2A`…) chỉ dùng cho **đúng một kho** trên toàn hệ thống. Vì `Mã ô` là khoá
-chính TOÀN HỆ (không riêng từng kho — xem cảnh báo ở mục 1b), hai kho lỡ dùng trùng ký hiệu
-Khu sẽ đụng đúng một bản ghi nút nhóm khi sinh ô; hệ có chặn (báo "đã thuộc kho khác") nhưng
-tốt hơn là tránh từ đầu bằng một bảng phân bổ Khu ↔ Kho lưu ngoài hệ thống.
+Cây này **không khai tay** — hệ tự tính lại từ mã mỗi lần lưu, nên không bao giờ có chuyện cây
+lệch khỏi mã.
+
+**Xem cây:** mở **Storage Location** ở dạng cây (Tree View) thay vì bảng. Mỗi Khu/Dãy/Khoang/
+Tầng là một nút gấp được; nút không gấp được là ô lá — nơi chứa hàng.
+
+**Ngừng dùng cả một dãy trong một thao tác:** tích **"Ngừng dùng"** trên **một nút cha bất kỳ**
+— Khu, Dãy, Khoang hay Tầng — là ngừng dùng **toàn bộ ô lá bên dưới nó**. Ví dụ tắt cả khoang
+`1B0104` (mấy chục ô bên dưới) chỉ cần tích đúng một bản ghi `1B0104`. Bỏ tích để dùng lại.
+
+Hàng nằm trong nhánh đã tắt: vẫn **cộng vào tồn kho** như thường (đối soát vẫn khớp), chỉ là
+**không được chọn để xuất**. Nếu hàng chỉ còn ở nhánh đã tắt, phiếu xuất bị chặn kèm thông báo
+**nói rõ ô nào đang giữ hàng** — không phải câu "thiếu hàng" chung chung.
+
+---
+
+## 4. Trình tự làm lần đầu
+
+Làm đúng thứ tự này. Trên `erptest.local` các bước này **đã làm xong rồi** (214 bản ghi: 85 nút
+nhóm + 128 ô thật + 1 ô hệ thống); mục này để làm lại khi đưa lên site thật.
+
+### Bước 0 — Thống nhất ký hiệu Khu (một lần, cho TẤT CẢ các kho)
+
+Làm **ngoài phần mềm**: lập một bảng "Khu nào thuộc kho nào" (`1A`, `1B`, `2A`…), mỗi ký hiệu
+chỉ dùng cho **đúng một kho**. Lý do ở mục 2.
 
 ### Bước 1 — Sinh mã ô
 
-Vào **Location Generator** → **New**. Điền:
+**Location Generator** → **New**:
 
-| Ô nhập | Ý nghĩa | Ví dụ |
-|---|---|---|
-| Kho | Kho sẽ chứa các ô này | `Kho Miyano - MYN` |
-| Khu (2 ký tự) | Số + chữ, theo sơ đồ mặt bằng — **chưa dùng ở kho nào khác** (Bước 0) | `1B` |
-| Số dãy | tối đa 99 | `2` |
-| Số khoang mỗi dãy | tối đa 99 | `3` |
-| Số tầng mỗi khoang | tối đa **9** | `4` |
-| Số ô mỗi tầng | tối đa 99 | `2` |
+| Ô nhập | Ví dụ |
+|---|---|
+| Kho | `Kho Miyano - MYN` |
+| Khu (2 ký tự) | `1B` |
+| Số dãy (tối đa 99) | `4` |
+| Số khoang mỗi dãy (tối đa 99) | `4` |
+| Số tầng mỗi khoang (tối đa **9**) | `4` |
+| Số ô mỗi tầng (tối đa 99) | `2` |
 
-Không còn ô "Mẫu mã ô" — khuôn mã là chuẩn cứng của SPD, không đặt lại được. Ô **Mẫu mã sinh
-ra** chỉ để xem trước, hệ tự điền.
+Lưu, rồi bấm **"Xem trước rồi sinh ô"**. Hộp thoại cho biết **sẽ tạo bao nhiêu ô** và **vài mã
+ví dụ** — ví dụ trên là `4 × 4 × 4 × 2` = **128 ô**. Kiểm kỹ rồi mới xác nhận.
 
-Lưu, rồi bấm **"Xem trước rồi sinh ô"**.
+Nếu có mã trùng, hệ **không tạo ô nào cả** và báo rõ mã nào trùng. Không có chuyện tạo được
+một nửa.
 
-Hộp thoại hiện **sẽ tạo bao nhiêu ô** và **vài mã ví dụ**. Ví dụ trên cho `2 × 3 × 4 × 2` =
-**48 ô**, mã chạy từ `1B01010101` tới `1B02030402`. Kiểm kỹ rồi mới xác nhận.
-
-> **Mã ô KHÔNG sửa được sau khi tạo.** Muốn đổi phải xoá ô và tạo lại — mà mã đã dùng thì
-> không cấp lại. Tem đã in, người đã quen mã: đối chiếu sơ đồ kho cho xong trước khi bấm.
-
-Nếu có mã trùng, hệ **không tạo ô nào cả** và báo mã nào trùng. Sửa khu hoặc số lượng rồi
-làm lại — không có chuyện tạo được một nửa.
-
-**Muốn ô nào được lấy hàng trước:** bộ sinh đã tự đánh **Thứ tự lấy hàng** 1, 2, 3… theo
-đúng thứ tự mã (dãy → khoang → tầng → ô). Nếu đường đi thật trong kho khác thế, mở từng ô
-trong **Storage Location** và sửa lại số — ô gần cửa để số nhỏ.
+**Thứ tự lấy hàng:** bộ sinh tự đánh số 1, 2, 3… theo thứ tự mã. Nếu đường đi thật trong kho
+khác thế, mở từng ô trong **Storage Location** và sửa lại — ô gần cửa để số nhỏ.
 
 ### Bước 2 — Bật quản lý vị trí cho kho
 
-Vào **Warehouse Location Setup** → **New** → chọn **Kho** → **Lưu**.
+**Warehouse Location Setup** → **New** → chọn Kho → **Lưu** → bấm **"Xem trước chuyển đổi"**.
 
-Bấm **"Xem trước chuyển đổi"**. Hộp thoại cho biết:
-- sẽ ghi **bao nhiêu dòng sổ**, cho bao nhiêu **mặt hàng**, bao nhiêu **lô**;
-- **cảnh báo** nếu có hàng không quản lý lô, hoặc có tồn âm.
+Hộp thoại cho biết sẽ ghi bao nhiêu dòng sổ, cho bao nhiêu mặt hàng và lô, kèm **cảnh báo** nếu
+có hàng không quản lý lô hoặc có tồn âm. **Bước xem trước không ghi gì cả** — bấm thoải mái.
 
-**Bước xem trước không ghi gì cả** — bấm thoải mái để xem.
+Xác nhận trên hộp thoại đó chính là **bật**. *(Không có nút "Bật" riêng — cố ý, để không ai bật
+mà chưa xem trước.)*
 
-Xác nhận trên hộp thoại đó chính là **bật**. *(Không có nút "Bật" riêng — việc bật nằm trong
-hộp xác nhận này, cố ý để không ai bật mà chưa xem trước.)*
-
-Toàn bộ tồn hiện có chuyển vào ô **"Chưa xếp vị trí"** của kho, tách theo từng lô. Nếu bước
-đối soát cuối cùng phát hiện lệch, hệ **huỷ sạch** và kho quay về đúng như trước — không có
-trạng thái bật nửa vời.
+Toàn bộ tồn hiện có chuyển vào ô **"Chưa xếp vị trí"**, tách theo từng lô. Nếu bước kiểm cuối
+phát hiện lệch, hệ **huỷ sạch** và kho quay về đúng như trước — không có trạng thái bật nửa vời.
 
 ### Bước 3 — Kiểm ngay sau khi bật
 
-Mở báo cáo **Đối soát tồn vị trí**, chọn kho. **Rỗng nghĩa là khớp.**
-
-Rồi mở **Hàng chưa xếp vị trí** — lúc này nó liệt kê **toàn bộ tồn**, vì mọi thứ vừa vào ô
-"Chưa xếp vị trí". Đó là danh sách việc: xếp hàng vào ô thật ngoài kho, và ở giai đoạn 2 sẽ
-có màn hình để khai vị trí.
+1. Mở **Đối soát tồn vị trí**, chọn kho. **Rỗng nghĩa là khớp.**
+2. Mở **Hàng chưa xếp vị trí** — lúc này nó liệt kê **toàn bộ tồn**, vì mọi thứ vừa dồn vào ô
+   "Chưa xếp vị trí". Đó là danh sách việc: ra kho xếp hàng vào ô thật.
 
 ---
 
-## 3. Vận hành hằng ngày
+## 5. Vận hành hằng ngày
 
 **Không phải thao tác gì thêm.** Cứ nhập/xuất bằng chứng từ ERPNext như cũ — hệ tự ghi sổ vị
 trí ở phía sau.
@@ -221,74 +201,119 @@ trí ở phía sau.
 | Việc | Hệ làm gì |
 |---|---|
 | Nhập kho (Purchase Receipt, Stock Entry) | Hàng vào ô **"Chưa xếp vị trí"** |
-| Xuất kho / giao hàng (Delivery Note, Stock Entry) | Hệ **tự chọn ô** theo hạn dùng gần nhất trước; cùng hạn thì theo thứ tự lấy hàng |
+| Xuất kho / giao hàng (Delivery Note, Stock Entry) | Hệ **tự chọn ô** — xem mục 5.2 |
 | Huỷ phiếu | Hàng về **đúng ô đã lấy**, không phải ô khác |
 | Kiểm kê (Stock Reconciliation) | Sổ vị trí điều chỉnh theo |
 
-**Việc hằng ngày của thủ kho:** mở **Hàng chưa xếp vị trí**, xếp hàng vào ô thật.
-
+**Việc hằng ngày của thủ kho:** mở **Hàng chưa xếp vị trí**, ra kho xếp hàng vào ô thật.
 **Việc hằng tuần của quản lý:** mở **Đối soát tồn vị trí**. Rỗng là tốt.
+
+### 5.1 Nhập hàng: số lô phải gõ tay
+
+Cả **80 mặt hàng có quản lý lô** của Miyano đều đặt "không tự sinh lô". Nghĩa là khi nhập hàng,
+**người lập phiếu phải gõ số lô theo nhãn của nhà sản xuất** — hệ không tự đẻ ra số lô, và
+không cho lưu nếu bỏ trống.
+
+Gõ **kèm hạn dùng**. Hạn dùng là thứ hệ dựa vào để chọn hàng xuất trước; bỏ trống là mất tác
+dụng đó. Hiện 55/55 lô trên hệ đều đã có hạn dùng — giữ nguyên kỷ luật này.
+
+Hàng nhập về **dồn hết vào ô "Chưa xếp vị trí"**. Hiện chưa có màn hình khai ô lúc nhập; thủ
+kho xem báo cáo **Hàng chưa xếp vị trí** rồi xếp ngoài thực tế.
+
+### 5.2 Xuất hàng: hệ chọn LÔ và chọn Ô theo hai quy tắc KHÁC NHAU
+
+Đây là chỗ dễ hiểu nhầm nhất, đọc kỹ:
+
+| Bước | Ai quyết | Theo quy tắc nào |
+|---|---|---|
+| 1. Chọn **lô** nào để xuất | ERPNext gốc | **thứ tự nhập** (lô tạo trước xuất trước) |
+| 2. Trong lô đó, lấy ở **ô** nào | phần vị trí của Miyano | **hạn dùng gần nhất trước**, cùng hạn thì theo thứ tự lấy hàng |
+
+Lô **đã quá hạn** thì ERPNext tự loại, không chọn. Nhưng giữa hai lô **còn hạn**, nó chọn theo
+thứ tự nhập chứ **không** theo hạn dùng — nên một lô còn 1 tháng có thể bị xuất **sau** một lô
+còn 2 năm, nếu lô còn 2 năm được nhập trước.
+
+> **Với vật tư y tế, nên đổi.** Trong **Stock Settings**, ô **"Pick Serial / Batch Based On"**
+> đang để `FIFO`; đổi sang **`Expiry`** thì cả hai bước đều theo hạn dùng gần nhất trước, đúng
+> tinh thần FEFO. Đây là **quyết định của công ty**, không phải việc kỹ thuật — đổi xong ảnh
+> hưởng mọi kho, mọi chứng từ, nên cần người có thẩm quyền chốt.
 
 ---
 
-## 4. Khi báo cáo đối soát có dòng
+## 6. Ba báo cáo
 
-Đối soát kiểm **ba** thứ. Đọc cột `loai` để biết gặp loại nào:
+| Báo cáo | Trả lời câu hỏi | Rỗng nghĩa là |
+|---|---|---|
+| **Tồn kho theo vị trí** | hàng nào đang ở ô nào (hiển thị dạng cây, gộp theo từng cấp) | kho trống |
+| **Hàng chưa xếp vị trí** | việc cần dọn của thủ kho | đã xếp hết, tốt |
+| **Đối soát tồn vị trí** | hệ có lệch không | **khớp, tốt** |
+
+**Đối soát là báo cáo *sai lệch*, không phải báo cáo tồn kho.** Rỗng mới là tốt. Muốn xem tồn
+thì mở *Tồn kho theo vị trí*.
+
+### Khi đối soát có dòng
+
+Đọc cột `loai`:
 
 | Loại | Nghĩa | Làm gì |
 |---|---|---|
-| Lệch tồn | Tổng tồn các ô ≠ tồn kho ERPNext | Vào Warehouse Location Setup → **"Đồng bộ lại"** |
-| Ô âm | Có ô mang số lượng âm | **Không** bấm Đồng bộ lại (nó sẽ báo lỗi). Xem mục dưới |
-| Lệch bộ đệm | Bộ nhớ đệm trôi khỏi sổ | Dựng lại tồn vị trí (xem mục dưới) |
+| Lệch tồn | Tổng tồn các ô ≠ tồn kho ERPNext | Warehouse Location Setup → **"Đồng bộ lại"** |
+| Ô âm | Có ô mang số lượng âm | **Không** bấm Đồng bộ lại — xem dưới |
+| Lệch bộ đệm | Bộ nhớ đệm trôi khỏi sổ | xem dưới |
 
-**"Đồng bộ lại" chỉ chữa được loại thứ nhất.** Với ô âm hoặc lệch bộ đệm, nó **cố ý ném lỗi**
-thay vì âm thầm ghi đè — vì hai loại đó là dấu hiệu dữ liệu hỏng, không phải lệch thường.
-
-Khi đó cần chạy **dựng lại tồn vị trí** (thao tác kỹ thuật, gọi qua bench):
+**"Đồng bộ lại" chỉ chữa được loại thứ nhất.** Với hai loại kia nó **cố ý ném lỗi** thay vì âm
+thầm ghi đè — đó là dấu hiệu dữ liệu hỏng, không phải lệch thường. Khi đó gọi kỹ thuật chạy:
 
 ```
-bench --site erptest.local execute erpnext.vi_tri_kho.vitri.so.dung_lai_ton_vi_tri --kwargs "{'kho': 'Kho Miyano - MYN'}"
+bench --site erptest.local execute erpnext.vi_tri_kho.vitri.so.dung_lai_ton_vi_tri \
+  --kwargs "{'kho': 'Kho Miyano - MYN'}"
 ```
 
-Hàm này xoá bộ đệm và **cộng lại từ đầu từ sổ**. Sổ không bao giờ bị sửa hay xoá — nó chỉ ghi
-thêm — nên thao tác này an toàn, chạy lại bao nhiêu lần cũng được.
+Hàm này xoá bộ đệm và cộng lại từ đầu từ sổ. Sổ không bao giờ bị sửa hay xoá — nó chỉ ghi thêm
+— nên thao tác này an toàn, chạy lại bao nhiêu lần cũng được.
+
+> **Đối soát khớp KHÔNG chứng minh cây vị trí đúng.** Nó chỉ so tổng số lượng với tồn kho; nó
+> **không đọc cấu trúc cây**. Một ô gắn nhầm vào nhánh khác vẫn cho đối soát khớp. Muốn kiểm
+> cấu trúc thì phải nhờ kỹ thuật kiểm thẳng, không nhìn báo cáo này mà kết luận.
 
 ---
 
-## 5. Tắt và bật lại
+## 7. Tắt và bật lại quản lý vị trí
 
 **Tắt** (Warehouse Location Setup → "Tắt quản lý vị trí"): hệ ngừng ghi sổ cho kho đó. **Sổ cũ
 giữ nguyên**, không xoá gì.
 
-**Không bật thẳng lại được.** Trong lúc tắt kho vẫn xuất nhập, nên tồn vị trí đứng yên trong
-khi tồn kho đi tiếp. Phải bấm **"Đồng bộ lại"** trước — nó ghi bù phần chênh vào ô "Chưa xếp
-vị trí" rồi mới bật lại. Đây là chặn cố ý, không phải lỗi.
+**Không bật thẳng lại được.** Trong lúc tắt, kho vẫn xuất nhập — nên tồn vị trí đứng yên trong
+khi tồn kho đi tiếp. Phải bấm **"Đồng bộ lại"** trước: nó ghi bù phần chênh vào ô "Chưa xếp vị
+trí" rồi mới cho bật lại. Đây là chặn cố ý, không phải lỗi.
 
 ---
 
-## 6. Năm điều dễ gây hiểu nhầm
+## 8. Bốn điều dễ hiểu nhầm
 
-**Ô "Chưa xếp vị trí" là ô hệ thống.** Mỗi kho đúng một ô, mã `ZZZ-CHUA-XEP`. Không xoá
-được, không đặt "Ngừng dùng" được — vì nó là van an toàn: mọi thứ không rõ vị trí đều rơi
-vào đó thay vì làm hỏng số liệu. Đây là ô **duy nhất** không theo chuẩn 10 ký tự; nó được
-miễn kiểm định dạng, và tên đặt bắt đầu bằng `ZZZ` để luôn xếp cuối danh sách. Nó cũng là
-**gốc riêng của chính nó trong cây** — không nằm dưới Khu/Dãy/Khoang/Tầng nào, nên "Ngừng
-dùng" một nhánh thật không bao giờ vô tình kéo theo nó.
+**1. Ô "Chưa xếp vị trí" được lấy hàng SAU CÙNG, không phải trước.** Nó mang thứ tự lấy hàng
+9999. Cùng hạn dùng thì hệ lấy từ ô đã xếp đàng hoàng trước — thủ kho biết đi tới đâu; chỉ khi
+các ô thật cạn mới rút tới đống chưa xếp. Hàng ở đó vẫn là hàng thật, vẫn xuất bình thường.
 
-**Ô "Chưa xếp vị trí" được lấy hàng SAU CÙNG, không phải trước.** Nó mang thứ tự lấy hàng
-9999. Cùng hạn dùng thì hệ lấy từ ô đã xếp đàng hoàng trước — thủ kho biết đi tới đâu; chỉ
-khi các ô thật cạn hàng mới rút tới đống chưa xếp. Hàng ở đó vẫn là hàng thật và vẫn xuất
-được bình thường.
+**2. Ô "Chưa xếp vị trí" là ô hệ thống, mỗi kho đúng một ô** (mã `ZZZ-CHUA-XEP`). Không xoá
+được, không đặt "Ngừng dùng" được — nó là **van an toàn**: mọi thứ không rõ vị trí rơi vào đó
+thay vì làm hỏng số liệu. Đây là ô duy nhất không theo chuẩn 10 ký tự, và nó đứng **riêng**
+ngoài cây — nên "Ngừng dùng" một nhánh thật không bao giờ vô tình kéo theo nó.
 
-**Ô (hay cả một nhánh) đặt "Ngừng dùng" vẫn được tính vào tồn, nhưng không được lấy hàng.**
-Nếu hàng chỉ còn ở ô/nhánh ngừng dùng, phiếu xuất sẽ bị chặn với thông báo **nói rõ ô nào
-đang giữ hàng** — không phải câu "thiếu hàng" chung chung. Chuyển hàng khỏi ô đó, hoặc bật
-lại ô/nhánh.
+**3. Ô (hay cả nhánh) "Ngừng dùng" vẫn tính vào tồn, chỉ không được lấy hàng.** Nếu hàng chỉ
+còn ở đó, phiếu xuất bị chặn kèm thông báo nói rõ ô nào đang giữ. Chuyển hàng ra, hoặc bật lại.
 
-**"Ngừng dùng" trên một nút cha chỉ có tác dụng SAU KHI cây đã có toạ độ thật** — xem điều
-kiện `rebuild_tree` ở mục 1c. Trên một site chưa chạy bước đó (site mới cài, hoặc site cũ
-chưa dựng lại dữ liệu), tích "Ngừng dùng" trên một Khu/Dãy/Khoang/Tầng **không chặn được gì
-ở các ô lá bên dưới** — chỉ ô lá tự nó bị tắt.
+**4. "Ngừng dùng" một nhánh chỉ có tác dụng khi cây đã dựng xong.** Ngay sau khi cài hoặc phục
+hồi trên một site mới, quản trị phải chạy một lần thao tác dựng lại cây (`bench migrate` tự làm
+— xem `BAN-GIAO-nen-tang-vi-tri-kho.md`). Chưa chạy thì tích "Ngừng dùng" trên nút cha **không
+chặn được gì** ở các ô lá bên dưới, dù giao diện vẫn cho tích bình thường. Trên `erptest.local`
+bước này đã xong.
 
-**Báo cáo đối soát rỗng mới là tốt.** Nó không phải báo cáo tồn kho — nó là báo cáo *sai lệch*.
-Muốn xem tồn thì mở **Tồn kho theo vị trí** (nay hiển thị dạng cây).
+---
+
+## Tài liệu liên quan
+
+| File | Cho ai |
+|---|---|
+| `BAN-GIAO-nen-tang-vi-tri-kho.md` | kỹ thuật — kiến trúc, cách bảo trì, cách merge ERPNext bản mới |
+| `QUYET-DINH-thi-cong-cay-vi-tri.md` | chủ dự án — những chỗ tự chốt trong lúc làm và cái giá nếu chốt sai |

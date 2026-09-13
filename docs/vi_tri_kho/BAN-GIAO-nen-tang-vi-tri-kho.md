@@ -93,7 +93,7 @@ Mã nguồn: `erpnext/vi_tri_kho/` · Tài liệu: `docs/vi_tri_kho/`
 | Không có khái niệm "phạm vi" khi lấy hàng | `chon_o_xuat(..., pham_vi=...)`: giới hạn lấy hàng trong một nhánh (khu/dãy/khoang/tầng cụ thể); `None` = toàn kho, hành vi cũ |
 | `disabled` chỉ kiểm ở CHÍNH ô lá | `disabled` **thừa kế xuống cả nhánh** — tắt một nút cha coi như tắt mọi ô lá dưới nó, ở CẢ hai chiều (loại khỏi ứng viên FEFO, và hiện trong thông báo thiếu hàng) |
 | Báo cáo Tồn Kho Theo Vị Trí dạng bảng phẳng | hiển thị dạng **CÂY**, gộp số theo từng cấp (Khu → Dãy → Khoang → Tầng → Ô) |
-| `loai_vi_tri` có lựa chọn **"Cách ly"**, **"Trả hàng"** | bỏ cả hai (Task 7, 11/09/2026) — không nơi nào trong `vi_tri_kho/vitri/` đọc hai giá trị này, nên một ô gắn "Cách ly" vẫn bị FEFO chọn ra để xuất bán như thường: **nhãn an toàn giả**. Cách ly THẬT là ranh giới tồn kho, thuộc về `Warehouse` (kho riêng), không phải một giá trị Select trên `Storage Location`. Xem `HDSD-quan-ly-vi-tri-kho.md` mục 1b cho cách làm đúng |
+| `loai_vi_tri` có lựa chọn **"Cách ly"**, **"Trả hàng"** | bỏ cả hai (Task 7, 11/09/2026) — không nơi nào trong `vi_tri_kho/vitri/` đọc hai giá trị này, nên một ô gắn "Cách ly" vẫn bị FEFO chọn ra để xuất bán như thường: **nhãn an toàn giả**. Cách ly THẬT là ranh giới tồn kho, thuộc về `Warehouse` (kho riêng), không phải một giá trị Select trên `Storage Location`. Xem `HDSD-quan-ly-vi-tri-kho.md` mục 2 cho cách làm đúng |
 
 **Vì sao phải đổi tên ô hệ thống** — không phải thẩm mỹ: mã toàn số nên thứ tự chữ cái trùng
 thứ tự số. Nhiều bài test FEFO dựng thế **thứ tự chữ cái ngược với thứ tự ưu tiên** để chứng
