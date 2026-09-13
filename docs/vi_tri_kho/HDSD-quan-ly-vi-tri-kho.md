@@ -5,7 +5,7 @@ Miyano ERP · quản lý kho và vị trí (giá kệ / ô kệ) · dành cho th
 > **Tài liệu này mô tả hệ đang chạy trên site thử `erptest.local` (`http://192.168.61.129:8003`).**
 > Đây **không phải** site chạy thật. Site thật là `miyano`, nằm trên máy khác và **chưa cài**
 > phần quản lý vị trí. Làm quen trên site thử thoải mái — hỏng gì cũng không ảnh hưởng số liệu
-> công ty. Khi đưa lên site thật, làm lại toàn bộ mục 3 từ đầu.
+> công ty. Khi đưa lên site thật, làm lại toàn bộ mục 5 từ đầu.
 
 ---
 
@@ -111,7 +111,37 @@ Mã sai chuẩn bị **chặn cứng** — sai một ký tự là không lưu đ
 
 ---
 
-## 3. Cây vị trí: gấp/mở, và ngừng dùng cả một dãy
+## 3. Mã vạch của ô
+
+Mở một ô bất kỳ trong **Storage Location**, mục **Mã vạch** nằm ngay dưới mục đầu — không
+phải cuộn xuống. Nó hiện đúng ba thứ:
+
+```
+        ▌▌ ▌▌▌ ▌ ▌▌▌▌ ▌ ▌▌  ▌▌▌ ▌
+            1A0404-0402            ← chữ cho mắt người đọc
+   Máy quét trả ra: 1A04040402     ← chuỗi máy quét thực sự trả về
+```
+
+Hai chuỗi đó **cố ý khác nhau**: dạng có gạch nối dễ đọc và dễ đối chiếu với sơ đồ kho, còn
+thứ máy quét bắn ra là **10 ký tự liền** — đúng bằng Mã ô, tức đúng khoá chính của bản ghi.
+Nhờ vậy quét tem là ra thẳng ô, không qua bảng tra nào.
+
+Ký hiệu dùng là **Code 128**, mọi máy quét công nghiệp đều đọc được.
+
+Vài điều nên biết:
+
+- Mã vạch **không phải dữ liệu mới** — nó chỉ là hình vẽ lại của Mã ô, dựng khi mở form và
+  không lưu vào cơ sở dữ liệu. Sửa được Mã vạch ở mục *Lấy hàng* nếu kho cần một chuỗi khác
+  với Mã ô (hiếm); để trống thì hệ lấy bằng Mã ô.
+- **Nút nhóm cũng có mã vạch** (`1A`, `1A01`, `1A0104`…) để dán tem đầu dãy, đầu khoang.
+- **Ô "Chưa xếp vị trí" không có** — nó là ô ảo, không có kệ thật để dán.
+
+> **Chưa có: in tem hàng loạt.** Hiện phải mở từng ô để xem. Việc "vào cây, chọn một nút, in
+> tem cho cả nhánh dưới nó" là bước kế tiếp, chưa làm.
+
+---
+
+## 4. Cây vị trí: gấp/mở, và ngừng dùng cả một dãy
 
 Ô kệ là một **cây 5 cấp** (Khu → Dãy → Khoang → Tầng → Ô), suy thẳng từ mã: mỗi cấp là **tiền
 tố** của cấp sau.
@@ -140,7 +170,7 @@ Hàng nằm trong nhánh đã tắt: vẫn **cộng vào tồn kho** như thư�
 
 ---
 
-## 4. Trình tự làm lần đầu
+## 5. Trình tự làm lần đầu
 
 Làm đúng thứ tự này. Trên `erptest.local` các bước này **đã làm xong rồi** (214 bản ghi: 85 nút
 nhóm + 128 ô thật + 1 ô hệ thống); mục này để làm lại khi đưa lên site thật.
@@ -193,7 +223,7 @@ phát hiện lệch, hệ **huỷ sạch** và kho quay về đúng như trướ
 
 ---
 
-## 5. Vận hành hằng ngày
+## 6. Vận hành hằng ngày
 
 **Không phải thao tác gì thêm.** Cứ nhập/xuất bằng chứng từ ERPNext như cũ — hệ tự ghi sổ vị
 trí ở phía sau.
@@ -201,14 +231,14 @@ trí ở phía sau.
 | Việc | Hệ làm gì |
 |---|---|
 | Nhập kho (Purchase Receipt, Stock Entry) | Hàng vào ô **"Chưa xếp vị trí"** |
-| Xuất kho / giao hàng (Delivery Note, Stock Entry) | Hệ **tự chọn ô** — xem mục 5.2 |
+| Xuất kho / giao hàng (Delivery Note, Stock Entry) | Hệ **tự chọn ô** — xem mục 6.2 |
 | Huỷ phiếu | Hàng về **đúng ô đã lấy**, không phải ô khác |
 | Kiểm kê (Stock Reconciliation) | Sổ vị trí điều chỉnh theo |
 
 **Việc hằng ngày của thủ kho:** mở **Hàng chưa xếp vị trí**, ra kho xếp hàng vào ô thật.
 **Việc hằng tuần của quản lý:** mở **Đối soát tồn vị trí**. Rỗng là tốt.
 
-### 5.1 Nhập hàng: số lô phải gõ tay
+### 6.1 Nhập hàng: số lô phải gõ tay
 
 Cả **80 mặt hàng có quản lý lô** của Miyano đều đặt "không tự sinh lô". Nghĩa là khi nhập hàng,
 **người lập phiếu phải gõ số lô theo nhãn của nhà sản xuất** — hệ không tự đẻ ra số lô, và
@@ -220,7 +250,7 @@ dụng đó. Hiện 55/55 lô trên hệ đều đã có hạn dùng — giữ n
 Hàng nhập về **dồn hết vào ô "Chưa xếp vị trí"**. Hiện chưa có màn hình khai ô lúc nhập; thủ
 kho xem báo cáo **Hàng chưa xếp vị trí** rồi xếp ngoài thực tế.
 
-### 5.2 Xuất hàng: hệ chọn LÔ và chọn Ô theo hai quy tắc KHÁC NHAU
+### 6.2 Xuất hàng: hệ chọn LÔ và chọn Ô theo hai quy tắc KHÁC NHAU
 
 Đây là chỗ dễ hiểu nhầm nhất, đọc kỹ:
 
@@ -230,17 +260,57 @@ kho xem báo cáo **Hàng chưa xếp vị trí** rồi xếp ngoài thực tế
 | 2. Trong lô đó, lấy ở **ô** nào | phần vị trí của Miyano | **hạn dùng gần nhất trước**, cùng hạn thì theo thứ tự lấy hàng |
 
 Lô **đã quá hạn** thì ERPNext tự loại, không chọn. Nhưng giữa hai lô **còn hạn**, nó chọn theo
-thứ tự nhập chứ **không** theo hạn dùng — nên một lô còn 1 tháng có thể bị xuất **sau** một lô
-còn 2 năm, nếu lô còn 2 năm được nhập trước.
+thứ tự nhập chứ **không** theo hạn dùng.
 
-> **Với vật tư y tế, nên đổi.** Trong **Stock Settings**, ô **"Pick Serial / Batch Based On"**
-> đang để `FIFO`; đổi sang **`Expiry`** thì cả hai bước đều theo hạn dùng gần nhất trước, đúng
-> tinh thần FEFO. Đây là **quyết định của công ty**, không phải việc kỹ thuật — đổi xong ảnh
-> hưởng mọi kho, mọi chứng từ, nên cần người có thẩm quyền chốt.
+**Điều này đã được chạy thử trên site và đo, không phải suy đoán.** Ngày 13/09/2026, mặt hàng
+`MYN-IMP-NEP-8` có ba lô còn hạn trong kho:
+
+| Lô | Hạn dùng | Tạo lúc |
+|---|---|---|
+| `E2E-LO-GAN-2026` | **28/10/2026** — còn 45 ngày | 13/09, tạo sau |
+| `LO-IMP-NEP-8-2026` | 16/07/2028 | 16/08, tạo trước |
+| `E2E-LO-XA-2028` | 12/09/2028 | 13/09 |
+
+Lập phiếu giao **`MAT-DN-2026-00053`** xuất 30 Cái, để hệ tự chọn. Kết quả: hệ lấy
+`LO-IMP-NEP-8-2026` (20) rồi `E2E-LO-XA-2028` (10) — **cả hai đều hạn 2028**, còn lô sắp hết
+hạn sau 45 ngày **không được đụng tới**.
+
+Đây không phải lỗi, đó là FIFO đúng như cấu hình. Nhưng với vật tư y tế thì hệ quả rất thật:
+**hàng sắp hết hạn nằm lại trong kho cho tới lúc hỏng**, trong khi hàng còn hai năm được bán đi.
+
+> **Việc cần quyết.** Trong **Stock Settings**, ô **"Pick Serial / Batch Based On"** đang để
+> `FIFO`; đổi sang **`Expiry`** thì cả hai bước đều theo hạn dùng gần nhất trước. Đây là
+> **quyết định của công ty**, không phải việc kỹ thuật — nó ảnh hưởng mọi kho, mọi chứng từ,
+> nên cần người có thẩm quyền chốt.
+
+Ngược lại, **bước 2 chạy đúng như thiết kế.** Phiếu **`MAT-DN-2026-00054`** xuất 40 Cái, chỉ
+định thẳng lô `E2E-LO-GAN-2026` đang nằm ở hai ô. Hệ lấy hết ô gần cửa trước rồi mới đi tới ô
+cuối kho:
+
+```
+1A01010101   -25   (thứ tự lấy hàng 1)     ← lấy cạn ô này trước
+1A04040402   -15   (thứ tự lấy hàng 128)   ← rồi mới tới ô xa
+```
+
+> ### ⚠ Đọc kỹ: hai ví dụ trên CHƯA tự làm lại được
+>
+> Để có hàng nằm ở ô `1A01010101` và `1A04040402`, người viết tài liệu đã phải **ghi thẳng vào
+> sổ vị trí bằng lệnh kỹ thuật** — vì **chưa có màn hình nào để xếp hàng từ ô "Chưa xếp vị
+> trí" vào ô thật**.
+>
+> Trên hệ hôm nay, mọi hàng nhập về đều nằm ở `ZZZ-CHUA-XEP` và ở lại đó. Nghĩa là:
+>
+> - phần **chọn ô** của hệ có chạy và chạy đúng, nhưng thực tế nó **chỉ có một ô để chọn**;
+> - báo cáo **tồn theo Khu/Dãy** sẽ ra **rỗng** ở mọi cấp nhóm, vì ô "Chưa xếp vị trí" đứng
+>   ngoài cây nên không cộng dồn lên đâu cả;
+> - tem mã vạch dán lên kệ chưa dùng vào việc gì, vì chưa có chỗ nào để quét.
+>
+> **Phiếu xếp / chuyển vị trí là việc kế tiếp phải làm.** Chừng nào chưa có nó, phần vị trí mới
+> chạy được một nửa: ghi sổ đúng, nhưng cả kho chỉ có một ô.
 
 ---
 
-## 6. Ba báo cáo
+## 7. Ba báo cáo
 
 | Báo cáo | Trả lời câu hỏi | Rỗng nghĩa là |
 |---|---|---|
@@ -250,6 +320,29 @@ còn 2 năm, nếu lô còn 2 năm được nhập trước.
 
 **Đối soát là báo cáo *sai lệch*, không phải báo cáo tồn kho.** Rỗng mới là tốt. Muốn xem tồn
 thì mở *Tồn kho theo vị trí*.
+
+### Xem tồn theo Khu, theo Dãy
+
+*Tồn kho theo vị trí* hiện **dạng cây và tự cộng dồn lên từng cấp**: mỗi nút Khu/Dãy/Khoang/
+Tầng mang tổng của mọi ô lá bên dưới nó. Gấp nhánh lại là thấy số của cả khu.
+
+```
+1A                    50        ← cả Khu
+   1A02               30           ← Dãy 02
+      1A0201          30
+         1A020101     30
+            1A02010101  30        ← ô thật
+   1A04               20           ← Dãy 04
+      ...
+```
+
+> **Luôn lọc một mặt hàng trước khi đọc số ở cấp Khu.** Kho đang dùng **10 đơn vị tính** khác
+> nhau (Hộp, Cái, Gói, Chai, Bộ, Cuộn, Đôi, Miếng, Túi, Lọ). Không lọc thì con số ở nút Khu là
+> tổng của hộp cộng chai cộng đôi — **không trả lời được câu hỏi nào**. Lọc một mặt hàng rồi
+> thì cùng đơn vị, con số mới có nghĩa.
+
+Ba câu hỏi khác về cấp Khu — *khu nào còn chỗ trống*, *khu nào đang giữ bao nhiêu tiền hàng*,
+*khu nào có hàng sắp hết hạn* — **chưa có báo cáo**, đang chờ làm.
 
 ### Khi đối soát có dòng
 
@@ -278,7 +371,7 @@ Hàm này xoá bộ đệm và cộng lại từ đầu từ sổ. Sổ không b
 
 ---
 
-## 7. Tắt và bật lại quản lý vị trí
+## 8. Tắt và bật lại quản lý vị trí
 
 **Tắt** (Warehouse Location Setup → "Tắt quản lý vị trí"): hệ ngừng ghi sổ cho kho đó. **Sổ cũ
 giữ nguyên**, không xoá gì.
@@ -289,7 +382,7 @@ trí" rồi mới cho bật lại. Đây là chặn cố ý, không phải lỗi
 
 ---
 
-## 8. Bốn điều dễ hiểu nhầm
+## 9. Bốn điều dễ hiểu nhầm
 
 **1. Ô "Chưa xếp vị trí" được lấy hàng SAU CÙNG, không phải trước.** Nó mang thứ tự lấy hàng
 9999. Cùng hạn dùng thì hệ lấy từ ô đã xếp đàng hoàng trước — thủ kho biết đi tới đâu; chỉ khi
@@ -308,6 +401,55 @@ hồi trên một site mới, quản trị phải chạy một lần thao tác d
 — xem `BAN-GIAO-nen-tang-vi-tri-kho.md`). Chưa chạy thì tích "Ngừng dùng" trên nút cha **không
 chặn được gì** ở các ô lá bên dưới, dù giao diện vẫn cho tích bình thường. Trên `erptest.local`
 bước này đã xong.
+
+---
+
+## Phụ lục. Một lần chạy thật, từ mua hàng tới tồn theo ô
+
+Chạy ngày 13/09/2026 trên `erptest.local`, mặt hàng `MYN-IMP-NEP-8` (Nẹp khoá 8 lỗ titan,
+đơn vị Cái). Số chứng từ có thật, mở ra xem lại được.
+
+**1. Nhập kho** — phiếu nhập `MAT-PRE-2026-00002`, 100 Cái, hai lô gõ tay kèm hạn dùng.
+Không thao tác gì thêm, sổ vị trí tự ghi và **tự tách theo lô**:
+
+```
+ZZZ-CHUA-XEP   lô E2E-LO-GAN-2026   +60
+ZZZ-CHUA-XEP   lô E2E-LO-XA-2028    +40
+```
+
+**2. Xếp vào ô** — *(bước này chưa có màn hình, xem cảnh báo ở mục 6.2)*. Hàng được đưa vào ba
+ô: `1A01010101` (25), `1A04040402` (35), `1A02010101` (40).
+
+**3. Xuất kho** — hai phiếu giao, mỗi phiếu chứng minh một điều:
+
+| Phiếu | Xuất | Điều nó cho thấy |
+|---|---|---|
+| `MAT-DN-2026-00053` | 30 Cái, để hệ tự chọn | hệ **bỏ qua lô sắp hết hạn**, lấy hai lô hạn 2028 — xem mục 6.2 |
+| `MAT-DN-2026-00054` | 40 Cái, chỉ định lô | hệ lấy **ô gần cửa trước** (thứ tự 1), cạn rồi mới tới ô xa (thứ tự 128) |
+
+**4. Kiểm lại** — cả ba phép kiểm đều sạch:
+
+```
+Đối soát tồn vị trí:        0 dòng lệch, 0 ô âm, 0 lệch bộ đệm
+Bin của ERPNext:            50 Cái
+Tổng tồn các ô vị trí:      50 Cái        ← khớp
+```
+
+**5. Tồn theo cấp** — báo cáo *Tồn kho theo vị trí*, lọc đúng mặt hàng này:
+
+```
+1A                       50    [NHÓM]
+   1A02                  30    [NHÓM]
+      1A0201             30    [NHÓM]
+         1A020101        30    [NHÓM]
+            1A02010101   30
+   1A04                  20    [NHÓM]
+      1A0404             20    [NHÓM]
+         1A040404        20    [NHÓM]
+            1A04040402   20
+```
+
+Tổng nút Khu `1A` = 50 = đúng tổng hai ô lá bên dưới.
 
 ---
 
