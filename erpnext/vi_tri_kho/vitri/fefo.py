@@ -47,8 +47,10 @@ quả y hệt trước khi có tham số này. Lọc bằng `sl.lft between pv_l
 pv_rgt` — chuẩn "nằm trong nhánh, gồm cả chính nút" của nested set.
 
 BẪY GIỐNG `_TO_TIEN_TAT` NHƯNG LỆCH HƯỚNG, có đo (xem task-5-report.md và
-`TestPhamViNgoaiCayKhongDuocGioiHanSai`): nếu `pham_vi` chỉ tên một trong 129
-bản ghi cũ mang `lft = rgt = 0`, điều kiện trên thành `sl.lft between 0 and
+`TestPhamViNgoaiCayKhongDuocGioiHanSai`): nếu `pham_vi` chỉ tên một bản ghi cũ
+(tạo trước khi có cây, Task 2 — số lượng thay đổi theo site và theo tiến độ
+hội tụ của `cay.py::dam_bao_cay_da_dung()`, KHÔNG cố định) mang
+`lft = rgt = 0`, điều kiện trên thành `sl.lft between 0 and
 0` = `sl.lft = 0` — khớp MỌI bản ghi 0/0 khác, không riêng nhánh của
 `pham_vi`. `_TO_TIEN_TAT` lệch bằng cách LOẠI OAN (đóng băng cả kho khi so
 hai bản ghi 0/0 TUỲ Ý); bẫy này lệch bằng cách GỘP OAN — lấy nhầm hàng của ô
@@ -82,11 +84,12 @@ _DO_CHINH_XAC_SO_LUONG = 6  # khớp vitri/lo.py
 #
 # LỆCH KHỎI BRIEF, có đo (xem task-4-report.md). Brief viết
 # `tt.lft <= sl.lft and tt.rgt >= sl.rgt` cho gọn — "đúng cho cả chính nút
-# đó". Đúng với cây lành, nhưng trên site này CẢ 129 bản ghi cũ (tạo trước
-# khi có cây, Task 2) mang `lft = rgt = 0`, KỂ CẢ ô hệ thống
-# `ZZZ-CHUA-XEP-<kho>` đang giữ toàn bộ tồn của kho thật. Hai bản ghi `0/0`
-# bất kỳ đều thoả `0 <= 0 and 0 >= 0`, nên tắt MỘT ô cũ — một thao tác hoàn
-# toàn hợp lệ, đúng thứ tính năng này sinh ra để làm — sẽ loại luôn mọi ô cũ
+# đó". Đúng với cây lành, nhưng các bản ghi cũ (tạo trước khi có cây, Task 2)
+# mang `lft = rgt = 0` cho tới khi `cay.py::dam_bao_cay_da_dung()` hội tụ
+# hết — số lượng thay đổi theo site và theo thời điểm, KHÔNG cố định — kể cả
+# ô hệ thống `ZZZ-CHUA-XEP-<kho>` đang giữ toàn bộ tồn của kho thật. Hai bản
+# ghi `0/0` bất kỳ đều thoả `0 <= 0 and 0 >= 0`, nên tắt MỘT ô cũ — một thao
+# tác hoàn toàn hợp lệ, đúng thứ tính năng này sinh ra để làm — sẽ loại luôn mọi ô cũ
 # khác VÀ ô CHUA-XEP khỏi ứng viên: `frappe.throw` giữa
 # `Stock Ledger Entry.on_submit`, cuộn ngược mọi phiếu xuất của kho. Đúng
 # thảm hoạ "một checkbox làm đứng cả kho" đã ghi ở
@@ -124,9 +127,11 @@ def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float, pham_vi: str | None = None)
 		if not moc:
 			frappe.throw(_("Vị trí {0} không tồn tại.").format(pham_vi))
 		if not moc.lft or not moc.rgt:
-			# Bẫy GIỐNG `_TO_TIEN_TAT` nhưng LỆCH HƯỚNG: 129 bản ghi cũ (tạo
-			# trước Task 2) mang lft = rgt = 0. Nếu cho qua, điều kiện dưới
-			# thành `sl.lft between 0 and 0` = `sl.lft = 0` — khớp MỌI bản ghi
+			# Bẫy GIỐNG `_TO_TIEN_TAT` nhưng LỆCH HƯỚNG: các bản ghi cũ (tạo
+			# trước Task 2, số lượng KHÔNG cố định — giảm dần khi cây hội tụ
+			# qua `cay.py::dam_bao_cay_da_dung()`) mang lft = rgt = 0. Nếu cho
+			# qua, điều kiện dưới thành `sl.lft between 0 and 0` = `sl.lft = 0`
+			# — khớp MỌI bản ghi
 			# 0/0 khác, không riêng nhánh của `pham_vi`: một `pham_vi` ngoài
 			# cây sẽ GỘP OAN hàng của những ô hoàn toàn không liên quan (đã đo
 			# thật, xem task-5-report.md và
@@ -201,6 +206,41 @@ def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float, pham_vi: str | None = None)
 			# ngoài `EXISTS` nên muốn lấy tên nó phải dán `_TO_TIEN_TAT` lần
 			# thứ hai — nhân bản đúng khối logic mà cả task này dựng ra để
 			# dùng chung. Cần nêu tên thì đó là một task riêng.
+			#
+			# RÀ TOÀN NHÁNH (mục A2): câu này throw TRƯỚC câu "thiếu hàng
+			# trong phạm vi {0}" ở dưới (chỉ tới được khi `o_ngung_dung`
+			# rỗng), nên khi CÓ `pham_vi` VÀ ô ngừng dùng NẰM TRONG phạm vi đó
+			# (cả hai truy vấn — ứng viên và ô ngừng dùng — đều đã lọc theo
+			# `pham_vi`), người dùng nhận đúng câu này, không phải câu có tên
+			# phạm vi. `co`/`can` ở đây đã bị lọc theo `pham_vi` (xem
+			# `loc_pham_vi` ở cả hai truy vấn phía trên) nên đọc như số liệu
+			# TOÀN KHO nếu không nêu tên phạm vi — cùng lớp lỗi mà vòng sửa 1
+			# đã xử lý cho câu "thiếu hàng trong phạm vi" ở dưới, bị bỏ sót ở
+			# đây. Khi có `pham_vi`, nêu rõ số liệu chỉ tính TRONG phạm vi đó.
+			if pham_vi:
+				frappe.throw(
+					_(
+						"Không đủ hàng ở các ô đang dùng để xuất trong phạm vi {0}. Mặt hàng "
+						"{1}{2} tại kho {3}: trong phạm vi này cần {4}, ô đang dùng chỉ có {5} "
+						"(thiếu {6}), nhưng còn {7} nằm ở ô đã ngừng dùng trong phạm vi này: "
+						"{8}. Chuyển hàng ra khỏi những ô đó, hoặc bật lại chúng rồi xuất lại. "
+						"Nếu mở ra thấy ô vẫn đang bật thì một NÚT CHA của nó (khu/dãy/khoang/"
+						"tầng) đang tắt — cả nhánh dưới nút đó ngừng dùng theo: lần ngược lên "
+						"trên trong cây vị trí để tìm và bật nút cha đó. Kho có thể còn hàng ở "
+						"các vị trí khác ngoài phạm vi này."
+					).format(
+						pham_vi,
+						vat_tu,
+						ten_lo,
+						kho,
+						flt(so_luong),
+						co,
+						can,
+						flt(sum(flt(d.so_luong) for d in o_ngung_dung), _DO_CHINH_XAC_SO_LUONG),
+						ket_ngung_dung,
+					)
+				)
+
 			frappe.throw(
 				_(
 					"Không đủ hàng ở các ô đang dùng để xuất. Mặt hàng {0}{1} tại kho {2}: "

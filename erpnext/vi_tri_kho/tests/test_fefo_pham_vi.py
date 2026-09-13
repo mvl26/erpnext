@@ -89,12 +89,15 @@ def _dam_bao_ton(o, vat_tu, so_lo, sl):
 
 
 class TestTatNutChaThiTatCaNhanh(FrappeTestCase):
-	"""Ba ô, hai khu. Khu `9Z` giữ hai nhánh (dãy 01 và dãy 02); khu `9W`
-	không bao giờ bị tắt và là ô ĐỐI CHỨNG — nó tồn tại để chứng minh hai
-	điều mà nếu thiếu nó thì không bài nào chứng minh được:
+	"""Ba ô, hai khu. Khu `9Z` giữ hai DÃY khác nhau — dãy `9Z18` và dãy
+	`9Z19` (mã dãy là 2 ký tự SAU mã khu: `9Z18` = khu `9Z` + dãy `18`, còn
+	`9Z1801` đã là cấp KHOANG — khu `9Z` + dãy `18` + khoang `01`, xem
+	`ma_vi_tri.py::TEN_CAP`); khu `9W` không bao giờ bị tắt và là ô ĐỐI
+	CHỨNG — nó tồn tại để chứng minh hai điều mà nếu thiếu nó thì không bài
+	nào chứng minh được:
 
-	(a) tắt dãy 01 xong vẫn còn hàng để lấy, nên bài 1 khẳng định được "lấy
-	    chỗ khác" chứ không phải "ném lỗi";
+	(a) tắt dãy `9Z18` xong vẫn còn hàng để lấy, nên bài 1 khẳng định được
+	    "lấy chỗ khác" chứ không phải "ném lỗi";
 	(b) thông báo thiếu hàng KHÔNG được gọi tên nó là "ô đã ngừng dùng".
 	    Thiếu (b), đột biến chiều thứ hai (gỡ mệnh đề tổ tiên khỏi truy vấn
 	    dựng thông báo, để lại `1=1`) vẫn XANH: khi mọi ô có hàng đều nằm
@@ -105,11 +108,13 @@ class TestTatNutChaThiTatCaNhanh(FrappeTestCase):
 
 	def setUp(self):
 		self.item = _dam_bao_item("_Test FEFO PhamVi")
-		# Ô trong dãy 01 có hạn dùng GẦN NHẤT — FEFO muốn lấy nó TRƯỚC. Nhờ
+		# Ô trong dãy 9Z18 có hạn dùng GẦN NHẤT — FEFO muốn lấy nó TRƯỚC. Nhờ
 		# vậy bài 1 chỉ xanh được khi cờ `disabled` của nút cha thắng cả thứ
-		# tự FEFO, không phải vì tình cờ nó xếp sau.
+		# tự FEFO, không phải vì tình cờ nó xếp sau. `day_khac` nằm ở một DÃY
+		# KHÁC hẳn (`9Z19`, không phải cùng dãy khác khoang) — tắt nguyên dãy
+		# `9Z18` không được kéo theo nó.
 		self.trong_day_tat = _o("9Z18010101", thu_tu=1)
-		self.day_khac = _o("9Z18020101", thu_tu=2)
+		self.day_khac = _o("9Z19010101", thu_tu=2)
 		self.khu_khac = _o("9W18010101", thu_tu=3)
 		_dam_bao_ton(self.trong_day_tat, self.item, _lo("_T-PV-GAN", self.item, "2026-10-01"), 10)
 		_dam_bao_ton(self.day_khac, self.item, _lo("_T-PV-XA", self.item, "2027-10-01"), 10)
@@ -118,16 +123,19 @@ class TestTatNutChaThiTatCaNhanh(FrappeTestCase):
 	def tearDown(self):
 		# Rollback theo LỚP: cờ `disabled` bài này đặt còn nguyên khi bài sau
 		# chạy. Trả về 0 để mỗi bài tự dựng đúng tình huống của nó.
-		for nut in ("9Z", "9Z18", "9Z1801", "9Z180101", "9W"):
+		for nut in ("9Z", "9Z18", "9Z1801", "9Z180101", "9Z19", "9W"):
 			if frappe.db.exists("Storage Location", nut):
 				frappe.db.set_value("Storage Location", nut, "disabled", 0)
 
 	def test_tat_nut_day_thi_khong_lay_o_trong_day(self):
-		# 9Z1801xxxx có hạn dùng GẦN HƠN, lẽ ra được ưu tiên. Tắt cả dãy 01
-		# thì phải bỏ qua nó và lấy dãy 02 — dù FEFO muốn ngược lại.
-		frappe.db.set_value("Storage Location", "9Z1801", "disabled", 1)
+		"""§8 bài 1: tắt nút DÃY (`9Z18`, 4 ký tự khu+dãy) — không phải nút
+		Khoang (`9Z1801`). `trong_day_tat` (khoang 01 của dãy 18) có hạn dùng
+		GẦN HƠN, lẽ ra được ưu tiên. Tắt cả dãy `9Z18` thì phải bỏ qua nó và
+		lấy dãy `9Z19` — dù FEFO muốn ngược lại.
+		"""
+		frappe.db.set_value("Storage Location", "9Z18", "disabled", 1)
 		ket = chon_o_xuat(KHO, self.item, None, 5)
-		self.assertTrue(all(not d["o"].startswith("9Z1801") for d in ket), ket)
+		self.assertTrue(all(not d["o"].startswith("9Z18") for d in ket), ket)
 
 	def test_tat_nut_khu_thi_bao_ro_hang_dang_ket_o_dau(self):
 		"""Khoá nửa thứ hai: thông báo thiếu hàng phải NÊU ĐÍCH DANH ô đang giữ.
@@ -190,11 +198,12 @@ class TestONgoaiCayKhongKeoNhauXuong(FrappeTestCase):
 	"""Bản ghi `lft = rgt = 0` không được coi nhau là tổ tiên.
 
 	LỆCH KHỎI BRIEF — có đo. Brief viết vị từ tổ-tiên-hoặc-chính-nó bằng
-	`tt.lft <= sl.lft and tt.rgt >= sl.rgt`. Trên site này CẢ 129 bản ghi
-	`Storage Location` cũ (tạo trước khi có cây, Task 2) đang mang
-	`lft = rgt = 0` — KỂ CẢ ô hệ thống `ZZZ-CHUA-XEP-<kho>`, nơi đang giữ
-	toàn bộ tồn của kho thật. Với `<=`/`>=`, hai bản ghi `0/0` bất kỳ thoả
-	`0 <= 0 and 0 >= 0`: tắt MỘT ô cũ là mọi ô cũ khác, và ô CHUA-XEP, cùng
+	`tt.lft <= sl.lft and tt.rgt >= sl.rgt`. Các bản ghi `Storage Location`
+	cũ (tạo trước khi có cây, Task 2) mang `lft = rgt = 0` cho tới khi
+	`cay.py::dam_bao_cay_da_dung()` hội tụ hết — số lượng thay đổi theo site
+	và theo thời điểm, KHÔNG cố định — KỂ CẢ ô hệ thống `ZZZ-CHUA-XEP-<kho>`,
+	nơi đang giữ toàn bộ tồn của kho thật. Với `<=`/`>=`, hai bản ghi `0/0` bất
+	kỳ thoả `0 <= 0 and 0 >= 0`: tắt MỘT ô cũ là mọi ô cũ khác, và ô CHUA-XEP, cùng
 	biến mất khỏi ứng viên FEFO — đúng thảm hoạ "một checkbox làm đứng cả
 	kho" đã ghi ở `storage_location.py::kiem_tra_khong_doi_dang_o_chua_xep`,
 	lần này không chặn được bằng validate vì ô bị tắt là một ô THƯỜNG, tắt
@@ -248,7 +257,8 @@ class TestPhamViGioiHanTrongNhanh(FrappeTestCase):
 		_dam_bao_ton(self.ngoai_pham_vi, self.item, _lo("_T-PV-GAN", self.item, "2026-10-01"), 10)
 
 	def test_pham_vi_gioi_han_trong_nhanh(self):
-		# dãy 02 có hạn dùng XA HƠN, FEFO bình thường sẽ không chọn nó
+		# khoang 02 (mã "9Z1802", trong dãy "9Z18") có hạn dùng XA HƠN, FEFO
+		# bình thường sẽ không chọn nó
 		ket = chon_o_xuat(KHO, self.item, None, 5, pham_vi="9Z1802")
 		self.assertTrue(all(d["o"].startswith("9Z1802") for d in ket), ket)
 
@@ -288,7 +298,8 @@ class TestPhamViApDungCaHaiTruyVan(FrappeTestCase):
 	thiếu hàng — không chỉ truy vấn thứ nhất.
 
 	Dựng: ô ĐANG DÙNG trong phạm vi chỉ có 2 (thiếu so với cần 5), còn một ô
-	NGOÀI phạm vi (dãy khác) đang NGỪNG DÙNG giữ 10. Nếu `pham_vi` chỉ được
+	NGOÀI phạm vi (khoang khác, cùng khu/dãy nhưng ngoài phạm vi Khoang đang
+	xét) đang NGỪNG DÙNG giữ 10. Nếu `pham_vi` chỉ được
 	chèn vào truy vấn chọn ứng viên (mutation: quên chèn `{loc_pham_vi}` vào
 	truy vấn `o_ngung_dung`), truy vấn thứ hai sẽ thấy ô ngoài phạm vi đó
 	đang giữ hàng và đổi sang thông báo "còn hàng kẹt ở ô ngừng dùng: <ô
@@ -347,10 +358,58 @@ class TestPhamViApDungCaHaiTruyVan(FrappeTestCase):
 		)
 		self.assertNotIn("Traceback", loi)
 
+	def test_bao_dung_pham_vi_khi_o_ngung_dung_nam_trong_pham_vi(self):
+		"""RÀ TOÀN NHÁNH mục A2: ca ghép còn thiếu — ô ngừng dùng giữ hàng
+		NẰM TRONG chính `pham_vi` được hỏi (khác bài phía trên, nơi ô ngừng
+		dùng nằm NGOÀI phạm vi). Câu throw đúng ở ca này là câu "ngừng dùng"
+		(`fefo.py`, nhánh throw ĐẦU — chỉ tới nhánh có tên `pham_vi` khi
+		`o_ngung_dung` RỖNG) — nhưng TRƯỚC khi vá, câu "ngừng dùng" không hề
+		nêu tên `pham_vi`, đọc như số liệu TOÀN KHO dù `co`/`can` đã bị lọc
+		theo phạm vi. Dùng item/mã ô RIÊNG (tiền tố `9T18`, không đụng
+		`self.trong_pham_vi`/`self.ngoai_pham_vi_tat` của `setUp`) — bài này
+		tự dựng đúng tình huống của mình, không dựa vào bài khác.
+		"""
+		item = _dam_bao_item("_Test FEFO PhamVi CaHaiTruyVan Ghep")
+		dang_dung = _o("9T18020101", thu_tu=1)
+		ngung_dung_trong_pham_vi = _o("9T18020102", thu_tu=2)
+		_dam_bao_ton(dang_dung, item, None, 2)
+		_dam_bao_ton(ngung_dung_trong_pham_vi, item, None, 10)
+		frappe.db.set_value("Storage Location", ngung_dung_trong_pham_vi, "disabled", 1)
+		try:
+			with self.assertRaises(frappe.ValidationError) as ctx:
+				chon_o_xuat(KHO, item, None, 5, pham_vi="9T1802")
+			loi = str(ctx.exception)
+			self.assertIn(
+				"ngừng dùng",
+				loi.lower(),
+				"ô ngừng dùng giữ hàng NẰM TRONG phạm vi -> phải là câu 'ngừng dùng', "
+				"không phải câu 'không đủ hàng' chung chung",
+			)
+			self.assertIn(
+				"9T1802",
+				loi,
+				"câu 'ngừng dùng' cũng phải nêu tên phạm vi -- không nêu thì số liệu "
+				"đọc như toàn kho dù co/can đã bị lọc theo pham_vi",
+			)
+			self.assertIn(
+				"phạm vi",
+				loi.lower(),
+				"phải nói rõ số liệu này chỉ tính TRONG phạm vi, không phải toàn kho",
+			)
+			self.assertIn(
+				ngung_dung_trong_pham_vi,
+				loi,
+				"vẫn phải nêu đích danh ô đang giữ hàng ngừng dùng",
+			)
+			self.assertNotIn("Traceback", loi)
+		finally:
+			frappe.db.set_value("Storage Location", ngung_dung_trong_pham_vi, "disabled", 0)
+
 
 class TestPhamViNgoaiCayKhongDuocGioiHanSai(FrappeTestCase):
-	"""`pham_vi` trên một bản ghi NGOÀI CÂY (`lft = rgt = 0`, 129 bản ghi cũ
-	trên site này — xem `_TO_TIEN_TAT`) dính đúng cái bẫy `_TO_TIEN_TAT` được
+	"""`pham_vi` trên một bản ghi NGOÀI CÂY (`lft = rgt = 0` — bản ghi cũ, tạo
+	trước khi có cây, còn tồn tại cho tới khi `cay.py::dam_bao_cay_da_dung()`
+	hội tụ hết; xem `_TO_TIEN_TAT`) dính đúng cái bẫy `_TO_TIEN_TAT` được
 	viết ra để tránh, nhưng ở PHÍA LỌC PHẠM VI: điều kiện trở thành
 	`sl.lft between 0 and 0` = `sl.lft = 0`, khớp MỌI bản ghi 0/0 khác — kể cả
 	những ô không liên quan gì tới nhánh của `pham_vi`. Đã ĐO THẬT (xem

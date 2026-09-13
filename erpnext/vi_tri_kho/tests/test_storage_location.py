@@ -266,9 +266,15 @@ class TestPatchDonLoaiViTriKhongHopLe(_CoTienDeKho):
 		"""Chốt cả hai chiều: dọn đúng dòng SAI, KHÔNG đụng dòng ĐÚNG.
 
 		Chỉ khẳng định "dòng sai đã sạch" là bỏ nửa nguy hiểm của một patch
-		phá huỷ — một `WHERE` bị viết rộng (vd. `1=1`) NULL luôn mọi
-		`Storage Location` hợp lệ trên site, và `loai_vi_tri` lại `reqd: 1`
-		nên hậu quả là gãy toàn bộ doctype. Bài này khoá cả hai vế.
+		phá huỷ — một `WHERE` bị viết rộng (vd. `1=1`) ghi đè luôn mọi
+		`Storage Location` hợp lệ trên site. Bài này khoá cả hai vế.
+
+		RÀ TOÀN NHÁNH: bản patch trước đặt dòng sai về `NULL` — nhưng
+		`loai_vi_tri` là `reqd: 1`, nên một bản ghi mang "Cách ly" sau patch
+		còn `NULL` sẽ KHÔNG LƯU LẠI ĐƯỢC NỮA (validate chặn trường bắt buộc
+		để trống ngay lần lưu kế tiếp), và người dùng chỉ nhận một lỗi
+		framework chung chung. Patch phải đặt về đúng `default` khai trong
+		JSON ("Lưu trữ") — dòng dọn xong vẫn hợp lệ để lưu tiếp.
 		"""
 		from erpnext.patches.v15_0.don_loai_vi_tri_khong_hop_le import execute
 
@@ -285,11 +291,16 @@ class TestPatchDonLoaiViTriKhongHopLe(_CoTienDeKho):
 
 		execute()
 
-		self.assertFalse(frappe.db.get_value("Storage Location", o.name, "loai_vi_tri"))
+		self.assertEqual(
+			frappe.db.get_value("Storage Location", o.name, "loai_vi_tri"),
+			"Lưu trữ",
+			"dòng sai phải được đặt về đúng default của field ('Lưu trữ'), không phải "
+			"NULL — field này reqd=1, để NULL là làm bản ghi không lưu lại được nữa",
+		)
 		self.assertEqual(
 			frappe.db.get_value("Storage Location", o_hop_le.name, "loai_vi_tri"),
 			"Soạn hàng",
-			"Patch dọn quá tay: ô mang giá trị HỢP LỆ bị NULL theo — WHERE lọc sai phạm vi",
+			"Patch dọn quá tay: ô mang giá trị HỢP LỆ bị ghi đè theo — WHERE lọc sai phạm vi",
 		)
 
 	def test_patch_xoa_custom_field_ma_kho_spd(self):
@@ -589,6 +600,38 @@ class TestDamBaoCayDaDung(_CoTienDeKho):
 			tieu_de_da_ghi,
 			f"rebuild_tree() ném lỗi nhưng không thấy log_error() ghi lại — lỗi có nguy cơ "
 			f"văng lên after_migrate của mọi site có erpnext. Các title đã ghi: {tieu_de_da_ghi}",
+		)
+
+	def test_dem_lai_con_thieu_van_chay_khi_rebuild_tree_loi(self):
+		"""RÀ TOÀN NHÁNH mục A1: docstring của `dam_bao_cay_da_dung` hứa đếm
+		lại số bản ghi `lft = rgt = 0` "dù thành công hay bắt được lỗi". Bản
+		trước có `return` sớm ngay trong nhánh `except` nên khối đếm đó
+		KHÔNG BAO GIỜ chạy khi `rebuild_tree()` ném lỗi — mã không làm đúng
+		thứ docstring hứa. Bài này khoá đúng lời hứa: khi rebuild lỗi, log
+		cảnh báo "chưa hội tụ hết" vẫn phải được ghi, không chỉ log lỗi
+		rebuild."""
+		import erpnext.vi_tri_kho.vitri.cay as cay_module
+
+		o = _tao_o("9Z63010101")
+		frappe.db.set_value("Storage Location", o.name, {"lft": 0, "rgt": 0}, update_modified=False)
+
+		with mock_patch.object(cay_module, "rebuild_tree", side_effect=RuntimeError("giả lập lỗi CSDL")):
+			with mock_patch.object(frappe, "log_error") as ghi_log:
+				cay_module.dam_bao_cay_da_dung()
+
+		tieu_de_da_ghi = [kw.get("title") for _, kw in ghi_log.call_args_list]
+		self.assertIn(
+			"vi_tri_kho: dam_bao_cay_da_dung rebuild_tree loi",
+			tieu_de_da_ghi,
+			f"thiếu log lỗi rebuild_tree. Các title đã ghi: {tieu_de_da_ghi}",
+		)
+		self.assertIn(
+			"vi_tri_kho: dam_bao_cay_da_dung chua hoi tu het",
+			tieu_de_da_ghi,
+			"docstring hứa đếm lại lft=rgt=0 'dù thành công hay bắt được lỗi' — khối đếm "
+			"phải chạy CẢ khi rebuild_tree() ném lỗi, không chỉ khi thành công (một "
+			"`return` sớm trong nhánh `except` sẽ làm bài này đỏ). Các title đã ghi: "
+			f"{tieu_de_da_ghi}",
 		)
 
 	def test_co_auto_commit_duoc_tra_ve_0_khi_rebuild_tree_loi(self):

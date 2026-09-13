@@ -21,8 +21,26 @@ def _o(ma):
 
 class TestCaySuyTuMa(FrappeTestCase):
 	def test_tu_sinh_du_to_tien(self):
-		_o("9Z18010101")
-		for cha in ("9Z", "9Z18", "9Z1801", "9Z180101"):
+		"""RÀ TOÀN NHÁNH: tiền đề "chưa có nút cha nào" phải TỰ bài này dựng,
+		không mượn của bài khác. Bản trước dùng tiền tố "9Z18..." — trùng
+		với `test_cha_dung_theo_ma`, chạy TRƯỚC theo thứ tự alphabet
+		(`test_cha_...` < `test_tu_sinh_...`) và đã tạo đủ 4 tổ tiên; `_o()`
+		có guard `if not exists` nên lần gọi ở đây là no-op — bài chỉ đang
+		khẳng định lại thứ BÀI KIA tạo ra, tiền đề "chưa có nút cha nào"
+		không bao giờ đúng. Đổi sang tiền tố "9Q18..." — không bài nào khác
+		trong file này đụng tới — và khẳng định tường minh tiền đề TRƯỚC khi
+		lưu, để một khi ai đó lại vô tình dùng chung tiền tố, bài này tự báo
+		đỏ ở đúng chỗ thay vì âm thầm xanh giả.
+		"""
+		to_tien = ("9Q", "9Q18", "9Q1801", "9Q180101")
+		for cha in to_tien:
+			self.assertFalse(
+				frappe.db.exists("Storage Location", cha),
+				f"tiền đề: nút {cha} phải CHƯA tồn tại trước khi lưu ô lá — nếu đỏ ở "
+				"đây, một bài khác đã dùng chung tiền tố 9Q18 và làm hỏng tiền đề",
+			)
+		_o("9Q18010101")
+		for cha in to_tien:
 			self.assertTrue(frappe.db.exists("Storage Location", cha), f"thiếu nút {cha}")
 
 	def test_cha_dung_theo_ma(self):

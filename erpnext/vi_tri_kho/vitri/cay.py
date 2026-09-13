@@ -175,7 +175,11 @@ def dam_bao_cay_da_dung() -> None:
 			"'vi_tri_kho: dam_bao_cay_da_dung rebuild_tree loi'. Không chặn bench migrate; "
 			"hàm sẽ tự thử lại ở lần migrate sau."
 		)
-		return
+		# KHÔNG return ở đây: docstring hứa đếm lại `lft = rgt = 0` "dù thành
+		# công hay bắt được lỗi" (khối `con_thieu` bên dưới, sau `finally`).
+		# Một `return` sớm ở nhánh này sẽ nhảy thẳng qua khối đếm — vốn không
+		# tốn kém (một `frappe.db.count`) và là thứ duy nhất báo cho người
+		# vận hành biết cây còn hội tụ dở hay không sau khi rebuild thất bại.
 	finally:
 		# VÒNG SỬA 4/5 (review điều phối): `rebuild_tree()`
 		# (frappe/utils/nestedset.py:198-203) tự đặt
@@ -190,8 +194,8 @@ def dam_bao_cay_da_dung() -> None:
 		# khác chạy sau, các bước cuối của migrate) tự commit sớm khi vượt
 		# ngưỡng — tác dụng phụ TOÀN CỤC, ngoài phạm vi module này, do
 		# chính `except` ở trên tạo ra nên phải tự dọn. `finally` chạy dù
-		# `try` thành công hay `except` vừa `return` — bảo đảm cờ luôn về
-		# `0` bất kể kết quả.
+		# `try` thành công hay `except` vừa bắt lỗi — bảo đảm cờ luôn về `0`
+		# bất kể kết quả, TRƯỚC khi rơi xuống khối đếm `con_thieu` bên dưới.
 		frappe.db.auto_commit_on_many_writes = 0
 
 	con_thieu = frappe.db.count("Storage Location", {"lft": 0, "rgt": 0})

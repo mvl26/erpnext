@@ -1,15 +1,18 @@
 """Tồn theo từng ô, xếp theo đường đi lấy hàng, gộp cộng dồn lên từng cấp cha.
 
 Cây `Storage Location` suy ra từ mã (Task 2) và mọi ô LÁ khi lưu đều tự sinh
-đủ tổ tiên qua `dam_bao_to_tien()` — nhưng dữ liệu HÔM NAY trên site không
-như vậy: 128 ô tạo trước khi có mô hình cây (mã 12 ký tự cũ, còn mã kho) và ô
-hệ thống `ZZZ-CHUA-XEP-<kho>` đều KHÔNG có tổ tiên, `parent_storage_location`
-để trống. Và `lft/rgt` của TOÀN BỘ 129 bản ghi trên site đang là 0/0 (đo
-2026-09-11, xem task-6-report.md) — `lft between` sẽ gộp mọi bản ghi 0/0
-vào một cụm sai. Cũng không suy cha từ tiền tố mã (`ma_o[:2]`, `[:4]`, …)
-vì các ô cũ 12 ký tự và ô hệ thống không theo chuẩn 10 ký tự của
-`ma_vi_tri.py`; gọi `cap_do()`/`ma_cha()` trên chúng sẽ `frappe.throw` giữa
-một báo cáo chỉ để XEM.
+đủ tổ tiên qua `dam_bao_to_tien()` — nhưng KHÔNG PHẢI mọi bản ghi trên mọi
+site đều đi qua đường đó: các ô tạo trước khi có mô hình cây (mã 12 ký tự cũ,
+còn mã kho) và ô hệ thống `ZZZ-CHUA-XEP-<kho>` đều KHÔNG có tổ tiên,
+`parent_storage_location` để trống — và cho tới khi `cay.py::dam_bao_cay_da_
+dung()` hội tụ (chạy lại ở mỗi `bench migrate`, xem docstring của hàm đó),
+những bản ghi kiểu này còn mang `lft = rgt = 0`. Dùng `lft between` để cộng
+dồn sẽ gộp NHẦM mọi bản ghi 0/0 với nhau — kể cả những bản ghi không hề liên
+quan tới nhau (đúng bẫy `_TO_TIEN_TAT` mô tả kỹ ở `fefo.py`) — nên không dùng
+toạ độ nested-set ở báo cáo này. Cũng không suy cha từ tiền tố mã
+(`ma_o[:2]`, `[:4]`, …) vì các ô cũ 12 ký tự và ô hệ thống không theo chuẩn
+10 ký tự của `ma_vi_tri.py`; gọi `cap_do()`/`ma_cha()` trên chúng sẽ
+`frappe.throw` giữa một báo cáo chỉ để XEM.
 
 Cách chọn: cộng dồn bằng CHÍNH liên kết `parent_storage_location` đã lưu sẵn
 trên `Storage Location` — nguồn này do `StorageLocation.validate()` tính lại

@@ -14,9 +14,11 @@ sửa 1) đã từng kiểm đủ BỐN điều kiện này khi TẠO ô, nhưng
 thật: `Storage Location.disabled` không read-only và `Stock Manager` có
 quyền `write` — ai đó tích `disabled=1` lên ô CHUA-XEP (một checkbox, không
 qua RPC nào của module này) làm hook nhập (không lọc `disabled`) vẫn ghi
-vào đó bình thường, trong khi FEFO xuất (`fefo.py:60`, lọc `disabled=0`)
-loại bỏ nó rồi `frappe.throw` giữa `Stock Ledger Entry.on_submit` — cuộn
-ngược MỌI phiếu xuất của MỌI mặt hàng đang ở CHUA-XEP. Sửa: gộp phép kiểm
+vào đó bình thường, trong khi FEFO xuất (`fefo.py::chon_o_xuat`, qua vị từ
+tổ-tiên-hoặc-chính-nó `_TO_TIEN_TAT` — từ Task 4, thay cho phép kiểm
+`disabled=0` đơn giản đời trước) loại bỏ nó rồi `frappe.throw` giữa
+`Stock Ledger Entry.on_submit` — cuộn ngược MỌI phiếu xuất của MỌI mặt hàng
+đang ở CHUA-XEP. Sửa: gộp phép kiểm
 dạng vào MỘT hàm dùng chung (`kiem_tra_dang_o_chua_xep`) cho cả hai nơi —
 không lặp lại vị từ, đúng nguyên tắc "một nguồn sự thật duy nhất" mà cả
 module `vitri/` đã áp dụng nhiều lần (xem `bat_kho.py::NGUONG_SAI_SO`,

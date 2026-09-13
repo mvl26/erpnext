@@ -359,9 +359,11 @@ class TestXuatQuaHookThatVaBatBien(FrappeTestCase):
 		#
 		# Bản trước dựng thế nghịch đảo đó giữa ô GAN và ô hệ thống, dựa vào
 		# việc ô hệ thống có thu_tu=0. Không dùng lại được: ô hệ thống thật là
-		# 9999, mà mọi mã ô hợp lệ đều mở đầu bằng mã kho (chữ cái) nên luôn
-		# xếp trước "ZZZ-..." — tên và ưu tiên của ô hệ thống giờ LUÔN đồng
-		# thuận, không tạo được mâu thuẫn với nó nữa. Phải lấy hai ô thật.
+		# 9999, mà mọi mã ô hợp lệ đều mở đầu bằng một CHỮ SỐ (cấp Khu:
+		# `[0-9][A-Z]`, xem `ma_vi_tri.py::_KHU`) nên luôn xếp TRƯỚC "ZZZ-..."
+		# (chữ cái, mã ASCII lớn hơn chữ số) — tên và ưu tiên của ô hệ thống
+		# giờ LUÔN đồng thuận, không tạo được mâu thuẫn với nó nữa. Phải lấy
+		# hai ô thật.
 		xa = _o("9Z18010101", thu_tu=5)
 		gan = _o("9Z18010102", thu_tu=1)
 
