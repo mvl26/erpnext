@@ -52,15 +52,19 @@ Mã nguồn: `erpnext/vi_tri_kho/` · Tài liệu: `docs/vi_tri_kho/`
 >    ước cấp phát ký hiệu Khu phải làm ở tầng vận hành, trước khi đặt tên khu** — phần mềm
 >    chỉ bắt được sau khi đã đụng.
 > 2. **Từ khi bật lên, bất kỳ site nào cũng phải dựng `lft`/`rgt` một lần** để các bản ghi cũ
->    (tạo trước khi có cây, mang `lft = rgt = 0`) có toạ độ thật. **Vòng sửa 1/5 (review điều
->    phối):** việc này giờ TỰ ĐỘNG qua `erpnext.patches.v15_0.dung_lai_cay_vi_tri` — chạy
->    ngay trong `bench migrate` (spec §7 đòi patch cho đúng việc này, không chỉ script tay).
->    Patch tự kiểm F5+F11 **trước** khi rebuild: còn `Storage Location` nào `disabled = 1` thì
->    **KHÔNG rebuild** — chỉ in cảnh báo (console + Error Log) rồi cho `bench migrate` đi
->    tiếp, KHÔNG `frappe.throw` (lý do đánh đổi: xem docstring patch) — và vì không throw,
->    patch vẫn được đánh dấu ĐÃ CHẠY, sẽ **không tự thử lại** ở lần migrate sau. Gặp đúng ca
->    đó: xác nhận các ô đang tắt đúng chủ đích rồi tự chạy tay một lần (lệnh nằm sẵn trong
->    thông báo cảnh báo của patch).
+>    (tạo trước khi có cây, mang `lft = rgt = 0`) có toạ độ thật. **Việc này giờ TỰ ĐỘNG và TỰ
+>    HỘI TỤ** qua `erpnext.vi_tri_kho.vitri.cay.dam_bao_cay_da_dung()` (logic dùng chung),
+>    được gọi từ HAI nơi: patch `v15_0.dung_lai_cay_vi_tri` (spec §7 đòi patch cho đúng việc
+>    này; lo site CÀI MỚI chạy đúng thứ tự khai trong `patches.txt`) VÀ `after_migrate` trong
+>    `erpnext/hooks.py` (vòng sửa 2/5 — lo hội tụ LẠI ở mọi lần migrate SAU). Hàm tự kiểm
+>    F5+F11 **trước** khi rebuild: còn `Storage Location` nào `disabled = 1` thì **KHÔNG
+>    rebuild** — chỉ in cảnh báo (console + Error Log) rồi cho `bench migrate` đi tiếp, KHÔNG
+>    `frappe.throw` (lý do đánh đổi: xem docstring `cay.py`). **Vì sao KHÔNG còn là ngõ cụt
+>    như bản patch-đơn ban đầu (vòng sửa 1/5):** patch tự nó bị `Patch Log` khoá sau một lần
+>    chạy nên nếu nó từng bỏ qua vì `disabled=1` thì không bao giờ tự thử lại — nhưng
+>    `after_migrate` chạy lại ở MỌI lần `bench migrate`, nên một khi vận hành bật lại ô đang
+>    tắt rồi migrate lần sau, cây TỰ dựng, không cần ai nhớ gõ tay. Muốn dựng NGAY (không đợi
+>    lần migrate kế tiếp) thì mới cần chạy tay (lệnh nằm sẵn trong thông báo cảnh báo).
 > 3. **Cho tới khi cây được dựng (bước 2), CẢ HAI tính năng "thừa kế `disabled` xuống cả
 >    nhánh" và "lấy hàng theo phạm vi một nhánh" (`pham_vi`) đều NẰM IM** — không phải lỗi,
 >    mà là hệ quả trực tiếp của cây chưa có toạ độ: thừa kế `disabled` dựa vào `lft`/`rgt`
@@ -149,12 +153,16 @@ không, vì §5.3 cấm cấp lại mã đã dùng.
    một kho. Hai kho dùng trùng ký hiệu Khu (ví dụ cả hai đặt `1B`) sẽ đụng đúng một bản ghi
    nút nhóm — có chặn tường minh khi phát hiện nút cha thuộc kho khác, nhưng phải biết quy
    ước này **trước khi** đặt tên khu, không phải sau khi tem đã dán lên kệ.
-5. **Dựng `lft`/`rgt` lần đầu giờ chạy TỰ ĐỘNG trong `bench migrate`** (patch
-   `erpnext.patches.v15_0.dung_lai_cay_vi_tri`, thêm ở vòng sửa 1/5) — không cần chạy tay
-   `rebuild_tree` trên site mới nữa (kể cả site `miyano`), TRỪ đúng một ca: patch tự phát
-   hiện còn ô `disabled = 1` thì **không tự rebuild**, chỉ cảnh báo rồi cho migrate đi tiếp —
-   khi đó phải xác nhận các ô đang tắt đúng chủ đích rồi tự chạy tay một lần (xem cập nhật
-   11/09/2026 ở đầu tài liệu, và docstring của patch để hiểu vì sao chọn cảnh báo thay vì
+5. **Dựng `lft`/`rgt` lần đầu giờ chạy TỰ ĐỘNG và TỰ HỘI TỤ ở MỌI lần `bench migrate`**
+   (`erpnext.vi_tri_kho.vitri.cay.dam_bao_cay_da_dung`, gọi từ patch
+   `v15_0.dung_lai_cay_vi_tri` VÀ từ `after_migrate` — vòng sửa 2/5) — không cần chạy tay
+   `rebuild_tree` trên site mới nữa (kể cả site `miyano`). Có đúng một ca hàm tự phát hiện và
+   **không rebuild ngay**: còn ô `disabled = 1` — khi đó chỉ cảnh báo (console + Error Log)
+   rồi cho migrate đi tiếp, KHÔNG chặn migrate. Khác bản vòng sửa 1/5 (chỉ có patch, bị
+   `Patch Log` khoá sau một lần chạy nên bỏ qua là bỏ qua VĨNH VIỄN): vì hàm còn treo ở
+   `after_migrate`, một khi vận hành bật lại ô đang tắt rồi `bench migrate` lần sau, cây TỰ
+   dựng — không cần ai nhớ gõ tay. Muốn dựng NGAY thì mới cần chạy tay một lần (xem cập nhật
+   11/09/2026 ở đầu tài liệu, và docstring của `cay.py` để hiểu vì sao chọn cảnh báo thay vì
    chặn migrate).
 
 ## 3. Việc CÒN LẠI, xếp theo mức
