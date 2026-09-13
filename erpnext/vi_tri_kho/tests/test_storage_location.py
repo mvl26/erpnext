@@ -5,6 +5,8 @@ field đọc được ngay và quét mã vạch ra thẳng bản ghi, không ph�
 trung gian. Bài test đầu tiên khoá đúng điều đó lại.
 """
 
+from unittest.mock import patch as mock_patch
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
@@ -344,3 +346,115 @@ class TestPatchDonLoaiViTriKhongHopLe(_CoTienDeKho):
 			"Patch xoá quá tay: Custom Field 'custom_quan_ly_vi_tri' (không phải mục tiêu của "
 			"patch) đã bị xoá theo",
 		)
+
+
+class TestPatchDungLaiCayViTri(_CoTienDeKho):
+	"""Chạy trực tiếp patch dựng `lft`/`rgt` lần đầu (Task 8 — vòng sửa 1/5, spec §7).
+
+	`erptest.local` đã dựng cây xong ở Task 8 (0 bản ghi `lft = rgt = 0`), nên
+	các bài này TỰ ép một bản ghi về đúng trạng thái "tạo trước khi có cây"
+	bằng `frappe.db.set_value` (bypass hook, không kích `update_nsm()` sớm),
+	không trông vào dữ liệu sẵn có trên site.
+	"""
+
+	def test_dung_lai_toa_do_cho_ban_ghi_thieu_khong_dung_du_lieu_khac(self):
+		"""Chốt CẢ HAI chiều: bản ghi thiếu toạ độ ĐƯỢC dựng lại đúng quan hệ
+		cha-con; và một thao tác ghi đè TOÀN CÂY không được đụng tới sổ vị
+		trí, tồn vị trí, ô `ZZZ-CHUA-XEP`, hay làm đối soát lệch — nếu chỉ
+		khẳng định vế đầu, một đột biến làm `rebuild_tree` vô tình xoá/sửa
+		bảng khác (hoặc gọi nhầm doctype) vẫn lọt qua xanh."""
+		from erpnext.patches.v15_0.dung_lai_cay_vi_tri import execute
+		from erpnext.vi_tri_kho.vitri.doi_soat import doi_soat_kho
+
+		so_ledger_truoc = frappe.db.count("Location Ledger Entry")
+		so_balance_truoc = frappe.db.count("Location Balance")
+		zzz = "ZZZ-CHUA-XEP-Kho Miyano - MYN"
+		self.assertTrue(
+			frappe.db.exists("Storage Location", zzz),
+			"Tiền đề thiếu: ô hệ thống ZZZ-CHUA-XEP phải có sẵn trên site.",
+		)
+
+		o = _tao_o("9Z55010101")
+		# `insert()` bình thường đã tự gán toạ độ thật (NestedSet.on_update).
+		# Ép thẳng về 0/0 bằng frappe.db.set_value — mô phỏng đúng dữ liệu
+		# tạo TRƯỚC khi StorageLocation kế thừa NestedSet, không kích hook.
+		frappe.db.set_value("Storage Location", o.name, {"lft": 0, "rgt": 0}, update_modified=False)
+		frappe.db.set_value("Storage Location", "9Z55", {"lft": 0, "rgt": 0}, update_modified=False)
+		self.assertTrue(frappe.db.exists("Storage Location", {"lft": 0, "rgt": 0}))
+
+		execute()
+
+		lft, rgt = frappe.db.get_value("Storage Location", o.name, ["lft", "rgt"])
+		self.assertTrue(lft and rgt and lft < rgt, f"chưa dựng lại toạ độ cho {o.name}: ({lft}, {rgt})")
+		cha_lft, cha_rgt = frappe.db.get_value("Storage Location", "9Z55", ["lft", "rgt"])
+		self.assertTrue(
+			cha_lft < lft and rgt < cha_rgt,
+			"cây dựng sai quan hệ cha-con: nút lá phải nằm TRONG khoảng lft/rgt của nút cha",
+		)
+
+		# Chốt âm: rebuild_tree() ghi đè lft/rgt của TOÀN BỘ doctype — dữ
+		# liệu KHÔNG liên quan phải còn nguyên y hệt trước khi chạy patch.
+		self.assertEqual(frappe.db.count("Location Ledger Entry"), so_ledger_truoc)
+		self.assertEqual(frappe.db.count("Location Balance"), so_balance_truoc)
+		self.assertTrue(frappe.db.exists("Storage Location", zzz), "ô ZZZ-CHUA-XEP biến mất sau khi dựng cây")
+		kq = doi_soat_kho("Kho Miyano - MYN")
+		self.assertTrue(kq["khop"], f"đối soát lệch sau khi dựng cây: {kq}")
+
+	def test_bo_qua_khong_rebuild_khi_con_o_dang_tat(self):
+		"""Nhánh từ chối F5+F11: còn `disabled = 1` thì KHÔNG gọi `rebuild_tree` —
+		bản ghi thiếu toạ độ phải giữ nguyên `lft = rgt = 0` sau khi chạy patch.
+
+		Dùng mock thay vì chỉ so giá trị trước/sau: `rebuild_tree` chạy trên
+		một cây đã đúng cấu trúc là HÀM ĐƠN TRỊ (deterministic theo thứ tự
+		tên), nên gọi lại có thể tình cờ cho ra đúng `lft`/`rgt` cũ — so giá
+		trị không chắc bắt được đột biến "vẫn rebuild bất kể `disabled`".
+		Khẳng định thẳng `rebuild_tree` KHÔNG được gọi mới chặn đúng lớp lỗi
+		F5+F11 cảnh báo (thừa kế `disabled` kích hoạt ngay khi rebuild)."""
+		import erpnext.patches.v15_0.dung_lai_cay_vi_tri as patch_module
+
+		o = _tao_o("9Z56010101")
+		# `FrappeTestCase` chỉ rollback ở CUỐI CẢ LỚP (`addClassCleanup`), không
+		# phải sau mỗi bài — ép `disabled=1`/`lft=rgt=0` mà không tự dọn sẽ rò
+		# sang đúng hai bài kiểm "toàn site sạch" khác trong lớp này. Lưu toạ độ
+		# thật trước khi ép, và đăng ký trả lại nguyên trạng NGAY KHI bài này
+		# xong (`addCleanup` chạy dù bài pass hay fail).
+		lft_that, rgt_that = frappe.db.get_value("Storage Location", o.name, ["lft", "rgt"])
+		self.addCleanup(
+			frappe.db.set_value,
+			"Storage Location",
+			o.name,
+			{"lft": lft_that, "rgt": rgt_that, "disabled": 0},
+			update_modified=False,
+		)
+		frappe.db.set_value(
+			"Storage Location", o.name, {"lft": 0, "rgt": 0, "disabled": 1}, update_modified=False
+		)
+		self.assertTrue(frappe.db.exists("Storage Location", {"lft": 0, "rgt": 0}))
+		self.assertEqual(frappe.db.count("Storage Location", {"disabled": 1}), 1)
+
+		with mock_patch.object(patch_module, "rebuild_tree") as gia:
+			patch_module.execute()
+		gia.assert_not_called()
+
+		lft, rgt = frappe.db.get_value("Storage Location", o.name, ["lft", "rgt"])
+		self.assertEqual(
+			(lft, rgt),
+			(0, 0),
+			"còn ô disabled=1 mà toạ độ vẫn bị đổi — đúng rủi ro F5+F11: rebuild sẽ kích "
+			"hoạt thừa kế disabled xuống cả nhánh một lượt, âm thầm",
+		)
+
+	def test_khong_goi_rebuild_khi_khong_con_ban_ghi_thieu_toa_do(self):
+		"""Không có bản ghi `lft=rgt=0` nào thì KHÔNG gọi `rebuild_tree` —
+		tránh ghi đè vô ích lên toàn bộ doctype mỗi lần `bench migrate`."""
+		import erpnext.patches.v15_0.dung_lai_cay_vi_tri as patch_module
+
+		self.assertFalse(
+			frappe.db.exists("Storage Location", {"lft": 0, "rgt": 0}),
+			"Tiền đề thiếu: site phải KHÔNG còn bản ghi lft=rgt=0 nào (đã dựng cây ở Task 8) "
+			"để bài này đo đúng nhánh 'không có gì để làm'.",
+		)
+
+		with mock_patch.object(patch_module, "rebuild_tree") as gia:
+			patch_module.execute()
+		gia.assert_not_called()
