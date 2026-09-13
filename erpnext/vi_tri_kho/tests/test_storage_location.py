@@ -376,10 +376,10 @@ class TestDamBaoCayDaDung(_CoTienDeKho):
 		so_ledger_truoc = frappe.db.count("Location Ledger Entry")
 		so_balance_truoc = frappe.db.count("Location Balance")
 		zzz = "ZZZ-CHUA-XEP-Kho Miyano - MYN"
-		self.assertTrue(
-			frappe.db.exists("Storage Location", zzz),
-			"Tiền đề thiếu: ô hệ thống ZZZ-CHUA-XEP phải có sẵn trên site.",
+		zzz_truoc = frappe.db.get_value(
+			"Storage Location", zzz, ["lft", "rgt", "parent_storage_location"], as_dict=True
 		)
+		self.assertTrue(zzz_truoc, "Tiền đề thiếu: ô hệ thống ZZZ-CHUA-XEP phải có sẵn trên site.")
 
 		o = _tao_o("9Z55010101")
 		# `insert()` bình thường đã tự gán toạ độ thật (NestedSet.on_update).
@@ -403,7 +403,24 @@ class TestDamBaoCayDaDung(_CoTienDeKho):
 		# liệu KHÔNG liên quan phải còn nguyên y hệt trước khi chạy hàm.
 		self.assertEqual(frappe.db.count("Location Ledger Entry"), so_ledger_truoc)
 		self.assertEqual(frappe.db.count("Location Balance"), so_balance_truoc)
-		self.assertTrue(frappe.db.exists("Storage Location", zzz), "ô ZZZ-CHUA-XEP biến mất sau khi dựng cây")
+		# VÒNG SỬA 3/5: `doi_soat_kho` KHÔNG đọc lft/rgt (chỉ so tồn kho với
+		# sổ) nên "đối soát khớp" không khoá được cấu trúc cây — một lần
+		# rebuild gán nhầm ZZZ-CHUA-XEP làm CON của một nhánh, hoặc để nó ở
+		# lft=rgt=0, vẫn qua được đối soát. Kiểm THẲNG toạ độ + parent của
+		# ZZZ, không suy diễn qua đối soát.
+		zzz_sau = frappe.db.get_value(
+			"Storage Location", zzz, ["lft", "rgt", "parent_storage_location"], as_dict=True
+		)
+		self.assertTrue(zzz_sau, "ô ZZZ-CHUA-XEP biến mất sau khi dựng cây")
+		self.assertTrue(
+			zzz_sau.lft and zzz_sau.rgt and zzz_sau.lft != zzz_sau.rgt,
+			f"ZZZ-CHUA-XEP vẫn thiếu toạ độ thật sau khi dựng cây: {zzz_sau}",
+		)
+		self.assertFalse(
+			zzz_sau.parent_storage_location,
+			f"ZZZ-CHUA-XEP bị gán nhầm làm con của {zzz_sau.parent_storage_location} — "
+			"nó phải đứng NGOÀI cây theo thiết kế (gốc riêng, không cha).",
+		)
 		kq = doi_soat_kho("Kho Miyano - MYN")
 		self.assertTrue(kq["khop"], f"đối soát lệch sau khi dựng cây: {kq}")
 
@@ -467,3 +484,109 @@ class TestDamBaoCayDaDung(_CoTienDeKho):
 		with mock_patch.object(cay_module, "rebuild_tree") as gia:
 			cay_module.dam_bao_cay_da_dung()
 		gia.assert_not_called()
+
+	def test_ban_ghi_lanh_van_duoc_dung_khi_co_cha_treo(self):
+		"""VÒNG SỬA 3/5: "cha treo" (`parent_storage_location` trỏ tới một
+		`name` KHÔNG TỒN TẠI) không bao giờ được `rebuild_node` chạm tới —
+		hàm KHÔNG được ném lỗi vì nó, PHẢI ghi log cảnh báo nêu đích danh, và
+		CHỐT ÂM quan trọng nhất: một bản ghi LÀNH khác vẫn phải được dựng
+		bình thường — một bản ghi hỏng không được kéo cả lượt rebuild xuống."""
+		import erpnext.vi_tri_kho.vitri.cay as cay_module
+
+		# Bản ghi LÀNH, thiếu toạ độ — phải được dựng lại bình thường dù có
+		# một bản ghi hỏng khác trong cùng lượt gọi.
+		o_lanh = _tao_o("9Z59010101")
+		frappe.db.set_value("Storage Location", o_lanh.name, {"lft": 0, "rgt": 0}, update_modified=False)
+
+		# Bản ghi CHA TREO: dùng db_insert() thẳng, bỏ qua validate()/
+		# dung_cho_trong_cay() — mô phỏng đúng dữ liệu hỏng do thao tác tay/
+		# import ngoài luồng bình thường (StorageLocation.validate() không
+		# bao giờ tự tạo ra được cha treo, vì dam_bao_to_tien() luôn tự sinh
+		# đủ nút cha còn thiếu).
+		ten_mo_coi = "9Z60010101"
+		cha_khong_ton_tai = "CHA-KHONG-TON-TAI-9Z60"
+		mo_coi = frappe.get_doc(
+			{
+				"doctype": "Storage Location",
+				"ma_o": ten_mo_coi,
+				"kho": "Kho Miyano - MYN",
+				"loai_vi_tri": "Lưu trữ",
+				"is_group": 0,
+				"parent_storage_location": cha_khong_ton_tai,
+				"lft": 0,
+				"rgt": 0,
+			}
+		)
+		mo_coi.name = ten_mo_coi
+		mo_coi.db_insert()
+		self.addCleanup(lambda: frappe.db.delete("Storage Location", {"name": ten_mo_coi}))
+
+		self.assertFalse(
+			frappe.db.exists("Storage Location", cha_khong_ton_tai),
+			"Tiền đề hỏng: 'cha treo' phải trỏ tới một tên THẬT SỰ không tồn tại trên site.",
+		)
+
+		# Không được ném lỗi ra ngoài — after_migrate của một site không
+		# liên quan không được vỡ vì một bản ghi hỏng. Mock frappe.log_error
+		# thay vì kiểm tồn tại trong bảng Error Log thật: log_error() ghi
+		# xong KHÔNG bị rollback theo test (đã đo — Error Log của cả những
+		# lần chạy `bench run-tests` TRƯỚC vẫn còn trên site), nên kiểm tồn
+		# tại theo `method` sẽ XANH GIẢ dù bỏ hẳn phép kiểm cha treo trong
+		# code (đã đột biến xác nhận — xem báo cáo vòng sửa 3/5, mục "gãy
+		# lưới an toàn").
+		with mock_patch.object(frappe, "log_error") as ghi_log:
+			cay_module.dam_bao_cay_da_dung()
+
+		# Chốt 1 (quan trọng nhất): bản ghi LÀNH vẫn được dựng bình thường.
+		lft, rgt = frappe.db.get_value("Storage Location", o_lanh.name, ["lft", "rgt"])
+		self.assertTrue(
+			lft and rgt and lft < rgt,
+			f"bản ghi LÀNH {o_lanh.name} không được dựng vì có một bản ghi hỏng khác: ({lft}, {rgt})",
+		)
+
+		# Chốt 2: bản ghi cha treo giữ nguyên lft=rgt=0 — đúng như docstring
+		# mô tả (rebuild_node không đệ quy tới được nó), không bị "sửa" lặng
+		# lẽ thành một giá trị sai khác.
+		lft_mc, rgt_mc = frappe.db.get_value("Storage Location", ten_mo_coi, ["lft", "rgt"])
+		self.assertEqual(
+			(lft_mc, rgt_mc),
+			(0, 0),
+			"bản ghi cha treo không còn 0/0 — rebuild_node lẽ ra không chạm được tới nó",
+		)
+
+		# Chốt 3: có ghi log cảnh báo nêu đích danh — không xử lý im lặng.
+		tieu_de_da_ghi = [kw.get("title") for _, kw in ghi_log.call_args_list]
+		self.assertIn(
+			"vi_tri_kho: dam_bao_cay_da_dung cha treo",
+			tieu_de_da_ghi,
+			f"Không thấy log_error cảnh báo cha treo — cha treo không được xử lý im lặng. "
+			f"Các title đã ghi: {tieu_de_da_ghi}",
+		)
+
+	def test_loi_rebuild_tree_khong_lam_vo_after_migrate(self):
+		"""VÒNG SỬA 3/5: `rebuild_tree()` có thể ném lỗi vì lý do KHÁC (dữ
+		liệu hỏng dạng khác, khoá DB, …) — hàm này treo ở `after_migrate` nên
+		lỗi đó KHÔNG được văng ra ngoài, chỉ log rồi thoát êm để site gọi
+		hàm (có thể không liên quan gì tới module vị trí kho) đi tiếp."""
+		import erpnext.vi_tri_kho.vitri.cay as cay_module
+
+		o = _tao_o("9Z61010101")
+		frappe.db.set_value("Storage Location", o.name, {"lft": 0, "rgt": 0}, update_modified=False)
+
+		# Mock frappe.log_error thay vì kiểm tồn tại trong Error Log thật —
+		# lý do giống hệt bài `test_ban_ghi_lanh_...`: Error Log không bị
+		# rollback theo test, nên kiểm tồn tại theo `method` sẽ XANH GIẢ nếu
+		# site đã có sẵn một dòng cùng tiêu đề từ lần chạy suite trước.
+		with mock_patch.object(cay_module, "rebuild_tree", side_effect=RuntimeError("giả lập lỗi CSDL")):
+			with mock_patch.object(frappe, "log_error") as ghi_log:
+				# Không được ném RuntimeError ra ngoài — nếu bài này tự nó
+				# ném lỗi, test framework sẽ báo lỗi (không cần assertRaises).
+				cay_module.dam_bao_cay_da_dung()
+
+		tieu_de_da_ghi = [kw.get("title") for _, kw in ghi_log.call_args_list]
+		self.assertIn(
+			"vi_tri_kho: dam_bao_cay_da_dung rebuild_tree loi",
+			tieu_de_da_ghi,
+			f"rebuild_tree() ném lỗi nhưng không thấy log_error() ghi lại — lỗi có nguy cơ "
+			f"văng lên after_migrate của mọi site có erpnext. Các title đã ghi: {tieu_de_da_ghi}",
+		)
