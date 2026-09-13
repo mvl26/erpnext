@@ -51,13 +51,16 @@ Mã nguồn: `erpnext/vi_tri_kho/` · Tài liệu: `docs/vi_tri_kho/`
 >    minh khi nút cha đã thuộc kho khác (`storage_location.py::dam_bao_to_tien`), nhưng **quy
 >    ước cấp phát ký hiệu Khu phải làm ở tầng vận hành, trước khi đặt tên khu** — phần mềm
 >    chỉ bắt được sau khi đã đụng.
-> 2. **Từ khi bật lên, bất kỳ site nào cũng phải chạy `rebuild_tree("Storage Location",
->    "parent_storage_location")` một lần** để các bản ghi cũ (tạo trước khi có cây, mang
->    `lft = rgt = 0`) có toạ độ thật. **Trước khi chạy, phải kiểm không còn `Storage
->    Location` nào `disabled = 1`** — hôm nay không có, nhưng nếu có, rebuild sẽ kích hoạt
->    thừa kế `disabled` xuống cả nhánh **cùng lúc, âm thầm**, và phiếu xuất kế tiếp của nhánh
->    đó ném lỗi giữa `Stock Ledger Entry.on_submit`. Script Task 8 (xem `task-8-report.md`)
->    có phép kiểm này; site nào tự chạy `rebuild_tree` tay phải tự kiểm lại.
+> 2. **Từ khi bật lên, bất kỳ site nào cũng phải dựng `lft`/`rgt` một lần** để các bản ghi cũ
+>    (tạo trước khi có cây, mang `lft = rgt = 0`) có toạ độ thật. **Vòng sửa 1/5 (review điều
+>    phối):** việc này giờ TỰ ĐỘNG qua `erpnext.patches.v15_0.dung_lai_cay_vi_tri` — chạy
+>    ngay trong `bench migrate` (spec §7 đòi patch cho đúng việc này, không chỉ script tay).
+>    Patch tự kiểm F5+F11 **trước** khi rebuild: còn `Storage Location` nào `disabled = 1` thì
+>    **KHÔNG rebuild** — chỉ in cảnh báo (console + Error Log) rồi cho `bench migrate` đi
+>    tiếp, KHÔNG `frappe.throw` (lý do đánh đổi: xem docstring patch) — và vì không throw,
+>    patch vẫn được đánh dấu ĐÃ CHẠY, sẽ **không tự thử lại** ở lần migrate sau. Gặp đúng ca
+>    đó: xác nhận các ô đang tắt đúng chủ đích rồi tự chạy tay một lần (lệnh nằm sẵn trong
+>    thông báo cảnh báo của patch).
 > 3. **Cho tới khi cây được dựng (bước 2), CẢ HAI tính năng "thừa kế `disabled` xuống cả
 >    nhánh" và "lấy hàng theo phạm vi một nhánh" (`pham_vi`) đều NẰM IM** — không phải lỗi,
 >    mà là hệ quả trực tiếp của cây chưa có toạ độ: thừa kế `disabled` dựa vào `lft`/`rgt`
@@ -146,11 +149,13 @@ không, vì §5.3 cấm cấp lại mã đã dùng.
    một kho. Hai kho dùng trùng ký hiệu Khu (ví dụ cả hai đặt `1B`) sẽ đụng đúng một bản ghi
    nút nhóm — có chặn tường minh khi phát hiện nút cha thuộc kho khác, nhưng phải biết quy
    ước này **trước khi** đặt tên khu, không phải sau khi tem đã dán lên kệ.
-5. **Sau khi cài đặt hoặc phục hồi trên một site mới (kể cả site `miyano`), phải chạy
-   `rebuild_tree("Storage Location", "parent_storage_location")` một lần** — nếu không, hai
-   tính năng "thừa kế `disabled` xuống cả nhánh" và "lấy hàng theo phạm vi" nằm im hoàn
-   toàn. **Trước khi chạy, kiểm không còn ô nào `disabled = 1`** — có thì dừng lại, xử lý
-   xong rồi mới rebuild (xem cập nhật 11/09/2026 ở đầu tài liệu).
+5. **Dựng `lft`/`rgt` lần đầu giờ chạy TỰ ĐỘNG trong `bench migrate`** (patch
+   `erpnext.patches.v15_0.dung_lai_cay_vi_tri`, thêm ở vòng sửa 1/5) — không cần chạy tay
+   `rebuild_tree` trên site mới nữa (kể cả site `miyano`), TRỪ đúng một ca: patch tự phát
+   hiện còn ô `disabled = 1` thì **không tự rebuild**, chỉ cảnh báo rồi cho migrate đi tiếp —
+   khi đó phải xác nhận các ô đang tắt đúng chủ đích rồi tự chạy tay một lần (xem cập nhật
+   11/09/2026 ở đầu tài liệu, và docstring của patch để hiểu vì sao chọn cảnh báo thay vì
+   chặn migrate).
 
 ## 3. Việc CÒN LẠI, xếp theo mức
 
