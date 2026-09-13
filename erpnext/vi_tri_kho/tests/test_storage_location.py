@@ -590,3 +590,35 @@ class TestDamBaoCayDaDung(_CoTienDeKho):
 			f"rebuild_tree() ném lỗi nhưng không thấy log_error() ghi lại — lỗi có nguy cơ "
 			f"văng lên after_migrate của mọi site có erpnext. Các title đã ghi: {tieu_de_da_ghi}",
 		)
+
+	def test_co_auto_commit_duoc_tra_ve_0_khi_rebuild_tree_loi(self):
+		"""VÒNG SỬA 4/5: `rebuild_tree()` tự đặt
+		`frappe.db.auto_commit_on_many_writes = 1` TRƯỚC vòng lặp, chỉ đặt
+		lại `0` ở dòng SAU vòng lặp — nếu lỗi giữa chừng (đúng ca `except`
+		của `dam_bao_cay_da_dung` bắt), dòng reset đó không bao giờ chạy.
+		Cờ treo ở `1` có nguy cơ làm các thao tác ghi KHÁC của cùng site (app
+		khác, các bước cuối migrate) tự commit sớm ngoài ý muốn — tác dụng
+		phụ TOÀN CỤC, ngoài phạm vi module này.
+
+		`rebuild_tree` bị MOCK hoàn toàn ở bài này (giống bài
+		`test_loi_rebuild_tree_khong_lam_vo_after_migrate`) nên KHÔNG chạy
+		qua đoạn đặt cờ thật của hàm gốc — bài này phải TỰ đặt cờ lên `1`
+		trước khi gọi, không trông vào việc hàm thật đặt hộ."""
+		import erpnext.vi_tri_kho.vitri.cay as cay_module
+
+		gia_tri_truoc_bai = frappe.db.auto_commit_on_many_writes
+		self.addCleanup(setattr, frappe.db, "auto_commit_on_many_writes", gia_tri_truoc_bai)
+
+		o = _tao_o("9Z62010101")
+		frappe.db.set_value("Storage Location", o.name, {"lft": 0, "rgt": 0}, update_modified=False)
+
+		frappe.db.auto_commit_on_many_writes = 1
+		with mock_patch.object(cay_module, "rebuild_tree", side_effect=RuntimeError("giả lập lỗi CSDL")):
+			cay_module.dam_bao_cay_da_dung()
+
+		self.assertEqual(
+			frappe.db.auto_commit_on_many_writes,
+			0,
+			"cờ auto_commit_on_many_writes vẫn treo ở 1 sau khi rebuild_tree() lỗi — nguy cơ "
+			"các thao tác ghi KHÁC của site tự commit sớm ngoài ý muốn (thiếu finally).",
+		)

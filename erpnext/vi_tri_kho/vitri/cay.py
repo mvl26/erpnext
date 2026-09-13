@@ -55,6 +55,17 @@ một việc dọn dẹp làm vỡ migrate của người khác):
 - Sau khi rebuild (dù thành công hay bắt được lỗi): ĐẾM LẠI bản ghi còn
   `lft = rgt = 0`. Còn thì log rõ còn bao nhiêu — không để hàm coi như
   "xong" trong khi cây chưa hội tụ thật.
+
+VÒNG SỬA 4/5 (review điều phối): việc bọc `try/except` ở trên tự nó tạo ra
+một tác dụng phụ TOÀN CỤC. `rebuild_tree()` (frappe/utils/nestedset.py) đặt
+`frappe.db.auto_commit_on_many_writes = 1` TRƯỚC vòng lặp và chỉ đặt lại `0`
+ở dòng SAU vòng lặp — nếu lỗi giữa chừng (đúng ca `except` bắt), dòng reset
+đó không bao giờ chạy, cờ TREO ở `1`. Trước vòng sửa 3/5 không sao (lỗi làm
+crash cả tiến trình migrate); từ khi `except` nuốt lỗi và `after_migrate` đi
+tiếp trong CÙNG kết nối CSDL, cờ treo có thể làm các thao tác ghi KHÁC của
+site đó (app khác, các bước cuối migrate) tự commit sớm ngoài ý muốn. Sửa
+bằng `finally: frappe.db.auto_commit_on_many_writes = 0` — chạy dù thành
+công hay lỗi, luôn trả cờ về đúng trạng thái mặc định.
 """
 
 import frappe
@@ -165,6 +176,23 @@ def dam_bao_cay_da_dung() -> None:
 			"hàm sẽ tự thử lại ở lần migrate sau."
 		)
 		return
+	finally:
+		# VÒNG SỬA 4/5 (review điều phối): `rebuild_tree()`
+		# (frappe/utils/nestedset.py:198-203) tự đặt
+		# `frappe.db.auto_commit_on_many_writes = 1` TRƯỚC vòng lặp và chỉ
+		# đặt lại `= 0` ở dòng SAU vòng lặp. Nếu `rebuild_node()` ném lỗi
+		# giữa chừng (đúng ca `except` ở trên bắt), dòng reset đó KHÔNG BAO
+		# GIỜ chạy — cờ treo ở `1`. Trước vòng sửa 3/5, lỗi đó làm crash cả
+		# tiến trình `bench migrate` nên cờ treo không kịp gây hại; từ khi
+		# `except` ở trên nuốt lỗi và `after_migrate` đi tiếp BÌNH THƯỜNG
+		# trong CÙNG tiến trình, CÙNG kết nối CSDL, cờ treo có nguy cơ làm
+		# các thao tác ghi KHÁC của site đó (hook `after_migrate` của app
+		# khác chạy sau, các bước cuối của migrate) tự commit sớm khi vượt
+		# ngưỡng — tác dụng phụ TOÀN CỤC, ngoài phạm vi module này, do
+		# chính `except` ở trên tạo ra nên phải tự dọn. `finally` chạy dù
+		# `try` thành công hay `except` vừa `return` — bảo đảm cờ luôn về
+		# `0` bất kể kết quả.
+		frappe.db.auto_commit_on_many_writes = 0
 
 	con_thieu = frappe.db.count("Storage Location", {"lft": 0, "rgt": 0})
 	if con_thieu:
