@@ -348,8 +348,15 @@ class TestPatchDonLoaiViTriKhongHopLe(_CoTienDeKho):
 		)
 
 
-class TestPatchDungLaiCayViTri(_CoTienDeKho):
-	"""Chạy trực tiếp patch dựng `lft`/`rgt` lần đầu (Task 8 — vòng sửa 1/5, spec §7).
+class TestDamBaoCayDaDung(_CoTienDeKho):
+	"""`erpnext.vi_tri_kho.vitri.cay.dam_bao_cay_da_dung` — Task 8, vòng sửa 2/5.
+
+	VÒNG SỬA 2/5 (review điều phối): logic dựng `lft`/`rgt` chuyển từ patch
+	(`v15_0.dung_lai_cay_vi_tri`, sự kiện MỘT LẦN, bị `Patch Log` khoá) sang
+	một hàm dùng lại được, treo thêm vào `after_migrate` — "cây đã dựng" là
+	một TRẠNG THÁI cần hội tụ tới ở MỌI lần migrate, không phải một sự kiện
+	chạy một lần. Patch cũ giờ chỉ gọi thẳng hàm này (xem file patch); các
+	bài dưới đây kiểm HÀM, không kiểm patch.
 
 	`erptest.local` đã dựng cây xong ở Task 8 (0 bản ghi `lft = rgt = 0`), nên
 	các bài này TỰ ép một bản ghi về đúng trạng thái "tạo trước khi có cây"
@@ -363,7 +370,7 @@ class TestPatchDungLaiCayViTri(_CoTienDeKho):
 		trí, tồn vị trí, ô `ZZZ-CHUA-XEP`, hay làm đối soát lệch — nếu chỉ
 		khẳng định vế đầu, một đột biến làm `rebuild_tree` vô tình xoá/sửa
 		bảng khác (hoặc gọi nhầm doctype) vẫn lọt qua xanh."""
-		from erpnext.patches.v15_0.dung_lai_cay_vi_tri import execute
+		from erpnext.vi_tri_kho.vitri.cay import dam_bao_cay_da_dung
 		from erpnext.vi_tri_kho.vitri.doi_soat import doi_soat_kho
 
 		so_ledger_truoc = frappe.db.count("Location Ledger Entry")
@@ -382,7 +389,7 @@ class TestPatchDungLaiCayViTri(_CoTienDeKho):
 		frappe.db.set_value("Storage Location", "9Z55", {"lft": 0, "rgt": 0}, update_modified=False)
 		self.assertTrue(frappe.db.exists("Storage Location", {"lft": 0, "rgt": 0}))
 
-		execute()
+		dam_bao_cay_da_dung()
 
 		lft, rgt = frappe.db.get_value("Storage Location", o.name, ["lft", "rgt"])
 		self.assertTrue(lft and rgt and lft < rgt, f"chưa dựng lại toạ độ cho {o.name}: ({lft}, {rgt})")
@@ -393,7 +400,7 @@ class TestPatchDungLaiCayViTri(_CoTienDeKho):
 		)
 
 		# Chốt âm: rebuild_tree() ghi đè lft/rgt của TOÀN BỘ doctype — dữ
-		# liệu KHÔNG liên quan phải còn nguyên y hệt trước khi chạy patch.
+		# liệu KHÔNG liên quan phải còn nguyên y hệt trước khi chạy hàm.
 		self.assertEqual(frappe.db.count("Location Ledger Entry"), so_ledger_truoc)
 		self.assertEqual(frappe.db.count("Location Balance"), so_balance_truoc)
 		self.assertTrue(frappe.db.exists("Storage Location", zzz), "ô ZZZ-CHUA-XEP biến mất sau khi dựng cây")
@@ -402,7 +409,7 @@ class TestPatchDungLaiCayViTri(_CoTienDeKho):
 
 	def test_bo_qua_khong_rebuild_khi_con_o_dang_tat(self):
 		"""Nhánh từ chối F5+F11: còn `disabled = 1` thì KHÔNG gọi `rebuild_tree` —
-		bản ghi thiếu toạ độ phải giữ nguyên `lft = rgt = 0` sau khi chạy patch.
+		bản ghi thiếu toạ độ phải giữ nguyên `lft = rgt = 0` sau khi chạy hàm.
 
 		Dùng mock thay vì chỉ so giá trị trước/sau: `rebuild_tree` chạy trên
 		một cây đã đúng cấu trúc là HÀM ĐƠN TRỊ (deterministic theo thứ tự
@@ -410,7 +417,7 @@ class TestPatchDungLaiCayViTri(_CoTienDeKho):
 		trị không chắc bắt được đột biến "vẫn rebuild bất kể `disabled`".
 		Khẳng định thẳng `rebuild_tree` KHÔNG được gọi mới chặn đúng lớp lỗi
 		F5+F11 cảnh báo (thừa kế `disabled` kích hoạt ngay khi rebuild)."""
-		import erpnext.patches.v15_0.dung_lai_cay_vi_tri as patch_module
+		import erpnext.vi_tri_kho.vitri.cay as cay_module
 
 		o = _tao_o("9Z56010101")
 		# `FrappeTestCase` chỉ rollback ở CUỐI CẢ LỚP (`addClassCleanup`), không
@@ -432,8 +439,8 @@ class TestPatchDungLaiCayViTri(_CoTienDeKho):
 		self.assertTrue(frappe.db.exists("Storage Location", {"lft": 0, "rgt": 0}))
 		self.assertEqual(frappe.db.count("Storage Location", {"disabled": 1}), 1)
 
-		with mock_patch.object(patch_module, "rebuild_tree") as gia:
-			patch_module.execute()
+		with mock_patch.object(cay_module, "rebuild_tree") as gia:
+			cay_module.dam_bao_cay_da_dung()
 		gia.assert_not_called()
 
 		lft, rgt = frappe.db.get_value("Storage Location", o.name, ["lft", "rgt"])
@@ -445,9 +452,11 @@ class TestPatchDungLaiCayViTri(_CoTienDeKho):
 		)
 
 	def test_khong_goi_rebuild_khi_khong_con_ban_ghi_thieu_toa_do(self):
-		"""Không có bản ghi `lft=rgt=0` nào thì KHÔNG gọi `rebuild_tree` —
-		tránh ghi đè vô ích lên toàn bộ doctype mỗi lần `bench migrate`."""
-		import erpnext.patches.v15_0.dung_lai_cay_vi_tri as patch_module
+		"""Không có bản ghi `lft=rgt=0` nào thì KHÔNG gọi `rebuild_tree` — hàm
+		này chạy ở MỌI lần `bench migrate` (treo qua `after_migrate`), nên
+		nhánh "không có gì để làm" PHẢI rẻ: không ghi đè vô ích lên toàn bộ
+		doctype ở mọi lần migrate của mọi site."""
+		import erpnext.vi_tri_kho.vitri.cay as cay_module
 
 		self.assertFalse(
 			frappe.db.exists("Storage Location", {"lft": 0, "rgt": 0}),
@@ -455,6 +464,6 @@ class TestPatchDungLaiCayViTri(_CoTienDeKho):
 			"để bài này đo đúng nhánh 'không có gì để làm'.",
 		)
 
-		with mock_patch.object(patch_module, "rebuild_tree") as gia:
-			patch_module.execute()
+		with mock_patch.object(cay_module, "rebuild_tree") as gia:
+			cay_module.dam_bao_cay_da_dung()
 		gia.assert_not_called()

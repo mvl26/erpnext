@@ -74,6 +74,16 @@ after_install = "erpnext.setup.install.after_install"
 after_migrate = [
 	"erpnext.einvoice.setup.setup_einvoice",
 	"erpnext.supply_notification.setup.setup_supply_notification",
+	# Dựng lại lft/rgt của Storage Location nếu còn bản ghi thiếu toạ độ và an
+	# toàn để làm (không ô nào đang `disabled`). MẤT DÒNG NÀY: patch
+	# `v15_0.dung_lai_cay_vi_tri` (chạy đúng MỘT LẦN, patches.txt) vẫn còn,
+	# nhưng nếu patch đó gặp `disabled=1` và bỏ qua, sẽ KHÔNG BAO GIỜ tự thử
+	# lại — cây vĩnh viễn thiếu toạ độ, "thừa kế disabled xuống cả nhánh" và
+	# "lấy hàng theo phạm vi" nằm im mãi mãi, âm thầm, không ai biết. Dòng này
+	# là cơ chế HỘI TỤ LẠI ở mọi lần migrate sau — mất nó thì mất luôn khả năng
+	# tự phục hồi đó. `erpnext.vi_tri_kho.tests.test_app_khoi_dong` khoá việc
+	# này còn trong danh sách.
+	"erpnext.vi_tri_kho.vitri.cay.dam_bao_cay_da_dung",
 ]
 
 boot_session = "erpnext.startup.boot.boot_session"

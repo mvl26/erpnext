@@ -39,3 +39,22 @@ class TestModuleKhoiDong(FrappeTestCase):
 			"kho vẫn chạy bình thường nhưng KHÔNG dòng sổ vị trí nào được ghi — "
 			"hỏng trong im lặng. Kiểm doc_events trong erpnext/hooks.py.",
 		)
+
+	def test_dam_bao_cay_da_dung_duoc_dang_ky_trong_after_migrate(self):
+		"""Vòng sửa 2/5 (Task 8): `dam_bao_cay_da_dung` PHẢI có trong
+		`after_migrate` — đây là cơ chế HỘI TỤ, không phải patch một lần. Mất
+		dòng này ở một lần merge upstream giải sai: patch
+		`v15_0.dung_lai_cay_vi_tri` (chạy một lần, bị `Patch Log` khoá) vẫn
+		còn, nhưng nếu nó từng gặp `disabled=1` và bỏ qua, cây sẽ KHÔNG BAO
+		GIỜ được dựng lại nữa — hai tính năng "thừa kế disabled" và "lấy hàng
+		theo phạm vi" nằm im vĩnh viễn, không ai biết, không có gì báo lỗi."""
+		HAM = "erpnext.vi_tri_kho.vitri.cay.dam_bao_cay_da_dung"
+		danh_sach = frappe.get_hooks("after_migrate") or []
+		self.assertIn(
+			HAM,
+			danh_sach,
+			f"Hàm {HAM} không còn trong after_migrate. Đây là cơ chế HỘI TỤ LẠI ở "
+			"mọi lần bench migrate — mất nó thì một khi patch dung_lai_cay_vi_tri "
+			"từng bỏ qua vì gặp disabled=1, cây vĩnh viễn không được dựng lại. "
+			"Kiểm after_migrate trong erpnext/hooks.py.",
+		)
