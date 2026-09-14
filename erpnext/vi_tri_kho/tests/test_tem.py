@@ -1,9 +1,12 @@
 """Chọn ô để in tem: đúng nhánh, đúng loại ô, và không bao giờ ra thừa.
 
-Phần VẼ tem (khổ 50×30mm, mã vạch, cửa sổ in) nằm trọn trong
-`storage_location_tree.js` — bộ test này là Python nên KHÔNG bài nào ở đây
-chứng minh tem in ra đúng khổ. Đừng đọc file này như thể nó chứng minh điều
-đó. Cái nó khoá là phần quyết định **in những ô nào**, và đó mới là chỗ hỏng
+Phần VẼ tem (bố cục SPD ba nhóm số, khổ 45×25 và 50×30mm, mã vạch, cửa sổ
+in) nằm trọn trong `public/js/vi_tri_kho/tem_vi_tri.js` — bộ test này là
+Python nên KHÔNG bài nào ở đây chứng minh tem in ra đúng khổ hay đúng bố cục.
+Đừng đọc file này như thể nó chứng minh điều đó; chỗ duy nhất kiểm được việc
+đó là in thử một con tem ở tỉ lệ 100%.
+
+Cái nó khoá là phần quyết định **in những ô nào**, và đó mới là chỗ hỏng
 đắt: in thiếu thì người ta thấy ngay (kệ trống tem), còn **in thừa** thì ra
 một xấp tem của kho khác, dán nhầm lên kệ, và mỗi lần quét sau đó đều trỏ
 sai chỗ — không có gì báo lỗi.
@@ -40,6 +43,9 @@ class _NenTem(FrappeTestCase):
 		cls.a2 = _o("9T01010102")
 		cls.a3 = _o("9T01020101")  # khác khoang, cùng khu
 		cls.b1 = _o("9U01010101")  # khu khác hẳn
+		# Năm thành phần ĐÔI MỘT KHÁC NHAU. Mọi ô khác trong nền test đều
+		# toàn "01", nên một lỗi hoán vị Khoang↔Tầng vẫn xanh với chúng.
+		cls.c1 = _o("9V02030405")
 		cls.zzz = frappe.db.get_value("Storage Location", {"la_o_chua_xep": 1, "kho": KHO}, "name")
 
 
@@ -81,6 +87,29 @@ class TestChonDungNhanh(_NenTem):
 			self.assertIn(khoa, d, f"dòng tem thiếu {khoa!r}")
 		self.assertEqual(d["ma_o"], self.a1)
 		self.assertEqual(d["ma_in_nhan"], "9T0101-0101", "phải là dạng có gạch nối cho mắt người đọc")
+
+	def test_moi_dong_mang_du_nam_thanh_phan_cua_ma(self):
+		"""Tem SPD in mã tách làm ba nhóm (Khu+Dãy · Khoang · Tầng+Ô), nên
+		mỗi dòng phải mang sẵn năm thành phần.
+
+		Dùng ô có năm giá trị đôi một khác nhau: nếu chỉ thử `9T01010101`
+		thì một lỗi hoán vị Khoang↔Tầng vẫn xanh, mà hậu quả của nó là cả
+		xấp tem in sai tầng rồi dán lên kệ.
+		"""
+		d = danh_sach_tem(self.c1)[0]
+		self.assertEqual(
+			{k: d.get(k) for k in ("khu", "day", "khoang", "tang", "o")},
+			{"khu": "9V", "day": "02", "khoang": "03", "tang": "04", "o": "05"},
+		)
+
+	def test_nam_thanh_phan_ghep_lai_dung_bang_ma_o(self):
+		"""Chốt âm: ba nhóm số trên tem THAY dòng chữ dưới mã vạch, nên đọc
+		liền chúng phải ra đúng chuỗi máy quét trả về. Lệch một ký tự là
+		người gõ tay ra một ô khác mà không biết.
+		"""
+		for d in danh_sach_tem("9T") + danh_sach_tem(self.c1):
+			ghep = d["khu"] + d["day"] + d["khoang"] + d["tang"] + d["o"]
+			self.assertEqual(ghep, d["ma_o"], f"ba nhóm trên tem không ghép lại thành {d['ma_o']}")
 
 
 class TestBayToaDoRong(_NenTem):

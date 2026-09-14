@@ -1,7 +1,7 @@
 """Chọn danh sách ô để in tem cho một nhánh của cây vị trí.
 
-File này CHỈ quyết định **in những ô nào**. Việc vẽ tem (khổ 50×30mm, mã
-vạch Code 128, cửa sổ in) nằm ở `doctype/storage_location/storage_location_tree.js`.
+File này CHỈ quyết định **in những ô nào**. Việc vẽ tem (khổ 45×25mm hoặc
+50×30mm, mã vạch Code 128, cửa sổ in) nằm ở `public/js/vi_tri_kho/tem_vi_tri.js`.
 
 Vì sao tách đôi: phần chọn ô là chỗ hỏng đắt và im lặng. In THIẾU thì thấy
 ngay — kệ trống tem. In THỪA thì ra một xấp tem của nhánh khác, dán lên kệ,
@@ -40,6 +40,14 @@ def danh_sach_tem(goc: str, so_ban=1) -> list[dict]:
 
 	`so_ban` là số bản in cho MỖI ô — chỉ dùng để kiểm trần, không nhân dòng
 	trả về; phía JS mới nhân lên khi dựng trang in.
+
+	Năm thành phần (Khu/Dãy/Khoang/Tầng/Ô) đi kèm mỗi dòng vì tem SPD in mã
+	tách làm ba nhóm, không phải một chuỗi liền. Lấy từ CỘT đã lưu chứ không
+	gọi `phan_tich_ma()` ở đây: hàm đó `frappe.throw` khi gặp mã lệch chuẩn,
+	nên một bản ghi cũ hỏng sẽ giết cả lệnh in của những ô lành bên cạnh nó.
+	`substr` chỉ là lưới đỡ cho bản ghi tạo trước khi có 5 cột — với bản ghi
+	bình thường thì `StorageLocation.tach_thanh_phan_ma()` đã điền sẵn, và
+	hai đường luôn cho cùng kết quả vì mỗi cấp là tiền tố của cấp sau.
 	"""
 	_kiem_tra_quyen()
 
@@ -74,7 +82,12 @@ def danh_sach_tem(goc: str, so_ban=1) -> list[dict]:
 		select sl.name as ma_o,
 		       ifnull(sl.ma_in_nhan, sl.name) as ma_in_nhan,
 		       ifnull(sl.ten_o, '') as ten_o,
-		       sl.kho as kho
+		       sl.kho as kho,
+		       ifnull(nullif(sl.khu, ''),    substr(sl.name, 1, 2)) as khu,
+		       ifnull(nullif(sl.`day`, ''),  substr(sl.name, 3, 2)) as `day`,
+		       ifnull(nullif(sl.khoang, ''), substr(sl.name, 5, 2)) as khoang,
+		       ifnull(nullif(sl.tang, ''),   substr(sl.name, 7, 2)) as tang,
+		       ifnull(nullif(sl.o, ''),      substr(sl.name, 9, 2)) as o
 		from `tabStorage Location` sl
 		where sl.lft between %(lft)s and %(rgt)s
 		      and ifnull(sl.is_group, 0) = 0

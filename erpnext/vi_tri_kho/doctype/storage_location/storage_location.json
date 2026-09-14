@@ -111,13 +111,13 @@
   {
    "fieldname": "sec_ma_vach",
    "fieldtype": "Section Break",
-   "label": "Mã vạch"
+   "label": "Tem vị trí"
   },
   {
    "fieldname": "xem_ma_vach",
    "fieldtype": "HTML",
-   "label": "Mã vạch",
-   "description": "Vẽ lại từ trường Mã vạch. Máy quét trả ra đúng Mã ô."
+   "label": "Xem trước tem",
+   "description": "Đúng con tem sẽ in ra (khổ 45×25mm). In cả nhánh từ cây vị trí, nút In tem."
   },
   {
    "fieldname": "sec_tp",

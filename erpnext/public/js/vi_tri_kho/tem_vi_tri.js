@@ -1,0 +1,396 @@
+// Bộ VẼ tem vị trí kho — bố cục SPD ba nhóm số, hai khổ giấy (45×25 và 50×30mm).
+//
+// Dùng chung cho BA chỗ: form `Storage Location`, ô xem trước trong hộp thoại
+// "In tem", và trang in thật. Một bản vẽ duy nhất, vì đó chính là điều làm cho
+// ô xem trước có giá trị: xem trước một bố cục KHÁC với cái sẽ in ra thì tệ hơn
+// là không xem trước gì.
+//
+// Nạp bằng `frappe.require("/assets/erpnext/js/vi_tri_kho/tem_vi_tri.js")` từ
+// hai file doctype JS. CỐ Ý không đưa vào bundle và không thêm `app_include_js`
+// vào `erpnext/hooks.py`: tài liệu bàn giao của module này gọi dòng trong
+// `hooks.py` là "dòng dễ mất nhất" ở mỗi lần merge ERPNext bản mới, nên không
+// thêm dòng thứ hai vào đó cho một thứ chỉ hai màn hình cần.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// BỐ CỤC — đọc ảnh nhãn SPD của kho MSC East Osaka (docs/vi_tri_kho/):
+//
+//   ┌─────┬──────────────────────────┐
+//   │ ⬛⇓ │  TẦNG        Ô           │   Mã 10 ký tự `1B01040302` tách ba nhóm
+//   ├──┬──┤ ┌──────────────────────┐ │   theo đúng cách người đứng trước kệ
+//   │KHU DÃY│KHOANG│     0302      │ │   tìm hàng: tới Khu+Dãy → đếm Khoang →
+//   │ 1B01 │ 04 │  └───────────────┘ │   nhìn Tầng+Ô. Nhóm CUỐI to nhất vì khi
+//   └──────┴────┴──────────────────┘ │   đã đứng đúng khoang thì chỉ còn nó
+//   ▌│▌▌│▌ ▌│▌▌▌ │▌ ▌│▌▌ ▌│▌          │   đáng đọc.
+//   Kho Miyano - MYN · Kệ inox tầng 3 │
+//
+// BA CHỖ CỐ Ý LÀM KHÁC ẢNH CHỤP:
+//
+// 1. KHÔNG có nền lốm đốm sau nhóm số lớn. Trong ảnh đó là nhiễu của máy ảnh,
+//    không phải thiết kế — đầu in nhiệt gặp nền chấm sẽ nhoè và ăn mất tương
+//    phản của đúng con số quan trọng nhất. Thay bằng khung viền đậm.
+// 2. KHÔNG in chữ dưới mã vạch (`displayValue: false`), khác bản tem 50×30 cũ.
+//    Quy tắc "luôn in chữ dưới vạch" có lý do thật — tem bẩn, ribbon mòn, máy
+//    quét lỗi thì người còn gõ tay được — nhưng ba nhóm số ở trên đã làm đúng
+//    việc đó và làm tốt hơn: `1B01 · 04 · 0302` dễ đọc hơn chuỗi liền. Đọc
+//    liền ba nhóm ra đúng chuỗi máy quét trả về (`test_tem.py` khoá điều này).
+// 3. Mũi tên ⇓ in CỐ ĐỊNH trên mọi tem, nghĩa "ô của tem này nằm ngay DƯỚI chỗ
+//    dán" (tem dán lên thanh xà / mép tầng trên). Không có trường dữ liệu nào
+//    cho hướng, nên không có cách nào để nó chỉ sai — một mũi tên đổi chiều
+//    được mà không ai bảo trì thì tệ hơn hẳn không có mũi tên.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// VÌ SAO MÃ VẠCH KHÔNG KÉO HẾT CHIỀU NGANG:
+//
+// Code 128 cần vùng trắng (quiet zone) ≥10 module mỗi bên. Bản 50×30 cũ kéo
+// vạch tới 44mm và sống được nhờ ~3mm lề tem còn dư; khổ 45mm không còn chỗ dư
+// đó. Mã `1B01040302` ở chế độ tự chuyển (2 ký tự Code B + 4 cặp số Code C) ra
+// khoảng 112 module → 36mm/112 ≈ 0,32mm/module ≈ 2,6 chấm ở máy in 203dpi. Đủ
+// quét, và còn 4,5mm trắng mỗi bên. Kéo vạch rộng thêm thì ăn vào vùng trắng và
+// máy quét đọc chập chờn NGAY TRÊN KỆ — hỏng đúng lúc không ai soi lại được.
+
+frappe.provide("erpnext.vi_tri_kho");
+
+erpnext.vi_tri_kho.tem = (function () {
+	/** Mọi con số dưới đây là MILIMÉT THẬT trên con tem, trừ `co_*` là point.
+	 *
+	 * Một bố cục, hai khổ giấy — không phải hai bản vẽ. Nuôi hai bản vẽ thì
+	 * chúng trôi khỏi nhau, và cái trôi sẽ là cái ít người in hơn, tức là cái
+	 * không ai kịp phát hiện.
+	 */
+	const KHO_GIAY = {
+		"45x25": {
+			ten: "45 × 25 mm",
+			rong: 45,
+			cao: 25,
+			le: 1.2,
+			khoi_cao: 12,
+			mui_ten: 5,
+			cot_khu: 11.5,
+			cot_khoang: 8.5,
+			co_tieu_de: 5,
+			co_nhom: 11,
+			co_lon: 20,
+			co_chan: 4,
+			vach_rong: 36,
+			vach_cao: 7.2,
+			// 1,2 + 12 + 0,6 + 7,2 + 1,8 + 1,2 = 24,0mm — chừa 1mm cho sai số
+			// bước giấy của máy in nhiệt. Tràn 1mm trên cuộn là mọi tem SAU đó
+			// lệch dần, không phải mỗi tem này xấu.
+			gap: 0.6,
+		},
+		"50x30": {
+			ten: "50 × 30 mm",
+			rong: 50,
+			cao: 30,
+			le: 1.5,
+			khoi_cao: 14,
+			mui_ten: 5.5,
+			cot_khu: 11.5,
+			cot_khoang: 9.5,
+			co_tieu_de: 5.5,
+			co_nhom: 12,
+			co_lon: 23,
+			co_chan: 4.5,
+			vach_rong: 40,
+			vach_cao: 9,
+			gap: 0.8,
+		},
+	};
+
+	const KHO_MAC_DINH = "45x25";
+
+	function kho_giay(ma) {
+		return KHO_GIAY[ma] || KHO_GIAY[KHO_MAC_DINH];
+	}
+
+	/** Bọc lấy JsBarcode mà Frappe đã đóng gói sẵn, không thêm phụ thuộc mới.
+	 *
+	 * `jsbarcode` bị esbuild gói kín trong `controls.bundle.*.js` của frappe,
+	 * không lộ biến toàn cục; đường duy nhất chạm tới nó là qua lớp
+	 * `frappe.ui.form.ControlBarcode`. `get_barcode_html()` của lớp đó vẽ thẳng
+	 * vào `barcode_area` và KHÔNG bị chặn bởi `this.doc` (khác
+	 * `set_formatted_input` — xem chú thích dài ở `storage_location.js`).
+	 *
+	 * Trả về một "máy" dùng lại được cho cả xấp tem: dựng control một lần rồi
+	 * vẽ nhiều mã, thay vì dựng lại 200 control cho 200 ô.
+	 */
+	function may_ve_ma_vach() {
+		const khung = $('<div style="display:none"></div>').appendTo(document.body);
+		const control = frappe.ui.form.make_control({
+			parent: khung,
+			render_input: true,
+			df: { fieldtype: "Barcode", fieldname: "tem", label: "" },
+		});
+
+		return {
+			/** Chuỗi SVG đã đổi sang mm, nhúng thẳng được vào trang in.
+			 *
+			 * Vẽ vào SVG rồi SERIALIZE — không bao giờ để cửa sổ in đi tải ảnh.
+			 * `print()` có thể chạy trước khi ảnh về: ra tem TRẮNG, mà lúc phát
+			 * hiện thì tem đã dán lên kệ rồi.
+			 */
+			ve(ma, k) {
+				control.df.options = JSON.stringify({
+					format: "CODE128",
+					// Ba nhóm số ở khối trên ĐÃ là phần cho mắt người đọc (xem
+					// chú thích số 2 đầu file). In thêm chữ ở đây là lấy mất
+					// chiều cao của chính các vạch.
+					displayValue: false,
+					width: 2,
+					height: 60,
+					margin: 0,
+				});
+				control.get_barcode_html(ma);
+				const svg = control.barcode_area.find("svg")[0];
+				if (!svg) return "";
+
+				const ban_sao = svg.cloneNode(true);
+				// JsBarcode đặt width/height theo px và KHÔNG kèm viewBox. Đổi
+				// thẳng sang mm mà không có viewBox thì nội dung bị CẮT chứ
+				// không co lại — thêm viewBox từ đúng kích thước px trước đã.
+				const w = parseFloat(svg.getAttribute("width")) || 0;
+				const h = parseFloat(svg.getAttribute("height")) || 0;
+				if (w && h) {
+					ban_sao.setAttribute("viewBox", `0 0 ${w} ${h}`);
+					// `none` chứ không phải `meet`: `meet` giữ tỉ lệ gốc nên
+					// chiều cao yêu cầu chỉ là TRẦN, thực tế ra thấp hơn và
+					// phần thừa thành khoảng trắng — không có lỗi nào báo, chỉ
+					// là vạch thấp hơn tính toán trên một con tem vốn đã chật.
+					// Kéo méo không đều VÔ HẠI với mã vạch vì thông tin nằm ở
+					// bề rộng vạch, mà bề rộng thì `none` vẫn scale đúng tỉ lệ
+					// ngang. (Điều này chỉ đúng khi KHÔNG in chữ dưới vạch —
+					// có chữ thì `none` sẽ bóp méo chữ. Hai thiết lập đi kèm
+					// nhau, đừng đổi một cái.)
+					ban_sao.setAttribute("preserveAspectRatio", "none");
+				}
+				ban_sao.setAttribute("width", `${k.vach_rong}mm`);
+				ban_sao.setAttribute("height", `${k.vach_cao}mm`);
+				return new XMLSerializer().serializeToString(ban_sao);
+			},
+			don() {
+				khung.remove();
+			},
+		};
+	}
+
+	function esc(s) {
+		return frappe.utils.escape_html(s == null ? "" : String(s));
+	}
+
+	/** Mũi tên ⇩ vẽ bằng SVG, KHÔNG bằng ký tự Unicode.
+	 *
+	 * `⇩` (U+21E9) không có trong Arial/Helvetica. Font thiếu glyph thì trình
+	 * duyệt in ra ô tofu — mà trên nền đen của ô này, một ô tofu trắng trông
+	 * gần giống một mũi tên đủ để không ai soi lại, cho tới khi cả cuộn tem đã
+	 * dán lên kệ. Hình vẽ thì không phụ thuộc vào font nào có mặt ở máy in.
+	 */
+	const MUI_TEN_SVG = `<svg viewBox="0 0 20 20" width="100%" height="100%" preserveAspectRatio="none">
+			<rect x="0" y="0" width="20" height="20" fill="#000"/>
+			<path d="M8.5 3 h3 v8 h3.5 L10 17.5 L5 11 h3.5 z" fill="#fff"/>
+		</svg>`;
+
+	/** HTML của MỘT con tem. `o` là một dòng do `tem.py::danh_sach_tem` trả về.
+	 *
+	 * `hinh_vach` truyền từ ngoài vào (đã serialize) để một mã vạch vẽ một lần
+	 * rồi dùng cho cả N bản in của cùng ô đó.
+	 */
+	function ve_tem(o, hinh_vach) {
+		const chan = [o.kho, o.ten_o].filter(Boolean).join(" · ");
+		return `<div class="tem">
+	<div class="khoi">
+		<div class="trai">
+			<div class="dai-tren"><div class="mui-ten">${MUI_TEN_SVG}</div></div>
+			<div class="dai-duoi">
+				<div class="o-nho o-khu">
+					<div class="tieu-de-doi"><span>KHU</span><span>DÃY</span></div>
+					<div class="so-nhom">${esc(o.khu)}${esc(o.day)}</div>
+				</div>
+				<div class="o-nho o-khoang">
+					<div class="tieu-de">KHOANG</div>
+					<div class="so-nhom">${esc(o.khoang)}</div>
+				</div>
+			</div>
+		</div>
+		<div class="phai">
+			<div class="tieu-de-doi"><span>TẦNG</span><span>Ô</span></div>
+			<div class="hop-lon"><span class="so-lon">${esc(o.tang)}${esc(o.o)}</span></div>
+		</div>
+	</div>
+	<div class="vach">${hinh_vach}</div>
+	<div class="chan">${esc(chan)}</div>
+</div>`;
+	}
+
+	/** CSS cho con tem. `cho_in = true` thì kèm `@page` và ngắt trang mỗi tem. */
+	function css(k, cho_in) {
+		const trang = cho_in
+			? `@page { size: ${k.rong}mm ${k.cao}mm; margin: 0; }
+	.tem { page-break-after: always; break-after: page; }
+	/* Không có dòng này thì máy nhả thêm một con tem TRẮNG ở cuối mỗi xấp. */
+	.tem:last-child { page-break-after: auto; break-after: auto; }`
+			: `.tem { border: 0.2mm dashed #b8b8b8; }`;
+
+		return `
+	* { box-sizing: border-box; }
+	.tem {
+		width: ${k.rong}mm; height: ${k.cao}mm;
+		padding: ${k.le}mm;
+		min-width: 0;
+		display: flex; flex-direction: column;
+		background: #fff; color: #000;
+		font-family: Arial, Helvetica, sans-serif;
+		font-variant-numeric: tabular-nums;
+		/* Lưới đỡ cuối: một con tem TRÀN không chỉ xấu — trên cuộn liên tục
+		   nó đẩy lệch MỌI con tem in sau nó. */
+		overflow: hidden;
+	}
+	/* flex-shrink:0 trên .khoi và .vach — KHÔNG phải thừa.
+	   .tem là flex cột, nên mặc định mọi con đều co được. Nếu một ngày khối dữ
+	   liệu cao thêm (thêm dòng, đổi cỡ chữ), thứ nhường chỗ sẽ là MÃ VẠCH: nó
+	   thấp dần đi mà không có lỗi nào, không có gì tràn, và trên màn hình vẫn
+	   trông y hệt. Chỉ máy quét ngoài kho mới biết — mà lúc đó tem đã dán rồi.
+	   Khoá cứng hai khối này lại thì một sai sót về chiều cao sẽ TRÀN, và tràn
+	   thì phép đo bắt được. */
+	.tem .khoi {
+		height: ${k.khoi_cao}mm;
+		flex: 0 0 auto;
+		display: flex;
+		border: 0.25mm solid #000;
+	}
+	/* min-width:0 ở .trai và .o-nho — chặn một lỗi IM LẶNG đã đo được.
+	   Flex item mặc định là min-width:auto, nghĩa là KHÔNG co xuống dưới bề
+	   rộng nội dung tối thiểu. Một bản ghi lệch chuẩn có Khoang dài hơn 2 ký
+	   tự sẽ nống cột trái ra, cột phải (flex:1) co lại theo, và thứ bị cắt là
+	   NHÓM SỐ LỚN — đúng con số quan trọng nhất trên tem, cắt trong im lặng vì
+	   .hop-lon có overflow:hidden. Với min-width:0, chữ lệch chuẩn bị cắt
+	   TRONG Ô CỦA NÓ (kèm dấu ...), không đụng tới phần còn lại. */
+	.tem .trai {
+		flex: 0 0 ${k.cot_khu + k.cot_khoang}mm;
+		min-width: 0;
+		display: flex; flex-direction: column;
+	}
+	.tem .dai-tren { height: ${k.mui_ten}mm; }
+	.tem .mui-ten {
+		width: ${k.mui_ten}mm; height: ${k.mui_ten}mm;
+		line-height: 0;
+	}
+	.tem .dai-duoi { flex: 1; display: flex; border-top: 0.2mm solid #000; }
+	.tem .o-khu { flex: 0 0 ${k.cot_khu}mm; }
+	.tem .o-khoang { flex: 1; border-left: 0.2mm solid #000; }
+	.tem .o-nho { min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+	/* flex:1 chứ không phải bề ngang tính sẵn: khối có viền 0,25mm mỗi bên, nên
+	   bề ngang dùng được nhỏ hơn (rong - 2*le) đúng 0,5mm. Ghi số cứng thì tràn
+	   nửa milimét — đủ để cột phải bị đẩy ra ngoài mép tem.
+	   (Không dùng dấu huyền trong chú thích CSS: cả khối này nằm trong một
+	   template literal, một dấu huyền lạc là cắt đứt chuỗi.) */
+	.tem .phai {
+		flex: 1; min-width: 0;
+		display: flex; flex-direction: column;
+		border-left: 0.25mm solid #000;
+		padding: 0.3mm;
+	}
+	.tem .tieu-de, .tem .tieu-de-doi {
+		font-size: ${k.co_tieu_de}pt; line-height: 1.15;
+		letter-spacing: 0.02em;
+	}
+	.tem .tieu-de { text-align: center; }
+	.tem .tieu-de-doi { display: flex; justify-content: space-around; }
+	.tem .so-nhom {
+		font-size: ${k.co_nhom}pt; font-weight: 700; line-height: 1.05;
+		text-align: center;
+		/* Mã lệch chuẩn (bản ghi cũ) có thể dài hơn 2 ký tự. Cắt chứ không
+		   xuống dòng: xuống dòng thì khối cao thêm và đẩy mã vạch ra khỏi tem.
+		   Cắt bằng ellipsis chứ không cắt trần: "1B0" trông y như một mã thật
+		   và người ta gõ nhầm nó, còn "1B…" thì nhìn là biết chưa đọc hết. */
+		white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+	}
+	.tem .hop-lon {
+		flex: 1;
+		border: 0.45mm solid #000;
+		display: flex; align-items: center; justify-content: center;
+		overflow: hidden;
+	}
+	.tem .so-lon {
+		font-size: ${k.co_lon}pt; font-weight: 700; line-height: 1;
+		white-space: nowrap;
+	}
+	.tem .vach {
+		margin-top: ${k.gap}mm;
+		height: ${k.vach_cao}mm;
+		flex: 0 0 auto;
+		line-height: 0;
+		text-align: center;      /* vùng trắng chia đều hai bên — xem đầu file */
+	}
+	.tem .chan {
+		flex: 1;
+		font-size: ${k.co_chan}pt; line-height: 1.2;
+		text-align: center;
+		white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+	}
+	${trang}
+`;
+	}
+
+	/** Ô xem trước trên màn hình: tem vẽ ĐÚNG mm thật rồi phóng to bằng
+	 * `transform`.
+	 *
+	 * Phóng bằng transform chứ không phải bằng cách nống các con số mm lên:
+	 * nống số thì cái nhìn thấy không còn là cái sẽ in ra, và ô xem trước mất
+	 * sạch ý nghĩa. Trình duyệt quy 1mm = 96/25.4 px, nên tem 45mm chỉ ra ~170px
+	 * — đúng bằng con tem thật, và nhỏ đến mức không soi được chữ.
+	 */
+	function ve_xem_truoc($dich, o, ma_kho, he_so) {
+		const k = kho_giay(ma_kho);
+		he_so = he_so || 2.4;
+		const may = may_ve_ma_vach();
+		const html = ve_tem(o, may.ve(o.ma_o, k));
+		may.don();
+
+		$dich.empty();
+		$(`<div class="vi-tri-kho-xem-tem" style="
+				width:${k.rong * he_so}mm; height:${k.cao * he_so}mm; overflow:hidden;">
+			<style>${css(k, false)}</style>
+			<div style="transform:scale(${he_so}); transform-origin:top left;">${html}</div>
+		</div>`).appendTo($dich);
+	}
+
+	/** Dựng và mở cửa sổ in cho cả xấp tem. Trả `false` nếu bị chặn pop-up. */
+	function in_xap(danh_sach, so_ban, ma_kho) {
+		const k = kho_giay(ma_kho);
+		const may = may_ve_ma_vach();
+		const tem = [];
+
+		danh_sach.forEach(function (o) {
+			// Vẽ MỘT lần cho mỗi ô rồi nhân bản chuỗi: 200 ô × 5 bản mà vẽ lại
+			// từng cái là 1000 lượt dựng SVG, cửa sổ in đứng hình trước khi kịp
+			// gọi print().
+			const hinh = may.ve(o.ma_o, k);
+			const mot = ve_tem(o, hinh);
+			for (let i = 0; i < so_ban; i++) tem.push(mot);
+		});
+		may.don();
+
+		const trang = `<!doctype html><html><head><meta charset="utf-8">
+<title>${esc(__("Tem vị trí"))} ${esc(k.ten)}</title>
+<style>${css(k, true)}
+	body { margin: 0; }
+</style></head><body>
+${tem.join("\n")}
+<script>
+	window.onload = function () {
+		window.print();
+		// Đóng ngay có thể HUỶ lệnh in ở một số engine — chờ một nhịp.
+		setTimeout(function () { window.close(); }, 400);
+	};
+<\/script>
+</body></html>`;
+
+		const cua_so = window.open("", "_blank", "width=420,height=560");
+		if (!cua_so) return false;
+		cua_so.document.write(trang);
+		cua_so.document.close();
+		return true;
+	}
+
+	return { KHO_GIAY, KHO_MAC_DINH, kho_giay, may_ve_ma_vach, ve_tem, css, ve_xem_truoc, in_xap };
+})();
