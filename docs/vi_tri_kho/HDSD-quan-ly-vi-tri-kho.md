@@ -137,8 +137,32 @@ Vài điều nên biết:
 - **Nút nhóm cũng có mã vạch** (`1A`, `1A01`, `1A0104`…) để dán tem đầu dãy, đầu khoang.
 - **Ô "Chưa xếp vị trí" không có** — nó là ô ảo, không có kệ thật để dán.
 
-> **Chưa có: in tem hàng loạt.** Hiện phải mở từng ô để xem. Việc "vào cây, chọn một nút, in
-> tem cho cả nhánh dưới nó" là bước kế tiếp, chưa làm.
+### In tem hàng loạt
+
+Mở **Storage Location** ở dạng cây, mỗi nốt có nút **"In tem"**. Bấm ở nốt nào thì in tem cho
+**mọi ô lá thuộc nhánh dưới nốt đó** — bấm ở Khu `1A` ra 128 tem, bấm ở một khoang ra 8 tem,
+bấm ở đúng một ô ra một tem.
+
+Hộp thoại cho biết **sẽ in bao nhiêu tem** và vài mã ví dụ trước khi in, kèm ô **Số bản in mỗi
+ô** (dán hai mặt kệ thì để 2). Kiểm rồi mới bấm In.
+
+Tem khổ **50×30mm**, mỗi tem một trang — đúng cuộn tem của máy in nhiệt, không phải khổ A4.
+Trên tem có tên kho, mã vạch, và mã dạng `1A0101-0101` in bằng chữ.
+
+| Không in tem cho | Vì sao |
+|---|---|
+| Nút nhóm (Khu, Dãy, Khoang, Tầng) | không có kệ riêng để dán |
+| Ô "Chưa xếp vị trí" | ô ảo, không tồn tại ngoài kho |
+
+**Trần 500 tem một lần in.** Vượt thì hệ **từ chối hẳn** kèm thông báo, không in 500 tem đầu
+rồi lặng lẽ dừng — nếu cắt bớt im lặng, người in tưởng đã in đủ cả nhánh. Chọn nhánh nhỏ hơn
+rồi in làm nhiều đợt.
+
+**Thủ kho (`Stock User`) tự in lại được** khi tem rách, bẩn, bong — không phải nhờ quản lý. In
+tem không ghi gì vào dữ liệu nên không có rủi ro hỏng số liệu.
+
+> **Nếu không thấy cửa sổ in hiện ra:** trình duyệt đang chặn cửa sổ bật lên. Cho phép pop-up
+> cho địa chỉ này rồi bấm In lại.
 
 ---
 
