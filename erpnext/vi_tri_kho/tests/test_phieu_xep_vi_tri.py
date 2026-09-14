@@ -4,6 +4,14 @@ Bài học đắt nhất của module này: một phép kiểm sai làm lệch t
 TỔNG vẫn đúng, nên `doi_soat` vẫn báo khớp và không gì bật lên. Vì vậy gần
 như mọi bài ở đây có CHỐT ÂM đi kèm — khẳng định cả cái phải đổi lẫn cái
 phải còn nguyên.
+
+CHƯA ĐO ĐƯỢC, đừng đọc file này như thể đã đo: ca TƯƠNG TRANH (hai phiếu
+cùng rút một lô ra khỏi một ô). Nó cần hai kết nối CSDL thật và `commit()`
+tường minh, mà bài test nào `commit()` thì phải tự dọn cả những nút tổ tiên
+do NestedSet sinh ra — nếu không, rác của nó làm bài ở file KHÁC đỏ giả
+(đã xảy ra một lần trong dự án này). Hiện phép chặn tồn âm dựa vào khoá
+dòng chỉ mục của InnoDB trong `INSERT ... ON DUPLICATE KEY UPDATE` — lập
+luận từ cơ chế, KHÔNG phải từ phép đo.
 """
 
 import frappe
