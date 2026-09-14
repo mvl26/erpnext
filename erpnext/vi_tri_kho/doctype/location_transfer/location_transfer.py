@@ -18,15 +18,97 @@ bắt được.
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import flt, now, nowdate
 
 from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri
+from erpnext.vi_tri_kho.vitri.so import ghi_dong_so, ton_o
 
 
 class LocationTransfer(Document):
 	def validate(self):
 		self.kiem_tra_kho()
 		self.kiem_tra_cac_dong()
+
+	def on_submit(self):
+		self._ghi(dao=False)
+
+	def _ghi(self, dao: bool):
+		"""Ghi hai bút toán mỗi dòng, rồi CHẶN TỒN ÂM sau khi ghi xong cả phiếu.
+
+		`dao = True` là đường huỷ: đảo dấu và cờ `da_huy = 1`.
+
+		VÌ SAO GHI TRƯỚC RỒI MỚI KIỂM (spec §7.2): kiểm trước rồi ghi không
+		chặn được hai thủ kho cùng rút một lô — cả hai cùng đọc thấy "còn 60"
+		rồi cùng ghi -40, ra -20. Đúng ngữ nghĩa transaction: mỗi bên chỉ thấy
+		dữ liệu đã commit của bên kia.
+
+		`so._cong_don_ton` dùng `INSERT ... ON DUPLICATE KEY UPDATE`, MariaDB
+		khoá đúng dòng chỉ mục ở tầng InnoDB cho statement đó, nên người ghi
+		SAU phải chờ và đọc được kết quả của người ghi TRƯỚC. Đặt phép kiểm
+		trước khi ghi thì không có khoá nào để dựa vào.
+		"""
+		company = frappe.db.get_value("Warehouse", self.kho, "company")
+		luc = now()
+		dau = -1 if dao else 1
+		cham = set()
+
+		# SAVEPOINT, không dựa vào `frappe.throw` để dọn hộ. `throw` chỉ ném
+		# ngoại lệ; thứ rollback giao dịch là BỘ XỬ LÝ REQUEST của Frappe. Gọi
+		# từ script, từ API, hay từ một bài test thì không có ai dọn, và các
+		# dòng sổ đã ghi vẫn nằm nguyên trong giao dịch — đúng ngược với lời
+		# hứa "phiếu bị từ chối thì không dòng sổ nào sống sót". Đo được bằng
+		# bài `test_rut_qua_ton_bi_tu_choi_va_khong_ghi_gi` (14/09/2026).
+		diem = "vi_tri_kho_xep_vi_tri"
+		frappe.db.savepoint(diem)
+		try:
+			for d in self.items:
+				sl = flt(d.so_luong) * dau
+				for o, luong in ((d.tu_o, -sl), (d.den_o, sl)):
+					ghi_dong_so(
+						o=o,
+						kho=self.kho,
+						vat_tu=d.vat_tu,
+						so_lo=d.so_lo,
+						so_luong=luong,
+						chung_tu_type=self.doctype,
+						chung_tu=self.name,
+						chung_tu_row=d.name,
+						sle=None,
+						ngay=self.ngay or nowdate(),
+						thoi_diem=luc,
+						company=company,
+						da_huy=1 if dao else 0,
+					)
+					# Gom CẢ HAI ô, không riêng ô nguồn: ở đường huỷ (Task 3)
+					# ô bị GIẢM là ô ĐÍCH, vì hàng đã xếp vào đó có thể đã bị
+					# xuất đi mất.
+					cham.add((o, d.vat_tu, d.so_lo or ""))
+
+			self._chan_ton_am(cham)
+		except Exception:
+			frappe.db.rollback(save_point=diem)
+			raise
+
+	def _chan_ton_am(self, cham):
+		"""Đọc lại KẾT QUẢ RÒNG của mọi (ô, mặt hàng, lô) mà phiếu chạm tới.
+
+		Đọc sau khi ghi xong TOÀN BỘ phiếu, không sau từng dòng: một phiếu hợp
+		lệ có thể lấy 10 khỏi ô A ở dòng 1 rồi trả 10 về ô A ở dòng 2. Chỉ kết
+		quả ròng mới có ý nghĩa.
+
+		Ô âm là hỏng nặng, không phải lệch thường: `doi_soat` báo `o_am`, và
+		"Đồng bộ lại" CỐ Ý ném lỗi thay vì chữa. Nên chặn ngay ở đây — `throw`
+		làm cả phiếu rollback, không dòng sổ nào sống sót.
+		"""
+		for o, vat_tu, so_lo in sorted(cham):
+			con = flt(ton_o(o, vat_tu, so_lo or None))
+			if con < 0:
+				frappe.throw(
+					_(
+						"Ô {0} không đủ hàng: mặt hàng {1}{2} sẽ còn {3} sau phiếu này. "
+						"Kiểm lại số lượng trên các dòng lấy hàng từ ô đó."
+					).format(o, vat_tu, _(", lô {0}").format(so_lo) if so_lo else "", con)
+				)
 
 	def kiem_tra_kho(self):
 		"""K1 — không bật quản lý vị trí thì không có sổ vị trí để ghi."""

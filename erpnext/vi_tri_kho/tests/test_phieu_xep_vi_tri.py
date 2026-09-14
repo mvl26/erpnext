@@ -8,6 +8,9 @@ phải còn nguyên.
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import now, nowdate
+
+from erpnext.vi_tri_kho.vitri import so
 
 KHO = "Kho Miyano - MYN"
 CTY = "Miyano Việt Nam"
@@ -149,8 +152,116 @@ class TestPhepKiemCoBan(FrappeTestCase):
 			_phieu(dong, kho=khac).insert(ignore_permissions=True)
 
 	def test_phieu_hop_le_luu_va_duyet_duoc(self):
-		"""Đối chứng: mọi phép kiểm trên CHỈ chặn cái sai."""
+		"""Đối chứng: mọi phép kiểm trên CHỈ chặn cái sai.
+
+		Phải nạp tồn cho ô nguồn trước — từ Task 2 việc duyệt ghi sổ thật, và
+		một phiếu lấy hàng từ ô rỗng thì bị chặn tồn âm từ chối, đúng như
+		thiết kế.
+		"""
+		_nap(self.a, self.vt, self.lo, 20)
 		p = _phieu(self._dong())
+		p.insert(ignore_permissions=True)
+		p.submit()
+		self.assertEqual(p.docstatus, 1)
+
+
+def _nap(o, vat_tu, so_lo, sl):
+	"""Nạp tồn thẳng vào một ô để dựng TIỀN ĐỀ cho bài test.
+
+	KHÔNG phải cách dùng thật — đường thật là hook nhập kho hoặc chính phiếu
+	này. Ở đây cần đặt sẵn hàng vào một ô cụ thể mà không phải dựng cả một
+	Purchase Receipt.
+	"""
+	so.ghi_dong_so(
+		o=o,
+		kho=KHO,
+		vat_tu=vat_tu,
+		so_lo=so_lo,
+		so_luong=sl,
+		chung_tu_type=None,
+		chung_tu=None,
+		chung_tu_row="NAP-TIEN-DE-TEST",
+		sle=None,
+		ngay=nowdate(),
+		thoi_diem=now(),
+		company=CTY,
+	)
+
+
+class TestGhiSo(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.vt = _vat_tu("9X-GS-VT", co_lo=True)
+		cls.lo = _lo("9X-GS-LO", cls.vt)
+		cls.a = _o("9X02010101")
+		cls.b = _o("9X02010102")
+
+	def _dong(self, sl=10, **kw):
+		m = {"vat_tu": self.vt, "so_lo": self.lo, "tu_o": self.a, "den_o": self.b, "so_luong": sl}
+		m.update(kw)
+		return [m]
+
+	def test_duyet_thi_chuyen_dung_hai_o(self):
+		_nap(self.a, self.vt, self.lo, 30)
+		truoc_a = so.ton_o(self.a, self.vt, self.lo)
+		truoc_b = so.ton_o(self.b, self.vt, self.lo)
+		tong_truoc = so.tong_ton_vi_tri(KHO, self.vt, self.lo)
+
+		p = _phieu(self._dong(10))
+		p.insert(ignore_permissions=True)
+		p.submit()
+
+		self.assertEqual(so.ton_o(self.a, self.vt, self.lo), truoc_a - 10)
+		self.assertEqual(so.ton_o(self.b, self.vt, self.lo), truoc_b + 10)
+		# CHỐT ÂM — bất biến §3: tổng của kho KHÔNG được đổi.
+		self.assertEqual(so.tong_ton_vi_tri(KHO, self.vt, self.lo), tong_truoc)
+
+	def test_khong_sinh_stock_ledger_entry_nao(self):
+		"""CHỐT ÂM quan trọng nhất của cả tính năng.
+
+		Đếm TOÀN BỘ bảng SLE, không đếm theo chứng từ này: đếm theo chứng từ
+		thì luôn ra 0 dù hook có chạy hay không, và bài trở thành vô nghĩa.
+
+		Sinh SLE sẽ kích lại `Stock Ledger Entry.on_submit` → `ghi_so_vi_tri`
+		dồn hàng vào ZZZ-CHUA-XEP một lần nữa, đúng thứ phiếu vừa gỡ ra.
+		"""
+		_nap(self.a, self.vt, self.lo, 30)
+		truoc = frappe.db.count("Stock Ledger Entry")
+		p = _phieu(self._dong(10))
+		p.insert(ignore_permissions=True)
+		p.submit()
+		self.assertEqual(frappe.db.count("Stock Ledger Entry"), truoc)
+
+	def test_rut_qua_ton_bi_tu_choi_va_khong_ghi_gi(self):
+		_nap(self.a, self.vt, self.lo, 5)
+		truoc_a = so.ton_o(self.a, self.vt, self.lo)
+		truoc_dong = frappe.db.count("Location Ledger Entry")
+
+		p = _phieu(self._dong(999))
+		p.insert(ignore_permissions=True)
+		with self.assertRaises(frappe.ValidationError):
+			p.submit()
+
+		# CHỐT ÂM: rollback phải SẠCH. Ô âm là hỏng nặng — `doi_soat` báo
+		# `o_am` và "Đồng bộ lại" cố ý ném lỗi thay vì chữa.
+		self.assertEqual(so.ton_o(self.a, self.vt, self.lo), truoc_a)
+		self.assertEqual(frappe.db.count("Location Ledger Entry"), truoc_dong)
+
+	def test_lay_ra_roi_tra_lai_cung_o_van_duyet_duoc(self):
+		"""Đối chứng cho spec §7.2: kiểm theo KẾT QUẢ RÒNG sau khi ghi xong cả
+		phiếu, không kiểm sau từng dòng.
+
+		Ô A chỉ có 10; dòng 1 lấy 10 đi, dòng 2 trả 10 về. Kiểm sau từng dòng
+		sẽ từ chối oan phiếu hợp lệ này.
+		"""
+		_nap(self.a, self.vt, self.lo, 10)
+		p = _phieu(
+			[
+				{"vat_tu": self.vt, "so_lo": self.lo, "tu_o": self.a, "den_o": self.b, "so_luong": 10},
+				{"vat_tu": self.vt, "so_lo": self.lo, "tu_o": self.b, "den_o": self.a, "so_luong": 10},
+			]
+		)
 		p.insert(ignore_permissions=True)
 		p.submit()
 		self.assertEqual(p.docstatus, 1)
