@@ -32,6 +32,21 @@ class LocationTransfer(Document):
 	def on_submit(self):
 		self._ghi(dao=False)
 
+	def on_cancel(self):
+		"""Ghi bút toán ĐẢO — không sửa, không xoá dòng cũ.
+
+		Sổ vị trí là append-only và `so.dung_lai_ton_vi_tri()` dựng lại bộ đệm
+		bằng cách cộng TOÀN BỘ sổ. Nên xoá hai dòng gốc đi vẫn cho ra đúng số,
+		nhưng mất sạch dấu vết là phiếu này từng tồn tại và từng chuyển hàng
+		đi đâu. Giữ cả hai chiều, phân biệt bằng cờ `da_huy`.
+
+		`_ghi` chạy luôn phép chặn tồn âm, và ở đây ô bị GIẢM là ô ĐÍCH: hàng
+		đã xếp vào đó có thể đã bị xuất đi mất, lúc ấy huỷ sẽ đẩy ô đích xuống
+		âm. Đó là lý do `_ghi` gom cả hai ô vào `cham` chứ không riêng ô nguồn
+		— ở đường duyệt vế đó không bao giờ chịu lực, chỉ ở đây.
+		"""
+		self._ghi(dao=True)
+
 	def _ghi(self, dao: bool):
 		"""Ghi hai bút toán mỗi dòng, rồi CHẶN TỒN ÂM sau khi ghi xong cả phiếu.
 

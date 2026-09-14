@@ -265,3 +265,61 @@ class TestGhiSo(FrappeTestCase):
 		p.insert(ignore_permissions=True)
 		p.submit()
 		self.assertEqual(p.docstatus, 1)
+
+
+class TestHuyPhieu(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.vt = _vat_tu("9X-HP-VT", co_lo=True)
+		cls.lo = _lo("9X-HP-LO", cls.vt)
+		cls.a = _o("9X03010101")
+		cls.b = _o("9X03010102")
+
+	def _phieu_da_duyet(self, sl=10):
+		p = _phieu([{"vat_tu": self.vt, "so_lo": self.lo, "tu_o": self.a, "den_o": self.b, "so_luong": sl}])
+		p.insert(ignore_permissions=True)
+		p.submit()
+		return p
+
+	def test_huy_dao_dung_hai_chieu(self):
+		_nap(self.a, self.vt, self.lo, 30)
+		truoc_a = so.ton_o(self.a, self.vt, self.lo)
+		truoc_b = so.ton_o(self.b, self.vt, self.lo)
+
+		p = self._phieu_da_duyet(10)
+		p.cancel()
+
+		self.assertEqual(so.ton_o(self.a, self.vt, self.lo), truoc_a)
+		self.assertEqual(so.ton_o(self.b, self.vt, self.lo), truoc_b)
+
+	def test_huy_ghi_them_chu_khong_xoa_dong_cu(self):
+		"""Sổ là append-only — `dung_lai_ton_vi_tri()` dựng lại bộ đệm bằng
+		cách cộng TOÀN BỘ sổ, nên xoá dòng cũ vẫn ra đúng số mà mất sạch dấu
+		vết. Giữ cả hai chiều để đọc lại được lịch sử."""
+		_nap(self.a, self.vt, self.lo, 30)
+		p = self._phieu_da_duyet(10)
+		sau_duyet = frappe.db.count("Location Ledger Entry", {"chung_tu": p.name})
+		self.assertEqual(sau_duyet, 2)
+		p.cancel()
+		self.assertEqual(frappe.db.count("Location Ledger Entry", {"chung_tu": p.name}), 4)
+		self.assertEqual(
+			frappe.db.count("Location Ledger Entry", {"chung_tu": p.name, "da_huy": 1}),
+			2,
+			"hai bút toán đảo phải mang cờ da_huy = 1 để phân biệt với bút toán gốc",
+		)
+
+	def test_huy_khi_o_dich_da_bi_xuat_het_bi_chan(self):
+		"""Hàng đã xếp vào ô đích có thể đã bị lấy đi mất; lúc đó huỷ sẽ đẩy ô
+		đích xuống âm. Phải chặn, và không được ghi gì.
+
+		Đây là bài DUY NHẤT bắt được đột biến "gom `cham` chỉ ô nguồn" — ở
+		đường duyệt ô đích chỉ cộng thêm nên không bao giờ âm.
+		"""
+		_nap(self.a, self.vt, self.lo, 30)
+		p = self._phieu_da_duyet(10)
+		_nap(self.b, self.vt, self.lo, -10)  # ô đích bị xuất sạch phần vừa xếp
+		truoc = frappe.db.count("Location Ledger Entry")
+		with self.assertRaises(frappe.ValidationError):
+			p.cancel()
+		self.assertEqual(frappe.db.count("Location Ledger Entry"), truoc)
