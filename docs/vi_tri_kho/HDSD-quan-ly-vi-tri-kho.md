@@ -112,28 +112,42 @@ Mã sai chuẩn bị **chặn cứng** — sai một ký tự là không lưu đ
 
 ---
 
-## 3. Mã vạch của ô
+## 3. Tem vị trí
 
-Mở một ô bất kỳ trong **Storage Location**, mục **Mã vạch** nằm ngay dưới mục đầu — không
-phải cuộn xuống. Nó hiện đúng ba thứ:
+Mở một ô bất kỳ trong **Storage Location**, mục **Tem vị trí** nằm ngay dưới mục đầu — đó là
+**đúng con tem sẽ in ra**, không phải một bản xem trước gần giống.
+
+Tem dựng theo mẫu đang dán trong kho: mã 10 ký tự tách làm **ba nhóm**, theo đúng cách người
+đứng trước kệ tìm hàng — tới Khu+Dãy, đếm Khoang, rồi nhìn Tầng+Ô.
 
 ```
-        ▌▌ ▌▌▌ ▌ ▌▌▌▌ ▌ ▌▌  ▌▌▌ ▌
-            1A0404-0402            ← chữ cho mắt người đọc
-   Máy quét trả ra: 1A04040402     ← chuỗi máy quét thực sự trả về
+┌──────┬──────┬─────────────────┐
+│  ⬇   │      │  TẦNG        Ô  │
+├──────┴──────┤  ┌───────────┐  │
+│ KHU DÃY│KHOANG│ │   0302    │  │   ← nhóm cuối to nhất: khi đã đứng
+│  1B01  │  04  │ └───────────┘  │      đúng khoang thì chỉ còn nó đáng đọc
+├─────────────────────────────────┤
+│  ▌│▌▌│▌ ▌│▌▌▌ │▌ ▌│▌▌ ▌│▌      │
+│  Kho Miyano - MYN · Kệ inox T3  │
+└─────────────────────────────────┘
 ```
 
-Hai chuỗi đó **cố ý khác nhau**: dạng có gạch nối dễ đọc và dễ đối chiếu với sơ đồ kho, còn
-thứ máy quét bắn ra là **10 ký tự liền** — đúng bằng Mã ô, tức đúng khoá chính của bản ghi.
-Nhờ vậy quét tem là ra thẳng ô, không qua bảng tra nào.
+Đọc liền ba nhóm ra `1B` `01` `04` `03` `02` = `1B01040302` — **đúng chuỗi máy quét trả về**,
+tức đúng khoá chính của bản ghi. Quét tem là ra thẳng ô, không qua bảng tra nào. Ký hiệu dùng
+là **Code 128**, mọi máy quét công nghiệp đều đọc được.
 
-Ký hiệu dùng là **Code 128**, mọi máy quét công nghiệp đều đọc được.
+> **Tem KHÔNG in chữ dưới mã vạch** — khác thói quen thường thấy, và là chủ ý. Ba nhóm số ở
+> khối trên đã làm đúng việc đó và làm tốt hơn: `1B01 · 04 · 0302` dễ đọc bằng mắt hơn một
+> chuỗi mười ký tự liền. Nếu in thử mà thấy khó đọc, đây là chỗ xem lại đầu tiên.
+
+> **Mũi tên ⬇ in cố định trên mọi tem**, nghĩa là "ô của tem này nằm ngay **dưới** chỗ dán" —
+> tem dán lên thanh xà hoặc mép tầng trên. Nó không đổi chiều theo dữ liệu được.
 
 Vài điều nên biết:
 
-- Mã vạch **không phải dữ liệu mới** — nó chỉ là hình vẽ lại của Mã ô, dựng khi mở form và
-  không lưu vào cơ sở dữ liệu. Sửa được Mã vạch ở mục *Lấy hàng* nếu kho cần một chuỗi khác
-  với Mã ô (hiếm); để trống thì hệ lấy bằng Mã ô.
+- Tem **không phải dữ liệu mới** — nó vẽ lại từ Mã ô mỗi lần mở form, không lưu vào cơ sở dữ
+  liệu. Sửa được Mã vạch ở mục *Lấy hàng* nếu kho cần một chuỗi khác với Mã ô (hiếm); để trống
+  thì hệ lấy bằng Mã ô.
 - **Nút nhóm cũng có mã vạch** (`1A`, `1A01`, `1A0104`…) để dán tem đầu dãy, đầu khoang.
 - **Ô "Chưa xếp vị trí" không có** — nó là ô ảo, không có kệ thật để dán.
 
@@ -146,8 +160,12 @@ bấm ở đúng một ô ra một tem.
 Hộp thoại cho biết **sẽ in bao nhiêu tem** và vài mã ví dụ trước khi in, kèm ô **Số bản in mỗi
 ô** (dán hai mặt kệ thì để 2). Kiểm rồi mới bấm In.
 
-Tem khổ **50×30mm**, mỗi tem một trang — đúng cuộn tem của máy in nhiệt, không phải khổ A4.
-Trên tem có tên kho, mã vạch, và mã dạng `1A0101-0101` in bằng chữ.
+Tem có **hai khổ: 45×25mm (mặc định) và 50×30mm** — chọn trong hộp thoại. Mỗi tem một trang,
+đúng cuộn tem của máy in nhiệt, không phải khổ A4. Đã đo trên bản in thật: 45,13 × 25,06mm và
+50,12 × 29,97mm, không có tem trắng thừa ở cuối xấp.
+
+> **Khi in phải đặt tỉ lệ 100%, KHÔNG dùng "Fit to page".** Lệch 10% trên con tem 45mm là mã
+> vạch chạy ra khỏi mép và máy quét đọc chập chờn ngay trên kệ.
 
 | Không in tem cho | Vì sao |
 |---|---|
@@ -164,10 +182,9 @@ tem không ghi gì vào dữ liệu nên không có rủi ro hỏng số liệu.
 > **Nếu không thấy cửa sổ in hiện ra:** trình duyệt đang chặn cửa sổ bật lên. Cho phép pop-up
 > cho địa chỉ này rồi bấm In lại.
 
-> **Bố cục tem chưa giống hệt tem đang dán trong kho.** Tem thật của Miyano chia mã thành ba ô
-> có tiêu đề Nhật ngữ (エリア ライン · 棚 · 段 間口), số Tầng+Ô in rất to, kèm mũi tên chỉ hướng.
-> Năm thành phần của mã đã sẵn sàng để in tách như vậy; phần bố cục còn đang hoàn thiện. Dán
-> thử vài con trước khi in cả loạt.
+> **Vẫn nên in thử vài con và dán lên kệ trước khi in cả loạt** — rồi quét thử bằng đúng máy
+> quét của kho. Khổ giấy và bố cục đã đo trên bản in ra PDF, nhưng chưa ai quét thử một con
+> tem in ra từ máy in nhiệt thật.
 
 ---
 
