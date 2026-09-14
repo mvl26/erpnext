@@ -164,6 +164,11 @@ tem không ghi gì vào dữ liệu nên không có rủi ro hỏng số liệu.
 > **Nếu không thấy cửa sổ in hiện ra:** trình duyệt đang chặn cửa sổ bật lên. Cho phép pop-up
 > cho địa chỉ này rồi bấm In lại.
 
+> **Bố cục tem chưa giống hệt tem đang dán trong kho.** Tem thật của Miyano chia mã thành ba ô
+> có tiêu đề Nhật ngữ (エリア ライン · 棚 · 段 間口), số Tầng+Ô in rất to, kèm mũi tên chỉ hướng.
+> Năm thành phần của mã đã sẵn sàng để in tách như vậy; phần bố cục còn đang hoàn thiện. Dán
+> thử vài con trước khi in cả loạt.
+
 ---
 
 ## 4. Cây vị trí: gấp/mở, và ngừng dùng cả một dãy
@@ -272,8 +277,8 @@ không cho lưu nếu bỏ trống.
 Gõ **kèm hạn dùng**. Hạn dùng là thứ hệ dựa vào để chọn hàng xuất trước; bỏ trống là mất tác
 dụng đó. Hiện 55/55 lô trên hệ đều đã có hạn dùng — giữ nguyên kỷ luật này.
 
-Hàng nhập về **dồn hết vào ô "Chưa xếp vị trí"**. Hiện chưa có màn hình khai ô lúc nhập; thủ
-kho xem báo cáo **Hàng chưa xếp vị trí** rồi xếp ngoài thực tế.
+Hàng nhập về **dồn hết vào ô "Chưa xếp vị trí"** — chưa có ô khai vị trí ngay trên phiếu nhập.
+Việc xếp làm sau, bằng **Phiếu xếp / chuyển vị trí** (mục 6.3).
 
 ### 6.2 Xuất hàng: hệ chọn LÔ và chọn Ô theo hai quy tắc KHÁC NHAU
 
@@ -317,21 +322,43 @@ cuối kho:
 1A04040402   -15   (thứ tự lấy hàng 128)   ← rồi mới tới ô xa
 ```
 
-> ### ⚠ Đọc kỹ: hai ví dụ trên CHƯA tự làm lại được
->
-> Để có hàng nằm ở ô `1A01010101` và `1A04040402`, người viết tài liệu đã phải **ghi thẳng vào
-> sổ vị trí bằng lệnh kỹ thuật** — vì **chưa có màn hình nào để xếp hàng từ ô "Chưa xếp vị
-> trí" vào ô thật**.
->
-> Trên hệ hôm nay, mọi hàng nhập về đều nằm ở `ZZZ-CHUA-XEP` và ở lại đó. Nghĩa là:
->
-> - phần **chọn ô** của hệ có chạy và chạy đúng, nhưng thực tế nó **chỉ có một ô để chọn**;
-> - báo cáo **tồn theo Khu/Dãy** sẽ ra **rỗng** ở mọi cấp nhóm, vì ô "Chưa xếp vị trí" đứng
->   ngoài cây nên không cộng dồn lên đâu cả;
-> - tem mã vạch dán lên kệ chưa dùng vào việc gì, vì chưa có chỗ nào để quét.
->
-> **Phiếu xếp / chuyển vị trí là việc kế tiếp phải làm.** Chừng nào chưa có nó, phần vị trí mới
-> chạy được một nửa: ghi sổ đúng, nhưng cả kho chỉ có một ô.
+### 6.3 Xếp hàng vào ô
+
+Đây là bước biến "hàng đã về kho" thành "hàng nằm ở ô nào". Không có nó thì mọi thứ dồn ở ô
+"Chưa xếp vị trí" và cả phần vị trí chỉ chạy được một nửa.
+
+**Cách làm:**
+
+1. Mở **Phiếu xếp / chuyển vị trí** (`/app/location-transfer/new`), chọn **Kho**.
+2. Bấm **"Lấy hàng chưa xếp"** — hệ đổ toàn bộ hàng đang ở ô "Chưa xếp vị trí" thành các dòng
+   sẵn, cột *Từ ô* điền sẵn.
+3. Điền **Đến ô** cho từng dòng. Chia một lô ra nhiều ô thì tách thành nhiều dòng và sửa số
+   lượng. Hệ **không gợi ý ô đích** — chưa khai sức chứa cho ô nào, gợi ý bừa thì thủ kho tin
+   theo rồi xếp nhầm.
+4. **Lưu** rồi **Duyệt**. Duyệt xong sổ vị trí mới ghi.
+
+Phiếu này cũng dùng để **dồn hàng, đổi kệ**: chọn *Từ ô* là một ô thật thay vì ô "Chưa xếp".
+
+**Xếp nhầm thì Huỷ phiếu** — hàng quay về đúng ô cũ. Sổ giữ nguyên dấu vết cả hai chiều, không
+ai sửa được lịch sử. Nếu hàng ở ô đích đã bị xuất đi mất thì **không huỷ được**, kèm thông báo
+nói rõ vì sao.
+
+| Hệ chặn | Vì sao |
+|---|---|
+| Chuyển sang **kho khác** | đổi kho là đổi tồn kho thật — việc của phiếu chuyển kho ERPNext |
+| Xếp vào **nút nhóm** (Khu/Dãy/Khoang/Tầng) | không phải kệ thật, không chứa hàng |
+| Xếp vào ô **đang Ngừng dùng**, hoặc dưới nhánh đã tắt | hàng vào được mà không xuất ra được |
+| Rút quá tồn ô nguồn | sinh ô âm, mà "Đồng bộ lại" cố ý từ chối chữa ô âm |
+| Bỏ trống số lô cho hàng có lô, hoặc điền lô cho hàng không lô | lệch tồn theo ô mà tổng vẫn đúng — đối soát không bắt được |
+
+> **Lấy hàng RA khỏi ô đang Ngừng dùng thì VẪN ĐƯỢC** — cố ý. Đó là đường duy nhất gỡ hàng khỏi
+> một dãy đang tháo kệ. Chỉ chiều xếp *vào* mới bị chặn.
+
+**Phiếu xếp không đụng tới tồn kho ERPNext.** Chuyển giữa hai ô trong cùng kho không làm đổi
+`Bin.actual_qty`, nên nó chỉ ghi sổ vị trí. Vì vậy nó không sinh phiếu kho, không đổi giá vốn,
+không ảnh hưởng kế toán.
+
+**Thủ kho (`Stock User`) lập, duyệt và huỷ được** — xếp hàng là việc hằng ngày.
 
 ---
 
@@ -442,8 +469,10 @@ ZZZ-CHUA-XEP   lô E2E-LO-GAN-2026   +60
 ZZZ-CHUA-XEP   lô E2E-LO-XA-2028    +40
 ```
 
-**2. Xếp vào ô** — *(bước này chưa có màn hình, xem cảnh báo ở mục 6.2)*. Hàng được đưa vào ba
-ô: `1A01010101` (25), `1A04040402` (35), `1A02010101` (40).
+**2. Xếp vào ô** — hàng được đưa vào ba ô: `1A01010101` (25), `1A04040402` (35),
+`1A02010101` (40). *(Lần chạy 13/09 này làm trước khi có Phiếu xếp vị trí nên phải ghi thẳng
+vào sổ bằng lệnh. Từ 14/09 dùng phiếu — xem mục 6.3; phiếu thật đầu tiên là `XVT-2026-00001`,
+xếp 1.500 đơn vị của 5 mặt hàng từ ô "Chưa xếp vị trí" vào 5 ô thật.)*
 
 **3. Xuất kho** — hai phiếu giao, mỗi phiếu chứng minh một điều:
 

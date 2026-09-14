@@ -230,3 +230,21 @@ Ghi lại vì chúng sẽ cắn lại ở bất kỳ việc nào đụng tới s
 Cộng một bẫy Frappe: **`set_only_once` không bao giờ nổ trên field autoname** —
 `_sync_autoname_field()` (`document.py:632`) chạy TRƯỚC `validate_set_only_once()` (`:654`)
 và ghi đè giá trị về `name`. Muốn khoá thật phải chặn trong `validate()` của controller.
+
+
+## Bổ sung 14/09/2026 — Phiếu xếp / chuyển vị trí
+
+`Location Transfer` + `Location Transfer Item` là **doctype submittable đầu tiên** của module
+(bốn doctype trước đều không duyệt). Spec: `docs/superpowers/specs/2026-09-14-phieu-xep-chuyen-vi-tri-design.md`.
+
+Ba điều người bảo trì cần biết trước khi sửa nó:
+
+1. **Nó không sinh Stock Ledger Entry, và không được phép sinh.** Sinh SLE sẽ kích lại hook
+   `Stock Ledger Entry.on_submit` → `ghi_so_vi_tri` dồn hàng vào `ZZZ-CHUA-XEP` một lần nữa,
+   đúng thứ phiếu vừa gỡ ra. Có bài test đếm toàn bộ bảng SLE trước/sau khi duyệt.
+2. **Ràng buộc "cùng kho" là điều kiện giữ bất biến §3**, không phải quy tắc nghiệp vụ tuỳ
+   chọn. Mỗi dòng ghi `-n` ô nguồn và `+n` ô đích trong cùng kho nên tổng không đổi kể cả khi
+   logic khác sai. Bỏ nó ra là phải tự giữ bất biến bằng tay.
+3. **Chặn tồn âm ghi TRƯỚC rồi đọc lại trong cùng giao dịch**, và dùng `frappe.db.savepoint()`
+   chứ không dựa vào `frappe.throw` để dọn hộ — `throw` chỉ ném ngoại lệ, thứ rollback giao
+   dịch là bộ xử lý request của Frappe, mà script/API/test thì không có ai dọn.

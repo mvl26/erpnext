@@ -89,8 +89,17 @@ qua** nếu còn ô đang tắt, kèm log nêu đích danh.
 **vào** một dãy đã tắt trong khi không ô nào trong dãy đó xuất **ra** được — và đối soát vẫn
 xanh, vì nó chỉ so tổng.
 
-Hiện chưa chạm được thực tế: luồng nhập dồn hết vào ô "Chưa xếp vị trí", không nhắm ô cụ thể.
-Nó trở thành vấn đề thật khi có màn hình khai vị trí lúc nhập (giai đoạn sau).
+**Cập nhật 14/09/2026 — đã vá chiều VÀO.** Màn hình khai vị trí lúc nhập nay đã có: doctype
+`Location Transfer` (Phiếu xếp / chuyển vị trí). Phép kiểm K4 của nó từ chối mọi ô đích đang
+Ngừng dùng **hoặc nằm dưới một nhánh đã tắt**, dùng đúng vị từ tổ tiên của `fefo.py`.
+
+Chiều RA vẫn cố ý để ngỏ (K5): lấy hàng **khỏi** một ô đang tắt là đường duy nhất gỡ hàng khỏi
+dãy đang tháo kệ — `fefo.py` đã chặn đường xuất rồi, cấm nốt chiều này thì hàng kẹt vĩnh viễn.
+Có hai bài đối chứng khoá lại, nên ai thêm phép kiểm cho ô nguồn sẽ thấy đỏ ngay.
+
+**Còn lại chưa vá:** hook nhập (`hook_sle.py`) vẫn không lọc `disabled` — nhưng nó chỉ dồn hàng
+vào ô "Chưa xếp vị trí", mà ô đó không xoá và không tắt được, nên không có đường nào để hàng
+rơi vào một nhánh đã tắt qua lối đó.
 
 ---
 
