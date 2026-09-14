@@ -209,3 +209,30 @@ def dam_bao_cay_da_dung() -> None:
 		)
 		print(canh_bao_con_thieu)
 		frappe.log_error(title="vi_tri_kho: dam_bao_cay_da_dung chua hoi tu het", message=canh_bao_con_thieu)
+
+
+def nhanh_bi_tat(o: str) -> str | None:
+	"""Tên nút đang Ngừng dùng che phủ ô `o` — chính nó, hoặc một tổ tiên.
+
+	Dùng ĐÚNG vị từ tổ tiên của `fefo.py::_TO_TIEN_TAT`: phép chứa CHẶT
+	(`lft <` và `rgt >`) cộng với khớp chính nó bằng TÊN. Không suy tổ tiên từ
+	tiền tố mã, và không nới thành `<=` / `>=` — bẫy F8 đã trả giá một lần:
+	bản ghi chưa hội tụ mang `lft = rgt = 0` nên phép chứa lỏng khiến chúng
+	coi nhau là tổ tiên của nhau; đo thật trên dữ liệu site, ô hệ thống nhận
+	128 "tổ tiên" giả, đủ để chặn mọi phiếu xuất của cả kho.
+
+	Trả tên nút tắt Ở CẤP CAO NHẤT (sắp theo `lft` tăng dần) để thông báo chỉ
+	đúng chỗ người vận hành cần bật lại, thay vì chỉ vào một nút con tình cờ
+	cũng đang tắt.
+	"""
+	moc = frappe.db.get_value("Storage Location", o, ["lft", "rgt"], as_dict=True)
+	if not moc:
+		return None
+	ket_qua = frappe.db.sql(
+		"""select tt.name from `tabStorage Location` tt
+		   where ifnull(tt.disabled, 0) = 1
+		     and (tt.name = %(o)s or (tt.lft < %(lft)s and tt.rgt > %(rgt)s))
+		   order by tt.lft asc limit 1""",
+		{"o": o, "lft": moc.lft, "rgt": moc.rgt},
+	)
+	return ket_qua[0][0] if ket_qua else None

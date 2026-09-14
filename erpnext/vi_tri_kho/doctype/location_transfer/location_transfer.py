@@ -20,6 +20,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt, now, nowdate
 
+from erpnext.vi_tri_kho.vitri.cay import nhanh_bi_tat
 from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri
 from erpnext.vi_tri_kho.vitri.so import ghi_dong_so, ton_o
 
@@ -175,6 +176,26 @@ class LocationTransfer(Document):
 				_("{0}: {1} là nút nhóm (cấp Khu/Dãy/Khoang/Tầng), không chứa hàng được.").format(
 					vi_tri, d.den_o
 				)
+			)
+
+		# K4 — chỉ chặn chiều VÀO. Vá đúng bất đối xứng ghi trong
+		# QUYET-DINH-thi-cong-cay-vi-tri.md: `fefo.py` là nơi DUY NHẤT lọc
+		# `disabled`, đường nhập không lọc gì, nên hàng vẫn chảy VÀO một dãy đã
+		# tắt trong khi không ô nào trong dãy đó xuất RA được — mà đối soát vẫn
+		# xanh vì nó chỉ so tổng.
+		#
+		# K5 — KHÔNG kiểm `d.tu_o`, và đó là CHỦ Ý chứ không phải bỏ sót. Lấy
+		# hàng RA khỏi ô đang tắt là đường duy nhất gỡ hàng khỏi một dãy đang
+		# tháo kệ; `fefo.py` đã chặn đường xuất rồi, cấm nốt chiều này thì hàng
+		# kẹt vĩnh viễn. Có bài đối chứng khoá lại: nếu ai thêm phép kiểm cho
+		# `tu_o` thì `test_lay_RA_khoi_o_dang_tat_van_duoc` sẽ đỏ.
+		nut_tat = nhanh_bi_tat(d.den_o)
+		if nut_tat:
+			frappe.throw(
+				_(
+					"{0}: không xếp hàng vào {1} được vì {2} đang Ngừng dùng. Bật lại {2}, "
+					"hoặc chọn ô khác. (Lấy hàng RA khỏi ô đang Ngừng dùng thì vẫn được.)"
+				).format(vi_tri, d.den_o, nut_tat)
 			)
 
 		self._kiem_lo(d, vi_tri)

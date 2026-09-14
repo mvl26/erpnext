@@ -323,3 +323,114 @@ class TestHuyPhieu(FrappeTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			p.cancel()
 		self.assertEqual(frappe.db.count("Location Ledger Entry"), truoc)
+
+
+class TestNhanhNgungDung(FrappeTestCase):
+	"""Hai chiều NGƯỢC NHAU, và cả hai đều cố ý.
+
+	Chiều VÀO bị chặn: vá đúng bất đối xứng ghi trong
+	`QUYET-DINH-thi-cong-cay-vi-tri.md` — `fefo.py` là nơi DUY NHẤT lọc
+	`disabled`, đường nhập không lọc gì, nên hàng vẫn chảy VÀO một dãy đã tắt
+	trong khi không ô nào trong dãy đó xuất RA được, mà đối soát vẫn xanh vì
+	nó chỉ so tổng.
+
+	Chiều RA được phép: đó là đường DUY NHẤT gỡ hàng khỏi một dãy đang tháo
+	kệ. Cấm nốt chiều này thì hàng kẹt vĩnh viễn.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.vt = _vat_tu("9X-ND-VT", co_lo=True)
+		cls.lo = _lo("9X-ND-LO", cls.vt)
+		cls.a = _o("9X04010101")
+		cls.b = _o("9X06010101")  # DÃY khác hẳn, để tắt cả dãy 9X06
+		cls.b2 = _o("9X06010102")  # cùng dãy với b, dùng cho bài cấp NHÁNH
+
+	def setUp(self):
+		"""Trả mọi cờ `disabled` về 0 trước MỖI bài.
+
+		`FrappeTestCase` rollback theo LỚP, không theo từng bài — cờ một bài
+		bật lên còn nguyên ở bài sau. Đo được: không có setUp này thì
+		`test_xep_vao_o_duoi_nhanh_da_tat_cung_bi_chan` xanh nhờ ô lá tự nó
+		đang tắt từ bài trước, chứ KHÔNG phải nhờ vế tổ tiên — đột biến bỏ hẳn
+		vế tổ tiên vẫn xanh.
+		"""
+		for ten in (self.a, self.b, self.b2, "9X04", "9X06", "9X0601"):
+			if frappe.db.exists("Storage Location", ten):
+				frappe.db.set_value("Storage Location", ten, "disabled", 0, update_modified=False)
+
+	def _p(self, tu_o, den_o):
+		return _phieu([{"vat_tu": self.vt, "so_lo": self.lo, "tu_o": tu_o, "den_o": den_o, "so_luong": 5}])
+
+	def test_xep_vao_o_dang_tat_bi_chan(self):
+		frappe.db.set_value("Storage Location", self.b, "disabled", 1)
+		_nap(self.a, self.vt, self.lo, 20)
+		with self.assertRaisesRegex(frappe.ValidationError, "Ngừng dùng"):
+			self._p(self.a, self.b).insert(ignore_permissions=True)
+
+	def test_xep_vao_o_duoi_nhanh_da_tat_cung_bi_chan(self):
+		"""Tắt cả DÃY `9X06`; ô lá bên dưới tự nó vẫn `disabled = 0`.
+
+		Thiếu bài này thì một phép kiểm chỉ đọc `disabled` của chính ô lá vẫn
+		xanh ở bài trên — mà đó đúng là lỗi `fefo.py` từng mắc trước Task 4.
+		"""
+		frappe.db.set_value("Storage Location", "9X06", "disabled", 1)
+		_nap(self.a, self.vt, self.lo, 20)
+		# Dùng b2 chứ không dùng b: b là ô mà bài khác tắt trực tiếp, nên nếu
+		# lỡ còn sót cờ thì bài này lại xanh vì lý do khác.
+		with self.assertRaisesRegex(frappe.ValidationError, "Ngừng dùng"):
+			self._p(self.a, self.b2).insert(ignore_permissions=True)
+
+	def test_lay_RA_khoi_o_dang_tat_van_duoc(self):
+		"""CHỐT ÂM, và là cả lý do tính năng này tồn tại."""
+		_nap(self.a, self.vt, self.lo, 20)
+		frappe.db.set_value("Storage Location", self.a, "disabled", 1)
+		p = self._p(self.a, self.b)
+		p.insert(ignore_permissions=True)
+		p.submit()
+		self.assertEqual(p.docstatus, 1)
+
+	def test_lay_RA_khoi_nhanh_da_tat_cung_duoc(self):
+		"""Chốt âm cấp nhánh: tắt cả DÃY chứa ô nguồn thì vẫn gỡ hàng ra được."""
+		_nap(self.a, self.vt, self.lo, 20)
+		frappe.db.set_value("Storage Location", "9X04", "disabled", 1)
+		p = self._p(self.a, self.b)
+		p.insert(ignore_permissions=True)
+		p.submit()
+		self.assertEqual(p.docstatus, 1)
+
+
+class TestBayF8TrongNhanhBiTat(FrappeTestCase):
+	"""Khoá phép chứa CHẶT trong `cay.nhanh_bi_tat`.
+
+	Bản ghi chưa hội tụ mang `lft = rgt = 0`. Nới `<` `>` thành `<=` `>=` thì
+	mọi bản ghi 0/0 coi nhau là tổ tiên của nhau — đo thật trên site: ô hệ
+	thống nhận 128 "tổ tiên" giả, đủ để chặn mọi phiếu xuất của cả kho.
+
+	Không có bài này thì đột biến nới phép chứa SỐNG SÓT: với cây lành, một
+	nút chứa chính nó hay không đều cho cùng kết quả, vì vế `tt.name = o` đã
+	lo phần đó.
+	"""
+
+	def test_hai_ban_ghi_chua_hoi_tu_khong_coi_nhau_la_to_tien(self):
+		from erpnext.vi_tri_kho.vitri.cay import nhanh_bi_tat
+
+		tat = _o("9X08010101")
+		lanh = _o("9X09010101")
+		frappe.db.set_value("Storage Location", tat, "disabled", 1, update_modified=False)
+		for ten in (tat, lanh):
+			frappe.db.set_value("Storage Location", ten, {"lft": 0, "rgt": 0}, update_modified=False)
+
+		self.assertIsNone(
+			nhanh_bi_tat(lanh),
+			"một bản ghi 0/0 đang tắt bị coi là tổ tiên của một bản ghi 0/0 khác — đúng bẫy F8",
+		)
+
+	def test_van_bat_dung_to_tien_that(self):
+		"""Đối chứng: siết chặt KHÔNG được làm mất khả năng bắt tổ tiên thật."""
+		from erpnext.vi_tri_kho.vitri.cay import nhanh_bi_tat
+
+		la = _o("9X10010101")
+		frappe.db.set_value("Storage Location", "9X10", "disabled", 1, update_modified=False)
+		self.assertEqual(nhanh_bi_tat(la), "9X10")
