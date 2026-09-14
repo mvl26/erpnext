@@ -434,3 +434,103 @@ class TestBayF8TrongNhanhBiTat(FrappeTestCase):
 		la = _o("9X10010101")
 		frappe.db.set_value("Storage Location", "9X10", "disabled", 1, update_modified=False)
 		self.assertEqual(nhanh_bi_tat(la), "9X10")
+
+
+class TestLayHangChuaXep(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.vt = _vat_tu("9X-LC-VT", co_lo=True)
+		cls.lo = _lo("9X-LC-LO", cls.vt)
+		cls.zzz = frappe.db.get_value("Storage Location", {"la_o_chua_xep": 1, "kho": KHO}, "name")
+		cls.o_that = _o("9X11010101")
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+
+	def test_tra_ve_hang_dang_o_o_chua_xep(self):
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		_nap(self.zzz, self.vt, self.lo, 7)
+		dong = [d for d in hang_chua_xep(KHO) if d["vat_tu"] == self.vt]
+		self.assertEqual(len(dong), 1)
+		self.assertEqual(dong[0]["tu_o"], self.zzz)
+		self.assertEqual(dong[0]["so_luong"], 7)
+		self.assertEqual(dong[0]["so_lo"], self.lo)
+
+	def test_khong_tra_ve_hang_o_o_that(self):
+		"""CHỐT ÂM: nút này chỉ kéo hàng CHƯA xếp. Thiếu bài này thì một đột
+		biến bỏ điều kiện `la_o_chua_xep` sẽ kéo cả kho vào phiếu."""
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		_nap(self.o_that, self.vt, self.lo, 9)
+		o = {d["tu_o"] for d in hang_chua_xep(KHO)}
+		self.assertNotIn(self.o_that, o)
+
+	def test_khong_tra_ve_hang_cua_kho_khac(self):
+		"""CHỐT ÂM thứ hai: lọc theo kho phải chịu lực.
+
+		Kế hoạch đã ghi sẵn rằng đột biến bỏ `lb.kho = %(kho)s` có thể không
+		bị bắt nếu không có bài này.
+		"""
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		khac = "Hàng trả về - MYN"
+		zzz_khac = frappe.db.get_value("Storage Location", {"la_o_chua_xep": 1, "kho": khac}, "name")
+		if not zzz_khac:
+			# Kho kia chưa bật quản lý vị trí nên chưa có ô này. Tự dựng chứ
+			# KHÔNG skipTest: bỏ qua thì đột biến "bỏ lọc theo kho" không bị
+			# bắt, và bài mang tên chốt âm lại không chốt gì cả.
+			zzz_khac = "ZZZ-CHUA-XEP-" + khac
+			frappe.get_doc(
+				{
+					"doctype": "Storage Location",
+					"ma_o": zzz_khac,
+					"kho": khac,
+					"la_o_chua_xep": 1,
+					"thu_tu_lay_hang": 9999,
+				}
+			).insert(ignore_permissions=True)
+		so.ghi_dong_so(
+			o=zzz_khac, kho=khac, vat_tu=self.vt, so_lo=self.lo, so_luong=11,
+			chung_tu_type=None, chung_tu=None, chung_tu_row="NAP-TIEN-DE-TEST",
+			sle=None, ngay=nowdate(), thoi_diem=now(), company=CTY,
+		)
+		o = {d["tu_o"] for d in hang_chua_xep(KHO)}
+		self.assertNotIn(zzz_khac, o)
+
+	def test_nguoi_khong_co_vai_tro_bi_chan(self):
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		ten = "xep-khong-quyen@mo-phong.local"
+		if not frappe.db.exists("User", ten):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": ten,
+					"first_name": "Xep",
+					"send_welcome_email": 0,
+					"roles": [],
+				}
+			).insert(ignore_permissions=True)
+		frappe.set_user(ten)
+		with self.assertRaises(frappe.PermissionError):
+			hang_chua_xep(KHO)
+
+	def test_stock_user_dung_duoc(self):
+		"""Đối chứng: thủ kho PHẢI dùng được — đây là việc hằng ngày của họ."""
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		ten = "xep-thu-kho@mo-phong.local"
+		if not frappe.db.exists("User", ten):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": ten,
+					"first_name": "Thu Kho Xep",
+					"send_welcome_email": 0,
+					"roles": [{"role": "Stock User"}],
+				}
+			).insert(ignore_permissions=True)
+		frappe.set_user(ten)
+		self.assertIsInstance(hang_chua_xep(KHO), list)
