@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"id\": \"vtk-tieu-de\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Vị trí kho</b></span>\", \"col\": 12}}, {\"id\": \"vtk-loi-tat\", \"type\": \"paragraph\", \"data\": {\"text\": \"Giá kệ, ô kệ và sổ tồn theo từng ô. Mở rộng của <b>Warehouse</b>.\", \"col\": 12}}, {\"id\": \"vtk-sc-1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Ô kệ\", \"col\": 3}}, {\"id\": \"vtk-sc-2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bật quản lý vị trí\", \"col\": 3}}, {\"id\": \"vtk-sc-3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sinh mã ô\", \"col\": 3}}, {\"id\": \"vtk-sc-4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Tồn kho theo vị trí\", \"col\": 3}}, {\"id\": \"vtk-sc-5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Hàng chưa xếp vị trí\", \"col\": 3}}, {\"id\": \"vtk-sc-6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đối soát tồn vị trí\", \"col\": 3}}, {\"id\": \"vtk-sp\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"vtk-card-1\", \"type\": \"card\", \"data\": {\"card_name\": \"Thiết lập\", \"col\": 4}}, {\"id\": \"vtk-card-2\", \"type\": \"card\", \"data\": {\"card_name\": \"Báo cáo\", \"col\": 4}}, {\"id\": \"vtk-card-3\", \"type\": \"card\", \"data\": {\"card_name\": \"Sổ vị trí\", \"col\": 4}}]",
- "creation": "2026-09-11 00:00:00.000000",
+ "content": "[{\"id\": \"vtk-tieu-de\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>V\u1ecb tr\u00ed kho</b></span>\", \"col\": 12}}, {\"id\": \"vtk-loi-tat\", \"type\": \"paragraph\", \"data\": {\"text\": \"Gi\u00e1 k\u1ec7, \u00f4 k\u1ec7 v\u00e0 s\u1ed5 t\u1ed3n theo t\u1eebng \u00f4. M\u1edf r\u1ed9ng c\u1ee7a <b>Warehouse</b>.\", \"col\": 12}}, {\"id\": \"vtk-sc-1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"\u00d4 k\u1ec7\", \"col\": 3}}, {\"id\": \"vtk-sc-2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"B\u1eadt qu\u1ea3n l\u00fd v\u1ecb tr\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sinh m\u00e3 \u00f4\", \"col\": 3}}, {\"id\": \"vtk-sc-4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"T\u1ed3n kho theo v\u1ecb tr\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"H\u00e0ng ch\u01b0a x\u1ebfp v\u1ecb tr\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"\u0110\u1ed1i so\u00e1t t\u1ed3n v\u1ecb tr\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sp\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"vtk-card-1\", \"type\": \"card\", \"data\": {\"card_name\": \"Thi\u1ebft l\u1eadp\", \"col\": 4}}, {\"id\": \"vtk-card-2\", \"type\": \"card\", \"data\": {\"card_name\": \"B\u00e1o c\u00e1o\", \"col\": 4}}, {\"id\": \"vtk-card-3\", \"type\": \"card\", \"data\": {\"card_name\": \"S\u1ed5 v\u1ecb tr\u00ed\", \"col\": 4}}]",
+ "creation": "2026-09-11 00:00:00",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -10,11 +10,12 @@
  "icon": "stock",
  "idx": 0,
  "is_hidden": 0,
- "label": "Vi Tri Kho",
+ "label": "V\u1ecb tr\u00ed kho",
  "links": [
   {
    "hidden": 0,
-   "label": "Thiết lập",
+   "is_query_report": 0,
+   "label": "Thi\u1ebft l\u1eadp",
    "link_count": 3,
    "onboard": 0,
    "type": "Card Break"
@@ -51,7 +52,8 @@
   },
   {
    "hidden": 0,
-   "label": "Báo cáo",
+   "is_query_report": 0,
+   "label": "B\u00e1o c\u00e1o",
    "link_count": 3,
    "onboard": 0,
    "type": "Card Break"
@@ -59,7 +61,7 @@
   {
    "hidden": 0,
    "is_query_report": 1,
-   "label": "Tồn kho theo vị trí",
+   "label": "T\u1ed3n kho theo v\u1ecb tr\u00ed",
    "link_count": 0,
    "link_to": "Ton Kho Theo Vi Tri",
    "link_type": "Report",
@@ -69,7 +71,7 @@
   {
    "hidden": 0,
    "is_query_report": 1,
-   "label": "Hàng chưa xếp vị trí",
+   "label": "H\u00e0ng ch\u01b0a x\u1ebfp v\u1ecb tr\u00ed",
    "link_count": 0,
    "link_to": "Hang Chua Xep Vi Tri",
    "link_type": "Report",
@@ -79,7 +81,7 @@
   {
    "hidden": 0,
    "is_query_report": 1,
-   "label": "Đối soát tồn vị trí",
+   "label": "\u0110\u1ed1i so\u00e1t t\u1ed3n v\u1ecb tr\u00ed",
    "link_count": 0,
    "link_to": "Doi Soat Ton Vi Tri",
    "link_type": "Report",
@@ -88,7 +90,8 @@
   },
   {
    "hidden": 0,
-   "label": "Sổ vị trí",
+   "is_query_report": 0,
+   "label": "S\u1ed5 v\u1ecb tr\u00ed",
    "link_count": 2,
    "onboard": 0,
    "type": "Card Break"
@@ -114,10 +117,10 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-11 14:50:23.326310",
+ "modified": "2026-09-14 14:01:11.542270",
  "modified_by": "Administrator",
  "module": "Vi Tri Kho",
- "name": "Vi Tri Kho",
+ "name": "V\u1ecb tr\u00ed kho",
  "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
@@ -129,43 +132,43 @@
  "shortcuts": [
   {
    "color": "Grey",
-   "label": "Ô kệ",
+   "label": "\u00d4 k\u1ec7",
    "link_to": "Storage Location",
    "type": "DocType"
   },
   {
    "color": "Blue",
-   "label": "Bật quản lý vị trí",
+   "label": "B\u1eadt qu\u1ea3n l\u00fd v\u1ecb tr\u00ed",
    "link_to": "Warehouse Location Setup",
    "type": "DocType"
   },
   {
    "color": "Green",
-   "label": "Sinh mã ô",
+   "label": "Sinh m\u00e3 \u00f4",
    "link_to": "Location Generator",
    "type": "DocType"
   },
   {
    "doc_view": "",
-   "label": "Tồn kho theo vị trí",
+   "label": "T\u1ed3n kho theo v\u1ecb tr\u00ed",
    "link_to": "Ton Kho Theo Vi Tri",
    "report_ref_doctype": "Location Balance",
    "type": "Report"
   },
   {
    "doc_view": "",
-   "label": "Hàng chưa xếp vị trí",
+   "label": "H\u00e0ng ch\u01b0a x\u1ebfp v\u1ecb tr\u00ed",
    "link_to": "Hang Chua Xep Vi Tri",
    "report_ref_doctype": "Location Balance",
    "type": "Report"
   },
   {
    "doc_view": "",
-   "label": "Đối soát tồn vị trí",
+   "label": "\u0110\u1ed1i so\u00e1t t\u1ed3n v\u1ecb tr\u00ed",
    "link_to": "Doi Soat Ton Vi Tri",
    "report_ref_doctype": "Location Balance",
    "type": "Report"
   }
  ],
- "title": "Vị trí kho"
+ "title": "V\u1ecb tr\u00ed kho"
 }

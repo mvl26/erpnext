@@ -15,7 +15,19 @@ import os
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-TEN_WORKSPACE = "Vi Tri Kho"
+# Tên workspace CÓ DẤU, tên module KHÔNG DẤU — hai thứ khác nhau, cố ý.
+#
+# Workspace: `name` quyết định đường dẫn (`/app/vị-trí-kho`). Mọi workspace
+# khác trên site đều có `name` trùng `title`, nên đặt `name` không dấu trong
+# khi `title` có dấu là tự đẻ ra một đường dẫn không ai đoán được — người dùng
+# đọc tiêu đề "Vị trí kho" rồi gõ `/app/vị-trí-kho` và nhận trang "Not found"
+# (đã xảy ra hai lần, 13-14/09/2026). Đổi lại cho khớp quy ước của site; tiền
+# lệ sẵn có trong repo: `erpnext/selling/workspace/bán_hàng/`.
+#
+# Module: PHẢI giữ ASCII. `frappe.scrub()` biến tên module thành đường dẫn gói
+# Python, nên tên module có dấu sẽ sinh thư mục và module Python non-ASCII.
+TEN_WORKSPACE = "Vị trí kho"
+TEN_MODULE = "Vi Tri Kho"
 DUONG_DAN_JS = "public/js/vi_tri_kho/warehouse.js"
 
 
@@ -23,8 +35,25 @@ class TestWorkspace(FrappeTestCase):
 	def test_workspace_ton_tai_va_thuoc_module(self):
 		self.assertEqual(
 			frappe.db.get_value("Workspace", TEN_WORKSPACE, "module"),
-			TEN_WORKSPACE,
-			"Workspace phải tồn tại và thuộc module Vi Tri Kho",
+			TEN_MODULE,
+			f"Workspace {TEN_WORKSPACE!r} phải tồn tại và thuộc module {TEN_MODULE!r}. "
+			"Hai tên này KHÁC NHAU và phải khác nhau — xem chú thích ở đầu file.",
+		)
+
+	def test_ten_workspace_co_dau_de_duong_dan_doan_duoc(self):
+		"""Chặn việc vô tình đặt lại `name` không dấu.
+
+		Đường dẫn workspace suy từ `name`, không phải `title`. Đặt `name`
+		không dấu thì trang vẫn chạy bình thường ở `/app/vi-tri-kho` — không
+		lỗi, không log — chỉ là người đọc tiêu đề "Vị trí kho" gõ
+		`/app/vị-trí-kho` sẽ nhận "Not found". Đúng kiểu hỏng im lặng.
+		"""
+		name, title = frappe.db.get_value("Workspace", TEN_WORKSPACE, ["name", "title"])
+		self.assertEqual(
+			name,
+			title,
+			"`name` và `title` của workspace phải trùng nhau, như mọi workspace "
+			f"khác trên site (Bán hàng, Kho khách hàng). Đang lệch: {name!r} vs {title!r}.",
 		)
 
 	def test_moi_lien_ket_deu_tro_toi_thu_co_that(self):

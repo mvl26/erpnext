@@ -50,7 +50,7 @@ Gõ tên màn hình vào ô tìm kiếm (kính lúp trên thanh trên cùng), ho
 
 | Màn hình | Đường dẫn |
 |---|---|
-| **Vị trí kho** (trang tổng hợp, vào đây trước) | `/app/vi-tri-kho` |
+| **Vị trí kho** (trang tổng hợp, vào đây trước) | `/app/vị-trí-kho` |
 | Storage Location — danh mục ô | `/app/storage-location` |
 | Location Generator — sinh mã ô hàng loạt | `/app/location-generator` |
 | Warehouse Location Setup — bật/tắt/đồng bộ | `/app/warehouse-location-setup` |
@@ -58,8 +58,9 @@ Gõ tên màn hình vào ô tìm kiếm (kính lúp trên thanh trên cùng), ho
 | Báo cáo **Hàng chưa xếp vị trí** | `/app/query-report/Hang Chua Xep Vi Tri` |
 | Báo cáo **Đối soát tồn vị trí** | `/app/query-report/Doi Soat Ton Vi Tri` |
 
-*(Đường dẫn trang tổng hợp là `vi-tri-kho` — **không dấu**. Gõ `vị-trí-kho` có dấu sẽ ra trang
-"Not found".)*
+*(Đường dẫn **có dấu**, giống `/app/bán-hàng` và `/app/kho-khách-hàng`. Trước 14/09/2026 trang
+này nằm ở `/app/vi-tri-kho` không dấu — lệch với mọi trang khác của site và gây lỗi "Not found"
+cho người gõ theo tiêu đề; đã đổi cho khớp, đường dẫn không dấu nay **không còn dùng được**.)*
 
 ---
 
