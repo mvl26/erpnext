@@ -39,14 +39,33 @@
 //    được mà không ai bảo trì thì tệ hơn hẳn không có mũi tên.
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// VÌ SAO MÃ VẠCH KHÔNG KÉO HẾT CHIỀU NGANG:
+// VÌ SAO MÃ VẠCH RỘNG ĐÚNG 28,0mm VÀ KHÔNG ĐƯỢC LÀM TRÒN:
 //
-// Code 128 cần vùng trắng (quiet zone) ≥10 module mỗi bên. Bản 50×30 cũ kéo
-// vạch tới 44mm và sống được nhờ ~3mm lề tem còn dư; khổ 45mm không còn chỗ dư
-// đó. Mã `1B01040302` ở chế độ tự chuyển (2 ký tự Code B + 4 cặp số Code C) ra
-// khoảng 112 module → 36mm/112 ≈ 0,32mm/module ≈ 2,6 chấm ở máy in 203dpi. Đủ
-// quét, và còn 4,5mm trắng mỗi bên. Kéo vạch rộng thêm thì ăn vào vùng trắng và
-// máy quét đọc chập chờn NGAY TRÊN KỆ — hỏng đúng lúc không ai soi lại được.
+// Máy in: Zebra ZD421, 203 dpi = 8 dot/mm, tức 1 dot = 0,125mm. Đầu in nhiệt
+// chỉ bật/tắt được NGUYÊN dot — không có nửa dot.
+//
+// Mã vị trí Miyano luôn dài đúng 112 module Code 128 (đo bằng chính JsBarcode
+// mà frappe đóng gói: `[0-9][A-Z]` đi Code B, 8 chữ số sau ghép thành 4 cặp
+// Code C, nên mọi mã 10 ký tự đều ra cùng một con số). Vậy:
+//
+//     112 module × 2 dot = 224 dot = 224 ÷ 8 = 28,0 mm
+//
+// ĐỪNG làm tròn con số này cho "đẹp". Bản trước đặt 36mm: 36 × 8 ÷ 112 = 2,57
+// dot/module. Trình điều khiển máy in phải làm tròn từng vạch về dot gần nhất,
+// nên vạch ra lúc 2 dot lúc 3 dot KHÔNG ĐỀU — máy quét lúc đọc được lúc không,
+// tuỳ con tem và tuỳ góc quét. Đó là kiểu hỏng tệ nhất: không ai gọi nó là lỗi,
+// người ta chỉ "quét lại lần nữa" suốt nhiều tháng.
+//
+// 2 dot cũng đúng chuẩn nhà: `SPD_Nhan_NhapKho_50x30_Template.zpl` của SPD
+// dùng `^BY2` cho nhãn nhập kho.
+//
+// Hệ quả: vùng trắng còn (45 − 28) ÷ 2 = 8,5mm mỗi bên, thừa xa mức tối thiểu
+// 10 module (2,5mm). Tem trông rộng chỗ hơn cần, nhưng bề rộng vạch mới là thứ
+// máy quét đọc — không đổi nó để lấp chỗ trống.
+//
+// `le` của khổ 45×25 là 1,25mm chứ không phải 1,2mm vì CÙNG lý do: 1,25mm = 10
+// dot chẵn, nên mép trái mã vạch cũng rơi đúng vào lưới dot thay vì lệch nửa
+// dot rồi kéo cả 112 vạch lệch theo.
 
 frappe.provide("erpnext.vi_tri_kho");
 
@@ -62,7 +81,7 @@ erpnext.vi_tri_kho.tem = (function () {
 			ten: "45 × 25 mm",
 			rong: 45,
 			cao: 25,
-			le: 1.2,
+			le: 1.25,
 			khoi_cao: 12,
 			mui_ten: 5,
 			cot_khu: 11.5,
@@ -71,8 +90,8 @@ erpnext.vi_tri_kho.tem = (function () {
 			co_nhom: 11,
 			co_lon: 20,
 			co_chan: 4,
-			vach_rong: 36,
-			vach_cao: 7.2,
+			vach_rong: 28,
+			vach_cao: 7.25,
 			// 1,2 + 12 + 0,6 + 7,2 + 1,8 + 1,2 = 24,0mm — chừa 1mm cho sai số
 			// bước giấy của máy in nhiệt. Tràn 1mm trên cuộn là mọi tem SAU đó
 			// lệch dần, không phải mỗi tem này xấu.
@@ -91,7 +110,7 @@ erpnext.vi_tri_kho.tem = (function () {
 			co_nhom: 12,
 			co_lon: 23,
 			co_chan: 4.5,
-			vach_rong: 40,
+			vach_rong: 28,
 			vach_cao: 9,
 			gap: 0.8,
 		},
