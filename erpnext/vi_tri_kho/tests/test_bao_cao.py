@@ -443,7 +443,23 @@ class TestHangNamSaiViTri(FrappeTestCase):
 	hàng vẫn vào sai ô được — phiếu xếp khai tay, huỷ chứng từ, kiểm kê. Đối
 	soát §3 (`doi_soat.py`) KHÔNG bắt được: nó chỉ so TỔNG tồn vị trí với tồn
 	kho ERPNext, nên một ô chứa nhầm mặt hàng vẫn khớp tuyệt đối.
-	"""
+
+	`setUp`/`tearDown` khớp ba lớp còn lại trong file này (Task 6/10):
+	không dựa vào `Kho Miyano - MYN` đã bật quản lý vị trí SẴN trên site —
+	`_gan()` gọi `kho_co_quan_ly_vi_tri()` và `throw` nếu cờ tắt, nên tự
+	`bat(KHO)` ở đây để lớp này không phụ thuộc trạng thái ai đó đã bật hộ
+	từ một phiên console trước, và tự `_don_sach(KHO)` ở đầu/cuối để không
+	để lại tồn giả cho lớp chạy sau (không cần dọn `Item Location
+	Preference` vì ba bài dưới đây dùng `vat_tu` khác nhau — không đụng
+	cùng khoá chính, xem bẫy `FrappeTestCase` rollback theo LỚP ở
+	`test_gan_vi_tri.py`)."""
+
+	def setUp(self):
+		_don_sach(KHO)
+		bat(KHO)
+
+	def tearDown(self):
+		_don_sach(KHO)
 
 	def test_bao_cao_rong_khi_moi_thu_dung_cho(self):
 		from erpnext.vi_tri_kho.report.hang_nam_sai_vi_tri.hang_nam_sai_vi_tri import execute
@@ -453,7 +469,7 @@ class TestHangNamSaiViTri(FrappeTestCase):
 		_o("5A01010101")
 		_gan(v, "5A010101")
 		_ton("5A01010101", v, 5)
-		_, dong = execute({"kho": "Kho Miyano - MYN"})
+		_, dong = execute({"kho": KHO})
 		self.assertFalse([d for d in dong if d[0] == "5A01010101"])
 
 	def test_bat_duoc_hang_lot_vao_o_cua_mat_hang_khac(self):
@@ -467,8 +483,57 @@ class TestHangNamSaiViTri(FrappeTestCase):
 		# Ghi thẳng tồn, mô phỏng hàng lọt vào sau khi đã gán.
 		_ton("5B01010101", lac, 3)
 
-		_, dong = execute({"kho": "Kho Miyano - MYN"})
+		_, dong = execute({"kho": KHO})
 		sai = [d for d in dong if d[0] == "5B01010101"]
 		self.assertEqual(len(sai), 1)
 		self.assertIn(lac, sai[0])
 		self.assertIn(chu, sai[0])
+
+	def test_o_chua_hoi_tu_toa_do_khong_de_bao_dong_bia(self):
+		"""Khoá riêng bẫy `sl.lft > 0` — xem docstring
+		`hang_nam_sai_vi_tri.py` và task-8-report.md, mục "Đột biến 1".
+
+		Bản ghi CHƯA HỘI TỤ mang `lft = rgt = 0` (mô phỏng một ô/nút vừa
+		insert bằng SQL thô, hoặc kẹt giữa hai lần rebuild cây). Không có
+		`sl.lft > 0`, vị từ giao nhau `s2.lft <= sl.lft and s2.rgt >=
+		sl.rgt` suy biến thành `s2.lft <= 0 and s2.rgt >= 0` — khớp MỌI nút
+		0/0 khác trên toàn hệ, kể cả nút gán của một mặt hàng hoàn toàn
+		không liên quan, và đẻ ra dòng báo cáo BỊA.
+
+		Đối chứng dương trong cùng bài (không chỉ đo "rỗng"): "5C…" là một
+		lệch THẬT với toạ độ hợp lệ — phải vẫn bị bắt trong cùng lần gọi,
+		để phép kiểm "5D…" không đỏ giả nhờ `execute()` tình cờ trả rỗng vì
+		lý do khác (không liên quan tới `sl.lft > 0`)."""
+		from erpnext.vi_tri_kho.report.hang_nam_sai_vi_tri.hang_nam_sai_vi_tri import execute
+		from erpnext.vi_tri_kho.tests.test_gan_vi_tri import _gan, _mat_hang, _o, _ton
+
+		# Đối chứng dương: lệch THẬT, toạ độ hợp lệ — phải luôn bị báo.
+		chu = _mat_hang("_Test Sai VT ToaDo Chu")
+		lac = _mat_hang("_Test Sai VT ToaDo Lac")
+		_o("5C01010101")
+		_gan(chu, "5C010101")
+		_ton("5C01010101", lac, 4)
+
+		# Cặp CHƯA HỘI TỤ: một ô có tồn, và nút gán của một mặt hàng KHÔNG
+		# liên quan — cả hai bị ép về lft=rgt=0 SAU khi đã gán hợp lệ (gán
+		# đòi toạ độ thật, xem `kiem_tra_trong_cay`), mô phỏng bản ghi kẹt
+		# giữa hai lần rebuild cây.
+		ton = _mat_hang("_Test Sai VT ToaDo Ton")
+		khong_lien_quan = _mat_hang("_Test Sai VT ToaDo KhongLienQuan")
+		_o("5D01010101")
+		_ton("5D01010101", ton, 6)
+		_o("5E01010101")
+		_gan(khong_lien_quan, "5E010101")
+		frappe.db.sql("update `tabStorage Location` set lft=0, rgt=0 where name=%s", ("5D01010101",))
+		frappe.db.sql("update `tabStorage Location` set lft=0, rgt=0 where name=%s", ("5E010101",))
+
+		_, dong = execute({"kho": KHO})
+
+		sai_that = [d for d in dong if d[0] == "5C01010101"]
+		self.assertEqual(len(sai_that), 1, f"lệch thật (toạ độ hợp lệ) phải vẫn bị báo: {dong}")
+
+		self.assertFalse(
+			[d for d in dong if d[0] == "5D01010101"],
+			"ô chưa hội tụ toạ độ (lft=rgt=0) không được sinh dòng bịa — nếu bài "
+			"này đỏ, `sl.lft > 0` đã bị xoá khỏi hang_nam_sai_vi_tri.py",
+		)
