@@ -434,3 +434,41 @@ class TestBaoCaoDoiSoat(FrappeTestCase):
 		self.assertEqual(len(o_am_cua_item), 1, f"phải ra đúng 1 dòng 'Ô âm': {dong}")
 		self.assertEqual(o_am_cua_item[0][1], o_chua_xep)
 		self.assertEqual(o_am_cua_item[0][4], -3)
+
+
+class TestHangNamSaiViTri(FrappeTestCase):
+	"""Bổ khuyết của một phép kiểm chỉ chạy MỘT LẦN.
+
+	`ItemLocationPreference.kiem_tra_ton_mat_hang_khac` chặn lúc GÁN. Sau đó
+	hàng vẫn vào sai ô được — phiếu xếp khai tay, huỷ chứng từ, kiểm kê. Đối
+	soát §3 (`doi_soat.py`) KHÔNG bắt được: nó chỉ so TỔNG tồn vị trí với tồn
+	kho ERPNext, nên một ô chứa nhầm mặt hàng vẫn khớp tuyệt đối.
+	"""
+
+	def test_bao_cao_rong_khi_moi_thu_dung_cho(self):
+		from erpnext.vi_tri_kho.report.hang_nam_sai_vi_tri.hang_nam_sai_vi_tri import execute
+		from erpnext.vi_tri_kho.tests.test_gan_vi_tri import _gan, _mat_hang, _o, _ton
+
+		v = _mat_hang("_Test Sai VT Dung")
+		_o("5A01010101")
+		_gan(v, "5A010101")
+		_ton("5A01010101", v, 5)
+		_, dong = execute({"kho": "Kho Miyano - MYN"})
+		self.assertFalse([d for d in dong if d[0] == "5A01010101"])
+
+	def test_bat_duoc_hang_lot_vao_o_cua_mat_hang_khac(self):
+		from erpnext.vi_tri_kho.report.hang_nam_sai_vi_tri.hang_nam_sai_vi_tri import execute
+		from erpnext.vi_tri_kho.tests.test_gan_vi_tri import _gan, _mat_hang, _o, _ton
+
+		chu = _mat_hang("_Test Sai VT Chu")
+		lac = _mat_hang("_Test Sai VT Lac")
+		_o("5B01010101")
+		_gan(chu, "5B010101")
+		# Ghi thẳng tồn, mô phỏng hàng lọt vào sau khi đã gán.
+		_ton("5B01010101", lac, 3)
+
+		_, dong = execute({"kho": "Kho Miyano - MYN"})
+		sai = [d for d in dong if d[0] == "5B01010101"]
+		self.assertEqual(len(sai), 1)
+		self.assertIn(lac, sai[0])
+		self.assertIn(chu, sai[0])
