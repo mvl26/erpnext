@@ -81,8 +81,19 @@ class TestLuocDo(_Nen):
 			_gan(self.vt_a, self.o2)
 
 	def test_cap_do_tu_dien_theo_ma(self):
+		"""VÒNG SỬA (điều phối, Task 2): trước đây `vt_b` gán vào `7A010101` —
+		đúng là TỔ TIÊN của `self.o1` (`7A01010101`) mà `vt_a` đang giữ trong
+		bài này. Từ Task 2, `kiem_tra_chong_lan()` chặn mọi cặp gán chồng
+		nhánh, nên bài sẽ tự đỏ ngay khi mã Task 2 vào — không phải vì Task 1
+		có khiếm khuyết, mà vì bài đang tình cờ dựng đúng hình dạng chồng lấn
+		mà Task 2 sinh ra để chặn. Đổi `vt_b` sang một nhánh RỜI HẲN
+		(`8C010101`, một Khu khác toàn bộ, không chung tổ tiên với `self.o1`)
+		để ca thử chỉ còn khoá đúng điều nó khai — cấp độ suy từ mã — chứ
+		không tình cờ đụng bất biến "một ô một chủ" của một bài kiểm khác.
+		"""
 		self.assertEqual(_gan(self.vt_a, self.o1).cap_do, "Ô")
-		self.assertEqual(_gan(self.vt_b, "7A010101").cap_do, "Tầng")
+		_o("8C010101")
+		self.assertEqual(_gan(self.vt_b, "8C010101").cap_do, "Tầng")
 
 
 class TestChanNutKhongHopLe(_Nen):
@@ -177,3 +188,72 @@ class TestBayToaDoRong(_Nen):
 		frappe.db.set_value("Storage Location", self.o1, {"lft": 0, "rgt": 0}, update_modified=False)
 		with self.assertRaises(frappe.ValidationError):
 			_gan(self.vt_a, self.o1)
+
+
+class TestChongLan(_Nen):
+	"""Ma trận này phải có CẢ chốt âm.
+
+	Một đột biến đổi vị từ giao nhau thành `s.name = %(vi_tri)s` vẫn làm ca
+	"trùng đúng nút" xanh, trong khi để lọt hai ca nguy hiểm hơn (gán vào con
+	cháu, gán vào tổ tiên). Ngược lại một vị từ chặt quá tay sẽ chặn oan nút
+	anh em — và không bài nào bắt được nếu thiếu chốt âm.
+	"""
+
+	def tearDown(self):
+		# Cùng bẫy đã trả giá ở `TestLuocDo`: `FrappeTestCase` chỉ rollback ở
+		# `tearDownClass`, không rollback theo từng phương thức — bảy bài
+		# trong lớp này cùng gán `vt_a`/`vt_b` (khoá chính là `vat_tu`), nên
+		# nếu không dọn ở đây, bài chạy sau đụng đúng khoá chính bài trước vừa
+		# tạo và văng `DuplicateEntryError` ngay ở lệnh gán bình thường —
+		# không phải ở chỗ bài đang cố kiểm.
+		frappe.db.delete("Item Location Preference", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
+
+	def test_trung_dung_nut_bi_chan(self):
+		_gan(self.vt_a, "7A010101")
+		with self.assertRaises(frappe.ValidationError):
+			_gan(self.vt_b, "7A010101")
+
+	def test_gan_vao_con_chau_bi_chan(self):
+		"""A giữ Tầng 7A010101; B gán Ô 7A01010102 nằm trong đó."""
+		_gan(self.vt_a, "7A010101")
+		with self.assertRaises(frappe.ValidationError):
+			_gan(self.vt_b, self.o2)
+
+	def test_gan_vao_to_tien_bi_chan(self):
+		"""A giữ Ô 7A01010101; B gán Khoang 7A0101 bao trùm nó."""
+		_gan(self.vt_a, self.o1)
+		with self.assertRaises(frappe.ValidationError):
+			_gan(self.vt_b, "7A0101")
+
+	def test_nut_anh_em_van_gan_duoc(self):
+		"""CHỐT ÂM. Thiếu bài này thì một vị từ chặt quá tay (ví dụ so theo
+		Khoang thay vì theo lft/rgt) vẫn xanh hết các bài trên, trong khi thực
+		tế nó chặn oan mọi ô cạnh nhau — tức không ai gán được gì."""
+		_gan(self.vt_a, self.o1)
+		d = _gan(self.vt_b, self.o2)
+		self.assertEqual(d.vi_tri, self.o2)
+
+	def test_nhanh_khu_khac_van_gan_duoc(self):
+		"""CHỐT ÂM thứ hai: đột biến bỏ hẳn mệnh đề giao nhau thì bài này vẫn
+		xanh, nhưng `test_trung_dung_nut_bi_chan` sẽ đỏ — cặp đôi khoá chặt."""
+		_o("8C01010101")
+		_gan(self.vt_a, self.o1)
+		d = _gan(self.vt_b, "8C01010101")
+		self.assertEqual(d.vi_tri, "8C01010101")
+
+	def test_sua_chinh_ban_ghi_cua_minh_van_duoc(self):
+		"""Loại trừ `p.name != self.name`. Thiếu nó thì mọi lần lưu lại bản ghi
+		đã có đều tự báo 'đụng chính mình' — gán tạo được một lần rồi vĩnh viễn
+		không sửa nổi ghi chú."""
+		d = _gan(self.vt_a, self.o1)
+		d.ghi_chu = "đổi chỗ để kiểm"
+		d.save(ignore_permissions=True)
+		self.assertEqual(frappe.db.get_value("Item Location Preference", self.vt_a, "vi_tri"), self.o1)
+
+	def test_thong_bao_neu_ten_mat_hang_dang_giu(self):
+		"""'Không hợp lệ' trần thì người dùng không biết đi sửa ở đâu."""
+		_gan(self.vt_a, "7A010101")
+		with self.assertRaises(frappe.ValidationError) as ngoai_le:
+			_gan(self.vt_b, self.o2)
+		self.assertIn(self.vt_a, str(ngoai_le.exception))
+		self.assertIn("7A010101", str(ngoai_le.exception))

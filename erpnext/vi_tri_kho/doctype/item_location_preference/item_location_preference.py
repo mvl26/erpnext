@@ -18,6 +18,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from erpnext.vi_tri_kho.vitri.gan import chu_cua_nhanh
 from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri
 from erpnext.vi_tri_kho.vitri.ma_vi_tri import TEN_CAP, cap_do
 
@@ -27,6 +28,7 @@ class ItemLocationPreference(Document):
 		self.nut = self._doc_nut()
 		self.kiem_tra_trong_cay()
 		self.kiem_tra_nut_hop_le()
+		self.kiem_tra_chong_lan()
 		self.cap_do = TEN_CAP[cap_do(self.vi_tri) - 1]
 
 	def _doc_nut(self):
@@ -99,6 +101,25 @@ class ItemLocationPreference(Document):
 					"Gợi ý sẽ trỏ vào chỗ không ai được đụng tới. Bật lại rồi gán."
 				).format(self.vi_tri, tat)
 			)
+
+	def kiem_tra_chong_lan(self):
+		"""Không nhánh nào được giao với nhánh của một gán khác."""
+		chu = chu_cua_nhanh(self.nut.lft, self.nut.rgt, tru_ten=self.name)
+		if not chu:
+			return
+
+		if chu.vi_tri == self.vi_tri:
+			quan_he = _("đã được gán cho")
+		elif chu.lft <= self.nut.lft and chu.rgt >= self.nut.rgt:
+			quan_he = _("nằm trong nhánh {0} đã được gán cho").format(chu.vi_tri)
+		else:
+			quan_he = _("bao trùm {0} đã được gán cho").format(chu.vi_tri)
+
+		frappe.throw(
+			_("Vị trí {0} {1} mặt hàng {2}. Mỗi ô chỉ thuộc về một mặt hàng.").format(
+				self.vi_tri, quan_he, chu.vat_tu
+			)
+		)
 
 	def _to_tien_tat(self) -> str | None:
 		"""Tên nút `disabled` gần nhất: chính nó, hoặc một tổ tiên.
