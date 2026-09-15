@@ -304,9 +304,17 @@ class TestChanTheoTon(_Nen):
 		frappe.db.delete("Location Balance", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
 
 	def test_chan_khi_trong_nhanh_co_hang_mat_hang_khac(self):
+		"""VÒNG SỬA 1 (review điều phối): `validate()` có ít nhất 6 nhánh cùng
+		ném `ValidationError` (xem `kiem_tra_chong_lan()` và các nhánh khác) —
+		`assertRaises` trơn vẫn xanh dù lỗi bật ra từ một nhánh HOÀN TOÀN
+		khác. Khoá thêm cụm đặc trưng của đúng nhánh `kiem_tra_ton_mat_hang_khac()`
+		để phân biệt với "kiểm có chặn không" (bài này) khỏi "thông báo có đủ
+		thông tin để đi dọn không" (`test_thong_bao_neu_ro_o_mat_hang_so_luong`
+		ngay dưới) — hai bài khoá hai điều khác nhau, không gộp."""
 		_ton(self.o1, self.vt_b, 15)
-		with self.assertRaises(frappe.ValidationError):
+		with self.assertRaises(frappe.ValidationError) as e:
 			_gan(self.vt_a, "7A010101")
+		self.assertIn("hàng của mặt hàng khác", str(e.exception))
 
 	def test_thong_bao_neu_ro_o_mat_hang_so_luong(self):
 		"""Việc tiếp theo của người dùng là đi dọn ĐÚNG những ô đó bằng phiếu
@@ -332,3 +340,19 @@ class TestChanTheoTon(_Nen):
 		_ton(self.o1, self.vt_b, 0)
 		d = _gan(self.vt_a, "7A010101")
 		self.assertEqual(d.vi_tri, "7A010101")
+
+	def test_thong_bao_dem_dung_so_o_con_lai(self):
+		"""VÒNG SỬA 1 (review điều phối). `ton_khac_trong_nhanh()` bị `limit`
+		chặn cứng ở `GIOI_HAN + 1` dòng — đếm trên `len(...)` của kết quả đó
+		luôn ra N = 1 bất kể nhánh có bao nhiêu ô thật. Dựng 5 ô có tồn của
+		mặt hàng khác trong cùng nhánh (nhiều hơn `GIOI_HAN` = 3) để khoá đúng
+		con số CÒN LẠI thật (5 - 3 = 2 ô nữa), không phải 1 ô nữa."""
+		o3 = _o("7A01010103")
+		o4 = _o("7A01010104")
+		o5 = _o("7A01010105")
+		for o in (self.o1, self.o2, o3, o4, o5):
+			_ton(o, self.vt_b, 15)
+		with self.assertRaises(frappe.ValidationError) as e:
+			_gan(self.vt_a, self.tang)
+		self.assertIn("2 ô nữa", str(e.exception))
+		self.assertNotIn("1 ô nữa", str(e.exception))

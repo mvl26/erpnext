@@ -18,7 +18,11 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
-from erpnext.vi_tri_kho.vitri.gan import chu_cua_nhanh, ton_khac_trong_nhanh
+from erpnext.vi_tri_kho.vitri.gan import (
+	chu_cua_nhanh,
+	dem_ton_khac_trong_nhanh,
+	ton_khac_trong_nhanh,
+)
 from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri
 from erpnext.vi_tri_kho.vitri.ma_vi_tri import TEN_CAP, cap_do
 
@@ -155,7 +159,15 @@ class ItemLocationPreference(Document):
 			_("{0}: {1} × {2}").format(d.o, d.vat_tu, frappe.format_value(d.so_luong, "Float"))
 			for d in dong[:GIOI_HAN]
 		]
-		them = _(" … và {0} ô nữa").format(len(dong) - GIOI_HAN) if len(dong) > GIOI_HAN else ""
+		# VÒNG SỬA 1 (review điều phối): `len(dong)` bị `limit` của
+		# `ton_khac_trong_nhanh()` chặn cứng ở `GIOI_HAN + 1`, nên đếm trên đó
+		# luôn ra N = 1 dù nhánh có 50 ô — sai đúng con số thủ kho cần để biết
+		# khối lượng phải dọn. Chỉ ĐƯỜNG LỖI này mới cần tổng thật nên chỉ ở
+		# đây mới gọi thêm `dem_ton_khac_trong_nhanh()` (một truy vấn COUNT
+		# riêng, không `limit`); đường thành công (không chồng) không chạm
+		# tới nó nên không tốn thêm round-trip DB nào ở đường nóng.
+		tong = dem_ton_khac_trong_nhanh(self.nut.lft, self.nut.rgt, self.vat_tu)
+		them = _(" … và {0} ô nữa").format(tong - GIOI_HAN) if tong > GIOI_HAN else ""
 		frappe.throw(
 			_(
 				"Trong nhánh {0} đang có hàng của mặt hàng khác:\n\n{1}{2}\n\n"

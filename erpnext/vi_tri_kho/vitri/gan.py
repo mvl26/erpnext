@@ -48,30 +48,73 @@ def chu_cua_nhanh(lft: int, rgt: int, tru_ten: str | None = None) -> dict | None
 	return dong[0] if dong else None
 
 
+# Mệnh đề dùng chung giữa `ton_khac_trong_nhanh()` (lấy MẪU, có `limit`) và
+# `dem_ton_khac_trong_nhanh()` (lấy TỔNG THẬT, không `limit`). Hai truy vấn
+# trả lời cùng một câu ("ô nào trong nhánh đang có hàng của mặt hàng khác")
+# ở hai độ chi tiết khác nhau — chép tay hai bản `where` là đúng kiểu bản sao
+# trôi khỏi nhau mà module này đã trả giá (xem docstring đầu file).
+_DIEU_KIEN_TON_KHAC = """sl.lft between %(lft)s and %(rgt)s
+	  and lb.so_luong != 0
+	  and lb.vat_tu != %(vat_tu)s"""
+
+
 def ton_khac_trong_nhanh(lft: int, rgt: int, vat_tu: str, gioi_han: int = 3) -> list[dict]:
-	"""Tồn của mặt hàng KHÁC `vat_tu` đang nằm trong nhánh `[lft, rgt]`.
+	"""Tồn của mặt hàng KHÁC `vat_tu` đang nằm trong nhánh `[lft, rgt]` — MẪU,
+	tối đa `gioi_han + 1` dòng.
 
 	`so_luong != 0` chứ không phải "có dòng": một ô từng có hàng rồi hết vẫn
 	còn dòng `Location Balance` mang 0. Coi dòng-0 là "đang có hàng" thì mọi ô
 	từng dùng qua sẽ vĩnh viễn không gán được cho ai.
 
-	`gioi_han` chỉ để dựng thông báo (nêu vài ô đầu rồi "… và N ô nữa"), nên
-	hàm trả thêm một dòng so với `gioi_han` để nơi gọi biết là còn nữa.
+	`gioi_han` chỉ để dựng danh sách MẪU trong thông báo (nêu vài ô đầu rồi
+	"… và N ô nữa"), nên hàm trả thêm một dòng so với `gioi_han` để nơi gọi
+	biết là còn nữa.
+
+	VÒNG SỬA 1 (review điều phối): kết quả hàm này KHÔNG đủ để tính N. Nó bị
+	`limit` chặn ở `gioi_han + 1`, nên `len(...)` trên đó luôn ra đúng
+	`gioi_han + 1` bất kể nhánh có 4 ô hay 400 ô — "N" tính từ số đó luôn
+	bằng 1. Muốn N thật, gọi `dem_ton_khac_trong_nhanh()` — một truy vấn
+	COUNT riêng, không `limit`, dùng chung `_DIEU_KIEN_TON_KHAC` để không
+	trôi khỏi định nghĩa "khác" ở đây.
 	"""
 	if not lft or not rgt:
 		frappe.throw("ton_khac_trong_nhanh() nhận toạ độ rỗng — nơi gọi phải chặn trước.")
 
 	return frappe.db.sql(
-		"""
+		f"""
 		select lb.o as o, lb.vat_tu as vat_tu, lb.so_luong as so_luong
 		from `tabLocation Balance` lb
 		join `tabStorage Location` sl on sl.name = lb.o
-		where sl.lft between %(lft)s and %(rgt)s
-		  and lb.so_luong != 0
-		  and lb.vat_tu != %(vat_tu)s
+		where {_DIEU_KIEN_TON_KHAC}
 		order by sl.lft asc
 		limit %(gioi_han)s
 		""",
 		{"lft": lft, "rgt": rgt, "vat_tu": vat_tu, "gioi_han": gioi_han + 1},
 		as_dict=True,
 	)
+
+
+def dem_ton_khac_trong_nhanh(lft: int, rgt: int, vat_tu: str) -> int:
+	"""Tổng THẬT số ô có tồn mặt hàng khác trong nhánh `[lft, rgt]` — không
+	`limit`, nên không bị cắt như kết quả của `ton_khac_trong_nhanh()`.
+
+	Chỉ gọi trên ĐƯỜNG LỖI của `kiem_tra_ton_mat_hang_khac()` (tức chỉ khi
+	`ton_khac_trong_nhanh()` đã trả về ít nhất một dòng): đây là truy vấn
+	THỨ HAI, dùng để tính đúng "N" trong "… và N ô nữa" mà lấy MẪU không cho
+	biết. Đường thành công (nhánh không chồng, phần lớn các lần gán) không
+	chạm tới hàm này nên không tốn thêm một round-trip DB nào ở đường nóng.
+	"""
+	if not lft or not rgt:
+		frappe.throw("dem_ton_khac_trong_nhanh() nhận toạ độ rỗng — nơi gọi phải chặn trước.")
+
+	dong = frappe.db.sql(
+		f"""
+		select count(*) as tong
+		from `tabLocation Balance` lb
+		join `tabStorage Location` sl on sl.name = lb.o
+		where {_DIEU_KIEN_TON_KHAC}
+		""",
+		{"lft": lft, "rgt": rgt, "vat_tu": vat_tu},
+		as_dict=True,
+	)
+	return dong[0].tong if dong else 0
