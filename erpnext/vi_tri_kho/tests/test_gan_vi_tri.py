@@ -450,3 +450,49 @@ class TestDoiMaMatHang(_Nen):
 		self.assertFalse(frappe.db.exists("Item Location Preference", nguon))
 		d = frappe.get_doc("Item Location Preference", dich)
 		self.assertEqual(d.vi_tri, o_dich)
+
+
+class TestCayChonViTri(_Nen):
+	"""Chỉ kiểm phần MÁY CHỦ. Việc vẽ cây nằm ở JS và không bài Python nào ở
+	đây chứng minh nó vẽ đúng — đừng đọc bộ test này như thể nó chứng minh."""
+
+	def tearDown(self):
+		# Cùng bẫy đã trả giá ở `TestLuocDo`/`TestChongLan`/`TestChanTheoTon`:
+		# `FrappeTestCase` chỉ rollback ở `tearDownClass`, không rollback theo
+		# từng phương thức — hai bài dưới đây cùng gán `vt_a` (khoá chính là
+		# `vat_tu`), nên nếu không dọn ở đây, bài chạy sau đụng đúng khoá
+		# chính bài trước vừa tạo và văng `DuplicateEntryError` ngay ở lệnh
+		# gán bình thường — không phải ở chỗ bài đang cố kiểm.
+		frappe.db.delete("Item Location Preference", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
+
+	def test_tra_ve_khu_khi_khong_co_parent(self):
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		nut = cay_chon_vi_tri(KHO)
+		self.assertTrue(nut)
+		self.assertTrue(all(len(n["value"]) == 2 for n in nut), "cấp gốc phải là Khu (2 ký tự)")
+
+	def test_nut_da_co_chu_mang_ten_mat_hang(self):
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		_gan(self.vt_a, "7A010101")
+		nut = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent="7A0101")}
+		self.assertEqual(nut["7A010101"]["da_gan_cho"], self.vt_a)
+
+	def test_con_chau_cua_nut_da_co_chu_cung_bao_co_chu(self):
+		"""CHỐT ÂM quan trọng nhất của cây. Một bản chỉ tra gán ĐÚNG nút sẽ
+		hiện Tầng là 'đã có chủ' nhưng các Ô bên dưới vẫn trông trống — người
+		dùng bấm vào Ô đó rồi mới ăn lỗi. 'Không khả dụng' phải NHÌN THẤY
+		TRƯỚC KHI BẤM, nếu không thì với 214 ô đây là trò chơi đoán."""
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		_gan(self.vt_a, "7A010101")
+		nut = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent="7A010101")}
+		self.assertEqual(nut[self.o1]["da_gan_cho"], self.vt_a)
+
+	def test_o_chua_xep_khong_xuat_hien_trong_cay(self):
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		zzz = frappe.db.get_value("Storage Location", {"la_o_chua_xep": 1, "kho": KHO}, "name")
+		gia_tri = {n["value"] for n in cay_chon_vi_tri(KHO)}
+		self.assertNotIn(zzz, gia_tri)

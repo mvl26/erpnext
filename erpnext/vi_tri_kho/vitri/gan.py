@@ -8,6 +8,7 @@ hàm thuần truy vấn — và cái giá thật không phải hiệu năng mà 
 """
 
 import frappe
+from frappe import _
 
 
 def chu_cua_nhanh(lft: int, rgt: int, tru_ten: str | None = None) -> dict | None:
@@ -169,3 +170,75 @@ def doi_ten_theo_mat_hang(doc, method=None, old=None, new=None, merge=False):
 		return
 
 	frappe.rename_doc("Item Location Preference", old, new, force=True, show_alert=False)
+
+
+# Cùng bộ vai trò với `tem.py::VAI_TRO_DUOC_IN_TEM` và `xep.py::VAI_TRO_DUOC_XEP`: thủ kho
+# (`Stock User`) phải tự xem được cây để chọn vị trí — đây là việc hằng ngày, không phải thao
+# tác thiết lập chỉ dành cho quản lý.
+VAI_TRO_DUOC_XEM_CAY = {"System Manager", "Stock Manager", "Stock User"}
+
+
+@frappe.whitelist()
+def cay_chon_vi_tri(kho: str, parent: str | None = None) -> list[dict]:
+	"""Các nút con để vẽ một cấp của cây chọn vị trí (Task 7 — bảng dữ liệu cho `frappe.ui.Tree`
+	phía JS, xem `public/js/vi_tri_kho/cay_chon_vi_tri.js`).
+
+	`@frappe.whitelist()` một mình chỉ chặn khách vãng lai; danh mục ô lộ ra toàn bộ cách bố trí
+	kho nên đăng nhập hợp lệ không phải điều kiện đủ. Cùng bộ vai trò với `tem.py` và `xep.py`.
+
+	`da_gan_cho` tra theo TỔ TIÊN-hoặc-chính-nó (`s2.lft <= sl.lft and s2.rgt >= sl.rgt`), không
+	phải khớp đúng nút (`s2.name = sl.name`). Gán ở Tầng thì mọi Ô bên dưới nó cũng đã có chủ —
+	không tra theo tổ tiên thì cây hiện Tầng là "đã có chủ" mà các Ô bên dưới vẫn trông trống,
+	người dùng bấm vào rồi mới ăn lỗi từ `validate()` của `ItemLocationPreference` — với 214 ô
+	đó là trò chơi đoán, không phải giao diện. `order by s2.lft asc limit 1` chọn tổ tiên GẦN
+	NHẤT khi lồng nhiều lớp (không thể xảy ra thật vì `kiem_tra_chong_lan()` đã chặn hai gán
+	chồng nhánh, nhưng `limit 1` giữ subquery luôn ra đúng MỘT giá trị cho `as_dict`).
+
+	`ZZZ-CHUA-XEP` (ô ảo "chưa xếp vị trí") bị loại — nó không phải kệ thật, và
+	`ItemLocationPreference.kiem_tra_nut_hop_le()` chặn gán vào đó ngay từ Python; cho nó lên cây
+	chỉ để người dùng bấm rồi ăn lỗi.
+
+	Bản ghi `lft = 0` (chưa hội tụ trong cây — xem `ItemLocationPreference.kiem_tra_trong_cay()`
+	ở `item_location_preference.py`) bị loại bằng `sl.lft > 0`. Cùng cái bẫy đã trả giá ở
+	`fefo.py` và `tem.py`: một nút `lft = rgt = 0` lọt vào cây thì `da_gan_cho` của nó (và mọi
+	nút 0/0 khác trên toàn hệ, kể cả kho khác) sẽ tự nhận nhầm gán của nhau qua vị từ giao nhau.
+	"""
+	if not VAI_TRO_DUOC_XEM_CAY & set(frappe.get_roles()):
+		frappe.throw(_("Bạn không có quyền xem cây vị trí."), frappe.PermissionError)
+
+	dieu_kien = (
+		"sl.parent_storage_location = %(parent)s"
+		if parent
+		else "ifnull(sl.parent_storage_location, '') = ''"
+	)
+	return frappe.db.sql(
+		f"""
+		select sl.name as value,
+		       ifnull(sl.ma_in_nhan, sl.name) as title,
+		       ifnull(sl.is_group, 0) as expandable,
+		       (select p.vat_tu
+		          from `tabItem Location Preference` p
+		          join `tabStorage Location` s2 on s2.name = p.vi_tri
+		         where s2.lft <= sl.lft and s2.rgt >= sl.rgt
+		         order by s2.lft asc limit 1) as da_gan_cho,
+		       (select count(distinct lb.vat_tu)
+		          from `tabLocation Balance` lb
+		          join `tabStorage Location` s3 on s3.name = lb.o
+		         where s3.lft between sl.lft and sl.rgt and lb.so_luong != 0) as so_mat_hang_dang_co,
+		       (select count(*)
+		          from `tabStorage Location` s4
+		         where s4.lft between sl.lft and sl.rgt
+		           and ifnull(s4.is_group, 0) = 0
+		           and ifnull(s4.la_o_chua_xep, 0) = 0
+		           and ifnull((select sum(lb2.so_luong) from `tabLocation Balance` lb2
+		                        where lb2.o = s4.name), 0) = 0) as so_o_trong
+		from `tabStorage Location` sl
+		where {dieu_kien}
+		  and sl.kho = %(kho)s
+		  and ifnull(sl.la_o_chua_xep, 0) = 0
+		  and sl.lft > 0
+		order by sl.lft asc
+		""",
+		{"kho": kho, "parent": parent},
+		as_dict=True,
+	)
