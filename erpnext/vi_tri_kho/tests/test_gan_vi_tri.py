@@ -197,6 +197,14 @@ class TestChongLan(_Nen):
 	"trùng đúng nút" xanh, trong khi để lọt hai ca nguy hiểm hơn (gán vào con
 	cháu, gán vào tổ tiên). Ngược lại một vị từ chặt quá tay sẽ chặn oan nút
 	anh em — và không bài nào bắt được nếu thiếu chốt âm.
+
+	Ba bài "phải chặn" dưới đây còn phải kiểm CÂU CHỮ của thông báo, không chỉ
+	loại ngoại lệ: `kiem_tra_chong_lan()` ném cùng một `frappe.ValidationError`
+	ở cả ba nhánh quan hệ (trùng nút / con cháu / tổ tiên), và `validate()` có
+	nhiều nhánh khác cũng ném đúng loại đó — nên `assertRaises` trơn không
+	phân biệt được một đột biến hoán nhầm câu "đã được gán cho" (trùng nút)
+	với câu "bao trùm ... đã được gán cho" (tổ tiên): cả 16 bài vẫn xanh dù
+	thông báo sai hoàn toàn, vì không bài nào đọc nội dung ngoại lệ.
 	"""
 
 	def tearDown(self):
@@ -209,21 +217,32 @@ class TestChongLan(_Nen):
 		frappe.db.delete("Item Location Preference", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
 
 	def test_trung_dung_nut_bi_chan(self):
+		"""Khẳng định phủ định là phần quan trọng nhất của bài này: nếu ai đó
+		hoán nhầm nhánh "trùng nút" và nhánh "tổ tiên" trong `quan_he` của
+		`kiem_tra_chong_lan()`, thông báo sẽ mang chữ "bao trùm" thay vì "đã
+		được gán cho" — vẫn là `ValidationError`, vẫn làm bài xanh nếu chỉ
+		`assertRaises` trơn. Kiểm cả hai chiều mới bắt được cú hoán đó."""
 		_gan(self.vt_a, "7A010101")
-		with self.assertRaises(frappe.ValidationError):
+		with self.assertRaises(frappe.ValidationError) as ngoai_le:
 			_gan(self.vt_b, "7A010101")
+		thong_diep = str(ngoai_le.exception)
+		self.assertIn("đã được gán cho", thong_diep)
+		self.assertNotIn("nằm trong", thong_diep)
+		self.assertNotIn("bao trùm", thong_diep)
 
 	def test_gan_vao_con_chau_bi_chan(self):
 		"""A giữ Tầng 7A010101; B gán Ô 7A01010102 nằm trong đó."""
 		_gan(self.vt_a, "7A010101")
-		with self.assertRaises(frappe.ValidationError):
+		with self.assertRaises(frappe.ValidationError) as ngoai_le:
 			_gan(self.vt_b, self.o2)
+		self.assertIn("nằm trong", str(ngoai_le.exception))
 
 	def test_gan_vao_to_tien_bi_chan(self):
 		"""A giữ Ô 7A01010101; B gán Khoang 7A0101 bao trùm nó."""
 		_gan(self.vt_a, self.o1)
-		with self.assertRaises(frappe.ValidationError):
+		with self.assertRaises(frappe.ValidationError) as ngoai_le:
 			_gan(self.vt_b, "7A0101")
+		self.assertIn("bao trùm", str(ngoai_le.exception))
 
 	def test_nut_anh_em_van_gan_duoc(self):
 		"""CHỐT ÂM. Thiếu bài này thì một vị từ chặt quá tay (ví dụ so theo

@@ -103,7 +103,21 @@ class ItemLocationPreference(Document):
 			)
 
 	def kiem_tra_chong_lan(self):
-		"""Không nhánh nào được giao với nhánh của một gán khác."""
+		"""Nối bất biến trung tâm của cả tính năng vào `validate()`: một ô
+		chỉ thuộc về một mặt hàng.
+
+		Bỏ phép kiểm này thì hai mặt hàng cùng được gợi ý vào một ô, thủ kho
+		xếp chồng lên nhau — và KHÔNG CÓ GÌ BÁO: đối soát §3 (`doi_soat.py`)
+		chỉ so TỔNG tồn theo kho/mặt hàng, nên vẫn khớp tuyệt đối dù vị trí
+		gợi ý sai be bét. Đây không phải một tình huống hiếm: mọi lần gán
+		thủ công hoặc import hàng loạt đều đi qua đúng một cửa này.
+
+		Không thể thay bằng một ràng buộc CSDL (vd. unique index trên
+		`vi_tri`): nested set không có cách biểu diễn "hai nhánh không giao
+		nhau" bằng constraint — quan hệ "giao nhau" là phép so sánh giữa hai
+		KHOẢNG (`lft`/`rgt`), không phải một khoá đơn mà `UNIQUE` bắt được.
+		Phải kiểm bằng truy vấn, ở đây, tại `validate()`.
+		"""
 		chu = chu_cua_nhanh(self.nut.lft, self.nut.rgt, tru_ten=self.name)
 		if not chu:
 			return
