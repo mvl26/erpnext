@@ -58,3 +58,19 @@ class TestModuleKhoiDong(FrappeTestCase):
 			"từng bỏ qua vì gặp disabled=1, cây vĩnh viễn không được dựng lại. "
 			"Kiểm after_migrate trong erpnext/hooks.py.",
 		)
+
+	def test_hook_doi_ten_mat_hang_duoc_dang_ky(self):
+		"""Móc thứ hai của module trong `hooks.py`, và cũng dễ mất y như móc
+		SLE. Mất nó thì đổi mã một mặt hàng làm bản ghi gán của nó âm thầm trỏ
+		về mã cũ ở lần lưu kế tiếp — không lỗi, không dấu vết."""
+		HAM = "erpnext.vi_tri_kho.vitri.gan.doi_ten_theo_mat_hang"
+		tay_cam = frappe.get_hooks("doc_events").get("Item", {}).get("after_rename") or []
+		if isinstance(tay_cam, str):
+			tay_cam = [tay_cam]
+		self.assertIn(
+			HAM,
+			tay_cam,
+			f"Móc {HAM} không còn trong doc_events['Item']['after_rename']. "
+			"Mất nó thì đổi mã mặt hàng làm gán vị trí revert về mã cũ trong "
+			"im lặng. Kiểm doc_events trong erpnext/hooks.py.",
+		)

@@ -361,6 +361,13 @@ doc_events = {
 			"erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
 			"erpnext.tbyt.item_hooks.warn_about_missing_documents",
 		],
+		# Đổi mã một Item phải kéo theo `name` của bản ghi gán vị trí, vì doctype
+		# đó dùng `autoname: field:vat_tu` — `name` là nguồn sự thật, không phải
+		# trường. Mất dòng này thì đổi mã mặt hàng làm gán vị trí ÂM THẦM trỏ về mã
+		# cũ ở lần lưu kế tiếp (`_sync_autoname_field`, base_document.py:1027):
+		# không lỗi, không dấu vết, chỉ là gợi ý xếp hàng biến mất.
+		# `vi_tri_kho/tests/test_app_khoi_dong.py` khoá việc này.
+		"after_rename": "erpnext.vi_tri_kho.vitri.gan.doi_ten_theo_mat_hang",
 	},
 	tuple(period_closing_doctypes): {
 		"validate": "erpnext.accounts.doctype.accounting_period.accounting_period.validate_accounting_period_on_doc_save",

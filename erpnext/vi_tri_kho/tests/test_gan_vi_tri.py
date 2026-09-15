@@ -356,3 +356,40 @@ class TestChanTheoTon(_Nen):
 			_gan(self.vt_a, self.tang)
 		self.assertIn("2 ô nữa", str(e.exception))
 		self.assertNotIn("1 ô nữa", str(e.exception))
+
+
+class TestDoiMaMatHang(_Nen):
+	"""`autoname: field:vat_tu` mua được một khoá chính, và phải trả bằng đây.
+
+	`_sync_autoname_field()` (frappe/model/base_document.py:1027) ép
+	`vat_tu = name` MỖI LẦN LƯU khi hai giá trị lệch nhau — `name` luôn thắng.
+	`rename_doc` của Item cập nhật GIÁ TRỊ `vat_tu` bằng SQL nhưng không đụng
+	`name` của bản ghi gán. Không có móc, lần lưu kế tiếp kéo `vat_tu` ngược về
+	mã CŨ, âm thầm: gán trỏ vào một mặt hàng không còn tồn tại, và gợi ý cho mã
+	mới lặng lẽ biến mất.
+
+	Cùng hình dạng bẫy mà `storage_location.py::kiem_tra_ma_o_khong_doi` đã
+	phải chặn tường minh cho `ma_o`.
+	"""
+
+	def test_doi_ma_mat_hang_keo_theo_ten_ban_ghi_gan(self):
+		cu = _mat_hang("_Test Gan VT Doi Ten")
+		_gan(cu, self.o1)
+		moi = "_Test Gan VT Doi Ten MOI"
+		frappe.rename_doc("Item", cu, moi, force=True)
+
+		self.assertFalse(frappe.db.exists("Item Location Preference", cu))
+		self.assertTrue(frappe.db.exists("Item Location Preference", moi))
+
+	def test_luu_lai_sau_khi_doi_ten_khong_keo_vat_tu_ve_ma_cu(self):
+		"""CHỐT ÂM — bài trên vẫn xanh nếu ai đó chỉ `db.set_value` trường
+		`vat_tu` mà không rename. Bài này bắt đúng cú revert im lặng."""
+		cu = _mat_hang("_Test Gan VT Revert")
+		_gan(cu, self.o2)
+		moi = "_Test Gan VT Revert MOI"
+		frappe.rename_doc("Item", cu, moi, force=True)
+
+		d = frappe.get_doc("Item Location Preference", moi)
+		d.ghi_chu = "lưu lại sau khi đổi mã"
+		d.save(ignore_permissions=True)
+		self.assertEqual(d.vat_tu, moi)

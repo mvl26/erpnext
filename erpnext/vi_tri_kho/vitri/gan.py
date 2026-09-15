@@ -118,3 +118,32 @@ def dem_ton_khac_trong_nhanh(lft: int, rgt: int, vat_tu: str) -> int:
 		as_dict=True,
 	)
 	return dong[0].tong if dong else 0
+
+
+def doi_ten_theo_mat_hang(doc, method=None, old=None, new=None, merge=False):
+	"""Đổi mã mặt hàng thì đổi luôn `name` của bản ghi gán.
+
+	`Document.hook` gọi handler với `(doc, method, *args)` mà `rename_doc` đã
+	truyền `(old, new, merge)` — nên chữ ký phải nhận đủ, xem
+	`frappe/model/document.py:1357` và `rename_doc.py:207`.
+
+	VÌ SAO KHÔNG ĐƠN GIẢN LÀ `db.set_value("...", ten, "vat_tu", new)`: bản ghi
+	gán dùng `autoname: field:vat_tu`, nên `name` MỚI là nguồn sự thật.
+	`_sync_autoname_field()` (base_document.py:1027) chạy ở mọi lần lưu và ép
+	`vat_tu = name`. Sửa trường mà không sửa `name` thì lần lưu kế tiếp trả
+	ngược về mã cũ — im lặng, không lỗi nào.
+
+	`merge=True` (gộp hai mặt hàng): bản ghi gán của mã cũ bị XOÁ chứ không
+	rename, vì mã mới có thể đã có gán riêng và `rename_doc` sẽ ném
+	`DuplicateEntryError` giữa chừng một thao tác gộp đang dở.
+	"""
+	if not old or not new or old == new:
+		return
+	if not frappe.db.exists("Item Location Preference", old):
+		return
+
+	if merge:
+		frappe.delete_doc("Item Location Preference", old, ignore_permissions=True, force=True)
+		return
+
+	frappe.rename_doc("Item Location Preference", old, new, force=True, show_alert=False)
