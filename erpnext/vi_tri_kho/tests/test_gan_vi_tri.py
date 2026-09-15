@@ -276,3 +276,59 @@ class TestChongLan(_Nen):
 			_gan(self.vt_b, self.o2)
 		self.assertIn(self.vt_a, str(ngoai_le.exception))
 		self.assertIn("7A010101", str(ngoai_le.exception))
+
+
+def _ton(o, vat_tu, so_luong, kho=KHO):
+	"""Đặt thẳng tồn vị trí. KHÔNG đi qua sổ — bài này chỉ kiểm phép chặn lúc
+	gán, không kiểm bất biến sổ/tồn (đã có `test_doi_soat.py` lo)."""
+	ten = frappe.db.get_value("Location Balance", {"o": o, "vat_tu": vat_tu, "so_lo": ""}, "name")
+	if ten:
+		frappe.db.set_value("Location Balance", ten, "so_luong", so_luong)
+		return ten
+	return frappe.get_doc(
+		{"doctype": "Location Balance", "o": o, "kho": kho, "vat_tu": vat_tu,
+		 "so_lo": "", "so_luong": so_luong}
+	).insert(ignore_permissions=True).name
+
+
+class TestChanTheoTon(_Nen):
+	def tearDown(self):
+		# Cùng bẫy đã trả giá ở `TestLuocDo`/`TestChongLan`: `FrappeTestCase` chỉ
+		# rollback ở `tearDownClass`, không rollback theo từng phương thức — bốn
+		# bài trong lớp này cùng gán `vt_a`/`vt_b` (khoá chính là `vat_tu`), nên
+		# nếu không dọn ở đây, bài chạy sau đụng đúng khoá chính bài trước vừa
+		# tạo và văng `DuplicateEntryError` ngay ở lệnh gán bình thường. Dọn
+		# thêm `Location Balance` mà `_ton()` tạo ra — nếu không, tồn sót lại sẽ
+		# làm bài của task sau (gợi ý ô) thấy hàng ở chỗ nó không ngờ.
+		frappe.db.delete("Item Location Preference", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
+		frappe.db.delete("Location Balance", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
+
+	def test_chan_khi_trong_nhanh_co_hang_mat_hang_khac(self):
+		_ton(self.o1, self.vt_b, 15)
+		with self.assertRaises(frappe.ValidationError):
+			_gan(self.vt_a, "7A010101")
+
+	def test_thong_bao_neu_ro_o_mat_hang_so_luong(self):
+		"""Việc tiếp theo của người dùng là đi dọn ĐÚNG những ô đó bằng phiếu
+		chuyển vị trí — thông báo phải đủ để làm việc đó ngay."""
+		_ton(self.o1, self.vt_b, 15)
+		with self.assertRaises(frappe.ValidationError) as e:
+			_gan(self.vt_a, "7A010101")
+		self.assertIn(self.o1, str(e.exception))
+		self.assertIn(self.vt_b, str(e.exception))
+		self.assertIn("15", str(e.exception))
+
+	def test_hang_cua_chinh_no_thi_duoc(self):
+		"""CHỐT ÂM. Một đột biến bỏ mệnh đề `vat_tu != ...` sẽ chặn luôn cả
+		hàng của chính mặt hàng đang gán — tức không ai gán lại được vị trí cho
+		món đã nằm sẵn đúng chỗ."""
+		_ton(self.o1, self.vt_a, 15)
+		d = _gan(self.vt_a, "7A010101")
+		self.assertEqual(d.vi_tri, "7A010101")
+
+	def test_ton_bang_0_khong_chan(self):
+		"""Ô từng có hàng rồi hết vẫn còn dòng `so_luong = 0`. Coi đó là 'đang
+		có hàng' thì mọi ô từng dùng qua đều vĩnh viễn không gán được."""
+		_ton(self.o1, self.vt_b, 0)
+		d = _gan(self.vt_a, "7A010101")
+		self.assertEqual(d.vi_tri, "7A010101")

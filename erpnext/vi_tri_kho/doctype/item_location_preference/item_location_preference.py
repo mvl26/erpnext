@@ -18,7 +18,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
-from erpnext.vi_tri_kho.vitri.gan import chu_cua_nhanh
+from erpnext.vi_tri_kho.vitri.gan import chu_cua_nhanh, ton_khac_trong_nhanh
 from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri
 from erpnext.vi_tri_kho.vitri.ma_vi_tri import TEN_CAP, cap_do
 
@@ -29,6 +29,7 @@ class ItemLocationPreference(Document):
 		self.kiem_tra_trong_cay()
 		self.kiem_tra_nut_hop_le()
 		self.kiem_tra_chong_lan()
+		self.kiem_tra_ton_mat_hang_khac()
 		self.cap_do = TEN_CAP[cap_do(self.vi_tri) - 1]
 
 	def _doc_nut(self):
@@ -133,6 +134,33 @@ class ItemLocationPreference(Document):
 			_("Vị trí {0} {1} mặt hàng {2}. Mỗi ô chỉ thuộc về một mặt hàng.").format(
 				self.vi_tri, quan_he, chu.vat_tu
 			)
+		)
+
+	def kiem_tra_ton_mat_hang_khac(self):
+		"""Trong nhánh không được có tồn của mặt hàng khác.
+
+		Quyết định của chủ đầu tư 15/09 ("chặn cả hai").
+
+		LƯU Ý CHO NGƯỜI ĐỌC SAU: phép kiểm này chỉ chặn LÚC GÁN. Hàng vẫn vào
+		sai ô được sau đó — qua phiếu xếp khai tay, qua đường huỷ chứng từ, qua
+		kiểm kê. Thứ soi việc đó là báo cáo `hang_nam_sai_vi_tri`; đối soát §3
+		KHÔNG bắt được vì nó chỉ so tổng.
+		"""
+		GIOI_HAN = 3
+		dong = ton_khac_trong_nhanh(self.nut.lft, self.nut.rgt, self.vat_tu, GIOI_HAN)
+		if not dong:
+			return
+
+		ke = [
+			_("{0}: {1} × {2}").format(d.o, d.vat_tu, frappe.format_value(d.so_luong, "Float"))
+			for d in dong[:GIOI_HAN]
+		]
+		them = _(" … và {0} ô nữa").format(len(dong) - GIOI_HAN) if len(dong) > GIOI_HAN else ""
+		frappe.throw(
+			_(
+				"Trong nhánh {0} đang có hàng của mặt hàng khác:\n\n{1}{2}\n\n"
+				"Chuyển những ô đó đi bằng phiếu chuyển vị trí rồi gán lại."
+			).format(self.vi_tri, "\n".join(ke), them)
 		)
 
 	def _to_tien_tat(self) -> str | None:

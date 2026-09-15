@@ -46,3 +46,32 @@ def chu_cua_nhanh(lft: int, rgt: int, tru_ten: str | None = None) -> dict | None
 		as_dict=True,
 	)
 	return dong[0] if dong else None
+
+
+def ton_khac_trong_nhanh(lft: int, rgt: int, vat_tu: str, gioi_han: int = 3) -> list[dict]:
+	"""Tồn của mặt hàng KHÁC `vat_tu` đang nằm trong nhánh `[lft, rgt]`.
+
+	`so_luong != 0` chứ không phải "có dòng": một ô từng có hàng rồi hết vẫn
+	còn dòng `Location Balance` mang 0. Coi dòng-0 là "đang có hàng" thì mọi ô
+	từng dùng qua sẽ vĩnh viễn không gán được cho ai.
+
+	`gioi_han` chỉ để dựng thông báo (nêu vài ô đầu rồi "… và N ô nữa"), nên
+	hàm trả thêm một dòng so với `gioi_han` để nơi gọi biết là còn nữa.
+	"""
+	if not lft or not rgt:
+		frappe.throw("ton_khac_trong_nhanh() nhận toạ độ rỗng — nơi gọi phải chặn trước.")
+
+	return frappe.db.sql(
+		"""
+		select lb.o as o, lb.vat_tu as vat_tu, lb.so_luong as so_luong
+		from `tabLocation Balance` lb
+		join `tabStorage Location` sl on sl.name = lb.o
+		where sl.lft between %(lft)s and %(rgt)s
+		  and lb.so_luong != 0
+		  and lb.vat_tu != %(vat_tu)s
+		order by sl.lft asc
+		limit %(gioi_han)s
+		""",
+		{"lft": lft, "rgt": rgt, "vat_tu": vat_tu, "gioi_han": gioi_han + 1},
+		as_dict=True,
+	)
