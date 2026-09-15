@@ -14,44 +14,63 @@
 //   - ĐÚNG một nửa: `add_node(node, data)` (tree.js dòng 129-140) dựng
 //     `TreeNode` với `data: data` — NGUYÊN dòng máy chủ trả về (kể cả
 //     `da_gan_cho`, `so_o_trong`, `so_mat_hang_dang_co`) nằm trên `node.data`.
-//     `get_label(node)` (gọi từ `get_node_label()`, dòng 254-263) và callback
-//     bấm nút ĐỀU thấy được các trường phụ qua `node.data`.
+//     `get_label(node)` (gọi từ `get_node_label()`, dòng 254-263) và mọi
+//     callback nhận `node` ĐỀU thấy được các trường phụ qua `node.data`.
 //   - SAI: brief dùng `node.value` để lấy mã vị trí. Không có thuộc tính
-//     `value` rời nào trên `node` — `add_node()` chỉ gán `label: data.value`
-//     (dòng 135), nên `node.value` luôn `undefined`. Phải đọc `node.label`
-//     hoặc `node.data.value`. Tiền lệ `chart_of_accounts_importer.js:189`
-//     cũng viết `node.value` — SAI giống hệt, nhưng lỗi đó không lộ ra vì lỗi
-//     thứ hai dưới đây khiến callback của file đó chưa từng chạy lần nào.
-//   - SAI NẶNG HƠN: constructor của `frappe.ui.Tree` (tree.js dòng 6-21) nhận
-//     tham số tên `on_click` (CÓ gạch dưới), và `expand_node()` (dòng
-//     201-215) gọi đúng `this.on_click(node)`. Brief (và
-//     `chart_of_accounts_importer.js:189`, tiền lệ mà bàn giao Task 7 trỏ
-//     tới) truyền khoá `onclick` — KHÔNG gạch dưới. `$.extend(this,
-//     arguments[0])` ở đầu constructor chỉ gắn thêm một thuộc tính thừa
-//     `this.onclick` lên instance; `this.on_click` vẫn `undefined` nên
-//     `this.on_click && this.on_click(node)` không bao giờ gọi hàm. Nghĩa là
-//     callback bấm nút của CẢ brief lẫn tiền lệ nó trỏ tới đều là mã chết —
-//     sao chép "tiền lệ" mà không tự đọc `tree.js` là sao chép nguyên một
-//     callback không bao giờ chạy. Sửa: dùng khoá `on_click`.
-//   - MỘT ĐIỀU NỮA brief không tính tới: `expand_node()` gọi `on_click` cho
-//     MỌI cú bấm — kể cả bấm để MỞ một nút nhóm (Khu/Dãy/Khoang/Tầng), không
-//     chỉ bấm chọn lá. Nếu chọn-và-đóng-hộp-thoại chạy trên MỌI cú bấm (đúng
-//     như code mẫu của brief một khi đã sửa `onclick` → `on_click`), hộp
-//     thoại sẽ đóng ngay ở LẦN BẤM ĐẦU TIÊN vào một Khu gốc — cây không bao
-//     giờ mở được tới cấp thứ hai, hỏng đúng điều Step 7 của brief đòi kiểm
-//     bằng mắt ("cây mở được từng cấp"). Vì vậy `on_click` dưới đây CHỈ coi
-//     một cú bấm là "chọn" khi nút đó là LÁ thật (`node.expandable` falsy,
-//     tức một Ô 10 ký tự); bấm vào nút nhóm chỉ mở/đóng nhánh như tree mặc
-//     định vẫn làm, không chọn gì cả. Gán ở cấp Tầng trở lên vẫn làm được —
-//     `Item Location Preference.vi_tri` cho phép "nút bất kỳ cấp nào" — chỉ
-//     là qua gõ tay vào ô Link như trước (xem chú thích ở
-//     `item_location_preference.js`), không qua cây. Đây là điểm LỆCH brief
-//     duy nhất có chủ đích, không phải chỗ dịch sai brief.
+//     `value` rời nào trên `node` — `add_node()` (dòng 135) chỉ gán
+//     `label: data.value`, không gán `value` rời. Nên `node.value` LUÔN
+//     `undefined`; phải đọc `node.label` hoặc `node.data.value`.
+//   - SAI NẶNG HƠN, khiến cả một callback thành mã chết: constructor của
+//     `frappe.ui.Tree` (tree.js dòng 6-21) khai tham số `on_click` (CÓ gạch
+//     dưới), và `expand_node()` (dòng 201-215) gọi đúng
+//     `this.on_click && this.on_click(node)`. Brief truyền khoá `onclick`
+//     (KHÔNG gạch dưới). `$.extend(this, arguments[0])` ở dòng 22 chỉ gắn
+//     thêm một thuộc tính thừa `this.onclick` lên instance; `this.on_click`
+//     vẫn `undefined` nên callback không bao giờ chạy. GHI CHÚ CHO NGƯỜI SAU:
+//     `erpnext/accounts/doctype/chart_of_accounts_importer/chart_of_accounts_importer.js:189`
+//     (mã upstream, không phải của module này) mắc ĐÚNG hai lỗi trên cùng
+//     lúc — viết `onclick` (không phải `on_click`) VÀ đọc `node.value` (không
+//     tồn tại) — nên hàm `onclick` của file đó CHƯA TỪNG chạy một lần nào kể
+//     từ khi được viết. Đừng dùng file đó làm tiền lệ để copy mà không tự đọc
+//     `tree.js` trước — đó chính xác là cách bug này lọt vào bản brief đưa
+//     cho Task 7.
+//
+// VÌ SAO CHỌN QUA NÚT "CHỌN VỊ TRÍ NÀY" TRONG `toolbar`, KHÔNG QUA `on_click`
+// CỦA CHÍNH NÚT CÂY (Ruling P, vòng sửa 1 điều phối):
+//
+// `expand_node()` (tree.js dòng 201-215) gọi `on_click` cho MỌI cú bấm vào
+// một nút — kể cả bấm chỉ để MỞ một nhánh (Khu/Dãy/Khoang/Tầng), không phân
+// biệt "bấm để duyệt" với "bấm để chọn". Nếu `on_click` vừa chọn vừa
+// `d.hide()`, hộp thoại đóng ngay ở LẦN BẤM ĐẦU TIÊN vào Khu gốc — cây không
+// bao giờ mở được tới cấp thứ hai. Thu hẹp việc chọn về riêng nút lá (Ô) né
+// được lỗi đó nhưng lại phá đúng yêu cầu thật của chủ đầu tư (15/09,
+// spec §3.1/§3.4): gán ở cấp TẦNG/KHOANG là CA DÙNG CHÍNH — spec còn nói gán
+// vào một Ô lẻ là ca NÊN TRÁNH (luật "ô trống đầu tiên" khiến lần nhập hàng
+// thứ hai vào đúng Ô đó luôn báo đầy). Một cây chỉ chọn được lá là làm đúng
+// phần dễ và bỏ mất phần thật sự cần dùng.
+//
+// Lối ra: `frappe.ui.Tree` có sẵn cơ chế `toolbar` tách biệt hẳn với
+// `on_click` — mỗi nút cây tự mang một dải nút bấm riêng (`get_toolbar()`,
+// tree.js dòng 294-312), ẩn/hiện theo đúng nút đang được chọn
+// (`show_toolbar()`, dòng 248-252, gọi từ `on_node_click()` mỗi lần bấm một
+// nút bất kỳ). Mỗi mục toolbar nhận `condition(node)` — không thoả thì nút
+// KHÔNG được dựng ra, không phải dựng ra rồi vô hiệu hoá. Nhờ vậy:
+//
+//   - Bấm vào chính một nút cây = hành vi CÂY MẶC ĐỊNH (mở/đóng nhánh). Không
+//     gắn `on_click` nào ở đây cả — không cần, vì `toggle_node()` bên trong
+//     `expand_node()` tự lo việc mở/đóng, không phụ thuộc `on_click`.
+//   - Nút "Chọn vị trí này" trong toolbar của MỘT nút = chọn CHÍNH nút đó rồi
+//     đóng hộp thoại. Chạy được cho CẢ nút nhóm lẫn Ô lá — đúng điều cần,
+//     không còn giới hạn chỉ-chọn-lá của vòng trước.
+//   - `condition(node)` không dựng nút này trên nốt ĐÃ CÓ CHỦ — "không khả
+//     dụng" thể hiện bằng việc KHÔNG CÓ NÚT ĐỂ BẤM, còn tốt hơn bấm rồi mới
+//     hiện cảnh báo (dù cảnh báo cũng đã có sẵn ở `get_label`, xem dưới).
 //
 // ĐIỀU DUY NHẤT KHÔNG ĐƯỢC BỎ: nút đã có chủ phải hiện MỜ kèm tên mặt hàng
-// đang giữ ở MỌI cấp (group lẫn lá) — nhìn thấy TRƯỚC KHI bấm. Với lá đã có
-// chủ, bấm còn phải bị chặn kèm thông báo, không được lặng lẽ chọn rồi để
-// `validate()` phía máy chủ mới ném lỗi: với 214 ô đó là trò chơi đoán.
+// đang giữ ở MỌI cấp (group lẫn lá) — nhìn thấy TRƯỚC KHI bấm, và không có
+// đường nào để chọn nó (nút "Chọn vị trí này" không được dựng ra). Không
+// được để người dùng chọn được rồi mới ăn lỗi từ `validate()` phía máy chủ:
+// với 214 ô đó là trò chơi đoán.
 
 frappe.provide("erpnext.vi_tri_kho");
 
@@ -71,15 +90,23 @@ erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon) {
 		args: { kho: kho },
 
 		// `node.data` là nguyên dòng máy chủ trả về cho nút này (xem chú
-		// thích đầu file) — `n.title`/`n.label` KHÔNG cần escape lại vì
-		// `node.title`/`node.label` đã đi qua `frappe.utils.escape_html` ở
-		// đây; `n.da_gan_cho` là mã mặt hàng NGƯỜI DÙNG gõ tay lúc tạo Item
-		// nên PHẢI escape trước khi nhét vào HTML.
+		// thích đầu file) — tên trường KHỚP đúng các cột `as` của
+		// `gan.py::cay_chon_vi_tri()`: `value`, `title`, `expandable`,
+		// `da_gan_cho`, `so_o_trong`, `so_mat_hang_dang_co`. LƯU Ý TÊN THẬT:
+		// phần "Interfaces" của brief Task 7 ghi khoá `co_hang_khac`, nhưng
+		// cả câu SQL mẫu lẫn bài test (`test_gan_vi_tri.py`) chỉ dùng
+		// `so_mat_hang_dang_co` — hai chỗ của brief tự mâu thuẫn nhau, và
+		// `so_mat_hang_dang_co` mới là tên cột THẬT sự tồn tại trên CSDL.
 		get_label: function (node) {
 			const n = node.data || {};
+			// `node.title`/`node.label` là `ma_in_nhan`/`name` của
+			// `Storage Location` — dữ liệu nhập tay (đặc biệt `ma_in_nhan`,
+			// một trường mô tả tự do), nên escape trước khi ghép HTML.
 			const nhan = frappe.utils.escape_html(node.title || node.label);
 
 			if (n.da_gan_cho) {
+				// `da_gan_cho` là mã mặt hàng (Item Code) — cũng là dữ liệu
+				// người dùng gõ tay lúc tạo Item, PHẢI escape.
 				const ten = frappe.utils.escape_html(n.da_gan_cho);
 				return `<span class="text-muted">${nhan} — ${__("đã gán")}: ${ten}</span>`;
 			}
@@ -97,36 +124,32 @@ erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon) {
 			return `${nhan}<span class="small">${trong}${khac}</span>`;
 		},
 
-		// Khoá `on_click` (KHÔNG phải `onclick`) — xem chú thích đầu file vì
-		// sao đây là điểm brief sai, không phải lỗi đánh máy được phép sửa
-		// tuỳ tiện.
-		on_click: function (node) {
-			// Nút nhóm (Khu/Dãy/Khoang/Tầng): chỉ mở/đóng nhánh, không chọn.
-			// `expand_node()` của tree.js gọi `on_click` cho MỌI cú bấm kể cả
-			// bấm để mở nhánh — coi mọi cú bấm là "chọn rồi đóng hộp thoại"
-			// sẽ khiến cây không bao giờ mở được quá cấp một.
-			if (node.expandable) return;
-
-			const n = node.data || {};
-			// `node.data.value` là mã vị trí thật do máy chủ trả về;
-			// `node.label` luôn bằng đúng giá trị đó (xem chú thích đầu
-			// file) nên dùng làm phương án dự phòng, không phải vì hai
-			// đường có thể khác nhau.
-			const gia_tri = n.value || node.label;
-
-			if (n.da_gan_cho) {
-				frappe.show_alert({
-					message: __("{0} đã thuộc mặt hàng {1}.", [
-						frappe.utils.escape_html(gia_tri),
-						frappe.utils.escape_html(n.da_gan_cho),
-					]),
-					indicator: "orange",
-				});
-				return;
-			}
-
-			khi_chon(gia_tri);
-			d.hide();
+		// Cố ý KHÔNG có `on_click`. Chọn nút vị trí là việc của toolbar dưới
+		// đây, không phải của cú bấm vào chính nốt cây — xem khối chú thích
+		// dài ở đầu file vì sao gắn chọn vào `on_click` sẽ phá luôn khả năng
+		// duyệt cây (đóng hộp thoại ở lần bấm đầu tiên).
+		toolbar: {
+			chon: {
+				label: __("Chọn vị trí này"),
+				// Nốt gốc (chính là `kho`, một Warehouse) không phải
+				// Storage Location — không cho chọn. Nốt đã có chủ
+				// (`da_gan_cho`) cũng không dựng nút này: "không khả dụng"
+				// hiện ra bằng việc KHÔNG CÓ nút để bấm, người dùng không
+				// cần bấm thử rồi mới biết.
+				condition: function (node) {
+					const n = node.data || {};
+					return !node.is_root && !n.da_gan_cho;
+				},
+				click: function (node) {
+					const n = node.data || {};
+					// `node.data.value` là mã vị trí thật do máy chủ trả
+					// về; `node.label` luôn bằng đúng giá trị đó (xem khối
+					// chú thích đầu file) nên chỉ dùng làm phương án dự
+					// phòng.
+					khi_chon(n.value || node.label);
+					d.hide();
+				},
+			},
 		},
 	});
 };

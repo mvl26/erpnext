@@ -1,7 +1,9 @@
 // Nút mở cây chọn vị trí. Trường `vi_tri` vẫn là Link bình thường — gõ tay
-// được, vì người quen mã gõ nhanh hơn bấm nhiều cấp cây, và vì cây (xem
-// `cay_chon_vi_tri.js`) chỉ cho CHỌN được nút LÁ (Ô) bằng cú bấm — gán ở cấp
-// Tầng trở lên vẫn phải gõ tay, không có đường nào khác trên cây cho ca đó.
+// được, vì người quen mã gõ nhanh hơn bấm nhiều cấp cây. Cây (xem
+// `cay_chon_vi_tri.js`) cho chọn nút BẤT KỲ CẤP nào — Khu/Dãy/Khoang/Tầng lẫn
+// Ô lá — qua nút "Chọn vị trí này" trong toolbar của từng nốt (Ruling P, vòng
+// sửa 1 điều phối), đúng yêu cầu chủ đầu tư 15/09: gán ở cấp Tầng/Khoang là ca
+// dùng CHÍNH, gán vào một Ô lẻ mới là ca nên tránh.
 
 const DUONG_CAY = "/assets/erpnext/js/vi_tri_kho/cay_chon_vi_tri.js";
 
