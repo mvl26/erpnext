@@ -42,6 +42,15 @@ def hang_chua_xep(kho: str) -> list[dict]:
 
 	Gợi ý KHÔNG chặn và KHÔNG ghi đè: thủ kho đứng trước kệ biết những thứ hệ
 	không biết.
+
+	Ruling N (vòng sửa 1, review điều phối): một bản gán hỏng toạ độ (`lft`/
+	`rgt` = 0, xem `goi_y_o`) khiến `goi_y_o` NÉM LỖI cho ĐÚNG một mặt hàng.
+	Nuốt lỗi đó ở đây — không để nó văng ra khỏi cả vòng lặp — vì cái giá
+	ngược lại nặng hơn nhiều: một mặt hàng lỗi dữ liệu sẽ làm SẬP RPC này cho
+	CẢ kho, nút "Lấy hàng chưa xếp" không mở nổi cho bất cứ ai, trong khi hàng
+	của những mặt hàng lành vẫn đang chờ ở `ZZZ-CHUA-XEP`. Đó là hình dạng
+	chặn nặng hơn hẳn tinh thần "gợi ý không chặn" ở trên. Lỗi thật không mất
+	— xem Error Log tiêu đề `vi_tri_kho: hang_chua_xep goi_y_o loi`.
 	"""
 	_kiem_tra_quyen()
 	dong = frappe.db.sql(
@@ -62,6 +71,21 @@ def hang_chua_xep(kho: str) -> list[dict]:
 	bo_nho: dict[str, tuple] = {}
 	for d in dong:
 		if d.vat_tu not in bo_nho:
-			bo_nho[d.vat_tu] = goi_y_o(d.vat_tu, kho)
+			try:
+				bo_nho[d.vat_tu] = goi_y_o(d.vat_tu, kho)
+			except Exception:
+				# Ruling N: KHÔNG để lỗi của MỘT mặt hàng làm sập danh sách của
+				# CẢ kho — xem lý do đầy đủ ở docstring hàm này. `frappe.log_error`
+				# (không truyền `message`) tự chụp traceback hiện tại, giữ dấu vết
+				# thật trong Error Log để người vận hành đi sửa dữ liệu gán, thay
+				# vì lỗi biến mất lặng lẽ.
+				frappe.log_error(title=f"vi_tri_kho: hang_chua_xep goi_y_o loi ({d.vat_tu})")
+				bo_nho[d.vat_tu] = (
+					None,
+					_(
+						"lỗi dữ liệu vị trí cho {0} — xem Error Log, KHÔNG PHẢI mặt hàng "
+						"chưa gán, đừng gán lại"
+					).format(d.vat_tu),
+				)
 		d["den_o"], d["ly_do_goi_y"] = bo_nho[d.vat_tu]
 	return dong

@@ -183,3 +183,52 @@ class TestPhieuXepDuocDienSan(_NenGoiY):
 		self.assertEqual(len(dong), 1)
 		self.assertFalse(dong[0]["den_o"])
 		self.assertIn("chưa gán", dong[0]["ly_do_goi_y"])
+
+	def test_mot_mat_hang_loi_du_lieu_khong_lam_sap_ca_kho(self):
+		"""Ruling N (vòng sửa 1, review điều phối).
+
+		Một bản gán hỏng toạ độ (`lft`/`rgt` = 0 trên CHÍNH nút đã gán — mô
+		phỏng ca cây chưa hội tụ, cùng hình dạng bẫy đã khoá ở
+		`test_gan_vi_tri.py::TestBayToaDoRong`) làm `goi_y_o()` NÉM LỖI cho
+		ĐÚNG mặt hàng đó. Trước bản vá này, `hang_chua_xep()` gọi `goi_y_o`
+		trong vòng lặp không có `try/except`, nên lỗi của MỘT mặt hàng văng
+		thẳng ra khỏi RPC và sập luôn danh sách của mặt hàng LÀNH đứng cạnh
+		nó — dựng CẢ HAI trong cùng một lần gọi `hang_chua_xep()` mới khoá
+		đúng ca đó; một bài chỉ dựng riêng mặt hàng hỏng không phân biệt được
+		"trả lỗi cho đúng dòng đó" với "sập cả hàm".
+
+		Khẳng định thêm `ly_do_goi_y` của dòng hỏng nói rõ đây là LỖI DỮ
+		LIỆU, không phải "chưa gán" — hai việc cần hai hành động khác nhau
+		của thủ kho (Ruling O ở phần JS xử lý đúng sự phân biệt này).
+		"""
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		zzz = frappe.db.get_value("Storage Location", {"la_o_chua_xep": 1, "kho": KHO}, "name")
+		lanh = _mat_hang("_Test Xep Lanh")
+		hong = _mat_hang("_Test Xep Hong")
+		_o("7C01020101")
+		_o("7D01020101")
+		_gan(lanh, "7C010201")
+		_gan(hong, "7D010201")  # gán TRƯỚC khi phá toạ độ — validate() chặn gán
+		# thẳng vào một nút 0/0 (xem TestBayToaDoRong), nên phải phá SAU.
+		_ton(zzz, lanh, 3)
+		_ton(zzz, hong, 5)
+
+		nut_hong = "7D010201"
+		lft_cu, rgt_cu = frappe.db.get_value("Storage Location", nut_hong, ["lft", "rgt"])
+		frappe.db.set_value("Storage Location", nut_hong, {"lft": 0, "rgt": 0}, update_modified=False)
+		try:
+			dong = hang_chua_xep(KHO)  # KHÔNG được ném lỗi
+		finally:
+			# BẮT BUỘC dù bài đỏ: trả cây về trạng thái hội tụ cho các bài khác
+			# chạy sau trong cùng lớp (rollback theo LỚP, không theo từng bài).
+			frappe.db.set_value(
+				"Storage Location", nut_hong, {"lft": lft_cu, "rgt": rgt_cu}, update_modified=False
+			)
+
+		d_lanh = next(d for d in dong if d["vat_tu"] == lanh)
+		d_hong = next(d for d in dong if d["vat_tu"] == hong)
+		self.assertEqual(d_lanh["den_o"], "7C01020101")
+		self.assertIn("trống", d_lanh["ly_do_goi_y"])
+		self.assertFalse(d_hong["den_o"])
+		self.assertIn("lỗi dữ liệu", d_hong["ly_do_goi_y"])

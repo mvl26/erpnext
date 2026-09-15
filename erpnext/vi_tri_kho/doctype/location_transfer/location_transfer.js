@@ -59,15 +59,36 @@ function lay_hang_chua_xep(frm) {
 			});
 
 			// Tóm tắt SAU khi lưới đã có dòng: đếm bao nhiêu dòng máy chủ không
-			// gợi ý được (mặt hàng chưa gán vị trí cố định) để thủ kho biết ngay
-			// những dòng nào phải tự tay chọn ô, không lặng lẽ để `reqd` chặn ở
-			// bước lưu rồi mới đi tìm lý do.
-			const chua_gan = dong.filter((d) => !d.den_o).length;
-			if (chua_gan) {
+			// gợi ý được, để thủ kho biết ngay những dòng nào phải tự tay chọn
+			// ô, không lặng lẽ để `reqd` chặn ở bước lưu rồi mới đi tìm lý do.
+			//
+			// Ruling O (vòng sửa 1, review điều phối): `ly_do_goi_y` của
+			// `goi_y_o()` có ÍT NHẤT BA nguyên nhân khác hẳn nhau — "chưa gán",
+			// "vùng đã đầy" (hết cả ô trống lẫn ô cùng hàng), và từ Ruling N,
+			// "lỗi dữ liệu vị trí". Mỗi nguyên nhân cần một HÀNH ĐỘNG khác nhau
+			// của thủ kho (đi gán / đi dọn hoặc mở rộng vùng / báo lỗi dữ liệu).
+			// Một câu cố định "chưa gán vị trí cố định" cho MỌI dòng rỗng từng
+			// khiến ca "đã gán nhưng hết chỗ" bị đọc nhầm thành "chưa gán" — đúng
+			// lớp lỗi "màn hình nói sai sự thật" đã dính hai lần trước đó trong
+			// dự án. Gộp theo `ly_do_goi_y` THẬT và hiện riêng từng nhóm thay vì
+			// đoán hoặc rút gọn về một câu chung.
+			//
+			// `ly_do_goi_y` không có trường trên `Location Transfer Item` (cố ý,
+			// ngoài phạm vi vòng sửa này) nên không hiện được theo TỪNG dòng
+			// trên lưới — chỉ hiện được ở đây, một lần, dạng tóm tắt, lấy từ
+			// `dong` (phản hồi RPC gốc), không phải từ các dòng con đã tạo.
+			const thieu = dong.filter((d) => !d.den_o);
+			if (thieu.length) {
+				const theo_ly_do = {};
+				thieu.forEach((d) => {
+					const ly_do = d.ly_do_goi_y || __("không rõ lý do");
+					theo_ly_do[ly_do] = (theo_ly_do[ly_do] || 0) + 1;
+				});
+				const chi_tiet = Object.keys(theo_ly_do)
+					.map((ly_do) => __("{0} dòng ({1})", [theo_ly_do[ly_do], ly_do]))
+					.join(", ");
 				frappe.show_alert({
-					message: __("{0} dòng chưa có gợi ý — mặt hàng chưa gán vị trí cố định.", [
-						chua_gan,
-					]),
+					message: __("{0} dòng chưa có gợi ý: {1}.", [thieu.length, chi_tiet]),
 					indicator: "orange",
 				});
 			}
