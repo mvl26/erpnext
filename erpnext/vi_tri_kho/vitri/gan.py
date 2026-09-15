@@ -133,16 +133,33 @@ def doi_ten_theo_mat_hang(doc, method=None, old=None, new=None, merge=False):
 	`vat_tu = name`. Sửa trường mà không sửa `name` thì lần lưu kế tiếp trả
 	ngược về mã cũ — im lặng, không lỗi nào.
 
-	`merge=True` (gộp hai mặt hàng): bản ghi gán của mã cũ bị XOÁ chứ không
-	rename, vì mã mới có thể đã có gán riêng và `rename_doc` sẽ ném
-	`DuplicateEntryError` giữa chừng một thao tác gộp đang dở.
+	`merge=True` (gộp hai mặt hàng) KHÔNG được xoá vô điều kiện — mã đích là
+	mặt hàng còn sống sau khi gộp, nên nếu nó CHƯA có gán riêng thì rename như
+	nhánh thường là an toàn tuyệt đối, và xoá ở ca đó là vứt mất vị trí cố
+	định của một mặt hàng vẫn còn tồn tại mà không ai báo. Gộp là thao tác
+	hiếm, nên khoản mất đó có thể nằm im rất lâu trước khi ai phát hiện — đúng
+	lớp lỗi im lặng mà cả module này đang phòng, không phải ngoại lệ được
+	quyền bỏ qua.
+
+	Chỉ khi mã đích ĐÃ có gán riêng thì mới xoá bản ghi của mã cũ: rename vào
+	một `name` đã tồn tại sẽ khiến `rename_doc` ném `DuplicateEntryError` giữa
+	chừng một thao tác gộp đang dở. Giữ gán của mã ĐÍCH chứ không phải mã cũ
+	vì đích mới là mặt hàng còn tồn tại sau khi gộp — gán của mã cũ trỏ vào
+	một mặt hàng sắp biến mất, giữ nó lại không có ý nghĩa gì.
+
+	GHI CHÚ (Task 4, vòng sửa 1): ca "mã đích ĐÃ có gán" hiện KHÔNG kiểm được
+	bằng một bài gộp Item thật trong môi trường này — `rename_doc()` tự vỡ ở
+	bước chung `update_link_field_values()` (trước `after_rename`, tức trước
+	khi hàm này chạy) vì `vat_tu` mang `unique: 1` ở cấp DB, độc lập với khoá
+	chính `name`. Nhánh code dưới đây vẫn đúng về Ý ĐỊNH và giữ lại phòng khi
+	đường gọi đổi khác đi trong tương lai; chi tiết xem task-4-report.md.
 	"""
 	if not old or not new or old == new:
 		return
 	if not frappe.db.exists("Item Location Preference", old):
 		return
 
-	if merge:
+	if merge and frappe.db.exists("Item Location Preference", new):
 		frappe.delete_doc("Item Location Preference", old, ignore_permissions=True, force=True)
 		return
 

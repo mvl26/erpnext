@@ -393,3 +393,35 @@ class TestDoiMaMatHang(_Nen):
 		d.ghi_chu = "lưu lại sau khi đổi mã"
 		d.save(ignore_permissions=True)
 		self.assertEqual(d.vat_tu, moi)
+
+	def test_gop_mat_hang_ma_dich_chua_co_gan_thi_giu_lai_gan(self):
+		"""Vòng sửa 1 (review điều phối, Ruling L): trước bản vá này,
+		`doi_ten_theo_mat_hang()` xoá VÔ ĐIỀU KIỆN bản ghi gán của mã cũ ở
+		nhánh `merge=True` — kể cả khi mã đích chưa hề có gán riêng, tức
+		rename bình thường là an toàn tuyệt đối. Ca đó xoá là vứt mất vị trí
+		cố định của một mặt hàng vẫn còn sống sau khi gộp, mà không ai báo:
+		gộp là thao tác hiếm nên khoản mất có thể nằm im rất lâu trước khi ai
+		phát hiện. Bài này khoá đúng ca phải GIỮ.
+
+		`o_nguon` là một nhánh RIÊNG, chưa từng dùng trong lớp này — `self.o1`
+		và `self.o2` đã bị hai bài phía trên chiếm vĩnh viễn trong lớp (lớp
+		này không có `tearDown`, xem báo cáo Task 4), nên tái dùng một trong
+		hai sẽ tự đỏ vì đụng `kiem_tra_chong_lan()`, không phải vì mã đang
+		kiểm sai."""
+		nguon = _mat_hang("_Test Gan VT Gop Nguon A")
+		dich = _mat_hang("_Test Gan VT Gop Dich A")
+		o_nguon = _o("9A01010101")
+		_gan(nguon, o_nguon)
+		frappe.rename_doc("Item", nguon, dich, merge=True)
+
+		d = frappe.get_doc("Item Location Preference", dich)
+		self.assertEqual(d.vi_tri, o_nguon)
+
+	# Bài "mã đích ĐÃ có gán" (nửa còn lại của Ruling L) KHÔNG dựng được trong
+	# môi trường này — BLOCKED, xem phần "Vòng sửa 1" trong task-4-report.md.
+	# `frappe.rename_doc("Item", nguon, dich, merge=True)` tự vỡ ở bước chung
+	# `update_link_field_values()` (rename_doc.py:182) TRƯỚC KHI `after_rename`
+	# — tức trước khi `doi_ten_theo_mat_hang()` có cơ hội chạy — vì `vat_tu`
+	# mang `"unique": 1` (một UNIQUE INDEX thật trên cột đó, riêng với khoá
+	# chính `name`, đã xác nhận bằng `SHOW INDEX`) và bước đó UPDATE thẳng SQL
+	# mọi Link trỏ tới Item, đụng đúng hàng `vat_tu = dich` đã có sẵn.
