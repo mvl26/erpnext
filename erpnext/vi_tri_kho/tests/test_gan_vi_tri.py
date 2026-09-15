@@ -417,11 +417,36 @@ class TestDoiMaMatHang(_Nen):
 		d = frappe.get_doc("Item Location Preference", dich)
 		self.assertEqual(d.vi_tri, o_nguon)
 
-	# Bài "mã đích ĐÃ có gán" (nửa còn lại của Ruling L) KHÔNG dựng được trong
-	# môi trường này — BLOCKED, xem phần "Vòng sửa 1" trong task-4-report.md.
-	# `frappe.rename_doc("Item", nguon, dich, merge=True)` tự vỡ ở bước chung
-	# `update_link_field_values()` (rename_doc.py:182) TRƯỚC KHI `after_rename`
-	# — tức trước khi `doi_ten_theo_mat_hang()` có cơ hội chạy — vì `vat_tu`
-	# mang `"unique": 1` (một UNIQUE INDEX thật trên cột đó, riêng với khoá
-	# chính `name`, đã xác nhận bằng `SHOW INDEX`) và bước đó UPDATE thẳng SQL
-	# mọi Link trỏ tới Item, đụng đúng hàng `vat_tu = dich` đã có sẵn.
+	def test_gop_mat_hang_ma_dich_da_co_gan_thi_giu_gan_cua_dich(self):
+		"""Nửa còn lại của Ruling L, gỡ BLOCKED ở Ruling M (vòng sửa 2, review
+		điều phối): trước Ruling M, trường `vat_tu` mang thêm một UNIQUE INDEX
+		ở cấp DB tách biệt với khoá chính `name` — thừa, vì `autoname:
+		field:vat_tu` khiến `name` CHÍNH LÀ `vat_tu`, nên PRIMARY KEY đã giữ
+		đủ bất biến "một mặt hàng một gán" rồi. Chỉ mục thừa đó không thêm bảo
+		đảm nào, nó chỉ chặn bước chung `update_link_field_values()` của
+		`rename_doc()` đặt tạm hai dòng cùng `vat_tu` giữa chừng một thao tác
+		gộp — sập ở tầng MySQL, TRƯỚC KHI `after_rename` (và do đó trước khi
+		`doi_ten_theo_mat_hang()`) có cơ hội chạy. Bỏ chỉ mục thừa, ca này giờ
+		gộp được thật.
+
+		Đúng nỗi lo ban đầu của brief: mã đích ĐÃ có gán riêng thì rename
+		thẳng sẽ đụng khoá chính (`name` = `dich` đã tồn tại), nên
+		`doi_ten_theo_mat_hang()` phải xoá gán của mã NGUỒN (mặt hàng sắp biến
+		mất, gán của nó vô nghĩa) và giữ nguyên gán của mã ĐÍCH (mặt hàng còn
+		sống) — không được để mã nguồn ghi đè lên nút của mã đích.
+
+		`o_nguon`/`o_dich` là hai nhánh "Khu" (2 ký tự đầu) tách hẳn nhau —
+		"9B" khác "9C" — nên không giao nhau ở `chu_cua_nhanh()`. Không dùng
+		`self.o1`/`self.o2`, cùng lý do đã nêu ở bài trên."""
+		nguon = _mat_hang("_Test Gan VT Gop Nguon B")
+		dich = _mat_hang("_Test Gan VT Gop Dich B")
+		o_nguon = _o("9B01010101")
+		o_dich = _o("9C01010101")
+		_gan(nguon, o_nguon)
+		_gan(dich, o_dich)
+
+		frappe.rename_doc("Item", nguon, dich, merge=True)
+
+		self.assertFalse(frappe.db.exists("Item Location Preference", nguon))
+		d = frappe.get_doc("Item Location Preference", dich)
+		self.assertEqual(d.vi_tri, o_dich)

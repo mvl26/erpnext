@@ -147,12 +147,17 @@ def doi_ten_theo_mat_hang(doc, method=None, old=None, new=None, merge=False):
 	vì đích mới là mặt hàng còn tồn tại sau khi gộp — gán của mã cũ trỏ vào
 	một mặt hàng sắp biến mất, giữ nó lại không có ý nghĩa gì.
 
-	GHI CHÚ (Task 4, vòng sửa 1): ca "mã đích ĐÃ có gán" hiện KHÔNG kiểm được
-	bằng một bài gộp Item thật trong môi trường này — `rename_doc()` tự vỡ ở
-	bước chung `update_link_field_values()` (trước `after_rename`, tức trước
-	khi hàm này chạy) vì `vat_tu` mang `unique: 1` ở cấp DB, độc lập với khoá
-	chính `name`. Nhánh code dưới đây vẫn đúng về Ý ĐỊNH và giữ lại phòng khi
-	đường gọi đổi khác đi trong tương lai; chi tiết xem task-4-report.md.
+	GHI CHÚ (Task 4, vòng sửa 2, Ruling M): trường `vat_tu` từng mang thêm một
+	UNIQUE INDEX ở cấp DB, tách biệt với khoá chính `name` — chỉ mục đó THỪA,
+	vì `autoname: field:vat_tu` khiến `name` CHÍNH LÀ `vat_tu`, nên PRIMARY
+	KEY đã tự giữ đủ bất biến "một mặt hàng một gán" rồi. Chỉ mục thừa đó
+	không thêm bảo đảm nào — nó chỉ CHẶN bước chung `update_link_field_values()`
+	của `rename_doc()` đặt tạm hai dòng cùng `vat_tu` giữa chừng một thao tác
+	gộp, khiến ca "mã đích ĐÃ có gán" sập ở tầng MySQL trước khi hàm này kịp
+	chạy. Đã bỏ `"unique": 1` khỏi `item_location_preference.json` — ĐỪNG
+	thêm lại "cho chặt", nó không siết thêm gì mà chỉ chặn đúng nhánh code
+	dưới đây. Cả hai ca merge (đích chưa có gán / đích đã có gán) đã có test
+	thật trong `test_gan_vi_tri.py::TestDoiMaMatHang`.
 	"""
 	if not old or not new or old == new:
 		return

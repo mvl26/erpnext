@@ -8,7 +8,7 @@
  "field_order": ["vat_tu", "kho", "col_1", "vi_tri", "cap_do", "sec_gc", "ghi_chu"],
  "fields": [
   {"fieldname": "vat_tu", "fieldtype": "Link", "label": "Mặt hàng", "options": "Item",
-   "reqd": 1, "unique": 1, "in_list_view": 1, "set_only_once": 1},
+   "reqd": 1, "in_list_view": 1, "set_only_once": 1},
   {"fieldname": "kho", "fieldtype": "Link", "label": "Kho", "options": "Warehouse",
    "reqd": 1, "in_list_view": 1},
   {"fieldname": "col_1", "fieldtype": "Column Break"},
