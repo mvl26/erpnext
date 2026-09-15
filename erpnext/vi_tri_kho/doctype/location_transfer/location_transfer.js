@@ -1,9 +1,10 @@
 // Nút "Lấy hàng chưa xếp": đổ toàn bộ hàng đang ở ô "Chưa xếp vị trí" của kho
 // thành các dòng sẵn.
 //
-// Ô ĐÍCH cố ý để TRỐNG. Không có căn cứ nào để gợi ý — trường `suc_chua` hiện
-// bằng 0 trên cả 214 ô — mà gợi ý sai thì thủ kho tin theo rồi xếp nhầm, và
-// mọi lần quét sau đó đều trỏ sai chỗ.
+// Ô ĐÍCH được GỢI Ý SẴN (`den_o`) từ máy chủ kể từ 15/09/2026 — mặt hàng có vị
+// trí cố định thì "xếp đâu" trả lời được. Đây vẫn chỉ là GỢI Ý: `den_o` là
+// trường `reqd` trên dòng, thủ kho đổi tay vẫn lưu bình thường, và mặt hàng
+// chưa gán thì máy chủ cố tình để trống — không đoán bừa.
 
 frappe.ui.form.on("Location Transfer", {
 	refresh(frm) {
@@ -44,13 +45,32 @@ function lay_hang_chua_xep(frm) {
 				r.so_lo = d.so_lo;
 				r.tu_o = d.tu_o;
 				r.so_luong = d.so_luong;
-				// den_o để trống — xem chú thích đầu file.
+				// den_o là gợi ý từ máy chủ (goi_y.goi_y_o qua xep.hang_chua_xep),
+				// không phải giá trị cố định — thủ kho vẫn sửa được trên lưới.
+				// Bỏ dòng này thì trường `reqd` của den_o buộc thủ kho gõ tay MỌI
+				// dòng dù máy chủ đã biết câu trả lời, và cả Task 6 vô hình trên
+				// màn hình dù xep.py đã trả đúng dữ liệu.
+				r.den_o = d.den_o;
 			});
 			frm.refresh_field("items");
 			frappe.show_alert({
 				message: __("Đã lấy {0} dòng. Điền ô đích cho từng dòng.", [dong.length]),
 				indicator: "blue",
 			});
+
+			// Tóm tắt SAU khi lưới đã có dòng: đếm bao nhiêu dòng máy chủ không
+			// gợi ý được (mặt hàng chưa gán vị trí cố định) để thủ kho biết ngay
+			// những dòng nào phải tự tay chọn ô, không lặng lẽ để `reqd` chặn ở
+			// bước lưu rồi mới đi tìm lý do.
+			const chua_gan = dong.filter((d) => !d.den_o).length;
+			if (chua_gan) {
+				frappe.show_alert({
+					message: __("{0} dòng chưa có gợi ý — mặt hàng chưa gán vị trí cố định.", [
+						chua_gan,
+					]),
+					indicator: "orange",
+				});
+			}
 		},
 	});
 }

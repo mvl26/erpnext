@@ -138,3 +138,48 @@ class TestGoiY(_NenGoiY):
 		_gan(self.vt, self.tang)
 		o, _ = goi_y_o(self.vt, KHO)
 		self.assertNotEqual(o, zzz)
+
+
+class TestPhieuXepDuocDienSan(_NenGoiY):
+	"""Task 6: `xep.py::hang_chua_xep` giờ gọi `goi_y_o` một lần cho mỗi MẶT HÀNG
+	và điền `den_o`/`ly_do_goi_y` vào từng dòng trả về. Bài ở đây khoá đúng chỗ
+	nối đó (hàm có gọi, có gán đúng trường không) — không lặp lại các ca của
+	`goi_y_o` chính nó, đã có ở `TestGoiY` trên.
+
+	KHÔNG cần `tearDown` như `TestGoiY`/`TestLuocDo` ở trên dù `FrappeTestCase`
+	rollback theo LỚP chứ không theo từng bài: hai bài dưới đây dùng hai
+	`vat_tu` RIÊNG (`_Test Xep Da Gan` / `_Test Xep Chua Gan`), không bài nào
+	tái dùng mã của bài kia hay của `cls.vt`/`cls.vt_khac` thừa hưởng từ
+	`_NenGoiY`. Bẫy `DuplicateEntryError` (khoá chính là `vat_tu`, xem
+	`test_gan_vi_tri.py::TestLuocDo`) chỉ nổ khi HAI bài CÙNG lớp gán CÙNG một
+	mã — không phải tình huống ở đây.
+	"""
+
+	def test_mat_hang_da_gan_thi_den_o_duoc_dien(self):
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		zzz = frappe.db.get_value("Storage Location", {"la_o_chua_xep": 1, "kho": KHO}, "name")
+		v = _mat_hang("_Test Xep Da Gan")
+		_o("7B01020101")
+		_gan(v, "7B010201")
+		_ton(zzz, v, 9)
+
+		dong = [d for d in hang_chua_xep(KHO) if d["vat_tu"] == v]
+		self.assertEqual(len(dong), 1)
+		self.assertEqual(dong[0]["den_o"], "7B01020101")
+		self.assertIn("trống", dong[0]["ly_do_goi_y"])
+
+	def test_mat_hang_chua_gan_thi_den_o_van_trong(self):
+		"""CHỐT ÂM và là ca thật: phần lớn mặt hàng chưa gán. Một bản điền bừa
+		(ví dụ lấy ô trống đầu tiên của cả kho) sẽ làm bài trên xanh mà vẫn dẫn
+		thủ kho xếp nhầm."""
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		zzz = frappe.db.get_value("Storage Location", {"la_o_chua_xep": 1, "kho": KHO}, "name")
+		v = _mat_hang("_Test Xep Chua Gan")
+		_ton(zzz, v, 4)
+
+		dong = [d for d in hang_chua_xep(KHO) if d["vat_tu"] == v]
+		self.assertEqual(len(dong), 1)
+		self.assertFalse(dong[0]["den_o"])
+		self.assertIn("chưa gán", dong[0]["ly_do_goi_y"])
