@@ -9,6 +9,8 @@ vẫn khớp tuyệt đối.
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from erpnext.vi_tri_kho.vitri import kho as vk
+
 KHO = "Kho Miyano - MYN"
 
 
@@ -99,6 +101,47 @@ class TestChanNutKhongHopLe(_Nen):
 			_gan(self.vt_a, self.o1, kho=kho_khac)
 		# Khẳng định nó nổ vì LỆCH KHO, không phải vì kho kia chưa bật quản lý vị trí.
 		self.assertIn(KHO, str(e.exception))
+
+	def test_chan_kho_chua_bat_quan_ly_vi_tri(self):
+		"""Nút thuộc ĐÚNG kho đang khai, nhưng kho đó chưa bật quản lý vị trí.
+
+		VÒNG SỬA 1 (review điều phối, sau khi đảo thứ tự Ruling F): trước khi
+		đảo, `test_chan_nut_thuoc_kho_khac` tình cờ đi qua nhánh
+		`kho_co_quan_ly_vi_tri()` — vì kho lệch nó chọn ngẫu nhiên vốn chưa bật
+		quản lý vị trí. Đảo xong, kho lệch bị chặn ngay ở phép kiểm lệch kho
+		(đúng ý), nhưng nhánh cờ không còn bài nào chạm tới đúng tình huống nó
+		sinh ra để chặn: nút thuộc ĐÚNG kho đang khai, chỉ là kho đó chưa bật.
+		Xoá hẳn `if not kho_co_quan_ly_vi_tri(...)` thì cả 8 bài (lúc chưa có
+		bài này) vẫn xanh tuyệt đối — lỗ này do chính việc đảo Ruling F tạo ra,
+		vá tại đây bằng một bài kiểm thẳng nhánh đó.
+		"""
+		# `kho_co_quan_ly_vi_tri()` đọc `frappe.get_cached_value`, không đọc
+		# thẳng CSDL (đường nóng của hook SLE). Đã kiểm thực nghiệm: bản Frappe
+		# trên máy này tự gọi `clear_document_cache` bên trong `db.set_value`
+		# khi `dn` là một tên chuỗi, nên riêng ở đây `xoa_cache_kho()` không
+		# phải điều kiện đủ để bài xanh — nhưng vẫn gọi tường minh, đúng quy
+		# ước mọi nơi đổi cờ trong module này đều gọi (`storage_location.py`,
+		# `test_fefo.py`), để không lệ thuộc vào chi tiết cài đặt nội bộ đó của
+		# `db.set_value` (một bản Frappe khác, hoặc gọi qua đường không phải
+		# chuỗi tên, có thể không tự dọn).
+		co_cu = frappe.db.get_value("Warehouse", KHO, "custom_quan_ly_vi_tri")
+		frappe.db.set_value("Warehouse", KHO, "custom_quan_ly_vi_tri", 0)
+		vk.xoa_cache_kho(KHO)
+		try:
+			with self.assertRaises(frappe.ValidationError) as e:
+				_gan(self.vt_a, self.o1)
+			# Phân biệt với ba nhánh ValidationError khác trong cùng hàm.
+			self.assertIn("chưa bật quản lý vị trí", str(e.exception))
+		finally:
+			# BẮT BUỘC, kể cả khi bài đỏ: `Kho Miyano - MYN` là kho THẬT của
+			# chủ dự án trên site dùng chung này. Trả về giá trị THẬT đã đọc
+			# được (không ghi cứng 1) — cùng lý do `test_fefo.py` đã né bẫy
+			# này: ghi cứng có thể tắt nhầm kho của người ta nếu giá trị gốc
+			# từng khác. Một lần chạy bị giết giữa chừng (ReadTimeout do ba
+			# bench chung máy hết RAM) mà không có `finally` sẽ để kho thật ở
+			# trạng thái đã tắt quản lý vị trí.
+			frappe.db.set_value("Warehouse", KHO, "custom_quan_ly_vi_tri", co_cu)
+			vk.xoa_cache_kho(KHO)
 
 	def test_chan_nut_dang_ngung_dung(self):
 		frappe.db.set_value("Storage Location", self.o1, "disabled", 1)
