@@ -1,0 +1,39 @@
+{
+ "actions": [],
+ "autoname": "field:vat_tu",
+ "creation": "2026-09-15 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": ["vat_tu", "kho", "col_1", "vi_tri", "cap_do", "sec_gc", "ghi_chu"],
+ "fields": [
+  {"fieldname": "vat_tu", "fieldtype": "Link", "label": "Mặt hàng", "options": "Item",
+   "reqd": 1, "unique": 1, "in_list_view": 1, "set_only_once": 1},
+  {"fieldname": "kho", "fieldtype": "Link", "label": "Kho", "options": "Warehouse",
+   "reqd": 1, "in_list_view": 1},
+  {"fieldname": "col_1", "fieldtype": "Column Break"},
+  {"fieldname": "vi_tri", "fieldtype": "Link", "label": "Vị trí cố định",
+   "options": "Storage Location", "reqd": 1, "in_list_view": 1,
+   "description": "Nút bất kỳ cấp nào. Chọn một Tầng nghĩa là cả nhánh dưới nó thuộc mặt hàng này."},
+  {"fieldname": "cap_do", "fieldtype": "Data", "label": "Cấp", "read_only": 1,
+   "description": "Suy từ mã vị trí. Chỉ để nhìn — không truy vấn nào được lọc theo trường này."},
+  {"fieldname": "sec_gc", "fieldtype": "Section Break"},
+  {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chú"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-15 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vi Tri Kho",
+ "name": "Item Location Preference",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1},
+  {"role": "Stock Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1},
+  {"role": "Stock User", "read": 1, "report": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
