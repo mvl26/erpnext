@@ -10,7 +10,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from erpnext.vi_tri_kho.tests.test_hook_nhap import _tao_item
-from erpnext.vi_tri_kho.tests.test_lo_ncc import _ncc_thu, _phieu_nhap_nhap
+from erpnext.vi_tri_kho.tests.test_lo_ncc import _ncc_thu, _ncc_thu_2, _phieu_nhap_nhap
 
 CONG_TY = "Miyano Việt Nam"
 
@@ -147,12 +147,18 @@ class TestSubmit(FrappeTestCase):
 		return d
 
 	def test_submit_tao_lo_day_du(self):
-		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-SUBMIT-1")])
+		be = _phieu_nhap_lo(
+			self.pr, [self._dong(so_lo="LO-SUBMIT-1", ngay_san_xuat="2029-06-01")]
+		)
 		be.insert(ignore_permissions=True)
 		be.submit()
 		lo = frappe.get_doc("Batch", "LO-SUBMIT-1")
 		self.assertEqual(lo.item, self.item)
 		self.assertEqual(str(lo.expiry_date), "2030-01-31")
+		# manufacturing_date (vòng sửa 1, Việc 2): nhánh TẠO MỚI (batch_entry.py,
+		# `_dam_bao_lo`, dict `insert()`) — mutation xoá riêng trường này khỏi
+		# dict đó phải làm assert dưới đỏ, độc lập với bài dùng-lại-lô.
+		self.assertEqual(str(lo.manufacturing_date), "2029-06-01")
 		self.assertEqual(lo.supplier, self.ncc)
 		self.assertEqual(lo.reference_doctype, "Purchase Receipt")
 		self.assertEqual(lo.reference_name, self.pr.name)
@@ -302,11 +308,202 @@ class TestSubmit(FrappeTestCase):
 		self.pr.reload()
 		self.pr.submit()
 
-		with self.assertRaises(frappe.ValidationError):
+		# assertIn nội dung câu báo (vòng sửa 1, Việc 4): `LinkExistsError` cũng
+		# là con của `ValidationError`, nên `assertRaises(ValidationError)` một
+		# mình có thể xanh vì một lỗi HOÀN TOÀN KHÁC (vd: khoá chết Việc 1 nếu
+		# nó tái phát). Mẩu câu dưới đây chỉ xuất hiện trong guard của
+		# `on_cancel`, theo đúng tiền lệ `assertIn("trước", ...)` ở trên.
+		with self.assertRaises(frappe.ValidationError) as ngu_canh:
 			be.cancel()
+		self.assertIn("không huỷ phiếu nhập lô được", str(ngu_canh.exception))
 
 		# Chặn phải xảy ra TRƯỚC khi gỡ batch_no — dòng phiếu nhập còn nguyên.
 		self.assertEqual(
 			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
 			"LO-HUY-2",
 		)
+
+	def test_huy_ca_pr_lan_be_khong_khoa_chet_nhau(self):
+		"""Vòng sửa 1, Việc 1 — khoá chết thật đã đo: NCC giao sai, thủ kho
+		duyệt `Batch Entry`, kế toán duyệt `Purchase Receipt`, rồi cả hai đều
+		cần huỷ. Trước bản vá: huỷ PR → `LinkExistsError` (BE đã duyệt còn
+		trỏ tới PR qua `phieu_nhap`, mà `"Batch Entry"` không nằm trong
+		`ignore_linked_doctypes` của PR); huỷ BE trước thì guard cũ (`!= 0`)
+		chặn luôn cả trường hợp PR ĐÃ HUỶ — không còn đường thoát nào, cả hai
+		chứng từ kẹt vĩnh viễn ở docstatus 1.
+
+		Bài này đi ĐÚNG thứ tự kế toán làm thật: huỷ PR trước (phải THÀNH
+		CÔNG), huỷ BE sau (phải THÀNH CÔNG), và `Batch` phải còn nguyên ở cuối
+		đường — tem đã in không thành rác.
+		"""
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-KHOA-1")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+
+		self.pr.reload()
+		self.pr.submit()
+
+		# Huỷ PR TRƯỚC — không được ném LinkExistsError.
+		self.pr.reload()
+		self.pr.cancel()
+
+		# Huỷ BE SAU — PR giờ docstatus=2 (đã huỷ), guard chỉ chặn khi == 1.
+		be.reload()
+		be.cancel()
+
+		self.assertTrue(frappe.db.exists("Batch", "LO-KHOA-1"))
+
+	def test_dung_lai_lo_dien_manufacturing_date_dang_trong(self):
+		"""Vòng sửa 1, Việc 2 — mặt lật của `test_dung_lai_lo_da_co_cua_chinh_
+		mat_hang_nay`: ở đó `expiry_date` được điền còn `manufacturing_date`
+		được BẢO TOÀN (đã có sẵn). Bài đó không khoá được nhánh NGƯỢC LẠI —
+		`manufacturing_date` ĐANG TRỐNG phải được ĐIỀN. Xoá riêng
+		`("manufacturing_date", d.ngay_san_xuat)` khỏi vòng điền-chỗ-trống của
+		nhánh dùng lại thì bài đó vẫn xanh (vì ở đó trường này không trống),
+		còn bài NÀY sẽ đỏ.
+
+		`manufacturing_date` có `default: "Today"` ở LƯỢC ĐỒ LÕI
+		(`erpnext/stock/doctype/batch/batch.json`) — đã xác minh bằng
+		`bench console`: một `insert()` bình thường KHÔNG BAO GIỜ để trống
+		được trường này, kể cả truyền `None` tường minh (default thắng None).
+		Ép trống bằng `frappe.db.set_value` thẳng xuống CSDL ngay sau khi tạo —
+		mô phỏng lô cũ nhập từ hệ thống trước khi có trường này, hoặc từ một
+		đường tạo lô không đi qua `Document.insert()` bình thường.
+		"""
+		lo_cu = frappe.get_doc(
+			{
+				"doctype": "Batch",
+				"batch_id": "LO-DOT-2C",
+				"item": self.item,
+				"expiry_date": "2031-12-31",
+			}
+		).insert(ignore_permissions=True)
+		frappe.db.set_value("Batch", lo_cu.name, "manufacturing_date", None)
+		self.assertFalse(frappe.db.get_value("Batch", lo_cu.name, "manufacturing_date"))
+
+		be = _phieu_nhap_lo(
+			self.pr,
+			[self._dong(so_lo="LO-DOT-2C", hsd="2031-12-31", ngay_san_xuat="2030-01-01")],
+		)
+		be.insert(ignore_permissions=True)
+		be.submit()
+
+		lo = frappe.get_doc("Batch", "LO-DOT-2C")
+		self.assertEqual(str(lo.manufacturing_date), "2030-01-01")
+		# Chỗ ĐÃ CÓ (expiry_date) vẫn được bảo toàn — kiểm chéo cho chắc.
+		self.assertEqual(str(lo.expiry_date), "2031-12-31")
+
+	def test_submit_tao_lo_moi_dung_ncc_cua_batch_entry_khong_dua_vao_moc(self):
+		"""Vòng sửa 1, Việc 3 — `lo.supplier` trong `test_submit_tao_lo_day_du`
+		KHÔNG phân biệt được "gán tường minh" với "móc `dien_ncc_tu_chung_tu`
+		(before_insert) tự điền lại": `nha_cung_cap` trên `Batch Entry` là
+		`fetch_from: phieu_nhap.supplier`, và Frappe fetch lại giá trị đó ở
+		MỌI lần lưu (kể cả submit, xem `base_document.py::get_invalid_links` —
+		`fetch_if_empty` không được đặt cho field này) — nên tại thời điểm
+		`on_submit` chạy, `self.nha_cung_cap` LUÔN LUÔN bằng đúng
+        `frappe.db.get_value("Purchase Receipt", reference_name, "supplier")`,
+		tức đúng giá trị móc sẽ tự suy ra. Không dữ liệu thật nào tách được
+		hai đường qua `submit()` bình thường — đã xác minh bằng cách đọc mã
+		nguồn Frappe, không đoán.
+
+		Bài này gọi thẳng `_dam_bao_lo` (bạch hộp) với `nha_cung_cap` bị ép
+		thành MỘT NCC KHÁC hẳn NCC thật của phiếu nhập (`_ncc_thu_2`, đúng mẫu
+		`test_lo_ncc.py`): nếu `_dam_bao_lo` không tự gán `supplier` tường
+		minh, `Batch` mới tạo sẽ lấy NCC THẬT của phiếu nhập (`self.ncc`) qua
+		móc — khác `ncc_khac` — lộ ra ngay.
+		"""
+		ncc_khac = _ncc_thu_2()
+		be = frappe.new_doc("Batch Entry")
+		be.phieu_nhap = self.pr.name
+		be.nha_cung_cap = ncc_khac
+		d = frappe._dict(so_lo="LO-SUP-DIR", vat_tu=self.item, hsd=None, ngay_san_xuat=None)
+
+		lo = be._dam_bao_lo(d)
+
+		self.assertEqual(lo.supplier, ncc_khac)
+		# Đối chứng: NCC thật của phiếu nhập KHÁC ncc_khac — nếu trùng nhau thì
+		# bài này cũng không phân biệt được gì, giống lỗi ban đầu.
+		self.assertNotEqual(ncc_khac, self.ncc)
+
+	def test_dong_da_bi_be_khac_da_duyet_phu_thi_chan(self):
+		"""Vòng sửa 1, Việc 5 — lớp 1 (validate): chặn NGAY LÚC TẠO, không cho
+		một `Batch Entry` thứ hai phủ lên dòng đã có `Batch Entry` KHÁC đã
+		duyệt. `kiem_tra_dong_thuoc_phieu` chỉ khử trùng TRONG một `Batch
+		Entry` — không thấy được xung đột GIỮA hai `Batch Entry` khác nhau."""
+		be1 = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-PHU-1")])
+		be1.insert(ignore_permissions=True)
+		be1.submit()
+
+		be2 = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-PHU-2")])
+		with self.assertRaises(frappe.ValidationError) as ngu_canh:
+			be2.insert(ignore_permissions=True)
+		self.assertIn(be1.name, str(ngu_canh.exception))
+
+	def test_be_da_huy_khong_chan_be_moi_tren_cung_dong(self):
+		"""Mặt lật của bài trên — chốt đúng chữ "ĐÃ DUYỆT" trong bộ lọc
+		`docstatus: 1` của `kiem_tra_dong_chua_bi_be_khac_phu`. Huỷ BE1 rồi
+		khai lại là đường SỬA SAI DUY NHẤT khi phiếu nhập còn nháp (gõ nhầm số
+		lô, huỷ BE, khai lại) — nới bộ lọc ra khớp cả `Batch Entry` đã huỷ thì
+		dòng phiếu nhập này khoá chết VĨNH VIỄN, không phiếu nhập lô nào khai
+		lại được nữa. Đúng loại khoá chết Việc 1 vừa gỡ, chỉ khác lớp."""
+		be1 = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-PHU-4")])
+		be1.insert(ignore_permissions=True)
+		be1.submit()
+		be1.cancel()
+
+		be2 = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-PHU-5")])
+		be2.insert(ignore_permissions=True)
+		be2.submit()
+		self.assertEqual(
+			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
+			"LO-PHU-5",
+		)
+
+	def test_huy_khong_go_batch_no_neu_da_bi_ghi_de_boi_lo_khac(self):
+		"""Vòng sửa 1, Việc 5 — lớp 2 (on_cancel), ĐỘC LẬP với lớp 1: nếu
+		`batch_no` trên dòng phiếu nhập KHÔNG CÒN bằng đúng lô do CHÍNH `Batch
+		Entry` này tạo (một cơ chế khác đã ghi đè), huỷ `Batch Entry` này
+		không được xoá giá trị đó. Mô phỏng "cơ chế khác" bằng
+		`frappe.db.set_value` thẳng xuống CSDL — không cần dựng lại toàn bộ
+		đường một `Batch Entry` thứ hai đi qua để chứng minh lớp phòng vệ
+		THỨ HAI này tự đứng vững một mình, không dựa vào lớp 1 phía trên."""
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-PHU-3")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+		self.assertEqual(
+			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
+			"LO-PHU-3",
+		)
+
+		frappe.get_doc(
+			{"doctype": "Batch", "batch_id": "LO-PHU-3B", "item": self.item}
+		).insert(ignore_permissions=True)
+		frappe.db.set_value("Purchase Receipt Item", self.dong_pr, "batch_no", "LO-PHU-3B")
+
+		be.cancel()
+
+		self.assertEqual(
+			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
+			"LO-PHU-3B",
+		)
+
+	def test_dung_lai_lo_dien_ncc_va_chung_tu_dang_trong(self):
+		"""Vòng sửa 1, Việc 6: lô do hộp thoại lô sẵn có của ERPNext tạo có thể
+		trống cả NCC lẫn chứng từ tham chiếu (`reference_doctype`/
+		`reference_name`) — dùng lại lô đó qua phiếu nhập lô phải ĐIỀN, không
+		thì tra "lô này của NCC nào, về theo chứng từ nào" mãi mãi ra rỗng dù
+		đã có đủ thông tin trong tay lúc submit."""
+		lo_cu = frappe.get_doc(
+			{"doctype": "Batch", "batch_id": "LO-DIEN-NCC", "item": self.item}
+		).insert(ignore_permissions=True)
+		self.assertFalse(lo_cu.supplier)
+		self.assertFalse(lo_cu.reference_name)
+
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-DIEN-NCC")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+
+		lo = frappe.get_doc("Batch", "LO-DIEN-NCC")
+		self.assertEqual(lo.supplier, self.ncc)
+		self.assertEqual(lo.reference_doctype, "Purchase Receipt")
+		self.assertEqual(lo.reference_name, self.pr.name)

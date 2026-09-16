@@ -61,6 +61,7 @@ class BatchEntry(Document):
 		# "trùng" và đi sửa sai chỗ.
 		self.kiem_tra_phieu_nhap_con_nhap()
 		self.kiem_tra_dong_thuoc_phieu()
+		self.kiem_tra_dong_chua_bi_be_khac_phu()
 		self.kiem_tra_so_lo()
 		self.kiem_tra_ngay()
 
@@ -107,6 +108,35 @@ class BatchEntry(Document):
 					).format(d.idx)
 				)
 			da_thay.add(d.dong_phieu_nhap)
+
+	def kiem_tra_dong_chua_bi_be_khac_phu(self):
+		"""Một dòng phiếu nhập chỉ được đúng MỘT `Batch Entry` ĐÃ DUYỆT phủ lên.
+
+		`kiem_tra_dong_thuoc_phieu` chỉ khử trùng TRONG một `Batch Entry` này —
+		không thấy được xung đột GIỮA hai `Batch Entry` khác nhau. Kịch bản thật
+		(vòng sửa 1, Việc 5): BE1 duyệt ghi `LO-A` lên dòng X; ai đó tạo BE2 ghi
+		`LO-B` lên CHÍNH dòng X đó rồi duyệt tiếp — huỷ BE2 sau đó sẽ xoá trắng
+		`batch_no` của dòng X, làm tem `LO-A` (do BE1 tạo, có thể đã dán lên
+		thùng hàng) thành mồ côi, và khi phiếu nhập duyệt ERPNext tự sinh một lô
+		máy thay thế — đúng thứ cả khối C sinh ra để tránh.
+		"""
+		for d in self.items:
+			be_khac = frappe.db.get_value(
+				"Batch Entry Item",
+				{
+					"dong_phieu_nhap": d.dong_phieu_nhap,
+					"docstatus": 1,
+					"parent": ["!=", self.name or ""],
+				},
+				"parent",
+			)
+			if be_khac:
+				frappe.throw(
+					_(
+						"Dòng {0}: dòng hàng này đã được phiếu nhập lô {1} (đã duyệt) khai "
+						"số lô rồi. Huỷ {1} trước nếu muốn khai lại."
+					).format(d.idx, be_khac)
+				)
 
 	def kiem_tra_so_lo(self):
 		for d in self.items:
@@ -158,8 +188,19 @@ class BatchEntry(Document):
 		if frappe.db.exists("Batch", d.so_lo):
 			lo = frappe.get_doc("Batch", d.so_lo)
 			# Chỉ ĐIỀN CHỖ TRỐNG, không ghi đè: lô cũ có thể đã in tem với HSD cũ.
+			# `supplier`/`reference_doctype`/`reference_name` vào chung vòng này
+			# (vòng sửa 1, Việc 6): lô do hộp thoại lô sẵn có của ERPNext tạo có
+			# thể trống cả ba trường — dùng lại lô đó qua phiếu nhập lô thì phải
+			# điền, không thì "lô này của NCC nào, về theo chứng từ nào" mãi mãi
+			# trả rỗng dù đã có đủ thông tin trong tay lúc này.
 			doi = False
-			for truong, gia_tri in (("expiry_date", d.hsd), ("manufacturing_date", d.ngay_san_xuat)):
+			for truong, gia_tri in (
+				("expiry_date", d.hsd),
+				("manufacturing_date", d.ngay_san_xuat),
+				("supplier", self.nha_cung_cap),
+				("reference_doctype", "Purchase Receipt"),
+				("reference_name", self.phieu_nhap),
+			):
 				if gia_tri and not lo.get(truong):
 					lo.set(truong, gia_tri)
 					doi = True
@@ -186,7 +227,16 @@ class BatchEntry(Document):
 
 	def on_cancel(self):
 		trang_thai = frappe.db.get_value("Purchase Receipt", self.phieu_nhap, "docstatus")
-		if trang_thai != 0:
+		# CHỈ chặn khi phiếu nhập đang Ở TRẠNG THÁI ĐÃ DUYỆT (1). Phiếu ĐÃ HUỶ
+		# (2) hoặc không còn (None — đã bị xoá) thì PHẢI cho huỷ phiếu nhập lô —
+		# đó chính là đường thoát khi cả hai chứng từ cùng cần huỷ (vòng sửa 1,
+		# Việc 1: NCC giao sai, kế toán huỷ PR trước, thủ kho huỷ BE sau).
+		# `PurchaseReceipt.on_cancel` tự gỡ `batch_no` về rỗng qua
+		# `delete_auto_created_batches()` (đã xác minh: KHÔNG xoá bản ghi
+		# `Batch`, chỉ đặt `batch_no`/`serial_and_batch_bundle` = None trên
+		# dòng), nên tới đây mà phiếu đã huỷ thì `batch_no` vốn đã rỗng sẵn —
+		# vòng gỡ dưới đây chỉ là vô hại, không phải việc chính của nhánh này.
+		if trang_thai == 1:
 			frappe.throw(
 				_(
 					"Phiếu nhập {0} đã duyệt nên không huỷ phiếu nhập lô được. Tồn đã ghi "
@@ -195,6 +245,17 @@ class BatchEntry(Document):
 			)
 
 		for d in self.items:
+			# Chỉ gỡ nếu `batch_no` ĐANG BẰNG ĐÚNG lô do CHÍNH dòng này tạo
+			# (vòng sửa 1, Việc 5 — lớp phòng vệ thứ hai, độc lập với
+			# `kiem_tra_dong_chua_bi_be_khac_phu`): nếu một `Batch Entry` khác
+			# đã ghi đè `batch_no` bằng lô của NÓ, huỷ phiếu này không được xoá
+			# giá trị của người khác. Và nếu phiếu nhập đã huỷ, giá trị hiện tại
+			# thường đã là None rồi — so sánh vẫn đúng, chỉ là không làm gì.
+			gia_tri_hien_tai = frappe.db.get_value(
+				"Purchase Receipt Item", d.dong_phieu_nhap, "batch_no"
+			)
+			if gia_tri_hien_tai != d.lo_da_tao:
+				continue
 			# GỠ `batch_no`, GIỮ bản ghi `Batch`. Tem có thể đã in và đang dán trên
 			# thùng hàng; xoá bản ghi biến tờ tem đó thành rác không tra được.
 			frappe.db.set_value("Purchase Receipt Item", d.dong_phieu_nhap, "batch_no", None)
