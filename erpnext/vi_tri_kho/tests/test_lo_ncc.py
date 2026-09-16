@@ -109,6 +109,67 @@ class TestDienNccTuChungTu(FrappeTestCase):
 		self.assertFalse(lo.supplier)
 
 
+class TestChanKyTuLo(FrappeTestCase):
+	"""Móc `doc_events["Batch"]["validate"]` — chặn ký tự Code 128 không mã hoá
+	được ở MỌI đường tạo lô, không riêng `Batch Entry`.
+
+	Vì sao phải có cả móc này lẫn phép kiểm trong `BatchEntry.validate`: lô còn
+	sinh bằng hộp thoại lô sẵn có của ERPNext trên dòng phiếu nhập, bằng nhập
+	tay trên doctype `Batch`, bằng Data Import. Bịt một đường mà bỏ các đường
+	kia thì tới lúc in, JsBarcode ném lỗi, `barcode.js` nuốt lỗi, và tem của lô
+	này in ra mã vạch của lô LIỀN TRƯỚC trong cùng xấp.
+	"""
+
+	def setUp(self):
+		self.item = _tao_item("_Test LoNCC KyTu", co_lo=1)
+
+	def test_tao_batch_truc_tiep_co_dau_tieng_viet_bi_chan(self):
+		"""KHÔNG đi qua `Batch Entry` — tạo thẳng doctype `Batch`."""
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			frappe.get_doc(
+				{"doctype": "Batch", "batch_id": "_TEST-LÔ-KYTU", "item": self.item}
+			).insert(ignore_permissions=True)
+		self.assertIn("U+", str(ctx.exception))
+
+	def test_tao_batch_truc_tiep_co_en_dash_bi_chan(self):
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			frappe.get_doc(
+				{"doctype": "Batch", "batch_id": "_TEST\u2013KYTU", "item": self.item}
+			).insert(ignore_permissions=True)
+		self.assertIn("U+2013", str(ctx.exception))
+
+	def test_batch_ascii_thuan_van_tao_duoc(self):
+		"""Vế còn lại: móc KHÔNG được chặn nhầm lô hợp lệ."""
+		lo = frappe.get_doc(
+			{"doctype": "Batch", "batch_id": "_TEST-LONCC-KYTU-OK", "item": self.item}
+		).insert(ignore_permissions=True)
+		self.assertEqual(lo.batch_id, "_TEST-LONCC-KYTU-OK")
+
+	def test_lo_cu_luu_lai_duoc_du_khong_sua_duoc_ten(self):
+		"""`validate` chạy MỌI lần lưu, nên móc phải chỉ kiểm lúc TẠO MỚI.
+
+		`batch_id` là tên bản ghi: một lô cũ lỡ có ký tự xấu thì không sửa được
+		nữa. Nếu móc kiểm cả lúc cập nhật thì mọi thao tác chạm vào lô đó —
+		ERPNext tự cập nhật `batch_qty`, huỷ chứng từ, đối soát — đều nổ, và
+		thứ chặn lại là một bản ghi KHÔNG ai sửa được.
+		"""
+		lo = frappe.get_doc(
+			{"doctype": "Batch", "batch_id": "_TEST-LONCC-KYTU-CU", "item": self.item}
+		).insert(ignore_permissions=True)
+		# Giả lập một bản ghi cũ mang ký tự xấu, đúng cách nó tồn tại trong CSDL
+		# (ghi thẳng, không qua validate), rồi lưu lại như ERPNext vẫn làm khi
+		# cập nhật `batch_qty`.
+		frappe.db.set_value("Batch", lo.name, "batch_id", "_TEST-LÔ-CU", update_modified=False)
+		lo.reload()
+		self.assertEqual(lo.batch_id, "_TEST-LÔ-CU")  # bản ghi ĐANG mang ký tự xấu
+
+		# Khẳng định DUY NHẤT của bài này: lưu lại KHÔNG nổ. (Không khẳng định
+		# `batch_id` giữ nguyên sau khi lưu — `Batch` của ERPNext tự đặt lại
+		# trường đó bằng tên bản ghi, đó là hành vi của nó chứ không phải của
+		# móc này.)
+		lo.save(ignore_permissions=True)
+
+
 class TestCustomFieldDaCai(FrappeTestCase):
 	"""Patch chạy rồi thì field phải có. Không có bài này thì Task 2-9 hỏng vì
 	một lý do (patch chưa chạy) mà thông báo lỗi không hề nhắc tới."""

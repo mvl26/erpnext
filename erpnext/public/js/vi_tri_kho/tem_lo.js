@@ -343,7 +343,18 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 	 * ngay cạnh hai ô đang phải cắt chữ.
 	 *
 	 * `hinh_vach` truyền từ ngoài vào (đã serialize) để một mã vạch vẽ một lần
-	 * rồi dùng cho cả N bản in của cùng lô đó.
+	 * rồi dùng cho cả N bản in của cùng lô đó. RỖNG nghĩa là không mã hoá được
+	 * số lô này (xem `ke_hoach_vach`) — khi đó in một DÒNG CHỮ vào đúng chỗ mã
+	 * vạch, không để trống.
+	 *
+	 * VÌ SAO phải in chữ chứ không để trống: một khoảng trắng trên tem không
+	 * nói gì cả — người cầm tem không biết đó là lỗi hay là thiết kế, và cũng
+	 * không biết có phải đi tìm mã vạch ở chỗ khác không. Cảnh báo đỏ của
+	 * `ke_hoach_vach` chỉ sống trên màn hình lúc bấm in; con tem thì đi theo
+	 * thùng hàng suốt vòng đời. Dòng chữ nằm TRONG hàng R7 vốn đã có sẵn nên
+	 * KHÔNG tốn thêm milimét nào của ngân sách 27,0mm.
+	 *
+	 * F11 vẫn in nguyên số lô ngay dưới — đó chính là thứ người ta sẽ gõ tay.
 	 */
 	function ve_tem(o, hinh_vach) {
 		return `<div class="tem">
@@ -359,7 +370,7 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 	</div>
 	<div class="hang h6"><span class="f8">${esc(o.F8)}</span><span class="f7">${esc(o.F7)}</span></div>
 	<div class="hang h7 o-vach">
-		<div class="vach">${hinh_vach}</div>
+		${hinh_vach ? `<div class="vach">${hinh_vach}</div>` : `<div class="khong-vach">${esc(__("KHÔNG CÓ MÃ VẠCH — GÕ TAY SỐ LÔ"))}</div>`}
 		<div class="f11">${esc(o.F11)}</div>
 	</div>
 </div>`;
@@ -527,6 +538,27 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 		flex: 0 0 auto;
 		height: ${KHO.vach_cao}mm; max-width: ${KHO.vach_rong}mm;
 		line-height: 0;
+	}
+	/* Dòng chữ thay chỗ mã vạch khi không mã hoá được số lô.
+	   Chiếm đúng phần chiều cao mà mã vạch bỏ lại (height = vach_cao), nên
+	   hàng R7 không đổi và ngân sách 27,0mm không bị đụng.
+	   Câu chữ và cỡ chữ ĐO RA chứ không chọn: chỗ dùng được là 47,0 − 2×1,0mm
+	   padding = 45,0mm, trần có biên 0,5mm là 44,5mm. Câu dài hơn ("KHÔNG IN
+	   ĐƯỢC MÃ VẠCH — nhập số lô bằng tay") ở 5,5pt ra 48,78mm, TRÀN 1,78mm và
+	   bị chính khối này cắt — một dòng cảnh báo bị cắt cụt thì tệ hơn không có.
+	   Câu hiện tại ở 6pt ra 41,62mm, dư 2,88mm, mà lại ĐỌC TO HƠN câu dài.
+	   Hộp chữ cao 2,381mm nằm gọn trong 4,8mm và còn cách F11 bên dưới 0,99mm.
+	   Chữ hoa, giãn nhẹ và viền nét đứt để nhìn là biết ngay đây KHÔNG phải
+	   một mã vạch in mờ. */
+	.tem .khong-vach {
+		flex: 0 0 auto;
+		height: ${KHO.vach_cao}mm; max-width: ${KHO.vach_rong}mm;
+		display: flex; align-items: center; justify-content: center;
+		font-size: 6pt; font-weight: 700; line-height: 1;
+		letter-spacing: 0.02em;
+		white-space: nowrap; overflow: hidden;
+		border: 0.25mm dashed #000;
+		padding: 0 1mm;
 	}
 	/* line-height dưới 1 cho F11 — có tính toán, không phải tuỳ tiện.
 	   Hàng R7 cao 6,74mm, mã vạch ăn 4,8mm, còn 1,94mm. 5pt với line-height 1

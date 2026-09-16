@@ -120,3 +120,34 @@ def kiem_tra_do_dai(s: str, nhan: str) -> None:
 			"được: dưới 2 dot trên máy in nhiệt thì máy quét đọc ra SAI ký tự."
 		).format(nhan, s, len(s), m, MODULE_TOI_DA)
 	)
+
+
+def kiem_ky_tu_lo(doc, method=None):
+	"""Móc `doc_events["Batch"]["validate"]` — chặn ký tự không mã hoá được ở
+	MỌI đường tạo lô, không riêng `Batch Entry`.
+
+	`BatchEntry.validate` đã gọi `kiem_tra_ky_tu`, nhưng lô còn sinh bằng nhiều
+	đường khác: hộp thoại lô sẵn có của ERPNext trên dòng phiếu nhập, nhập liệu
+	trực tiếp trên doctype `Batch`, Data Import. Bịt một đường mà bỏ các đường
+	kia thì lỗi vẫn tới được máy in.
+
+	GỌI LẠI `kiem_tra_ky_tu`, KHÔNG chép luật vào đây: hai bản cài đặt của cùng
+	một luật thì một ngày nào đó lệch nhau, và khi ấy một đường tạo lô chặn còn
+	đường kia không — đúng kiểu hỏng mà cả file này sinh ra để ngăn.
+
+	CHỈ kiểm lúc TẠO MỚI. `validate` chạy lại ở mọi lần lưu, mà `batch_id` là
+	tên bản ghi nên một lô cũ lỡ có ký tự xấu thì không sửa được nữa (đổi tên
+	là chuyện khác). Kiểm cả lúc cập nhật thì mọi thao tác chạm vào lô đó —
+	ERPNext tự cập nhật `batch_qty`, huỷ chứng từ, đối soát — đều nổ, và thứ
+	chặn lại là một bản ghi KHÔNG ai sửa được. Chặn lúc tạo là chặn đúng lúc
+	còn sửa được.
+
+	KHÔNG sửa `erpnext/stock/doctype/batch/batch.py` (brief cấm) — đi qua
+	`doc_events` trong `hooks.py`, đúng cơ chế `dien_ncc_tu_chung_tu` đang dùng.
+	"""
+	if not doc.is_new():
+		return
+
+	ma = doc.get("batch_id") or doc.get("name")
+	if ma:
+		kiem_tra_ky_tu(ma, _("lô"))

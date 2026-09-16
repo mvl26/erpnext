@@ -389,6 +389,10 @@ doc_events = {
 	# kho khác. `vi_tri_kho/tests/test_lo_ncc.py` khoá việc này.
 	"Batch": {
 		"before_insert": "erpnext.vi_tri_kho.vitri.lo_ncc.dien_ncc_tu_chung_tu",
+		# Thêm vào ĐÚNG dict con đã có ở trên, KHÔNG tạo khoá "Batch" thứ hai:
+		# khoá sau nuốt khoá trước trong im lặng và móc NCC sẽ biến mất mà
+		# không ai thấy.
+		"validate": "erpnext.vi_tri_kho.vitri.ma_vach.kiem_ky_tu_lo",
 	},
 	"Stock Entry": {
 		"on_submit": "erpnext.stock.doctype.material_request.material_request.update_completed_and_requested_qty",
