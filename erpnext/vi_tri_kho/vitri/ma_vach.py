@@ -137,10 +137,16 @@ def kiem_ky_tu_lo(doc, method=None):
 
 	CHỈ kiểm lúc TẠO MỚI. `validate` chạy lại ở mọi lần lưu, mà `batch_id` là
 	tên bản ghi nên một lô cũ lỡ có ký tự xấu thì không sửa được nữa (đổi tên
-	là chuyện khác). Kiểm cả lúc cập nhật thì mọi thao tác chạm vào lô đó —
-	ERPNext tự cập nhật `batch_qty`, huỷ chứng từ, đối soát — đều nổ, và thứ
-	chặn lại là một bản ghi KHÔNG ai sửa được. Chặn lúc tạo là chặn đúng lúc
-	còn sửa được.
+	là chuyện khác). Kiểm cả lúc cập nhật thì bản ghi đó thành một thứ KHÔNG
+	AI LƯU LẠI ĐƯỢC: ai mở form `Batch` sửa hạn dùng, sửa nhà cung cấp, rồi
+	bấm Save là `validate` chạy và nổ, trong khi thứ làm nó nổ lại không sửa
+	được. Chặn lúc tạo là chặn đúng lúc còn sửa được.
+
+	(ĐÍNH CHÍNH một ví dụ tôi từng viết ở đây: `recalculate_batch_qty` của
+	ERPNext dùng `db_set`, mà `db_set` KHÔNG kích `validate` —
+	`frappe/model/document.py:1240` ghi rõ. Nên "ERPNext tự cập nhật
+	`batch_qty` sẽ nổ" KHÔNG phải nguy cơ thật. Đường vào thật là form và mọi
+	lời gọi `.save()`.)
 
 	KHÔNG sửa `erpnext/stock/doctype/batch/batch.py` (brief cấm) — đi qua
 	`doc_events` trong `hooks.py`, đúng cơ chế `dien_ncc_tu_chung_tu` đang dùng.

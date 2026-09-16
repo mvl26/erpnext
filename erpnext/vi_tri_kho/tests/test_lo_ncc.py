@@ -149,9 +149,13 @@ class TestChanKyTuLo(FrappeTestCase):
 		"""`validate` chạy MỌI lần lưu, nên móc phải chỉ kiểm lúc TẠO MỚI.
 
 		`batch_id` là tên bản ghi: một lô cũ lỡ có ký tự xấu thì không sửa được
-		nữa. Nếu móc kiểm cả lúc cập nhật thì mọi thao tác chạm vào lô đó —
-		ERPNext tự cập nhật `batch_qty`, huỷ chứng từ, đối soát — đều nổ, và
-		thứ chặn lại là một bản ghi KHÔNG ai sửa được.
+		nữa. Nếu móc kiểm cả lúc cập nhật thì bản ghi đó thành một thứ KHÔNG AI
+		LƯU LẠI ĐƯỢC — ai mở form `Batch` sửa hạn dùng hay nhà cung cấp rồi bấm
+		Save là nổ, trong khi thứ làm nó nổ lại không sửa được.
+
+		(KHÔNG phải mọi đường cập nhật: `recalculate_batch_qty` của ERPNext
+		dùng `db_set`, mà `db_set` không kích `validate` — xem
+		`frappe/model/document.py:1240`.)
 		"""
 		lo = frappe.get_doc(
 			{"doctype": "Batch", "batch_id": "_TEST-LONCC-KYTU-CU", "item": self.item}

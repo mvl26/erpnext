@@ -547,7 +547,8 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 	   ĐƯỢC MÃ VẠCH — nhập số lô bằng tay") ở 5,5pt ra 48,78mm, TRÀN 1,78mm và
 	   bị chính khối này cắt — một dòng cảnh báo bị cắt cụt thì tệ hơn không có.
 	   Câu hiện tại ở 6pt ra 41,62mm, dư 2,88mm, mà lại ĐỌC TO HƠN câu dài.
-	   Hộp chữ cao 2,381mm nằm gọn trong 4,8mm và còn cách F11 bên dưới 0,99mm.
+	   Hộp chữ cao 2,381mm nằm gọn trong 4,8mm và còn cách F11 bên dưới 1,08mm
+	   (số ĐO bằng Range trên bản đang chạy, không phải số ước tính).
 	   Chữ hoa, giãn nhẹ và viền nét đứt để nhìn là biết ngay đây KHÔNG phải
 	   một mã vạch in mờ. */
 	.tem .khong-vach {

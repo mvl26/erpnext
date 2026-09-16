@@ -60,6 +60,12 @@ class TestSoModule(FrappeTestCase):
 		self.assertFalse(hasattr(ma_vach, "MODULE_BO_CUC_A"))
 		self.assertFalse(hasattr(ma_vach, "MODULE_BO_CUC_B"))
 
+	def test_chuoi_rong_khong_no(self):
+		"""Guard trong `so_ky_hieu` và `so_module` độc lập — nếu chỉ khoá một trong hai
+		thì khi đó được xoá sẽ không ai phát hiện. Hai guard riêng biệt → hai assertion.
+		"""
+		self.assertEqual(so_ky_hieu(""), 0)
+		self.assertEqual(so_module(""), 0)
 
 class TestKiemTraKyTu(FrappeTestCase):
 	"""Code 128 chỉ mã hoá được ASCII.
@@ -99,17 +105,16 @@ class TestKiemTraKyTu(FrappeTestCase):
 		self.assertIn("U+2013", cau)
 		self.assertIn("3", cau)  # vị trí ký tự vi phạm
 
-	def test_chuoi_rong_khong_no(self):
+	def test_chuoi_rong_va_none_khong_no(self):
+		"""Tên phải KHÁC `TestSoModule.test_chuoi_rong_khong_no`.
+
+		Hai phương thức trùng tên trong cùng một lớp thì định nghĩa sau GHI ĐÈ
+		định nghĩa trước trong class dict — bài trước biến mất mà suite vẫn
+		xanh, không gì báo. Đúng cái bẫy "khoá trùng nuốt khoá" mà chú thích
+		trong `hooks.py` cảnh báo cho `doc_events`, lần này ở tầng test.
+		"""
 		kiem_tra_ky_tu("", "lô")
 		kiem_tra_ky_tu(None, "lô")
-
-	def test_chuoi_rong_khong_no(self):
-		"""Guard trong `so_ky_hieu` và `so_module` độc lập — nếu chỉ khoá một trong hai
-		thì khi đó được xoá sẽ không ai phát hiện. Hai guard riêng biệt → hai assertion.
-		"""
-		self.assertEqual(so_ky_hieu(""), 0)
-		self.assertEqual(so_module(""), 0)
-
 
 class TestKiemTraDoDai(FrappeTestCase):
 	def test_vua_bo_cuc_b_thi_qua(self):
