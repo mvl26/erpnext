@@ -52,6 +52,15 @@ Mọi task đều chịu các ràng buộc dưới. Đọc hết trước khi l�
   Claude-Session: https://claude.ai/code/session_015sreA2wVDuoP5Ru9TwKrd5
   ```
 - **Nhánh:** `feat/mo-rong-vi-tri-kho-warehouse` (đã có, đang làm dở). Không tạo nhánh mới.
+- **ĐÍNH CHÍNH 16/09 (sau khi thi công Task 4):** `goi_y_o` trả **BỘ BA**
+  `(ô, lý do, tem_hong)`, không phải bộ đôi. Mọi chỗ trong kế hoạch này viết
+  `-> tuple[str | None, str]` đều đã lỗi thời. Lý do: hai câu lý do đều chứa chữ
+  "tem" — một nghĩa là tem ĐÚNG, một nghĩa là tem HỎNG — nên bên gọi không phân
+  biệt được bằng cách đọc chuỗi; và chuỗi đó đi qua `__()` nên **dịch được**, bản
+  tiếng Anh không có chữ "tem" và mọi phép so khớp im lặng khớp 0 dòng. **Chuỗi lý
+  do là văn bản cho người đọc, không phải giao thức giữa hai tầng.** Task nào đọc
+  kết quả `goi_y_o` thì lấy `[0]`/`[1]`/`[2]`, và dùng `[2]` chứ đừng bao giờ dò
+  chữ trong `[1]`.
 - **Quy ước `...` trong bài test:** kế hoạch này viết đủ thân cho các bài test của Task 3
   làm BÀI MẪU. Ở các task sau, một số bài chỉ có **tên và docstring**, thân là `...`.
   **Docstring đó là yêu cầu ràng buộc, không phải gợi ý**: nó nói chính xác bài phải
@@ -86,7 +95,7 @@ Mọi task đều chịu các ràng buộc dưới. Đọc hết trước khi l�
 
 | File | Sửa gì |
 |---|---|
-| `erpnext/vi_tri_kho/vitri/goi_y.py` | `goi_y_o(vat_tu, kho, so_lo=None)` + nhánh "ô đã in tem" |
+| `erpnext/vi_tri_kho/vitri/goi_y.py` | `goi_y_o(vat_tu, kho, so_lo=None) -> (ô, lý do, tem_hong)` + nhánh "ô đã in tem" |
 | `erpnext/vi_tri_kho/vitri/xep.py` | Khoá đệm `(vat_tu, so_lo)`, cảnh báo ô in tem bị chiếm |
 | `erpnext/vi_tri_kho/tests/test_goi_y_o.py` | Bài cho nhánh mới |
 | `erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py` | Bài cho đệm theo lô |
