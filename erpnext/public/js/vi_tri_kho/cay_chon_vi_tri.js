@@ -71,6 +71,31 @@
 // đường nào để chọn nó (nút "Chọn vị trí này" không được dựng ra). Không
 // được để người dùng chọn được rồi mới ăn lỗi từ `validate()` phía máy chủ:
 // với 214 ô đó là trò chơi đoán.
+//
+// GHI CHÚ (vòng sửa 3, điều phối bấm thật thấy cây "chết"): đã đo bằng CDP
+// thật trên site chạy (không phải suy luận) và XÁC NHẬN `frappe.ui.Tree`
+// hoạt động đúng bên trong `frappe.ui.Dialog` — không có xung đột CSS/cấu
+// trúc nào giữa hai thứ này (SCSS của `.tree-children`, xem
+// `apps/frappe/frappe/public/scss/desk/tree.scss`, KHÔNG hề đặt
+// `display: none` bằng CSS; toàn bộ việc ẩn/hiện là do jQuery
+// `.hide()/.toggle()` gọi TRỰC TIẾP trong `tree.js`, không phụ thuộc ngữ
+// cảnh Dialog hay bất kỳ class `.opened` nào — khối CSS `&.opened::before`
+// ở `tree.scss` thậm chí đang bị COMMENT hết). Triệu chứng "chỉ hiện nốt
+// gốc, bấm không ra gì" đo được ở vòng sửa 3 là do CHÍNH kịch bản đo bấm
+// vào nốt GỐC — nốt này tự mở sẵn ngay khi hộp thoại vừa hiện ra (ba Khu đã
+// hiện sẵn, không cần bấm gì) — rồi bấm nó THÊM MỘT LẦN NỮA: `tree.js`
+// coi đó là bấm để ĐÓNG một nhánh đang mở (hành vi toggle bình thường của
+// MỌI cây trong `frappe.ui.Tree`, không riêng gì cây này), nên toàn bộ ba
+// Khu vừa hiện biến mất, và các nốt bấm sau đó (nằm trong nhánh vừa đóng)
+// tải được dữ liệu (có trong DOM) nhưng không ai nhìn thấy vì tổ tiên của
+// chúng vừa bị đóng. Không phải lỗi CSS, không phải Dialog không tương
+// thích — là bấm trúng đúng cái nốt vừa mở sẵn một lần nữa. Đã kiểm lại
+// KHÔNG bấm lại nốt gốc: nhãn đang hiện tăng dần 4 → 8 → 12 → 16 → 18 khi
+// mở Khu → Dãy → Khoang → Tầng → Ô, `$toolbar.is(':visible')` đúng `true`
+// ở nốt vừa bấm, và bấm "Chọn vị trí này" ở cấp TẦNG (không chỉ lá) điền
+// đúng `vi_tri` rồi đóng hộp thoại. Không đổi gì ở cách gắn cây/Dialog vì
+// không tìm thấy lỗi nào để sửa — xem `task-7-report.md`, mục "Vòng sửa 3"
+// để có đầy đủ số đo và đường dẫn ảnh chụp.
 
 frappe.provide("erpnext.vi_tri_kho");
 
