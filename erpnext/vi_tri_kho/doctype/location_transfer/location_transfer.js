@@ -82,18 +82,29 @@ function lay_hang_chua_xep(frm) {
 			// vì trước §8 một dòng CÓ gợi ý không mang gì thêm cần đọc — gợi ý
 			// chỉ có đúng một lý do khi có ("ô trống"/"dồn vào ô cùng hàng").
 			// Từ §8, `goi_y_o` có thể trả CẢ gợi ý LẪN một cảnh báo: tem của lô
-			// đã in một ô mà giờ không dùng được nữa, và `den_o` là ô THAY THẾ
-			// (xem `ly_do_goi_y` chứa từ "tem" trong `goi_y.py`). Thủ kho đang
-			// cầm tờ tem cũ trên tay — không tách riêng ra thì tin đó chìm mất
-			// trong im lặng của "dòng đã có gợi ý", và họ đi dán hàng theo đúng
-			// ô đã in, sai với nơi hệ vừa xếp lại. Tách thành HAI nhóm cảnh báo
-			// riêng vì hai nhóm cần hai hành động khác nhau: nhóm "chưa có gợi
-			// ý" phải tự tay CHỌN ô; nhóm "tem cũ không dùng được" đã có `den_o`
-			// đúng rồi, chỉ cần biết để DÁN ĐÈ tem mới, không phải đi chọn gì.
+			// đã in một ô mà giờ không dùng được nữa, và `den_o` là ô THAY THẾ.
+			// Thủ kho đang cầm tờ tem cũ trên tay — không tách riêng ra thì tin
+			// đó chìm mất trong im lặng của "dòng đã có gợi ý", và họ đi dán
+			// hàng theo đúng ô đã in, sai với nơi hệ vừa xếp lại.
+			//
+			// Vòng sửa 2 (điều phối, sau Task 4): nhóm "tem cũ không dùng được"
+			// lọc theo TRƯỜNG `d.tem_hong` (bool, do `xep.py` đổ thẳng từ
+			// `goi_y_o()`), KHÔNG so khớp chuỗi `(d.ly_do_goi_y || "").includes
+			// ("tem")` như bản đầu. Bản đầu sai vì hai lẽ: (1) `ly_do_goi_y` đi
+			// qua `__()` — dịch được, một bản dịch tiếng Anh không còn chữ "tem"
+			// nào và bộ lọc âm thầm khớp 0 dòng; (2) ngay cả không dịch, câu
+			// "theo ô đã in trên tem của lô…" (tem ĐÚNG) cũng chứa chữ "tem" nên
+			// bị gộp nhầm vào cùng nhóm với câu "tem…không xếp được nữa" (tem
+			// HỎNG) — đúng lớp lỗi "màn hình nói sai sự thật". Hai nhóm dưới đây
+			// tách theo hai HÀNH ĐỘNG khác nhau của thủ kho, KHÔNG loại trừ nhau:
+			// một dòng có thể vừa `!den_o` vừa `tem_hong` (vd. tem hỏng và vùng
+			// đã đầy hẳn, không còn ô thay thế) — cứ để nó xuất hiện ở cả hai,
+			// vì cả hai việc đều cần làm. Nhóm "chưa có gợi ý" phải tự tay CHỌN
+			// ô; nhóm "tem cũ không dùng được" phải DÁN ĐÈ tem mới lên đúng
+			// `den_o` mà máy chủ vừa gợi ý (nếu `den_o` rỗng thì làm luôn việc
+			// của nhóm kia trước).
 			const chua_co_goi_y = dong.filter((d) => !d.den_o);
-			const tem_cu_khong_dung_duoc = dong.filter(
-				(d) => d.den_o && (d.ly_do_goi_y || "").includes("tem")
-			);
+			const tem_cu_khong_dung_duoc = dong.filter((d) => d.tem_hong);
 
 			const tom_tat_theo_ly_do = (ds) => {
 				const theo_ly_do = {};
@@ -116,8 +127,12 @@ function lay_hang_chua_xep(frm) {
 				});
 			}
 			if (tem_cu_khong_dung_duoc.length) {
+				// Không khẳng định "đã gợi ý ô khác": `den_o` của dòng này có thể
+				// vẫn rỗng nếu tem hỏng RƠI TIẾP vào ca "vùng đã đầy" — dòng đó
+				// đã nằm trong `chua_co_goi_y` ở trên rồi, cảnh báo ở đây chỉ cần
+				// nói đúng một việc: tem cũ không còn tin được, đừng theo nó.
 				frappe.show_alert({
-					message: __("{0} dòng tem cũ không dùng được, đã gợi ý ô khác thay thế: {1}.", [
+					message: __("{0} dòng tem cũ không dùng được, đừng theo tem cũ: {1}.", [
 						tem_cu_khong_dung_duoc.length,
 						tom_tat_theo_ly_do(tem_cu_khong_dung_duoc),
 					]),

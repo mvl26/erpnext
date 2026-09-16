@@ -7,9 +7,26 @@ CĂN CỨ DUY NHẤT LÀ SỨC CHỨA. Gán cố định là một căn cứ kh�
 đúng một mặt hàng thì "xếp đâu" trả lời được mà không cần biết ô chứa nổi bao
 nhiêu.
 
-Hàm trả về CẶP `(ô, lý do)`, không phải mỗi ô. Lý do hiện cạnh gợi ý trên
-phiếu xếp, vì thủ kho cần phân biệt "ô này trống" với "ô này đã có hàng cùng
-loại, dồn vào" TRƯỚC khi ra mở kệ — hai việc khác nhau ngoài kho.
+Hàm trả về BỘ BA `(ô, lý do, tem_hong)`, không phải mỗi ô. Lý do hiện cạnh gợi
+ý trên phiếu xếp, vì thủ kho cần phân biệt "ô này trống" với "ô này đã có hàng
+cùng loại, dồn vào" TRƯỚC khi ra mở kệ — hai việc khác nhau ngoài kho.
+
+Vòng sửa 2 (điều phối, sau Task 4): `tem_hong` là một TRƯỜNG RIÊNG, không phải
+thứ bên gọi tự suy ra bằng cách so khớp chuỗi trong `lý do`. Hai lẽ:
+
+1. Chuỗi lý do đi qua `_()` — dịch được. Một bản dịch tiếng Anh không còn chữ
+   "tem" nào, và bất kỳ bộ lọc nào so khớp chuỗi (`"tem" in ly_do`) sẽ âm thầm
+   khớp 0 dòng. Giao thức giữa hai tầng không được phép đi qua văn bản cho
+   người đọc.
+2. Ngay cả không dịch, chuỗi "theo ô đã in trên tem của lô {0}" (tem ĐÚNG) và
+   "tem của lô {0} in ô {1} nhưng ô đó không xếp được nữa" (tem HỎNG) đều chứa
+   chữ "tem" — so khớp chuỗi con gộp nhầm cả hai case làm một, đúng lớp lỗi
+   "màn hình nói sai sự thật" (xem `location_transfer.js`, nhóm cảnh báo
+   "tem cũ không dùng được").
+
+`tem_hong = True` CHỈ khi: có `so_lo`, lô đó CÓ `custom_o_in_tem`, và ô ghi
+trên tem đó không còn dùng được (phải rơi lại một nhánh khác). Mọi nhánh khác
+— kể cả tem đúng, kể cả không truyền `so_lo` — đều `tem_hong = False`.
 """
 
 import frappe
@@ -35,12 +52,17 @@ _UNG_VIEN = f"""
 """
 
 
-def goi_y_o(vat_tu: str, kho: str, so_lo: str | None = None) -> tuple[str | None, str]:
-	"""Ô nên xếp `vat_tu` vào, kèm lý do. `(None, lý do)` nếu không gợi ý được.
+def goi_y_o(vat_tu: str, kho: str, so_lo: str | None = None) -> tuple[str | None, str, bool]:
+	"""Ô nên xếp `vat_tu` vào, kèm lý do và cờ tem hỏng.
 
-	`so_lo` TUỲ CHỌN: lúc nạp dòng trên `Batch Entry` thì lô chưa tồn tại, và
-	phiếu xếp thì có. Có `so_lo` và lô đó đã in tem → ưu tiên đúng ô đã in
-	(spec khối C §8).
+	`(None, lý do, False)` nếu không gợi ý được. `so_lo` TUỲ CHỌN: lúc nạp dòng
+	trên `Batch Entry` thì lô chưa tồn tại, và phiếu xếp thì có. Có `so_lo` và
+	lô đó đã in tem → ưu tiên đúng ô đã in (spec khối C §8).
+
+	`tem_hong` (phần tử thứ ba): `True` đúng khi lô có tem NHƯNG ô ghi trên tem
+	không còn dùng được, nên `goi_y_o` phải trả một ô KHÁC. Bên gọi cần biết
+	CA NÀY để báo cho thủ kho — họ đang cầm tờ tem cũ trên tay — nhưng KHÔNG
+	được suy ra nó bằng cách so khớp chuỗi `lý do` (xem docstring module).
 	"""
 	gan = frappe.db.sql(
 		"""
@@ -53,7 +75,7 @@ def goi_y_o(vat_tu: str, kho: str, so_lo: str | None = None) -> tuple[str | None
 		as_dict=True,
 	)
 	if not gan:
-		return None, _("mặt hàng chưa gán vị trí cố định")
+		return None, _("mặt hàng chưa gán vị trí cố định"), False
 
 	g = gan[0]
 	if not g.lft or not g.rgt:
@@ -97,12 +119,16 @@ def goi_y_o(vat_tu: str, kho: str, so_lo: str | None = None) -> tuple[str | None
 				dict(tham_so, o_tem=o_tem),
 			)
 			if dung_duoc:
-				return o_tem, _("theo ô đã in trên tem của lô {0}").format(so_lo)
+				return o_tem, _("theo ô đã in trên tem của lô {0}").format(so_lo), False
 			# Không im lặng bỏ qua: thủ kho đang cầm một tờ tem in ô này trên tay.
 			# Phải biết tem đó không dùng được nữa, và vì sao.
 			ly_do_tem = _("tem của lô {0} in ô {1} nhưng ô đó không xếp được nữa").format(
 				so_lo, o_tem
 			)
+
+	# `tem_hong` là CỜ, tách khỏi văn bản `ly_do_tem` — xem docstring module vì
+	# sao bên gọi không được suy cờ này từ chuỗi lý do.
+	tem_hong = ly_do_tem is not None
 
 	def _ly_do(goc: str) -> str:
 		return f"{ly_do_tem} — {goc}" if ly_do_tem else goc
@@ -120,7 +146,7 @@ def goi_y_o(vat_tu: str, kho: str, so_lo: str | None = None) -> tuple[str | None
 		tham_so,
 	)
 	if trong:
-		return trong[0][0], _ly_do(_("ô trống đầu tiên trong {0}").format(g.vi_tri))
+		return trong[0][0], _ly_do(_("ô trống đầu tiên trong {0}").format(g.vi_tri)), tem_hong
 
 	# Không còn ô trống → dồn vào ô đang chứa CHÍNH mặt hàng này (phương án (b),
 	# chủ đầu tư chốt 15/09). Không có nhánh này thì gán vào một Ô lẻ khiến lần
@@ -139,7 +165,11 @@ def goi_y_o(vat_tu: str, kho: str, so_lo: str | None = None) -> tuple[str | None
 		tham_so,
 	)
 	if cung_hang:
-		return cung_hang[0][0], _ly_do(_("dồn vào ô đang có hàng cùng mặt hàng"))
+		return cung_hang[0][0], _ly_do(_("dồn vào ô đang có hàng cùng mặt hàng")), tem_hong
 
 	tong = frappe.db.sql(f"select count(*) {_UNG_VIEN}", tham_so)[0][0]
-	return None, _ly_do(_("vùng {0} đã đầy: {1}/{1} ô đang chứa hàng khác").format(g.vi_tri, tong))
+	return (
+		None,
+		_ly_do(_("vùng {0} đã đầy: {1}/{1} ô đang chứa hàng khác").format(g.vi_tri, tong)),
+		tem_hong,
+	)

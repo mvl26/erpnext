@@ -51,14 +51,14 @@ class TestGoiY(_NenGoiY):
 	def test_chua_gan_thi_khong_goi_y_va_KHONG_nem_loi(self):
 		"""Phần lớn mặt hàng sẽ chưa gán trong nhiều tháng tới. Ném lỗi ở đây
 		là phiếu xếp không mở nổi."""
-		o, ly_do = goi_y_o(_mat_hang("_Test GoiY Chua Gan"), KHO)
+		o, ly_do, _tem_hong = goi_y_o(_mat_hang("_Test GoiY Chua Gan"), KHO)
 		self.assertIsNone(o)
 		self.assertIn("chưa gán", ly_do)
 
 	def test_o_trong_dau_tien(self):
 		_gan(self.vt, self.tang)
 		_ton("6B01020101", self.vt, 5)
-		o, ly_do = goi_y_o(self.vt, KHO)
+		o, ly_do, _tem_hong = goi_y_o(self.vt, KHO)
 		self.assertEqual(o, "6B01020102")
 		self.assertIn("trống", ly_do)
 
@@ -79,7 +79,7 @@ class TestGoiY(_NenGoiY):
 			for n in ("6C01020102", "6C01020103")
 		}
 		dau_theo_cay = min(lft, key=lft.get)
-		o, _ = goi_y_o(v, KHO)
+		o, _, _tem_hong = goi_y_o(v, KHO)
 		self.assertEqual(o, dau_theo_cay)
 
 	def test_het_o_trong_thi_don_vao_o_dang_co_hang_cua_chinh_no(self):
@@ -93,7 +93,7 @@ class TestGoiY(_NenGoiY):
 		_o("6D01020101")
 		_gan(v, "6D01020101")
 		_ton("6D01020101", v, 7)
-		o, ly_do = goi_y_o(v, KHO)
+		o, ly_do, _tem_hong = goi_y_o(v, KHO)
 		self.assertEqual(o, "6D01020101")
 		self.assertIn("dồn", ly_do)
 
@@ -114,7 +114,7 @@ class TestGoiY(_NenGoiY):
 		_gan(v, "6E010201")
 		for o in ("6E01020101", "6E01020102"):
 			_ton(o, self.vt_khac, 3)
-		o, ly_do = goi_y_o(v, KHO)
+		o, ly_do, _tem_hong = goi_y_o(v, KHO)
 		self.assertIsNone(o)
 		self.assertIn("đầy", ly_do)
 
@@ -128,7 +128,7 @@ class TestGoiY(_NenGoiY):
 		_gan(v, "6F010201")
 		frappe.db.set_value("Storage Location", "6F0102", "disabled", 1)
 		try:
-			o, ly_do = goi_y_o(v, KHO)
+			o, ly_do, _tem_hong = goi_y_o(v, KHO)
 			self.assertIsNone(o)
 		finally:
 			frappe.db.set_value("Storage Location", "6F0102", "disabled", 0)
@@ -136,7 +136,7 @@ class TestGoiY(_NenGoiY):
 	def test_o_chua_xep_khong_bao_gio_la_ket_qua(self):
 		zzz = frappe.db.get_value("Storage Location", {"la_o_chua_xep": 1, "kho": KHO}, "name")
 		_gan(self.vt, self.tang)
-		o, _ = goi_y_o(self.vt, KHO)
+		o, _, _tem_hong = goi_y_o(self.vt, KHO)
 		self.assertNotEqual(o, zzz)
 
 	def test_gan_toa_do_rong_bi_chan_ngay_khi_goi_y(self):
@@ -330,9 +330,11 @@ class TestUuTienOInTem(_NenGoiY):
 		_gan(v, self.tang)
 		lo = self._lo("_TEST-TEM-UUTIEN", v, "6B01020103")
 
-		o, ly_do = goi_y_o(v, KHO, lo)
+		o, ly_do, tem_hong = goi_y_o(v, KHO, lo)
 		self.assertEqual(o, "6B01020103")
 		self.assertIn("tem", ly_do)
+		# Tem ĐÚNG — đây KHÔNG phải ca cần cảnh báo thủ kho.
+		self.assertFalse(tem_hong)
 
 		# Chốt âm trong cùng một bài: bỏ `so_lo` ra thì câu trả lời phải KHÁC.
 		# Không có vế này, một cài đặt bỏ qua hẳn tham số `so_lo` vẫn có thể
@@ -347,9 +349,29 @@ class TestUuTienOInTem(_NenGoiY):
 		v = _mat_hang("_Test Tem KhongLo")
 		_gan(v, self.tang)
 
-		o, ly_do = goi_y_o(v, KHO)
+		o, ly_do, tem_hong = goi_y_o(v, KHO)
 		self.assertEqual(o, "6B01020101")
 		self.assertNotIn("tem", ly_do)
+		# Vòng sửa 2: không truyền `so_lo` thì không có gì để nói là "hỏng".
+		self.assertFalse(tem_hong)
+
+		frappe.db.delete("Item Location Preference", {"vat_tu": v})
+
+	def test_lo_khong_co_o_in_tem_thi_tem_hong_la_false(self):
+		"""Bổ sung (vòng sửa 2, điều phối): lô CÓ TỒN TẠI, CÓ truyền `so_lo`,
+		nhưng `Batch.custom_o_in_tem` rỗng (chưa in tem, hoặc in tem thời trước
+		khối C §8) — nhánh `if o_tem:` không chạy, `ly_do_tem` không bao giờ
+		được gán, nên `tem_hong` phải là `False` chứ không phải giá trị mặc
+		định ngẫu nhiên nào khác.
+		"""
+		v = _mat_hang("_Test Tem KhongOInTem")
+		_gan(v, self.tang)
+		lo = self._lo("_TEST-TEM-KHONGOIN", v, o_tem=None)
+
+		o, ly_do, tem_hong = goi_y_o(v, KHO, lo)
+		self.assertEqual(o, "6B01020101")
+		self.assertNotIn("tem", ly_do)
+		self.assertFalse(tem_hong)
 
 		frappe.db.delete("Item Location Preference", {"vat_tu": v})
 
@@ -365,9 +387,11 @@ class TestUuTienOInTem(_NenGoiY):
 		_ton("6B01020103", self.vt_khac, 7)
 		lo = self._lo("_TEST-TEM-BICHIEM", v, "6B01020103")
 
-		o, ly_do = goi_y_o(v, KHO, lo)
+		o, ly_do, tem_hong = goi_y_o(v, KHO, lo)
 		self.assertEqual(o, "6B01020101")
 		self.assertIn("6B01020103", ly_do)
+		# Tem HỎNG — ô ghi trên tem đã bị mặt hàng khác chiếm.
+		self.assertTrue(tem_hong)
 
 		frappe.db.delete("Item Location Preference", {"vat_tu": v})
 
@@ -382,8 +406,10 @@ class TestUuTienOInTem(_NenGoiY):
 		_ton("6B01020103", v, 4)
 		lo = self._lo("_TEST-TEM-DONCU", v, "6B01020103")
 
-		o, _ly_do = goi_y_o(v, KHO, lo)
+		o, _ly_do, tem_hong = goi_y_o(v, KHO, lo)
 		self.assertEqual(o, "6B01020103")
+		# Tem ĐÚNG — dồn vào đúng ô đã in vẫn là "theo tem", không phải "tem hỏng".
+		self.assertFalse(tem_hong)
 
 		frappe.db.delete("Location Balance", {"vat_tu": v})
 		frappe.db.delete("Item Location Preference", {"vat_tu": v})
@@ -399,9 +425,11 @@ class TestUuTienOInTem(_NenGoiY):
 		_gan(v, self.tang)
 		lo = self._lo("_TEST-TEM-NGOAI", v, "6D01020101")
 
-		o, ly_do = goi_y_o(v, KHO, lo)
+		o, ly_do, tem_hong = goi_y_o(v, KHO, lo)
 		self.assertEqual(o, "6B01020101")
 		self.assertIn("6D01020101", ly_do)
+		# Tem HỎNG — ô ghi trên tem nằm ngoài vùng gán hiện tại.
+		self.assertTrue(tem_hong)
 
 		frappe.db.delete("Item Location Preference", {"vat_tu": v})
 
@@ -433,18 +461,21 @@ class TestUuTienOInTem(_NenGoiY):
 		# (a) Tổ tiên của ô đã in tem bị tắt — KHÔNG phải chính ô đó.
 		frappe.db.set_value("Storage Location", self.tang, "disabled", 1)
 		try:
-			o, ly_do = goi_y_o(v, KHO, lo)
+			o, ly_do, tem_hong = goi_y_o(v, KHO, lo)
 			self.assertIsNone(o)
 			self.assertIn("6B01020103", ly_do)
+			# Tem HỎNG cả ở đây — tổ tiên tắt kéo ô đã in tem theo.
+			self.assertTrue(tem_hong)
 		finally:
 			frappe.db.set_value("Storage Location", self.tang, "disabled", 0)
 
 		# (b) Chính ô đã in tem bị tắt.
 		frappe.db.set_value("Storage Location", "6B01020103", "disabled", 1)
 		try:
-			o, ly_do = goi_y_o(v, KHO, lo)
+			o, ly_do, tem_hong = goi_y_o(v, KHO, lo)
 			self.assertEqual(o, "6B01020101")
 			self.assertIn("6B01020103", ly_do)
+			self.assertTrue(tem_hong)
 		finally:
 			frappe.db.set_value("Storage Location", "6B01020103", "disabled", 0)
 			frappe.db.delete("Item Location Preference", {"vat_tu": v})

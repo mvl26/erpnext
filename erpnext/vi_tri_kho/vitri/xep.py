@@ -59,6 +59,15 @@ def hang_chua_xep(kho: str) -> list[dict]:
 	của LÔ đó (`Batch.custom_o_in_tem`, riêng từng lô). Giữ khoá cũ thì lô
 	thứ hai của cùng một mặt hàng nhận lại gợi ý của lô thứ nhất, và tem của
 	nó nói dối.
+
+	`tem_hong` (vòng sửa 2, điều phối): `goi_y_o` giờ trả BỘ BA, phần tử thứ
+	ba là cờ báo "lô này có tem nhưng ô ghi trên tem không còn dùng được".
+	Đổ thẳng cờ đó vào từng dòng — KHÔNG suy nó từ chuỗi `ly_do_goi_y` (đã có
+	một bản làm vậy bằng `includes("tem")` ở `location_transfer.js`, và nó
+	gộp nhầm luôn cả case tem ĐÚNG, vì chuỗi "theo ô đã in trên tem của lô…"
+	cũng chứa chữ "tem"). Ở nhánh nuốt lỗi (`except Exception`) bên dưới,
+	`tem_hong` luôn là `False`: không biết được `goi_y_o` đã đi tới đâu trước
+	khi ném lỗi thì không được khẳng định gì về tem.
 	"""
 	_kiem_tra_quyen()
 	dong = frappe.db.sql(
@@ -112,6 +121,7 @@ def hang_chua_xep(kho: str) -> list[dict]:
 						"không gợi ý được cho {0} — xem Error Log. KHÔNG PHẢI mặt hàng "
 						"chưa gán, đừng gán lại"
 					).format(d.vat_tu),
+					False,
 				)
-		d["den_o"], d["ly_do_goi_y"] = bo_nho[khoa]
+		d["den_o"], d["ly_do_goi_y"], d["tem_hong"] = bo_nho[khoa]
 	return dong

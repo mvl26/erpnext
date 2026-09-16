@@ -627,3 +627,50 @@ class TestLayHangChuaXep(FrappeTestCase):
 			1,
 			"cùng một (mặt hàng, lô) trải trên nhiều dòng chỉ được gọi goi_y_o một lần",
 		)
+
+	def test_tem_hong_dung_hang_theo_tung_dong_trong_cung_mot_lan_goi(self):
+		"""Chốt của vòng sửa 2 (điều phối, sau Task 4).
+
+		Dựng HAI mặt hàng khác nhau trong CÙNG một lần gọi `hang_chua_xep`: một
+		mặt hàng có tem ĐÚNG (ô ghi trên tem còn dùng được) và một mặt hàng có
+		tem HỎNG (ô ghi trên tem đã bị mặt hàng khác chiếm, `goi_y_o` phải rơi
+		sang ô khác). Khẳng định `d["tem_hong"]` đúng cho TỪNG dòng.
+
+		Đây là bài bắt đúng cả hai đột biến đã từng làm sai: (1) `tem_hong`
+		hằng `True`/`False` bất kể nhánh nào (thấy ngay ở CÙNG một lần gọi vì
+		có cả hàng đúng lẫn hàng hỏng); (2) suy `tem_hong` bằng so khớp chuỗi
+		con "tem" trong `ly_do_goi_y` — bộ lọc đó gộp NHẦM cả hàng tem ĐÚNG
+		(câu "theo ô đã in trên tem của lô…" cũng chứa chữ "tem") vào chung
+		một nhóm với hàng tem HỎNG.
+		"""
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		v_dung = _vat_tu("9X-LC-TEMDUNG-VT", co_lo=True)
+		v_hong = _vat_tu("9X-LC-TEMHONG-VT", co_lo=True)
+		v_khac = _vat_tu("9X-LC-TEMHONG-CHIEM", co_lo=True)  # chiếm ô trên tem hỏng
+
+		a = _o("9X13010101")  # ô tem ĐÚNG sẽ trỏ vào — còn trống
+		c = _o("9X13020101")  # ô tem HỎNG sẽ trỏ vào — sẽ bị v_khac chiếm
+		d = _o("9X13020102")  # ô goi_y_o phải rơi vào khi tem hỏng
+
+		_gan(v_dung, "9X130101")
+		_gan(v_hong, "9X130201")  # nhánh riêng chứa cả c lẫn d
+
+		lo_dung = _lo("9X-LC-TEMDUNG-LO", v_dung)
+		lo_hong = _lo("9X-LC-TEMHONG-LO", v_hong)
+		frappe.db.set_value("Batch", lo_dung, "custom_o_in_tem", a)
+		frappe.db.set_value("Batch", lo_hong, "custom_o_in_tem", c)
+
+		lo_khac = _lo("9X-LC-TEMHONG-LO-CHIEM", v_khac)
+		_nap(c, v_khac, lo_khac, 3)  # chiếm CHÍNH ô ghi trên tem của lô hỏng
+
+		_nap(self.zzz, v_dung, lo_dung, 5)
+		_nap(self.zzz, v_hong, lo_hong, 5)
+
+		dong = {d_["vat_tu"]: d_ for d_ in hang_chua_xep(KHO) if d_["vat_tu"] in (v_dung, v_hong)}
+
+		self.assertEqual(dong[v_dung]["den_o"], a)
+		self.assertFalse(dong[v_dung]["tem_hong"], "tem đúng — KHÔNG được báo là tem hỏng")
+
+		self.assertEqual(dong[v_hong]["den_o"], d, "ô trên tem đã bị chiếm, phải rơi sang ô khác")
+		self.assertTrue(dong[v_hong]["tem_hong"], "tem của lô này đã không dùng được nữa")
