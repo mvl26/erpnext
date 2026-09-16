@@ -408,13 +408,38 @@ class TestUuTienOInTem(_NenGoiY):
 	def test_o_da_in_dang_ngung_dung_thi_bo_qua(self):
 		"""Dãy bị tắt thì không xếp vào, kể cả khi tem đã in.
 
-		`_UNG_VIEN` đã mang sẵn luật "chính nó HOẶC tổ tiên `disabled`"
-		(`fefo.to_tien_tat`). Bài này khoá việc nhánh mới DÙNG LẠI `_UNG_VIEN`
-		chứ không tự viết một truy vấn riêng bỏ quên điều kiện đó.
+		HAI VẾ, cả hai đều CẦN. Bản đầu của bài này (trước lượt sửa theo
+		phán quyết điều phối) CHỈ có vế (b) — và vì thế KHÔNG KHOÁ ĐƯỢC GÌ:
+		một cài đặt viết tay `and ifnull(sl.disabled, 0) = 0` trong nhánh
+		tem (bỏ hẳn luật thừa kế của `to_tien_tat()`, chỉ còn nhìn cờ của
+		CHÍNH ô) vẫn làm bản đầu xanh, vì bản đầu tắt `disabled` đúng trên
+		CHÍNH ô đã in tem — phép kiểm thô cũng bắt được ca đó mà không cần
+		luật thừa kế. Đừng "dọn gọn" bài này về lại một vế.
+
+		(a) VẾ TỔ TIÊN — vế khoá được `_UNG_VIEN`/`to_tien_tat()`, KHÔNG
+		    phải vế (b). Tắt `self.tang` (tầng CHỨA cả ba ô, là TỔ TIÊN của
+		    ô đã in tem, không phải chính ô đó). Tắt cả tầng làm CẢ BA ô
+		    trong vùng gán ngừng dùng theo, nên không còn ứng viên nào —
+		    đúng đắn nhất ở đây là `(None, ...)`, không phải "ô khác".
+
+		(b) VẾ Ô LÁ (giữ nguyên từ bản đầu) — tắt chính ô đã in tem. Vẫn
+		    khoá một thứ thật (ô tự nó tắt thì không xếp vào), nhưng KHÔNG
+		    đủ để khoá luật thừa kế — không thay được cho vế (a).
 		"""
 		v = _mat_hang("_Test Tem Tat")
 		_gan(v, self.tang)
 		lo = self._lo("_TEST-TEM-TAT", v, "6B01020103")
+
+		# (a) Tổ tiên của ô đã in tem bị tắt — KHÔNG phải chính ô đó.
+		frappe.db.set_value("Storage Location", self.tang, "disabled", 1)
+		try:
+			o, ly_do = goi_y_o(v, KHO, lo)
+			self.assertIsNone(o)
+			self.assertIn("6B01020103", ly_do)
+		finally:
+			frappe.db.set_value("Storage Location", self.tang, "disabled", 0)
+
+		# (b) Chính ô đã in tem bị tắt.
 		frappe.db.set_value("Storage Location", "6B01020103", "disabled", 1)
 		try:
 			o, ly_do = goi_y_o(v, KHO, lo)
