@@ -138,7 +138,8 @@ erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon, tru_ten) {
 		// `node.data` là nguyên dòng máy chủ trả về cho nút này (xem chú
 		// thích đầu file) — tên trường KHỚP đúng các cột `as` của
 		// `gan.py::cay_chon_vi_tri()`: `value`, `title`, `expandable`,
-		// `da_gan_cho`, `co_gan_ben_trong`, `so_o_trong`, `so_mat_hang_dang_co`.
+		// `da_gan_cho`, `co_gan_ben_trong`, `nhanh_ngung_dung`, `so_o_trong`,
+		// `so_mat_hang_dang_co`.
 		// LƯU Ý TÊN THẬT: phần "Interfaces" của brief Task 7 ghi khoá
 		// `co_hang_khac`, nhưng cả câu SQL mẫu lẫn bài test
 		// (`test_gan_vi_tri.py`) chỉ dùng `so_mat_hang_dang_co` — hai chỗ của
@@ -169,6 +170,21 @@ erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon, tru_ten) {
 				return (
 					`<span class="text-muted">${nhan} — ` +
 					`${__("có")} ${n.co_gan_ben_trong} ${__("gán bên trong")}</span>`
+				);
+			}
+
+			// VÒNG VÁ TIẾP THEO (mối lo #1, report review tổng trước):
+			// `kiem_tra_nut_hop_le()` phía máy chủ từ chối gán vào một nút
+			// `disabled` HOẶC có tổ tiên `disabled` — lý do thứ BA trong ba lý
+			// do `validate()` có thể từ chối; cây từng chỉ báo trước hai lý do
+			// kia. Phải hiện TRƯỚC KHI bấm, và phải là NHÃN RIÊNG, không gộp
+			// vào "đã gán"/"có gán bên trong": với người vận hành đây là việc
+			// KHÁC hẳn (bật lại nhánh hoặc chờ sửa kệ xong, không phải đi tìm
+			// chỗ khác hay gỡ gán con trước).
+			if (n.nhanh_ngung_dung) {
+				return (
+					`<span class="text-muted">${nhan} — ${__("đang ngừng dùng")}` +
+					` (${__("do chính nó hoặc do một nút cha")})</span>`
 				);
 			}
 
@@ -206,9 +222,20 @@ erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon, tru_ten) {
 				// mới ăn lỗi "bao trùm ... đã được gán cho" từ máy chủ — với
 				// 214 ô đó là trò chơi đoán mà spec §6 cấm bằng chữ in đậm.
 				// `co_gan_ben_trong` khoá đúng chiều này.
+				//
+				// VÒNG VÁ TIẾP THEO (mối lo #1, report review tổng trước):
+				// `!n.da_gan_cho && !n.co_gan_ben_trong` một mình không đủ —
+				// một nút `disabled` (hoặc có tổ tiên `disabled`) có thể CHƯA
+				// ai gán (cả hai cờ trên đều falsy), nút "Chọn vị trí này" vẫn
+				// dựng ra, bấm vào rồi mới ăn lỗi "đang ngừng dùng" từ
+				// `kiem_tra_nut_hop_le()` phía máy chủ — với 214 ô đó vẫn là
+				// trò chơi đoán, chỉ khác lý do. `n.nhanh_ngung_dung` loại
+				// đúng lý do thứ ba này.
 				condition: function (node) {
 					const n = node.data || {};
-					return !node.is_root && !n.da_gan_cho && !n.co_gan_ben_trong;
+					return (
+						!node.is_root && !n.da_gan_cho && !n.co_gan_ben_trong && !n.nhanh_ngung_dung
+					);
 				},
 				click: function (node) {
 					const n = node.data || {};

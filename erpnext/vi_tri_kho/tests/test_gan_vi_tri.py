@@ -598,6 +598,70 @@ class TestCayChonViTri(_Nen):
 			# lệch mọi bài khác trong lớp lỡ đụng nhánh `8D`.
 			frappe.db.set_value("Storage Location", "8D0102", "disabled", 0)
 
+	def test_nhanh_ngung_dung_bao_truoc_khi_chinh_day_dang_tat(self):
+		"""Mối lo #1 để lại từ lượt sửa trước (xem 'Mối lo' cuối report review
+		tổng): cây từng báo trước hai trong ba lý do `kiem_tra_nut_hop_le()`
+		từ chối gán (`da_gan_cho`, `co_gan_ben_trong`) nhưng KHÔNG báo lý do
+		thứ ba — nút `disabled` hoặc có tổ tiên `disabled`. Tắt một Dãy rồi
+		hỏi cây ở ĐÚNG cấp đó (liệt kê con của Khu cha): chính nút Dãy phải tự
+		báo `nhanh_ngung_dung`."""
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		khu, day = "9D", "9D01"
+		_o("9D01010101")  # sinh cả nhánh cha 9D / 9D01 / 9D0101 / 9D010101
+		frappe.db.set_value("Storage Location", day, "disabled", 1)
+		try:
+			nut = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent=khu)}
+			self.assertTrue(nut[day]["nhanh_ngung_dung"], "chính nút Dãy đang tắt phải báo ngừng dùng")
+		finally:
+			# BẮT BUỘC dù bài đỏ: nút `9D01` sống hết vòng đời lớp
+			# (`FrappeTestCase` chỉ rollback ở `tearDownClass`) — để
+			# `disabled = 1` sót lại sẽ làm lệch hai bài dưới cùng đụng nhánh
+			# `9D`.
+			frappe.db.set_value("Storage Location", day, "disabled", 0)
+
+	def test_nhanh_ngung_dung_bao_ca_o_la_con_ben_duoi_day_da_tat(self):
+		"""CHỐT ÂM quan trọng nhất của Mục 1 lượt vá này. Ô LÁ bên dưới Dãy đã
+		tắt vẫn phải báo `nhanh_ngung_dung`, DÙ cờ `disabled` của CHÍNH ô lá
+		đó vẫn = 0 — chỉ tổ tiên (Dãy) của nó bị tắt. Một bản vá chỉ đọc cờ
+		của CHÍNH nút (không tính tổ tiên) sẽ làm bài trên
+		(`test_nhanh_ngung_dung_bao_truoc_khi_chinh_day_dang_tat`) xanh —
+		Dãy tự đọc đúng cờ của chính nó — nhưng để lọt đúng bài này."""
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		day, tang, o = "9D01", "9D010101", "9D01010101"
+		_o(o)
+		self.assertEqual(
+			frappe.db.get_value("Storage Location", o, "disabled"), 0, "tiền đề: cờ của chính Ô lá = 0"
+		)
+		frappe.db.set_value("Storage Location", day, "disabled", 1)
+		try:
+			nut = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent=tang)}
+			self.assertTrue(
+				nut[o]["nhanh_ngung_dung"],
+				"Ô lá phải báo ngừng dùng do TỔ TIÊN (Dãy) tắt, dù cờ của chính nó vẫn = 0",
+			)
+		finally:
+			frappe.db.set_value("Storage Location", day, "disabled", 0)
+
+	def test_nhanh_ngung_dung_khong_khoa_nham_nhanh_khong_lien_quan(self):
+		"""Chốt âm CHIỀU NGƯỢC LẠI, chặn một bản vá quá tay khoá cả cây: một
+		nhánh KHÔNG LIÊN QUAN (Dãy anh em của Dãy đang tắt, cùng Khu cha)
+		phải vẫn chọn được bình thường — `nhanh_ngung_dung` falsy."""
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		khu, day, day_khac = "9D", "9D01", "9D02"
+		_o("9D01010101")
+		_o("9D02010101")
+		frappe.db.set_value("Storage Location", day, "disabled", 1)
+		try:
+			nut = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent=khu)}
+			self.assertFalse(
+				nut[day_khac]["nhanh_ngung_dung"], "nhánh không liên quan không được khoá lây"
+			)
+		finally:
+			frappe.db.set_value("Storage Location", day, "disabled", 0)
+
 	def test_o_chua_xep_khong_xuat_hien_trong_cay(self):
 		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
 

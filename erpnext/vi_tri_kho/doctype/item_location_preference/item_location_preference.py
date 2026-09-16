@@ -18,6 +18,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from erpnext.vi_tri_kho.vitri.fefo import ten_nut_ngung_dung
 from erpnext.vi_tri_kho.vitri.gan import (
 	chu_cua_nhanh,
 	dem_ton_khac_trong_nhanh,
@@ -180,17 +181,16 @@ class ItemLocationPreference(Document):
 
 		Kiểm CẢ TỔ TIÊN chứ không chỉ cờ của chính nút — người vận hành tắt cả
 		một Dãy để sửa kệ thì mọi ô dưới đó cũng không dùng được, dù cờ của
-		từng ô vẫn bằng 0. Cùng luật với `fefo._TO_TIEN_TAT`.
+		từng ô vẫn bằng 0.
+
+		VÒNG VÁ (mối lo #2, report review tổng trước): đây từng là một bản
+		viết TAY THỨ BA của luật này (chữ ký riêng — trả TÊN nút, so bằng
+		`lft`/`rgt` truyền tay — nên không tự nhiên gọi được `fefo.to_tien_tat()`
+		như `goi_y._UNG_VIEN`/`gan.cay_chon_vi_tri` vốn dùng, hàm đó trả một vị
+		từ SQL, không phải một cái tên). Giờ chỉ còn MỘT định nghĩa
+		(`fefo._dieu_kien_ngung_dung()`); hàm này chỉ còn là một cách GỌI khác
+		của cùng luật đó, không phải một bản sao — hai bản trôi khỏi nhau thì
+		một nửa hệ chặn (chỗ này) còn nửa kia (cây chọn vị trí, gợi ý ô) cho
+		qua, và không có gì báo.
 		"""
-		dong = frappe.db.sql(
-			"""
-			select tt.name
-			from `tabStorage Location` tt
-			where ifnull(tt.disabled, 0) = 1
-			  and (tt.name = %(nut)s or (tt.lft < %(lft)s and tt.rgt > %(rgt)s))
-			order by tt.lft asc
-			limit 1
-			""",
-			{"nut": self.vi_tri, "lft": self.nut.lft, "rgt": self.nut.rgt},
-		)
-		return dong[0][0] if dong else None
+		return ten_nut_ngung_dung(self.vi_tri, self.nut.lft, self.nut.rgt)

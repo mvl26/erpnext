@@ -111,20 +111,77 @@ _DO_CHINH_XAC_SO_LUONG = 6  # khớp vitri/lo.py
 # có gì báo hai nơi đã trôi khỏi nhau. Đổi thành HÀM nhận `alias`, để mọi nơi
 # gọi (`fefo.py`, `goi_y.py`, `gan.py`) dựng đúng MỘT định nghĩa "ngừng dùng
 # tính cả tổ tiên", bất kể alias bảng của truy vấn đó là gì.
+def _dieu_kien_ngung_dung(ten_expr: str, lft_expr: str, rgt_expr: str) -> str:
+	"""Vị từ THÔ của luật "chính nó HOẶC bất kỳ tổ tiên nào `disabled`" — dùng
+	CHUNG bởi `to_tien_tat()` (đóng gói vào `EXISTS`, so với cột của một
+	alias bảng NGOÀI) và `ten_nut_ngung_dung()` (so với toạ độ truyền TAY,
+	không có bảng ngoài nào để đọc cột). MỘT định nghĩa toán học duy nhất,
+	viết một lần — thay vì hai bản chép tay lệch alias/tham số như trước
+	vòng vá này (xem docstring hai hàm dưới, mục "VÒNG VÁ").
+
+	`tt` là alias CỐ ĐỊNH của `tabStorage Location` đang được dò trong
+	`EXISTS`/truy vấn bao quanh lời gọi này — nơi gọi không được đặt bảng vị
+	trí CỦA MÌNH là `tt` (đụng tên, kết quả sai mà không lỗi cú pháp nào báo).
+	"""
+	return (
+		f"(ifnull(tt.disabled, 0) = 1 and (tt.name = {ten_expr}"
+		f" or (tt.lft < {lft_expr} and tt.rgt > {rgt_expr})))"
+	)
+
+
 def to_tien_tat(alias: str = "sl") -> str:
 	"""Vị từ SQL EXISTS: `alias` (một dòng `tabStorage Location`) đang bị coi
 	là NGỪNG DÙNG — chính nó `disabled`, hoặc một TỔ TIÊN của nó `disabled`.
 
 	Nhận `alias` thay vì ghi cứng `sl` để dùng được ở bất kỳ truy vấn nào đặt
-	tên bảng vị trí khác đi (`s4` ở `gan.py::cay_chon_vi_tri`, ví dụ). Chỉ có
-	MỘT định nghĩa; hai truy vấn gọi hàm này với alias khác nhau vẫn cùng một
-	luật, nên không thể trôi khỏi nhau như bản sao chép tay.
+	tên bảng vị trí khác đi (`s4` ở `gan.py::cay_chon_vi_tri`'s `so_o_trong`,
+	`sl` chính nó ở cột `nhanh_ngung_dung` cùng hàm đó, ví dụ). Chỉ có MỘT
+	định nghĩa (`_dieu_kien_ngung_dung()` ở trên); mọi truy vấn gọi hàm này
+	với alias khác nhau vẫn cùng một luật, nên không thể trôi khỏi nhau như
+	bản sao chép tay.
 	"""
 	return f"""exists (
 	select 1 from `tabStorage Location` tt
-	where ifnull(tt.disabled, 0) = 1
-	  and (tt.name = {alias}.name or (tt.lft < {alias}.lft and tt.rgt > {alias}.rgt))
+	where {_dieu_kien_ngung_dung(f"{alias}.name", f"{alias}.lft", f"{alias}.rgt")}
 )"""
+
+
+def ten_nut_ngung_dung(nut: str, lft: int, rgt: int) -> str | None:
+	"""Tên nút `disabled` GẦN NHẤT đang chặn nút `nut` (toạ độ `lft`/`rgt`) —
+	chính nó, hoặc tổ tiên gần nhất. `None` nếu không có nút nào chặn.
+
+	Khác `to_tien_tat()` ở CHỮ KÝ, không ở LUẬT: `to_tien_tat()` trả một vị
+	từ boolean để lọc/phủ định bên trong một truy vấn LỚN HƠN — nó không tự
+	cho biết TÊN nút nào đang chặn (không có cột nào để đọc ra từ bên trong
+	một `EXISTS`). Hàm này là một truy vấn ĐỘC LẬP, nhận toạ độ bằng THAM SỐ
+	thay vì bằng alias của một bảng ngoài, vì nơi gọi
+	(`ItemLocationPreference.kiem_tra_nut_hop_le()`) cần chính CÁI TÊN đó để
+	nói rõ nút nào đang tắt trong thông báo lỗi ("do {tên nút} ở trên nó") —
+	không chỉ cần biết CÓ chặn hay không.
+
+	VÒNG VÁ (mối lo #2, report review tổng trước): đây từng là
+	`ItemLocationPreference._to_tien_tat()`, bản viết TAY THỨ BA của cùng một
+	luật "ngừng dùng tính cả tổ tiên" (chữ ký khác nên không tự nhiên gọi
+	`to_tien_tat()` được) — và một bản THỨ TƯ suýt ra đời khi cây chọn vị trí
+	(cột `nhanh_ngung_dung` ở `gan.py::cay_chon_vi_tri`, cùng vòng vá này)
+	cũng cần đúng vị từ đó. Gộp cả bốn nơi gọi (`fefo.chon_o_xuat`,
+	`goi_y._UNG_VIEN`, `gan.cay_chon_vi_tri`, và giờ là đây) về đúng MỘT định
+	nghĩa (`_dieu_kien_ngung_dung()`): hai bản chép tay TRÔI KHỎI NHAU thì
+	một nửa hệ chặn (`validate()`) còn nửa kia (cây/gợi ý) cho qua, và KHÔNG
+	CÓ GÌ BÁO — đúng lớp lỗi spec §7 gọi tên, Ruling D đã lập hẳn một quyết
+	định (import tên private xuyên module) để tránh.
+	"""
+	dong = frappe.db.sql(
+		f"""
+		select tt.name
+		from `tabStorage Location` tt
+		where {_dieu_kien_ngung_dung("%(nut)s", "%(lft)s", "%(rgt)s")}
+		order by tt.lft asc
+		limit 1
+		""",
+		{"nut": nut, "lft": lft, "rgt": rgt},
+	)
+	return dong[0][0] if dong else None
 
 
 # Bí danh giữ tương thích các truy vấn CÓ SẴN trong chính file này (alias

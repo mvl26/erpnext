@@ -217,6 +217,27 @@ def cay_chon_vi_tri(
 	`cay_chon_vi_tri.js` phải LOẠI nút có cột này > 0 khỏi nút "Chọn vị trí này", dù `da_gan_cho`
 	của nó là NULL — nếu không, bấm vào rồi mới ăn lỗi vẫn y nguyên như trước khi vá.
 
+	`nhanh_ngung_dung` (VÒNG VÁ TIẾP THEO — mối lo #1 nêu ở report review tổng trước): ba lý do
+	`ItemLocationPreference.kiem_tra_nut_hop_le()` từ chối gán là `da_gan_cho`, `co_gan_ben_trong`
+	ở trên, và nút `disabled` HOẶC có tổ tiên `disabled` — cây từng chỉ báo trước HAI trong ba.
+	Một Dãy đang tắt để sửa kệ hiện ra như bình thường (`da_gan_cho`/`co_gan_ben_trong` đều falsy
+	nếu chưa ai gán ở đó), nút "Chọn vị trí này" vẫn dựng ra, bấm vào mới ăn đúng lỗi "đang ngừng
+	dùng (do chính nó hoặc do X ở trên nó)" — đúng cái spec §6 cấm bằng chữ in đậm, cùng LOÀI lỗi
+	với `da_gan_cho`/`co_gan_ben_trong` ở trên, chỉ khác lý do.
+
+	Dùng ĐÚNG `to_tien_tat("sl")` (từ `fefo.py`, đã import ở đầu file) — KHÔNG viết lại vị từ:
+	đây là chính luật mà `so_o_trong` bên dưới (`to_tien_tat("s4")`) và `item_location_preference.py`
+	đang dùng; ba nơi trôi khỏi nhau (như đã từng xảy ra, xem `fefo.py::_dieu_kien_ngung_dung()`)
+	thì một nửa hệ chặn còn nửa kia cho qua, và không gì báo. `nhanh_ngung_dung` xét TOẠ ĐỘ của
+	CHÍNH `sl` (không phải tổ tiên GẦN NHẤT như `ten_nut_ngung_dung()` — cây chỉ cần biết CÓ chặn
+	hay không để ẩn nút, không cần nêu tên tổ tiên nào, nên trả boolean là đủ và rẻ hơn).
+
+	`cay_chon_vi_tri.js::toolbar.chon.condition()` phải loại nốt có cột này khỏi nút "Chọn vị trí
+	này", và `get_label()` phải hiện nhãn RIÊNG cho ca này ("đang ngừng dùng") — không gộp chung
+	với "đã gán"/"có gán bên trong": ba lý do là ba việc khác nhau của người vận hành (đi tìm chỗ
+	khác / gỡ gán con trước / bật lại nhánh), gộp thành một chữ "không chọn được" sẽ không nói cho
+	người dùng biết phải LÀM GÌ tiếp theo.
+
 	`tru_ten` (bắt được ở vòng soát lại sau khi vá `co_gan_ben_trong`, TRƯỚC khi bàn giao — không
 	phải một mục review riêng, mà là hệ quả trực tiếp của cột trên nếu bỏ sót): nút "Chọn trên cây
 	vị trí" ở `item_location_preference.js` gắn vào `refresh`, tức hiện ra CẢ KHI đang SỬA một
@@ -296,6 +317,7 @@ def cay_chon_vi_tri(
 		          join `tabStorage Location` s5 on s5.name = p2.vi_tri
 		         where p2.name != %(tru_ten)s
 		           and s5.lft > sl.lft and s5.rgt < sl.rgt) as co_gan_ben_trong,
+		       {to_tien_tat("sl")} as nhanh_ngung_dung,
 		       (select count(distinct lb.vat_tu)
 		          from `tabLocation Balance` lb
 		          join `tabStorage Location` s3 on s3.name = lb.o
