@@ -6,11 +6,14 @@ tư, hoặc mã kho) phải trả về đúng những gì đã khai, không thi�
 KHÔNG BAO GIỜ ném lỗi ra giữa màn hình nhập liệu dù quét trúng bất cứ thứ gì.
 """
 
+from unittest.mock import patch
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from erpnext.vi_tri_kho.tests.test_hook_nhap import _tao_item
 from erpnext.vi_tri_kho.tests.test_lo_ncc import _ncc_thu, _phieu_nhap_nhap
+from erpnext.vi_tri_kho.vitri.nhat_ky_loi import TRAN_DO_DAI_TIEU_DE
 from erpnext.vi_tri_kho.vitri.quet import tra_cuu
 
 CONG_TY = "Miyano Việt Nam"
@@ -195,6 +198,48 @@ class TestTraCuu(FrappeTestCase):
 		# Không giả vờ là lô/vật tư: không lẫn khoá của hai nhánh kia vào đây.
 		for khoa_khac_nhanh in ("so_lo", "vat_tu", "ten_hang", "ton_theo_o"):
 			self.assertNotIn(khoa_khac_nhanh, ket_qua)
+
+	def test_ma_rat_dai_khong_lam_no_luoi_an_toan(self):
+		"""Vòng sửa 2/5 (điều phối, Important): lưới an toàn (`except Exception`
+		+ `frappe.log_error`) tự nó có thể ném lỗi.
+
+		`Error Log.method` là `Data(140)`. Nếu `_tra_cuu_khong_kiem_quyen` ném
+		lỗi (ép bằng `scan_barcode` giả lập ở đây) VÀ `ma` đủ dài để tiêu đề
+		ghép thô vượt 140, thì CHÍNH `frappe.log_error()` — đang NẰM TRONG
+		khối `except` — ném `CharacterLengthExceededError`, văng ra NGOÀI khối
+		đó. Bài này ép cả hai điều kiện cùng lúc rồi khẳng định `tra_cuu` vẫn
+		trả về bình thường — không phải chỉ "không ném lỗi lạ nào", mà đúng
+		`{"loai": None}`, cùng hình dạng với ca "quét nhầm" khác.
+		"""
+		# Ký tự KHÔNG lặp lại "M" đơn điệu (dễ đụng một mã đã dùng ở bài
+		# khác nếu ai đó thêm bài mới sau này) — nhưng vẫn cố định để dọn
+		# đúng dòng bằng LIKE ở cuối bài. Đủ dài để CHẮC CHẮN vượt trần dù
+		# tiền tố tiêu đề đổi độ dài sau này.
+		ma_rat_dai = "QUET-RAT-DAI-" + ("Z" * (TRAN_DO_DAI_TIEU_DE + 50))
+
+		with patch(
+			"erpnext.vi_tri_kho.vitri.quet.scan_barcode",
+			side_effect=RuntimeError("giả lập lỗi dữ liệu để buộc nhánh log_error chạy"),
+		):
+			ket_qua = tra_cuu(ma_rat_dai)
+
+		self.assertEqual(ket_qua, {"loai": None})
+
+		# Đối chứng: `log_error` phải THẬT SỰ chạy tới cùng (ghi được một dòng
+		# Error Log cho ĐÚNG mã này), không phải "không ném lỗi vì log_error
+		# đã âm thầm hỏng theo cách khác". Dòng ghi được phải có tiêu đề đã
+		# CẮT — điểm cắt (133 ký tự thô + đuôi) rơi trong tiền tố "QUET-RAT-
+		# DAI-" nên tìm bằng LIKE trên chính tiền tố đó vẫn khớp đúng dòng.
+		dong_error_log = frappe.get_all(
+			"Error Log", filters={"method": ["like", "%QUET-RAT-DAI-%"]}, pluck="method"
+		)
+		self.assertEqual(len(dong_error_log), 1, "phải ghi đúng một dòng Error Log cho mã này")
+		self.assertLessEqual(len(dong_error_log[0]), TRAN_DO_DAI_TIEU_DE)
+
+		# `log_error` KHÔNG bị `FrappeTestCase` rollback (đã đo — xem ghi chú
+		# cùng ý ở `test_phieu_xep_vi_tri.py`) nên phải tự dọn, không để rác
+		# trên CSDL thật.
+		frappe.db.delete("Error Log", {"method": ["like", "%QUET-RAT-DAI-%"]})
 
 	def test_khong_co_vai_tro_kho_thi_bi_chan(self):
 		"""Hàm này lộ tồn kho theo ô — đăng nhập hợp lệ không phải điều kiện đủ.

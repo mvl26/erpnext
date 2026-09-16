@@ -32,6 +32,7 @@ from frappe.utils import getdate
 
 from erpnext.vi_tri_kho.vitri.goi_y import goi_y_o
 from erpnext.vi_tri_kho.vitri.ma_vi_tri import dinh_dang_nhan
+from erpnext.vi_tri_kho.vitri.nhat_ky_loi import cat_tieu_de
 
 # Cùng bộ vai trò với `xep.VAI_TRO_DUOC_XEP` / `tem.VAI_TRO_DUOC_IN_TEM`: nạp
 # dòng hàng và in nhãn đều là việc HẰNG NGÀY của thủ kho, không phải thao tác
@@ -99,8 +100,14 @@ def lay_dong_tu_phieu_nhap(phieu_nhap: str) -> list[dict]:
 			# trong cùng một phiếu. `frappe.log_error` (không truyền `message`)
 			# tự chụp traceback hiện tại, giữ dấu vết thật để người vận hành
 			# đi sửa dữ liệu gán thay vì lỗi biến mất lặng lẽ.
+			#
+			# `cat_tieu_de` BẮT BUỘC (review điều phối, vòng sửa 2/5): `title`
+			# đi vào `Error Log.method` — cột `Data(140)`. Không cắt thì một
+			# `d.vat_tu` đủ dài khiến CHÍNH `log_error()` này ném
+			# `CharacterLengthExceededError`, văng ra NGOÀI khối `except` đang
+			# bao nó — xem lý lẽ đầy đủ ở `nhat_ky_loi.py`.
 			frappe.log_error(
-				title=f"vi_tri_kho: lay_dong_tu_phieu_nhap goi_y_o loi ({d.vat_tu})"
+				title=cat_tieu_de(f"vi_tri_kho: lay_dong_tu_phieu_nhap goi_y_o loi ({d.vat_tu})")
 			)
 			o, ly_do = (
 				None,
@@ -190,7 +197,11 @@ def _f8_xem_truoc(lo, kho) -> str:
 		try:
 			o, _ly_do, _tem_hong = goi_y_o(lo.item, kho, lo.name)
 		except Exception:
-			frappe.log_error(title=f"vi_tri_kho: du_lieu_tem goi_y_o loi ({lo.name})")
+			# `cat_tieu_de` BẮT BUỘC (vòng sửa 2/5): xem lý lẽ đầy đủ ở
+			# `nhat_ky_loi.py` — `lo.name` (số lô) không có trần độ dài, và
+			# `title` quá dài khiến chính `log_error()` này ném lỗi mới, văng
+			# ra ngoài khối `except` đang bao nó.
+			frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: du_lieu_tem goi_y_o loi ({lo.name})"))
 			o = None
 		if o:
 			return dinh_dang_nhan(o)
@@ -313,7 +324,11 @@ def dat_o_in_tem(so_lo: str) -> str | None:
 	try:
 		o, _ly_do, _tem_hong = goi_y_o(lo.item, kho, lo.name)
 	except Exception:
-		frappe.log_error(title=f"vi_tri_kho: dat_o_in_tem goi_y_o loi ({so_lo})")
+		# `cat_tieu_de` BẮT BUỘC (vòng sửa 2/5): xem lý lẽ đầy đủ ở
+		# `nhat_ky_loi.py` — `so_lo` GÕ TAY không có trần độ dài, và `title`
+		# quá dài khiến chính `log_error()` này ném lỗi mới, văng ra ngoài
+		# khối `except` đang bao nó.
+		frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: dat_o_in_tem goi_y_o loi ({so_lo})"))
 		return None
 	if not o:
 		return None

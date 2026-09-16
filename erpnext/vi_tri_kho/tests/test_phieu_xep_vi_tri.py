@@ -518,6 +518,66 @@ class TestLayHangChuaXep(FrappeTestCase):
 		o = {d["tu_o"] for d in hang_chua_xep(KHO)}
 		self.assertNotIn(zzz_khac, o)
 
+	def test_ma_rat_dai_khong_lam_no_luoi_an_toan(self):
+		"""Vòng sửa 2/5 (điều phối, Important) — cùng bẫy vá ở `quet.py`, nhưng
+		ĐÂY LÀ MÀN HÌNH THỦ KHO DÙNG HẰNG NGÀY (nút "Lấy hàng chưa xếp").
+
+		`Error Log.method` là `Data(140)`. Ép `goi_y_o` ném lỗi VÀ dùng một
+		(mặt hàng, lô) đủ dài để tiêu đề ghép thô `({vat_tu}/{so_lo})` vượt
+		140 — nếu `cat_tieu_de` bị gỡ, `frappe.log_error()` NẰM TRONG khối
+		`except` (dựng lên đúng để "một (mặt hàng, lô) hỏng không được làm
+		sập cả danh sách") sẽ tự ném `CharacterLengthExceededError`, văng ra
+		NGOÀI khối đó — sập nguyên nút "Lấy hàng chưa xếp" cho CẢ kho, không
+		chỉ một dòng.
+		"""
+		from erpnext.vi_tri_kho.vitri import xep as xep_mod
+		from erpnext.vi_tri_kho.vitri.goi_y import goi_y_o as goi_y_o_that
+		from erpnext.vi_tri_kho.vitri.nhat_ky_loi import TRAN_DO_DAI_TIEU_DE
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		v_dai = _vat_tu("V" * 60, co_lo=True)
+		lo_dai = _lo("L" * 60, v_dai)
+		_nap(self.zzz, v_dai, lo_dai, 3)
+
+		# `KHO` là kho THẬT (dữ liệu có sẵn trên site, xem docstring
+		# `test_van_chi_goi_goi_y_mot_lan_cho_moi_lo` ở trên): patch
+		# `goi_y_o` ném lỗi VÔ ĐIỀU KIỆN sẽ chạm MỌI (mặt hàng, lô) khác đang
+		# chờ xếp trong kho thật — không chỉ sai số đếm `Error Log` (đã từng
+		# sai ở đây, sửa rồi), mà còn THẬT SỰ GHI hàng chục dòng Error Log
+		# giả cho dữ liệu SẢN XUẤT thật mỗi lần chạy bài này (đã đo: `log_
+		# error` không nằm trong giao dịch bị `FrappeTestCase` rollback —
+		# Error Log của nó SỐNG SÓT qua rollback, thấy rõ khi đếm lại sau
+		# suite). Chỉ ném lỗi cho ĐÚNG `v_dai` của bài này; mọi (mặt hàng, lô)
+		# khác gọi hàm THẬT — hành vi giống hệt không có patch.
+		def _goi_y_o_gia_lap(vat_tu, kho, so_lo=None):
+			if vat_tu == v_dai:
+				raise RuntimeError("giả lập lỗi gán")
+			return goi_y_o_that(vat_tu, kho, so_lo)
+
+		with patch.object(xep_mod, "goi_y_o", side_effect=_goi_y_o_gia_lap):
+			dong = hang_chua_xep(KHO)
+
+		dong_cua_no = [d for d in dong if d["vat_tu"] == v_dai]
+		self.assertEqual(len(dong_cua_no), 1, "danh sách vẫn phải trả về, không sập")
+		self.assertIsNone(dong_cua_no[0]["den_o"], "goi_y_o lỗi thì không có ô gợi ý")
+
+		# Đối chứng: `log_error` phải THẬT SỰ ghi được MỘT dòng cho đúng
+		# (v_dai, lo_dai) này (không phải "không ném lỗi vì log_error đã âm
+		# thầm hỏng theo cách khác"), và tiêu đề dòng đó phải nằm trong trần.
+		# Điểm cắt (133 ký tự thô + đuôi) rơi SAU trọn `v_dai` (60 ký tự,
+		# ngay sau tiền tố ~39 ký tự) nên tìm bằng LIKE trên chính `v_dai`
+		# vẫn khớp đúng dòng, dù tiêu đề đã bị cắt phần đuôi (`so_lo`).
+		dong_error_log = frappe.get_all(
+			"Error Log", filters={"method": ["like", f"%{v_dai}%"]}, pluck="method"
+		)
+		self.assertEqual(len(dong_error_log), 1, "chỉ v_dai bị ép lỗi, phải đúng một dòng")
+		self.assertLessEqual(len(dong_error_log[0]), TRAN_DO_DAI_TIEU_DE)
+
+		# Dọn NGAY dòng Error Log vừa cố ý tạo ra: nó KHÔNG bị `FrappeTestCase`
+		# rollback (xem ghi chú ở trên) nên phải tự xoá, không để rác trên
+		# CSDL thật (yêu cầu kế hoạch: dọn dữ liệu thử, đếm lại).
+		frappe.db.delete("Error Log", {"method": ["like", f"%{v_dai}%"]})
+
 	def test_nguoi_khong_co_vai_tro_bi_chan(self):
 		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
 

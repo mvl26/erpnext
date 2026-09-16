@@ -10,6 +10,7 @@ import frappe
 from frappe import _
 
 from erpnext.vi_tri_kho.vitri.goi_y import goi_y_o
+from erpnext.vi_tri_kho.vitri.nhat_ky_loi import cat_tieu_de
 
 # Giống `tem.py`: thủ kho phải tự làm được, đây là việc hằng ngày chứ không
 # phải thao tác thiết lập. Khác `bat_kho.py` (sinh ô, bật kho) vốn chỉ mở
@@ -103,8 +104,19 @@ def hang_chua_xep(kho: str) -> list[dict]:
 				# vì lỗi biến mất lặng lẽ. Tiêu đề mang cả số lô — Task 4 tách
 				# khoá theo lô nên một lô lỗi (vd. tem trỏ vào dữ liệu hỏng) không
 				# còn định danh đủ chỉ bằng mặt hàng.
+				#
+				# `cat_tieu_de` BẮT BUỘC (review điều phối, vòng sửa 2/5): `title`
+				# đi vào `Error Log.method` — cột `Data(140)`. `Item.name`/số lô
+				# có thể dài tới sát trần đó MỘT MÌNH, và đây là MÀN HÌNH THỦ KHO
+				# DÙNG HẰNG NGÀY — không cắt thì `log_error()` này (đang NẰM
+				# TRONG khối `except` dựng lên để "một dòng hỏng không sập cả
+				# danh sách") tự ném `CharacterLengthExceededError`, và lỗi đó
+				# văng ra NGOÀI khối `except`, làm sập đúng thứ khối này sinh ra
+				# để chặn. Xem lý lẽ đầy đủ ở `nhat_ky_loi.py`.
 				frappe.log_error(
-					title=f"vi_tri_kho: hang_chua_xep goi_y_o loi ({d.vat_tu}/{d.so_lo})"
+					title=cat_tieu_de(
+						f"vi_tri_kho: hang_chua_xep goi_y_o loi ({d.vat_tu}/{d.so_lo})"
+					)
 				)
 				# Mục 5 (review tổng): câu cũ KHẲNG ĐỊNH đây là "lỗi dữ liệu vị
 				# trí" — sai, vì `except Exception` ở trên bắt MỌI ngoại lệ,

@@ -28,6 +28,7 @@ import frappe
 from frappe import _
 
 from erpnext.stock.utils import scan_barcode
+from erpnext.vi_tri_kho.vitri.nhat_ky_loi import cat_tieu_de
 
 # Cùng bộ vai trò với `xep.py`/`nhap_lo.py` (không import chéo — mỗi file
 # `vitri/*.py` tự giữ một bản hằng số vai trò, đúng tiền lệ đã chọn ở hai file
@@ -178,5 +179,12 @@ def tra_cuu(ma: str) -> dict:
 		# này. Không nuốt câm lặng: `frappe.log_error` tự chụp traceback hiện
 		# tại, giữ dấu vết thật để người vận hành tra khi cần (cùng khuôn Ruling
 		# N đã dùng ở `xep.py`/`nhap_lo.py`).
-		frappe.log_error(title=f"vi_tri_kho: tra_cuu loi ({ma})")
+		#
+		# `cat_tieu_de` BẮT BUỘC (review điều phối, vòng sửa 2/5): `title` đi
+		# vào `Error Log.method` — cột `Data(140)`. Không cắt thì một `ma` đủ
+		# dài (mã quét/số lô GÕ TAY không có trần) khiến CHÍNH `log_error()`
+		# này ném `CharacterLengthExceededError`, văng ra NGOÀI khối `except`
+		# đang bao nó — đúng lưới an toàn tự thủng ở lối thoát hiểm của nó.
+		# Xem lý lẽ đầy đủ ở `nhat_ky_loi.py`.
+		frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: tra_cuu loi ({ma})"))
 		return {"loai": None}
