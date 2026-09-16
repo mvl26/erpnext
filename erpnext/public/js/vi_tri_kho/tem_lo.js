@@ -238,8 +238,8 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 
 	/** Bề rộng mã vạch THẬT cho `ma`, cùng hai lời cảnh báo có thể phát ra.
 	 *
-	 * Trả `{ so_module, k_ve }` — `k_ve` là bản sao của `KHO` chỉ khác ở
-	 * `vach_rong`, dành riêng cho `may.ve()`.
+	 * Trả `{ so_module, hinh_vach }` — `hinh_vach` là chuỗi SVG đã serialize,
+	 * hoặc chuỗi RỖNG khi không được phép vẽ mã vạch cho số lô này.
 	 *
 	 * BỀ RỘNG = SỐ MODULE × 0,25mm, không phải hằng số `vach_rong` (đó là
 	 * TRẦN). Ép một mã 101 module cho đầy 47,0mm ra 0,465mm/module = 3,7 dot;
@@ -249,14 +249,37 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 	 * cho tem vị trí: máy quét lúc đọc được lúc không, tuỳ con tem và tuỳ góc
 	 * quét. Không ai gọi nó là lỗi, người ta chỉ "quét lại lần nữa".
 	 *
-	 * Hai ngưỡng, hai lời cảnh báo KHÁC NHAU, vì hai kiểu hỏng khác nhau:
+	 * Ba nhánh, và HAI trong ba nhánh KHÔNG VẼ MÃ VẠCH NÀO:
 	 *
-	 *   > 180 module → vẽ đúng 2 dot nhưng VÙNG YÊN TĨNH thiếu
-	 *   > 188 module → không vẽ nổi trong vùng in, buộc phải bóp module
+	 *   m = 0          → không mã hoá được (ký tự ngoài ASCII)  → KHÔNG VẼ
+	 *   m > 188        → không vẽ nổi trong vùng in ở 2 dot     → KHÔNG VẼ
+	 *   180 < m ≤ 188  → vẽ đúng 2 dot nhưng vùng yên tĩnh thiếu → vẫn vẽ, cảnh báo
 	 *
-	 * Cả hai chỉ cảnh báo, không chặn in: thủ kho vẫn cần con tem, và F11 in
-	 * nguyên số lô dưới mã vạch nên vẫn gõ tay được. Nhưng phải NÓI THẲNG —
-	 * im lặng ở đây là để người ta dán lên hàng một mã không quét nổi.
+	 * VÌ SAO `m > 188` KHÔNG ĐƯỢC VẼ (sửa sau review tổng). Bản trước chỉ
+	 * `msgprint` rồi vẫn vẽ trọn 47,0mm, tức ép module xuống dưới 2 dot —
+	 * đúng thứ spec §6.4 cấm tuyệt đối. Đo được, với số lô ASCII thật:
+	 *
+	 *   "LOT-2026-A45-XYZ"            (16 ký tự) → 211 module → 1,782 dot/module
+	 *   "MYN-2026-0913-LOT-0001"      (22 ký tự) → 266 module → 1,414 dot/module
+	 *   "MYN-2026-0913-LOT-000123456" (27 ký tự) → 299 module → 1,258 dot/module
+	 *
+	 * Con tem in ra một mã vạch TRÔNG BÌNH THƯỜNG mà quét ra SAI KÝ TỰ. Cảnh
+	 * báo đỏ chết khi đóng hộp thoại; con tem đi theo thùng hàng suốt vòng đời.
+	 *
+	 * Và nó với tới được thật, không phải lý thuyết: `kiem_tra_do_dai` chỉ
+	 * sống trong `BatchEntry.validate`, còn `Purchase Receipt Item.batch_no`
+	 * là Link tới `Batch` — số lô gõ tay đi được qua form `Batch`, qua
+	 * quick-entry từ ô Link, qua Data Import. Số lô thiết bị y tế 20–30 ký tự
+	 * ASCII là chuyện thường.
+	 *
+	 * KHÔNG vá bằng cách thêm `kiem_tra_do_dai` vào móc `kiem_ky_tu_lo`: móc
+	 * đó chạy cho MỌI `Batch` toàn hệ, kể cả lô sinh từ sản xuất và từ module
+	 * khác không liên quan gì tới nhãn 50×30. Trần 188 module là ràng buộc CỦA
+	 * CON TEM, nên nó thuộc về tầng vẽ tem — chính chỗ này.
+	 *
+	 * HÀM NÀY TRẢ THẲNG `hinh_vach`, không trả `k_ve` để bên gọi tự vẽ. Đó là
+	 * chủ ý: quyết định "có mã vạch hay không" chỉ nằm ở MỘT chỗ, nên không có
+	 * đường nào cho một bên gọi tương lai quên kiểm rồi vẽ ra một mã hỏng.
 	 */
 	function ke_hoach_vach(may, ma) {
 		const m = so_module(may, ma);
@@ -286,24 +309,30 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 					[esc(ma)]
 				),
 			});
-			return { so_module: 0, k_ve: Object.assign({}, KHO) };
+			return { so_module: 0, hinh_vach: "" };
 		}
 
-		const rong = Math.min(m * X_MM, KHO.vach_rong);
-
+		// QUÁ DÀI (m > 188) — đi CHUNG ĐƯỜNG với m = 0: không vẽ gì.
 		if (m > TRAN_VE_DUOC) {
 			frappe.msgprint({
-				title: __("Mã vạch có thể KHÔNG QUÉT ĐƯỢC"),
+				title: __("KHÔNG in được mã vạch cho lô này"),
 				indicator: "red",
 				message: __(
-					"Số lô {0} cần {1} module mã vạch nhưng nhãn 50×30 chỉ chứa được {2}. " +
-						"Nhãn vẫn in nhưng mã vạch bị ép hẹp hơn 2 dot — máy quét có thể đọc " +
-						"ra SAI KÝ TỰ chứ không phải báo lỗi. Quét thử trước khi dán, hoặc " +
-						"đổi sang số lô ngắn hơn.",
-					[esc(ma), m, TRAN_VE_DUOC]
+					"Số lô {0} dài {1} ký tự, cần {2} module mã vạch nhưng nhãn 50×30 chỉ " +
+						"chứa được {3} ở bề rộng vạch bắt buộc 2 dot. Vẽ cho vừa thì module " +
+						"hẹp hơn 2 dot và máy quét đọc ra SAI KÝ TỰ chứ không báo lỗi — nên " +
+						"nhãn CHỪA TRỐNG chỗ mã vạch thay vì in một mã không tin được. Số lô " +
+						"vẫn đọc được bằng mắt ở dòng dưới. Giới hạn thực tế: 26 chữ số (độ " +
+						"dài chẵn), 23 chữ số (độ dài lẻ), hoặc 13 ký tự nếu có chữ.",
+					[esc(ma), String(ma).length, m, TRAN_VE_DUOC]
 				),
 			});
-		} else if (m > TRAN_YEN_TINH) {
+			return { so_module: m, hinh_vach: "" };
+		}
+
+		const rong = m * X_MM;
+
+		if (m > TRAN_YEN_TINH) {
 			frappe.msgprint({
 				title: __("Vùng yên tĩnh mã vạch bị thiếu"),
 				indicator: "orange",
@@ -316,7 +345,10 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 			});
 		}
 
-		return { so_module: m, k_ve: Object.assign({}, KHO, { vach_rong: rong }) };
+		return {
+			so_module: m,
+			hinh_vach: may.ve(ma, Object.assign({}, KHO, { vach_rong: rong })),
+		};
 	}
 
 	/** HTML của MỘT con tem. `o` là một dòng `nhap_lo.du_lieu_tem` trả về.
@@ -608,7 +640,7 @@ ${co_chu}
 		const may = may_vach();
 		const kh = ke_hoach_vach(may, o.F10);
 		he_so = he_so || 2.4;
-		const html = ve_tem(o, may.ve(o.F10, kh.k_ve));
+		const html = ve_tem(o, kh.hinh_vach);
 		may.don();
 
 		$dich.empty();
@@ -630,11 +662,11 @@ ${co_chu}
 		const tem = [];
 
 		(danh_sach || []).forEach(function (o) {
-			const kh = ke_hoach_vach(may, o.F10);
 			// Vẽ MỘT lần cho mỗi lô rồi nhân bản chuỗi: 200 lô × 5 bản mà vẽ
 			// lại từng cái là 1000 lượt dựng SVG, cửa sổ in đứng hình trước
 			// khi kịp gọi print().
-			const mot = ve_tem(o, may.ve(o.F10, kh.k_ve));
+			const kh = ke_hoach_vach(may, o.F10);
+			const mot = ve_tem(o, kh.hinh_vach);
 			for (let i = 0; i < so_ban; i++) tem.push(mot);
 		});
 		may.don();

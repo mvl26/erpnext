@@ -142,9 +142,13 @@ erpnext.vi_tri_kho.tem = (function () {
 	 *
 	 * đúng CHỈ KHI `width: 2` (mỗi module 2 px) và `margin: 0` (không có lề
 	 * cộng thêm vào bề rộng). Nếu một ngày ai đó sửa `width` ở chỗ vẽ mà quên
-	 * chỗ đo, `tem_lo.js` sẽ chọn SAI bố cục — nghĩa là nhồi một mã dài vào
-	 * khung 28mm, module hẹp hơn 2 dot, và máy quét đọc ra SAI KÝ TỰ. Một bản
-	 * duy nhất thì không có "quên chỗ kia".
+	 * chỗ đo, `tem_lo.js` sẽ tính SAI số module — nghĩa là bề rộng mã vạch vẽ
+	 * ra không còn bằng số module × 0,25mm, module lệch khỏi 2 dot chẵn, và
+	 * máy quét đọc ra SAI KÝ TỰ. Một bản duy nhất thì không có "quên chỗ kia".
+	 *
+	 * (Câu cũ ở đây nói `tem_lo.js` "chọn sai BỐ CỤC" và nhắc khung 28mm. Đã
+	 * lỗi thời: nhãn lô bỏ bố cục hai cột từ 16/09, nay chỉ còn một bố cục và
+	 * mã vạch chiếm trọn chiều ngang — xem khối đầu `tem_lo.js`.)
 	 */
 	const TUY_CHON_VACH = JSON.stringify({
 		format: "CODE128",
