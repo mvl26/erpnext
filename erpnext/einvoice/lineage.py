@@ -15,6 +15,7 @@ hành. Chỉ khi nó phát hành xong thì hóa đơn gốc mới chuyển sang 
 
 import frappe
 from frappe import _
+from frappe.utils import nowdate
 
 from erpnext.einvoice.constants import (
 	ADJUSTABLE_STATUSES,
@@ -76,7 +77,6 @@ _COPIED_FIELDS = (
 	"delivery_note",
 	"sales_invoice",
 	"customer",
-	"invoice_date",
 	"customer_code",
 	"buyer",
 	"customer_name",
@@ -169,6 +169,8 @@ def _create_child(
 		child.set(fieldname, None)
 
 	child.invoice_type = invoice_type
+	# Hóa đơn mới có ngày của chính nó — ngày phát hành — không kế thừa ngày hóa đơn gốc.
+	child.invoice_date = nowdate()
 	child.original_document = parent.name
 	child.adjustment_type = adjustment_type
 	child.adjustment_reason = reason.strip()

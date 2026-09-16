@@ -4,6 +4,7 @@
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import add_days, getdate, nowdate
 
 from erpnext.einvoice.builder import (
 	create_from_delivery_note,
@@ -44,6 +45,11 @@ class TestCreateFromDeliveryNote(FrappeTestCase):
 		fei = self._create()
 		self.assertEqual(fei.status, STATUS_DRAFT)
 		self.assertEqual(fei.invoice_type, "Hóa đơn gốc")
+
+	def test_invoice_date_is_not_the_delivery_date(self):
+		"""Ngày hóa đơn = ngày phát hành; phiếu giao có thể đã từ mấy hôm trước."""
+		frappe.db.set_value("Delivery Note", self.dn.name, "posting_date", add_days(nowdate(), -5))
+		self.assertEqual(getdate(self._create().invoice_date), getdate(nowdate()))
 
 	def test_key_comes_from_the_delivery_note_name(self):
 		self.assertEqual(self._create().fast_key, fast_key_for(self.dn.name))

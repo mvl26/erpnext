@@ -6,8 +6,11 @@ Bộ test này canh đúng những chỗ mà sai một lần là tiêu một s�
 đẻ ra hai hóa đơn cho một lần bán.
 """
 
+import json
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import add_days, getdate, nowdate
 
 from erpnext.einvoice.builder import create_from_delivery_note
 from erpnext.einvoice.constants import (
@@ -86,6 +89,67 @@ class IssueTestBase(FrappeTestCase):
 	def _client(self, *responses):
 		self.transport = FakeTransport(checkkey_ok(), *responses)
 		return FastClient(transport=self.transport)
+
+
+class TestInvoiceDateIsTheIssueDate(IssueTestBase):
+	"""Ngày hóa đơn luôn bằng ngày phát hành, dù lúc tạo chứng từ điền ngày nào.
+
+	Ngày điền sẵn cũ đi vài hôm mới bấm phát hành là ngày trên hóa đơn lệch ngày
+	ký — và 8200 lọc theo ngày hóa đơn nên hóa đơn kẹt "Chờ CQT".
+	"""
+
+	def _backdate(self, days=3):
+		frappe.db.set_value(FEI, self.fei.name, "invoice_date", add_days(nowdate(), -days))
+		self.fei.reload()
+
+	def _comments(self):
+		return frappe.get_all(
+			"Comment",
+			filters={"reference_doctype": FEI, "reference_name": self.fei.name, "comment_type": "Comment"},
+			pluck="content",
+		)
+
+	def _signed_today(self):
+		return envelope(
+			1,
+			json.dumps(
+				{
+					"invoiceNo": "2",
+					"serial": "1C26TMY",
+					"signedDate": getdate(nowdate()).strftime("%Y%m%d"),
+					"keySearch": "KS-ABC-123",
+				}
+			),
+		)
+
+	def test_a_stale_invoice_date_is_reset_to_the_issue_date(self):
+		self._backdate()
+		issue_invoice(self.fei.name, client=self._client(NOT_FOUND, self._signed_today()))
+
+		self.fei.reload()
+		self.assertEqual(getdate(self.fei.invoice_date), getdate(nowdate()))
+
+	def test_fast_receives_the_issue_date(self):
+		self._backdate()
+		issue_invoice(self.fei.name, client=self._client(NOT_FOUND, self._signed_today()))
+
+		log = frappe.get_doc(LOG, {"fei_document": self.fei.name, "method": 310, "action": 0})
+		self.assertIn(getdate(nowdate()).strftime("%d/%m/%Y"), log.request_json)
+		self.assertNotIn(getdate(add_days(nowdate(), -3)).strftime("%d/%m/%Y"), log.request_json)
+
+	def test_the_date_change_is_explained_on_the_document(self):
+		self._backdate()
+		issue_invoice(self.fei.name, client=self._client(NOT_FOUND, self._signed_today()))
+		self.assertTrue(any("Ngày hóa đơn đổi từ" in text for text in self._comments()))
+
+	def test_a_signing_date_that_still_differs_is_flagged(self):
+		"""Chỉ xảy ra sát nửa đêm — hóa đơn đã ra số, không sửa được, phải báo lại."""
+		issue_invoice(self.fei.name, client=self._client(NOT_FOUND, ISSUE_OK))  # ký 07/08/2026
+		self.assertTrue(any("Fast ký số ngày" in text for text in self._comments()))
+
+	def test_a_matching_signing_date_is_not_flagged(self):
+		issue_invoice(self.fei.name, client=self._client(NOT_FOUND, self._signed_today()))
+		self.assertFalse(any("Fast ký số ngày" in text for text in self._comments()))
 
 
 class TestSuccessfulIssuance(IssueTestBase):

@@ -451,7 +451,14 @@ function summary_html(frm, button) {
 		[__("Khách hàng"), doc.customer_name],
 		[__("Mã số thuế"), doc.customer_tax_code || "—"],
 		[__("Địa chỉ"), doc.address],
-		[__("Ngày hóa đơn"), frappe.datetime.str_to_user(doc.invoice_date)],
+		// Phát hành luôn đặt ngày hóa đơn bằng hôm nay (issue._stamp_invoice_date) — bảng
+		// xác nhận phải hiện đúng ngày sẽ in lên hóa đơn, không phải ngày điền sẵn.
+		[
+			__("Ngày hóa đơn"),
+			frappe.datetime.str_to_user(
+				button.name === "issue" ? frappe.datetime.get_today() : doc.invoice_date
+			),
+		],
 		[__("Số dòng hàng"), `${(doc.lines || []).length} ${__("dòng")}`],
 		[__("Tiền hàng"), money(doc.amount)],
 		[__("Tiền thuế"), money(doc.tax_amount)],

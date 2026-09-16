@@ -141,10 +141,10 @@ class TestCheckTaxStatus(TaxStatusBase):
 		self.assertEqual(payload["invoiceType"], "1")
 
 	def test_the_query_covers_the_invoice_date_when_issued_later(self):
-		"""8200 lọc theo ngày hóa đơn (= ngày phiếu giao), không phải ngày ký.
+		"""8200 lọc theo ngày hóa đơn, không phải ngày ký.
 
-		Phát hành sau ngày giao hàng mà chỉ hỏi theo ngày ký thì Fast trả rỗng và
-		hóa đơn kẹt "Chờ CQT" mãi dù CQT đã chấp nhận từ lâu.
+		Hóa đơn cũ mang ngày phiếu giao nên có thể lệch ngày ký; chỉ hỏi theo ngày
+		ký thì Fast trả rỗng và hóa đơn kẹt "Chờ CQT" mãi dù CQT đã chấp nhận từ lâu.
 		"""
 		invoice_day = add_to_date(nowdate(), days=-2)
 		frappe.db.set_value(FEI, self.fei.name, "invoice_date", invoice_day)

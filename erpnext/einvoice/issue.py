@@ -24,7 +24,7 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import getdate, now_datetime
+from frappe.utils import getdate, now_datetime, nowdate
 
 from erpnext.einvoice.actions import (
 	ACTION_EXECUTE,
@@ -161,6 +161,7 @@ def issue_invoice(fei, client=None):
 		# tiến trình khác có thể đã phát hành xong.
 		doc.reload()
 		_assert_issuable(doc)
+		_stamp_invoice_date(doc)
 
 		# Bước 2 — không tin dữ liệu client gửi lên.
 		validate_before_send(doc).throw_if_blocking()
@@ -212,6 +213,35 @@ def _assert_issuable(doc):
 				doc.status, ", ".join(sorted(allowed))
 			)
 		)
+
+
+def _stamp_invoice_date(doc):
+	"""Ngày hóa đơn = ngày phát hành, luôn luôn.
+
+	Ngày điền sẵn lúc tạo chứng từ (hay chép từ hóa đơn gốc) có thể đã cũ vài
+	ngày khi kế toán mới bấm phát hành. Gửi ngày cũ đó lên là ngày trên hóa đơn
+	lệch ngày ký số — và 8200 lọc theo ngày hóa đơn nên hóa đơn kẹt "Chờ CQT".
+	Đặt lại ngay trước bước kiểm tra dữ liệu để quy tắc 11, truy vấn 370 và thẻ
+	``InvoiceDate`` cùng dùng một ngày.
+	"""
+	today = getdate(nowdate())
+	previous = getdate(doc.invoice_date) if doc.invoice_date else None
+	if previous == today:
+		return
+
+	frappe.db.set_value(FEI, doc.name, "invoice_date", today, update_modified=False)
+	doc.invoice_date = today
+	if previous:
+		doc.add_comment(
+			"Comment",
+			_("Ngày hóa đơn đổi từ {0} sang {1} — ngày hóa đơn luôn bằng ngày phát hành.").format(
+				_dmy(previous), _dmy(today)
+			),
+		)
+
+
+def _dmy(value):
+	return getdate(value).strftime("%d/%m/%Y")
 
 
 class _issuance_lock:
@@ -348,6 +378,24 @@ def _store_issue_result(doc, result, issued_now):
 	frappe.db.set_value(FEI, doc.name, values, update_modified=False)
 	_stamp_delivery_note(doc, result)
 	_mirror_status(doc.name, STATUS_ISSUED)
+	if issued_now:
+		_flag_signing_date_mismatch(doc, result.get("fast_signed_date"))
+
+
+def _flag_signing_date_mismatch(doc, signed):
+	"""Fast ký khác ngày hóa đơn dù ngày hóa đơn đã đặt bằng hôm nay.
+
+	Chỉ xảy ra khi bấm phát hành sát nửa đêm. Hóa đơn đã ra số thật nên không sửa
+	được nữa — ghi lại để kế toán đối chiếu với Fast thay vì im lặng.
+	"""
+	if not signed or not doc.invoice_date or getdate(signed) == getdate(doc.invoice_date):
+		return
+	doc.add_comment(
+		"Comment",
+		_("Cảnh báo: Fast ký số ngày {0} nhưng ngày hóa đơn là {1}. Cần đối chiếu với Fast.").format(
+			_dmy(signed), _dmy(doc.invoice_date)
+		),
+	)
 
 
 def _stamp_delivery_note(doc, result):
