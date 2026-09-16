@@ -250,11 +250,12 @@
    "read_only": 1
   },
   {
+   "description": "Luôn bằng ngày phát hành — hệ thống tự đặt lại khi bấm Phát hành.",
    "fieldname": "invoice_date",
    "fieldtype": "Date",
    "in_list_view": 1,
    "label": "Ngày hóa đơn",
-   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -853,7 +854,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 0,
  "links": [],
- "modified": "2026-08-07 09:00:00.000000",
+ "modified": "2026-09-16 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Einvoice",
  "name": "Fast EInvoice Document",

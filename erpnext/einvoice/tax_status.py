@@ -159,11 +159,12 @@ def _query_payload(doc):
 	dictionary`` (nó đọc thẳng khóa trong dictionary chứ không kiểm tra trước).
 	Khoảng số hóa đơn thu hẹp kết quả về đúng hóa đơn này thay vì cả ngày.
 
-	Thẻ ngày lọc theo **ngày hóa đơn** — ``InvoiceDate`` đã gửi lúc phát hành, tức
-	ngày phiếu giao — chứ không phải ngày ký. Phát hành sau ngày giao hàng thì hai
-	ngày lệch nhau; chỉ hỏi theo ngày ký là Fast trả rỗng và hóa đơn kẹt "Chờ CQT"
-	mãi. Lấy khoảng bao cả hai: số hóa đơn đã khóa đúng một hóa đơn nên nới ngày
-	không kéo thêm hóa đơn nào khác về.
+	Thẻ ngày lọc theo **ngày hóa đơn** (``InvoiceDate``), không phải ngày ký. Phát
+	hành giờ luôn đặt ngày hóa đơn bằng ngày phát hành nên hai ngày trùng nhau;
+	nhưng hóa đơn phát hành trước đó mang ngày phiếu giao và có thể lệch ngày ký —
+	chỉ hỏi theo một ngày là Fast trả rỗng, hóa đơn kẹt "Chờ CQT" mãi. Lấy khoảng
+	bao cả hai: số hóa đơn đã khóa đúng một hóa đơn nên nới ngày không kéo thêm
+	hóa đơn nào khác về.
 	"""
 	dates = sorted(getdate(value) for value in (doc.invoice_date, doc.fast_signed_date) if value)
 	number = str(doc.fast_invoice_no or "")

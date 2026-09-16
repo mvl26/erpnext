@@ -11,7 +11,7 @@ import unicodedata
 
 import frappe
 from frappe import _
-from frappe.utils import flt, get_fullname
+from frappe.utils import flt, get_fullname, nowdate
 
 from erpnext.einvoice.constants import (
 	EDITABLE_STATUSES,
@@ -128,7 +128,10 @@ def _copy_from_delivery_note(fei, source, settings):
 	customer = frappe.get_doc("Customer", source.customer)
 
 	fei.customer = source.customer
-	fei.invoice_date = source.posting_date
+	# Không lấy ngày phiếu giao: ngày hóa đơn luôn bằng ngày phát hành, và lúc bấm
+	# phát hành `issue._stamp_invoice_date` đặt lại lần nữa. Đây chỉ là giá trị
+	# hiển thị cho bản nháp.
+	fei.invoice_date = nowdate()
 	fei.customer_code = fast_key_for(source.customer)
 	fei.customer_name = source.customer_name or source.customer
 	fei.customer_tax_code = (customer.get("tax_id") or "").strip()
