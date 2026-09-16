@@ -72,10 +72,24 @@ class TestValidate(FrappeTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			be.insert(ignore_permissions=True)
 
-	def test_so_lo_chi_co_khoang_trang_thi_chan(self):
-		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="   ")])
-		with self.assertRaises(frappe.ValidationError):
-			be.insert(ignore_permissions=True)
+	def test_so_lo_bi_cat_khoang_trang_hai_dau(self):
+		"""`d.so_lo = (d.so_lo or "").strip()` trong `kiem_tra_so_lo` làm HAI việc,
+		không phải một: (1) chặn số lô rỗng — việc này THỪA vì field đã có
+		`reqd: 1`, Frappe tự chặn bằng mandatory-field check trước khi tới được
+		`validate()` của ta; (2) CHUẨN HOÁ — cắt khoảng trắng thừa ở hai đầu một
+		số lô CÒN LẠI ký tự hợp lệ. Việc (2) không thừa chút nào:
+		`Batch.autoname` lấy thẳng `batch_id` làm TÊN BẢN GHI, nên khoảng trắng
+		thừa đi thẳng vào tên lô, vào mã vạch trên nhãn — máy quét ở kho đọc ra
+		một chuỗi không khớp gì cả, hoặc tệ hơn là khớp nhầm. Hỏng âm thầm, trên
+		vật thể đã dán lên hàng.
+
+		Bản đầu của bài này (`test_so_lo_chi_co_khoang_trang_thi_chan`) kiểm vế
+		(1) bằng `so_lo = "   "`: `reqd: 1` đã lo phần đó rồi nên bài không khoá
+		được gì — mutation test xác nhận xoá `.strip()` khỏi `kiem_tra_so_lo`
+		không làm bài đó đỏ. Đổi sang kiểm đúng vế (2), đừng đổi ngược lại."""
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="  LO-TRANG  ")])
+		be.insert(ignore_permissions=True)
+		self.assertEqual(be.items[0].so_lo, "LO-TRANG")
 
 	def test_so_lo_qua_dai_thi_chan_truoc_moi_phep_kiem_khac(self):
 		"""Thứ tự: mã vạch trước, trùng lô sau. Xem docstring đầu file."""
