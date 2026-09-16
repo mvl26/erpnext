@@ -140,20 +140,31 @@ class TestCheckTaxStatus(TaxStatusBase):
 		self.assertEqual(payload["invoiceNumberTo"], "2")
 		self.assertEqual(payload["invoiceType"], "1")
 
-	def test_the_query_covers_the_invoice_date_when_issued_later(self):
-		"""8200 lọc theo ngày hóa đơn, không phải ngày ký.
+	def test_the_query_asks_by_invoice_date_only_when_issued_later(self):
+		"""8200 lọc theo đúng ngày hóa đơn, không theo ngày ký, không nới thành khoảng.
 
-		Hóa đơn cũ mang ngày phiếu giao nên có thể lệch ngày ký; chỉ hỏi theo ngày
-		ký thì Fast trả rỗng và hóa đơn kẹt "Chờ CQT" mãi dù CQT đã chấp nhận từ lâu.
+		Hóa đơn cũ mang ngày phiếu giao nên có thể lệch ngày ký. Khoảng bao cả hai
+		ngày mà lệch sang tháng khác (28/08 → 03/09) là vắt hai kỳ — Fast trả
+		``100 - Only process with the same period``.
 		"""
-		invoice_day = add_to_date(nowdate(), days=-2)
-		frappe.db.set_value(FEI, self.fei.name, "invoice_date", invoice_day)
+		frappe.db.set_value(
+			FEI, self.fei.name, {"invoice_date": "2026-08-28", "fast_signed_date": "2026-09-03"}
+		)
 		check_tax_status(self.fei.name, client=self._client(self.accepted()))
 
 		log = frappe.get_doc(LOG, {"fei_document": self.fei.name, "method": 8200})
 		payload = json.loads(log.request_json)["payload"]
-		self.assertEqual(payload["invoiceDateFrom"], getdate(invoice_day).strftime("%Y%m%d"))
-		self.assertEqual(payload["invoiceDateTo"], getdate(nowdate()).strftime("%Y%m%d"))
+		self.assertEqual(payload["invoiceDateFrom"], "20260828")
+		self.assertEqual(payload["invoiceDateTo"], "20260828")
+
+	def test_the_query_falls_back_to_the_signed_date_without_an_invoice_date(self):
+		frappe.db.set_value(FEI, self.fei.name, {"invoice_date": None, "fast_signed_date": "2026-09-03"})
+		check_tax_status(self.fei.name, client=self._client(self.accepted()))
+
+		log = frappe.get_doc(LOG, {"fei_document": self.fei.name, "method": 8200})
+		payload = json.loads(log.request_json)["payload"]
+		self.assertEqual(payload["invoiceDateFrom"], "20260903")
+		self.assertEqual(payload["invoiceDateTo"], "20260903")
 
 	def test_padded_fields_in_the_result_still_match(self):
 		"""Tài liệu Fast mục 17 có ví dụ đệm khoảng trắng quanh cả tên thẻ lẫn giá trị."""
@@ -216,7 +227,9 @@ class TestPollJob(TaxStatusBase):
 				"issued_time": issued,
 				"fast_signed_date": getdate(issued),
 				"tax_checked_time": (
-					add_to_date(now, minutes=-checked_minutes_ago) if checked_minutes_ago is not None else None
+					add_to_date(now, minutes=-checked_minutes_ago)
+					if checked_minutes_ago is not None
+					else None
 				),
 			},
 		)
