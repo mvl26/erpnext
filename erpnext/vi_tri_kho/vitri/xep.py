@@ -80,10 +80,19 @@ def hang_chua_xep(kho: str) -> list[dict]:
 				# thật trong Error Log để người vận hành đi sửa dữ liệu gán, thay
 				# vì lỗi biến mất lặng lẽ.
 				frappe.log_error(title=f"vi_tri_kho: hang_chua_xep goi_y_o loi ({d.vat_tu})")
+				# Mục 5 (review tổng): câu cũ KHẲNG ĐỊNH đây là "lỗi dữ liệu vị
+				# trí" — sai, vì `except Exception` ở trên bắt MỌI ngoại lệ,
+				# kể cả một lỗi LẬP TRÌNH trong `goi_y_o` (không chỉ toạ độ
+				# 0/0 của §5.1). Khẳng định nhầm nguyên nhân khiến người đọc
+				# đi sửa dữ liệu trong khi thứ hỏng là mã. Câu mới chỉ nói
+				# "không gợi ý được", không đoán vì sao — nhưng vẫn PHẢI giữ
+				# phần phân biệt với "chưa gán" (mặt hàng đã có gán, ai đó
+				# đừng tưởng nhầm là chưa gán rồi đi gán lại một gán vốn đã
+				# đúng, chỉ là `goi_y_o` đang không tính được cho nó).
 				bo_nho[d.vat_tu] = (
 					None,
 					_(
-						"lỗi dữ liệu vị trí cho {0} — xem Error Log, KHÔNG PHẢI mặt hàng "
+						"không gợi ý được cho {0} — xem Error Log. KHÔNG PHẢI mặt hàng "
 						"chưa gán, đừng gán lại"
 					).format(d.vat_tu),
 				)

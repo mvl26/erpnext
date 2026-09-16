@@ -139,6 +139,36 @@ class TestGoiY(_NenGoiY):
 		o, _ = goi_y_o(self.vt, KHO)
 		self.assertNotEqual(o, zzz)
 
+	def test_gan_toa_do_rong_bi_chan_ngay_khi_goi_y(self):
+		"""Mục 4 (review tổng). Nhánh `frappe.throw` khi nút gán mang
+		`lft`/`rgt` = 0 CHƯA có bài nào phủ trước bản vá này — đây là bẫy đã
+		trả giá BA LẦN trong module (`fefo.py`, `tem.py`,
+		`item_location_preference.py`). Một nhánh throw không ai giữ là thứ
+		ĐẦU TIÊN bị xoá trong một lượt "dọn mã chết", và khi xoá thì
+		`between 0 and 0` khớp MỌI bản ghi 0/0 toàn hệ, gợi ý một ô của KHO
+		KHÁC — im lặng, không lỗi nào báo.
+
+		Khuôn chép từ
+		`test_gan_vi_tri.py::TestBayToaDoRong.test_nut_ngoai_cay_bi_tu_choi`:
+		phải GÁN TRƯỚC rồi mới phá toạ độ — `validate()` của
+		`ItemLocationPreference` đã chặn gán thẳng vào một nút 0/0 (§5.1),
+		nên không thể dựng ca này bằng cách gán vào nút đã hỏng sẵn.
+		"""
+		v = _mat_hang("_Test GoiY ToaDoRong")
+		_o("6G01020101")
+		nut = "6G010201"
+		_gan(v, nut)
+		lft_cu, rgt_cu = frappe.db.get_value("Storage Location", nut, ["lft", "rgt"])
+		frappe.db.set_value("Storage Location", nut, {"lft": 0, "rgt": 0}, update_modified=False)
+		try:
+			with self.assertRaises(frappe.ValidationError):
+				goi_y_o(v, KHO)
+		finally:
+			# BẮT BUỘC dù bài đỏ: khôi phục toạ độ để các bài khác trong lớp
+			# (rollback theo LỚP, không theo từng bài) không đụng một nút
+			# vĩnh viễn hỏng toạ độ.
+			frappe.db.set_value("Storage Location", nut, {"lft": lft_cu, "rgt": rgt_cu}, update_modified=False)
+
 
 class TestPhieuXepDuocDienSan(_NenGoiY):
 	"""Task 6: `xep.py::hang_chua_xep` giờ gọi `goi_y_o` một lần cho mỗi MẶT HÀNG
@@ -197,9 +227,13 @@ class TestPhieuXepDuocDienSan(_NenGoiY):
 		đúng ca đó; một bài chỉ dựng riêng mặt hàng hỏng không phân biệt được
 		"trả lỗi cho đúng dòng đó" với "sập cả hàm".
 
-		Khẳng định thêm `ly_do_goi_y` của dòng hỏng nói rõ đây là LỖI DỮ
-		LIỆU, không phải "chưa gán" — hai việc cần hai hành động khác nhau
-		của thủ kho (Ruling O ở phần JS xử lý đúng sự phân biệt này).
+		Khẳng định thêm `ly_do_goi_y` của dòng hỏng phân biệt rõ với "chưa
+		gán" — hai việc cần hai hành động khác nhau của thủ kho (Ruling O ở
+		phần JS xử lý đúng sự phân biệt này). Mục 5 (review tổng, vòng sửa
+		cuối): câu chữ KHÔNG còn khẳng định chắc đây là "lỗi dữ liệu" nữa —
+		`except Exception` ở `hang_chua_xep()` bắt MỌI ngoại lệ, kể cả một
+		lỗi LẬP TRÌNH trong `goi_y_o`, nên khẳng định nguyên nhân là sai; câu
+		mới chỉ nói "không gợi ý được", không đoán vì sao.
 		"""
 		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
 
@@ -231,4 +265,14 @@ class TestPhieuXepDuocDienSan(_NenGoiY):
 		self.assertEqual(d_lanh["den_o"], "7C01020101")
 		self.assertIn("trống", d_lanh["ly_do_goi_y"])
 		self.assertFalse(d_hong["den_o"])
-		self.assertIn("lỗi dữ liệu", d_hong["ly_do_goi_y"])
+		# Mục 5 (review tổng): câu chữ đổi từ "lỗi dữ liệu vị trí cho ..."
+		# (khẳng định SAI nguyên nhân — `except Exception` bắt cả lỗi lập
+		# trình, không riêng toạ độ hỏng) sang "không gợi ý được", nhưng vẫn
+		# phải giữ phần phân biệt rõ với "chưa gán" — hai việc cần hai hành
+		# động khác nhau của thủ kho (Ruling O).
+		self.assertIn("không gợi ý được", d_hong["ly_do_goi_y"])
+		# CHỐT bằng "đừng gán lại", KHÔNG phải "chưa gán": câu mới chứa cả
+		# cụm "KHÔNG PHẢI mặt hàng chưa gán" nên `assertIn("chưa gán", ...)`
+		# sẽ xanh dù ai đó lỡ xoá mất phần phân biệt — "đừng gán lại" chỉ
+		# xuất hiện ở nhánh lỗi dữ liệu/lỗi mã, khoá đúng thứ cần khoá.
+		self.assertIn("đừng gán lại", d_hong["ly_do_goi_y"])
