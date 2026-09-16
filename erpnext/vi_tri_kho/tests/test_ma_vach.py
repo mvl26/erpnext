@@ -50,7 +50,11 @@ class TestSoModule(FrappeTestCase):
 		self.assertEqual(MODULE_BO_CUC_B * 0.25, 47.0)
 
 	def test_chuoi_rong_khong_no(self):
+		"""Guard trong `so_ky_hieu` và `so_module` độc lập — nếu chỉ khoá một trong hai
+		thì khi đó được xoá sẽ không ai phát hiện. Hai guard riêng biệt → hai assertion.
+		"""
 		self.assertEqual(so_ky_hieu(""), 0)
+		self.assertEqual(so_module(""), 0)
 
 
 class TestKiemTraDoDai(FrappeTestCase):
@@ -76,3 +80,28 @@ class TestKiemTraDoDai(FrappeTestCase):
 			self.assertIn("188", cau)  # trần
 		else:
 			self.fail("phải throw")
+
+	def test_ba_con_so_gioi_han_26_23_13_khoa_nguon(self):
+		"""Ba con số 26/23/13 trong câu throw không được để cứng (không suy ra từ code).
+
+		Nếu sau này `X_MM` hay bề rộng vùng in đổi nhưng quên sửa câu báo, bài này
+		sẽ ĐỐ — đó là mục đích. Bài test khẳng định hành vi tính toán thực tế mà
+		câu báo dựa vào.
+		"""
+		# 26 chữ số (chẵn) = 13 ký hiệu = 35 + 11*13 = 178 module < 188 ✓
+		kiem_tra_do_dai("0" * 26, "mã")
+		# 28 chữ số (chẵn) = 14 ký hiệu = 35 + 11*14 = 189 module > 188 ✗
+		with self.assertRaises(frappe.ValidationError):
+			kiem_tra_do_dai("0" * 28, "mã")
+
+		# 23 chữ số (lẻ) = 2 + 11 = 13 ký hiệu = 178 module < 188 ✓
+		kiem_tra_do_dai("1" * 23, "mã")
+		# 25 chữ số (lẻ) = 2 + 12 = 14 ký hiệu = 189 module > 188 ✗
+		with self.assertRaises(frappe.ValidationError):
+			kiem_tra_do_dai("1" * 25, "mã")
+
+		# 13 ký tự có chữ = 13 ký hiệu = 178 module < 188 ✓
+		kiem_tra_do_dai("A" * 13, "mã")
+		# 14 ký tự có chữ = 14 ký hiệu = 189 module > 188 ✗
+		with self.assertRaises(frappe.ValidationError):
+			kiem_tra_do_dai("A" * 14, "mã")
