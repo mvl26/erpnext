@@ -247,10 +247,24 @@ Cột trái của bố cục A rộng 29,4 mm → mã vạch được **28,0 mm*
 **112 module**. Code 128 tiêu tốn 35 module cố định (start + checksum + stop), còn lại
 77 module cho dữ liệu:
 
-| Kiểu số lô | Module / ký tự | Chứa được |
-|---|---|---|
-| Toàn chữ số (Code 128-C) | 11 / 2 chữ số | **≤ 14 chữ số** |
-| Có chữ (Code 128-B) | 11 / ký tự | **≤ 7 ký tự** |
+Số module tính chính xác, **không ước lượng theo độ dài chuỗi** — Code 128 đổi bộ mã
+giữa chừng và mỗi lần đổi tốn một ký hiệu:
+
+```
+ký hiệu(s) = len(s)//2                nếu s toàn chữ số và len chẵn
+           = 2 + (len(s)-1)//2        nếu s toàn chữ số và len lẻ   (1 ký tự bộ B + 1 ký hiệu chuyển bộ C)
+           = len(s)                   nếu s có chữ                  (bộ B)
+
+module(s)  = 35 + 11 × ký hiệu(s)     (35 = start 11 + checksum 11 + stop 13)
+```
+
+Với 112 module → **ký hiệu ≤ 7**:
+
+| Kiểu số lô | Chứa được trong 28,0 mm |
+|---|---|
+| Chữ số, độ dài chẵn | **≤ 14 chữ số** |
+| Chữ số, độ dài lẻ | **≤ 11 chữ số** |
+| Có chữ | **≤ 7 ký tự** |
 
 7 ký tự là quá chật cho số lô thật (`25L4125` vừa khít đúng 7; `LOT-2026-A45` thì không).
 Vì vậy nhãn có **bố cục B, tự động chuyển sang khi mã không vừa**:
@@ -269,8 +283,8 @@ Vì vậy nhãn có **bố cục B, tự động chuyển sang khi mã không v�
 └────────────────────────────────────────────────────┘
 ```
 
-Bố cục B cho mã vạch **toàn bộ 47 mm** → 188 module → 153 module dữ liệu →
-**≤ 27 chữ số** hoặc **≤ 13 ký tự có chữ**.
+Bố cục B cho mã vạch **toàn bộ 47 mm** → 188 module → **ký hiệu ≤ 13**, tức
+**≤ 26 chữ số chẵn / ≤ 23 chữ số lẻ / ≤ 13 ký tự có chữ**.
 
 Chiều cao hàng phải dựng lại, vì F8 xuống thành một hàng riêng:
 
@@ -294,6 +308,9 @@ Quy tắc chọn, tính tại thời điểm vẽ nhãn, không phải lúc nh�
 | vừa 112 module | **A** |
 | vừa 188 module | **B** |
 | vượt 188 module | `validate` đã chặn từ §5.5 bước 4 |
+
+Trần được phát biểu bằng **số module**, không bằng số ký tự. Số ký tự chỉ là ví dụ suy
+ra; phát biểu trần bằng ký tự là chỗ em đã tính sai một lần khi viết bản nháp spec này.
 
 **Không bao giờ được thu module xuống dưới 2 dot để nhét vừa.** Mã vạch quá nhỏ trên
 đầu in nhiệt không phải "khó đọc" — nó **đọc ra sai ký tự**, và sai lặng lẽ.
@@ -416,7 +433,7 @@ chạy tuần tự, rồi cả bộ `vi_tri_kho` trước khi đóng):
 |---|---|
 | Thủ kho submit phiếu nhập trước khi nhập lô | §5.5-1 chặn từ phía `Batch Entry`, nhưng **không** chặn được từ phía phiếu nhập — ERPNext sẽ sinh lô máy. Chấp nhận: chặn phía kia là sửa `Purchase Receipt`, mở ra vùng rủi ro lớn hơn nhiều. HDSD phải nói rõ thứ tự |
 | Hộp thoại lô sẵn có vẫn tạo được lô không tem | Chấp nhận có ý thức (§3, §4.3). Dữ liệu không thiếu (HSD do ERPNext chặn, NCC do móc §4.3); chỉ là số lô máy và không có nhãn |
-| Số lô dài quá 27 chữ số / 13 ký tự | §5.5-4 chặn ngay lúc nhập, kèm câu báo nói rõ giới hạn. Nếu NCC thật dùng lô dài hơn → phải quay lại quyết định "mã vạch mã hoá số lô" ở §3 |
+| Số lô vượt 188 module (≈ 26 chữ số / 13 ký tự có chữ) | §5.5-4 chặn ngay lúc nhập, kèm câu báo nói rõ giới hạn. Nếu NCC thật dùng lô dài hơn → phải quay lại quyết định "mã vạch mã hoá số lô" ở §3 |
 | Tem in rồi ô bị chiếm | §8 — ưu tiên ô đã in, và nói thẳng khi không giữ được |
 | `custom_o_in_tem` giữ ô lại, không cho xoá | Frappe **chặn xoá** một bản ghi còn bị Link trỏ tới. Nghĩa là một ô từng in tem sẽ không xoá được khi cơ cấu lại kho. Chấp nhận, và đúng: ô đó đang được một tờ giấy dán trên thùng hàng nhắc tên. Muốn xoá thì `disabled` nó, cách khối A đã dùng |
 | Bộ đếm số gọi vượt 9999 | §4.4 + §6.4: co chữ, không cắt số. Có bài test trình duyệt |
