@@ -101,11 +101,37 @@ _DO_CHINH_XAC_SO_LUONG = 6  # khớp vitri/lo.py
 # xử đúng như phép kiểm `sl.disabled` cũ: không thừa kế cho ai, không nhận
 # thừa kế từ ai. Khoá bằng
 # `test_fefo_pham_vi.py::TestONgoaiCayKhongKeoNhauXuong`.
-_TO_TIEN_TAT = """exists (
+#
+# VÒNG SỬA CUỐI (Mục 2, review tổng): vị từ này từng là một CHUỖI ghi cứng
+# alias `sl`, nên nơi nào truy vấn dùng alias khác (`gan.py::cay_chon_vi_tri`
+# đặt bảng vị trí là `s4`) không dùng lại được nguyên trạng — và bản sao chép
+# tay là đúng lý do `so_o_trong` của cây từng KHÔNG loại nhánh ngừng dùng
+# trong khi `goi_y._UNG_VIEN` (mượn được `_TO_TIEN_TAT` vì cùng alias `sl`)
+# thì có: cây khoe "N ô trống" ở một nhánh mà gợi ý coi là đã đầy, và không
+# có gì báo hai nơi đã trôi khỏi nhau. Đổi thành HÀM nhận `alias`, để mọi nơi
+# gọi (`fefo.py`, `goi_y.py`, `gan.py`) dựng đúng MỘT định nghĩa "ngừng dùng
+# tính cả tổ tiên", bất kể alias bảng của truy vấn đó là gì.
+def to_tien_tat(alias: str = "sl") -> str:
+	"""Vị từ SQL EXISTS: `alias` (một dòng `tabStorage Location`) đang bị coi
+	là NGỪNG DÙNG — chính nó `disabled`, hoặc một TỔ TIÊN của nó `disabled`.
+
+	Nhận `alias` thay vì ghi cứng `sl` để dùng được ở bất kỳ truy vấn nào đặt
+	tên bảng vị trí khác đi (`s4` ở `gan.py::cay_chon_vi_tri`, ví dụ). Chỉ có
+	MỘT định nghĩa; hai truy vấn gọi hàm này với alias khác nhau vẫn cùng một
+	luật, nên không thể trôi khỏi nhau như bản sao chép tay.
+	"""
+	return f"""exists (
 	select 1 from `tabStorage Location` tt
 	where ifnull(tt.disabled, 0) = 1
-	  and (tt.name = sl.name or (tt.lft < sl.lft and tt.rgt > sl.rgt))
+	  and (tt.name = {alias}.name or (tt.lft < {alias}.lft and tt.rgt > {alias}.rgt))
 )"""
+
+
+# Bí danh giữ tương thích các truy vấn CÓ SẴN trong chính file này (alias
+# `sl`) — KHÔNG phải một định nghĩa thứ hai, chỉ là gọi sẵn `to_tien_tat()`
+# với alias mặc định. Nơi gọi mới (kể cả trong module khác) nên gọi thẳng
+# `to_tien_tat(alias=...)`.
+_TO_TIEN_TAT = to_tien_tat("sl")
 
 
 def chon_o_xuat(kho, vat_tu, so_lo, so_luong: float, pham_vi: str | None = None) -> list[dict]:

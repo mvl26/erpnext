@@ -99,7 +99,17 @@
 
 frappe.provide("erpnext.vi_tri_kho");
 
-erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon) {
+// `tru_ten` (tuỳ chọn): tên bản ghi `Item Location Preference` ĐANG SỬA — khớp
+// đúng tham số `tru_ten` mới của `gan.py::cay_chon_vi_tri()`. Thiếu nó thì mở
+// cây để SỬA một gán đã lưu (nút "Chọn trên cây vị trí" ở
+// `item_location_preference.js` hiện ra cả khi đang sửa, không chỉ lúc tạo
+// mới) và định dời lên một nút TỔ TIÊN của chính gán đang sửa sẽ bị `cột
+// co_gan_ben_trong` đếm nhầm CHÍNH gán đó rồi khoá nút "Chọn vị trí này" —
+// trong khi `kiem_tra_chong_lan()` phía máy chủ đã loại trừ đúng bản ghi này
+// (`tru_ten=self.name`) nên thao tác đó vốn HỢP LỆ. Xem docstring
+// `cay_chon_vi_tri()` để biết vì sao không tự suy `tru_ten` được ở đây — nơi
+// gọi (form) mới biết mình đang sửa bản ghi nào.
+erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon, tru_ten) {
 	const d = new frappe.ui.Dialog({
 		title: __("Chọn vị trí cố định"),
 		size: "large",
@@ -112,7 +122,7 @@ erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon) {
 		label: kho,
 		expandable: true,
 		method: "erpnext.vi_tri_kho.vitri.gan.cay_chon_vi_tri",
-		args: { kho: kho },
+		args: { kho: kho, tru_ten: tru_ten },
 
 		// CỐ Ý không truyền `root_value` riêng (ví dụ chuỗi rỗng) để né việc
 		// gốc gửi `parent = kho` — vòng sửa 2 điều phối (bấm thật trên trình
@@ -128,11 +138,12 @@ erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon) {
 		// `node.data` là nguyên dòng máy chủ trả về cho nút này (xem chú
 		// thích đầu file) — tên trường KHỚP đúng các cột `as` của
 		// `gan.py::cay_chon_vi_tri()`: `value`, `title`, `expandable`,
-		// `da_gan_cho`, `so_o_trong`, `so_mat_hang_dang_co`. LƯU Ý TÊN THẬT:
-		// phần "Interfaces" của brief Task 7 ghi khoá `co_hang_khac`, nhưng
-		// cả câu SQL mẫu lẫn bài test (`test_gan_vi_tri.py`) chỉ dùng
-		// `so_mat_hang_dang_co` — hai chỗ của brief tự mâu thuẫn nhau, và
-		// `so_mat_hang_dang_co` mới là tên cột THẬT sự tồn tại trên CSDL.
+		// `da_gan_cho`, `co_gan_ben_trong`, `so_o_trong`, `so_mat_hang_dang_co`.
+		// LƯU Ý TÊN THẬT: phần "Interfaces" của brief Task 7 ghi khoá
+		// `co_hang_khac`, nhưng cả câu SQL mẫu lẫn bài test
+		// (`test_gan_vi_tri.py`) chỉ dùng `so_mat_hang_dang_co` — hai chỗ của
+		// brief tự mâu thuẫn nhau, và `so_mat_hang_dang_co` mới là tên cột
+		// THẬT sự tồn tại trên CSDL.
 		get_label: function (node) {
 			const n = node.data || {};
 			// `node.title`/`node.label` là `ma_in_nhan`/`name` của
@@ -145,6 +156,20 @@ erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon) {
 				// người dùng gõ tay lúc tạo Item, PHẢI escape.
 				const ten = frappe.utils.escape_html(n.da_gan_cho);
 				return `<span class="text-muted">${nhan} — ${__("đã gán")}: ${ten}</span>`;
+			}
+
+			// VÒNG SỬA CUỐI (Mục 1, review tổng): `co_gan_ben_trong` báo nhánh
+			// CHỨA một gán (ở một nút con, không phải chính nút này) — nút này
+			// CHƯA thuộc về ai (không được nói "đã gán: X", câu đó sai), nhưng
+			// cũng không chọn được vì bấm sẽ ăn lỗi "bao trùm ... đã được gán
+			// cho" từ `kiem_tra_chong_lan()`. Phải hiện TRƯỚC KHI bấm, không
+			// phải trần trụi trả về nhãn bình thường rồi để `condition()` của
+			// toolbar âm thầm ẩn nút — người dùng cần biết VÌ SAO.
+			if (n.co_gan_ben_trong) {
+				return (
+					`<span class="text-muted">${nhan} — ` +
+					`${__("có")} ${n.co_gan_ben_trong} ${__("gán bên trong")}</span>`
+				);
 			}
 
 			// Chỉ hai gợi ý phụ, không phải cảnh báo: số trống để biết nhánh
@@ -172,9 +197,18 @@ erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon) {
 				// (`da_gan_cho`) cũng không dựng nút này: "không khả dụng"
 				// hiện ra bằng việc KHÔNG CÓ nút để bấm, người dùng không
 				// cần bấm thử rồi mới biết.
+				//
+				// VÒNG SỬA CUỐI (Mục 1, review tổng): `!n.da_gan_cho` một
+				// mình không đủ — nó chỉ loại nút BỊ một TỔ TIÊN gán chiếm.
+				// Chiều NGƯỢC LẠI (một nút CON của nút này đã được gán) rơi
+				// vào khe hở: `da_gan_cho` ra NULL (nút này chưa có tổ tiên
+				// nào gán nó), nút "Chọn vị trí này" vẫn dựng ra, bấm vào rồi
+				// mới ăn lỗi "bao trùm ... đã được gán cho" từ máy chủ — với
+				// 214 ô đó là trò chơi đoán mà spec §6 cấm bằng chữ in đậm.
+				// `co_gan_ben_trong` khoá đúng chiều này.
 				condition: function (node) {
 					const n = node.data || {};
-					return !node.is_root && !n.da_gan_cho;
+					return !node.is_root && !n.da_gan_cho && !n.co_gan_ben_trong;
 				},
 				click: function (node) {
 					const n = node.data || {};

@@ -15,22 +15,23 @@ loại, dồn vào" TRƯỚC khi ra mở kệ — hai việc khác nhau ngoài k
 import frappe
 from frappe import _
 
-from erpnext.vi_tri_kho.vitri.fefo import _TO_TIEN_TAT
+from erpnext.vi_tri_kho.vitri.fefo import to_tien_tat
 
 # Ứng viên: ô LÁ thật trong nhánh, không phải nút nhóm, không phải ô ảo, và
 # không nằm dưới một nút đang ngừng dùng.
 #
-# `_TO_TIEN_TAT` mượn nguyên từ `fefo.py` chứ KHÔNG chép lại. Nó mã hoá luật
+# `to_tien_tat()` mượn nguyên từ `fefo.py` chứ KHÔNG chép lại. Nó mã hoá luật
 # "ô coi như tắt nếu chính nó HOẶC bất kỳ tổ tiên nào tắt". Có hai bản thì một
 # ngày nào đó sửa một chỗ quên chỗ kia, và khi ấy gợi ý trỏ vào một dãy đang
 # tắt trong khi `fefo` từ chối lấy hàng từ đó — hai nửa của hệ nói ngược nhau,
-# không có gì báo. Vị từ dùng alias `sl`, nên truy vấn dưới phải giữ đúng alias.
+# không có gì báo. Truy vấn dưới đặt bảng vị trí là `sl`, nên gọi hàm với
+# alias đó.
 _UNG_VIEN = f"""
 	from `tabStorage Location` sl
 	where sl.lft between %(lft)s and %(rgt)s
 	  and ifnull(sl.is_group, 0) = 0
 	  and ifnull(sl.la_o_chua_xep, 0) = 0
-	  and not {_TO_TIEN_TAT}
+	  and not {to_tien_tat("sl")}
 """
 
 

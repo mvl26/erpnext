@@ -11,6 +11,8 @@ import frappe
 from frappe import _
 from frappe.utils import sbool
 
+from erpnext.vi_tri_kho.vitri.fefo import to_tien_tat
+
 
 def chu_cua_nhanh(lft: int, rgt: int, tru_ten: str | None = None) -> dict | None:
 	"""Gán đang GIAO với khoảng `[lft, rgt]`, hoặc None.
@@ -180,7 +182,9 @@ VAI_TRO_DUOC_XEM_CAY = {"System Manager", "Stock Manager", "Stock User"}
 
 
 @frappe.whitelist()
-def cay_chon_vi_tri(kho: str, parent: str | None = None, is_root=None) -> list[dict]:
+def cay_chon_vi_tri(
+	kho: str, parent: str | None = None, is_root=None, tru_ten: str | None = None
+) -> list[dict]:
 	"""Các nút con để vẽ một cấp của cây chọn vị trí (Task 7 — bảng dữ liệu cho `frappe.ui.Tree`
 	phía JS, xem `public/js/vi_tri_kho/cay_chon_vi_tri.js`).
 
@@ -194,6 +198,39 @@ def cay_chon_vi_tri(kho: str, parent: str | None = None, is_root=None) -> list[d
 	đó là trò chơi đoán, không phải giao diện. `order by s2.lft asc limit 1` chọn tổ tiên GẦN
 	NHẤT khi lồng nhiều lớp (không thể xảy ra thật vì `kiem_tra_chong_lan()` đã chặn hai gán
 	chồng nhánh, nhưng `limit 1` giữ subquery luôn ra đúng MỘT giá trị cho `as_dict`).
+
+	`co_gan_ben_trong` (VÒNG SỬA CUỐI, Mục 1 review tổng): `da_gan_cho` CHỈ tra chiều tổ tiên,
+	nên chiều NGƯỢC LẠI — gán nằm ở một NÚT CON của `sl` — rơi vào khe hở. Ví dụ đo được: gán
+	một mặt hàng vào Tầng `1A010102`, rồi mở cây tới Khoang cha `1A0101` (bao trùm Tầng đó).
+	`s2.lft <= sl.lft` sai (Tầng có `lft` lớn hơn Khoang cha) nên `da_gan_cho` ra NULL — Khoang
+	hiện như còn trống, `cay_chon_vi_tri.js::condition()` vẫn dựng nút "Chọn vị trí này", người
+	dùng bấm vào rồi mới ăn đúng lỗi "bao trùm ... đã được gán cho" từ `kiem_tra_chong_lan()`.
+	Đây là đúng cái spec §6 cấm bằng chữ in đậm, và đúng ca dùng CHÍNH (gán ở cấp Tầng/Khoang —
+	spec §3.1), không phải một góc hiếm.
+
+	KHÔNG gộp cột này vào `da_gan_cho`: Khoang đó CHƯA thuộc về ai (nó không phải nút được gán,
+	chỉ là TỔ TIÊN của một nút đã gán) — nhãn "đã gán: X" ở đây sẽ nói SAI. Đếm bằng vị từ
+	CON-CHÁU-NGHIÊM-NGẶT (`s5.lft > sl.lft and s5.rgt < sl.rgt`, loại trừ CHÍNH `sl` bằng bất
+	đẳng thức chặt — một nút không bao giờ là con cháu nghiêm ngặt của chính nó, nên không cần
+	`!=` tên tường minh): cùng gia đình vị từ với `kiem_tra_chong_lan()` (giao nhau đủ ba chiều
+	dùng trong nested set lành: bằng, tổ tiên, con cháu), chỉ giữ đúng một chiều còn thiếu.
+	`cay_chon_vi_tri.js` phải LOẠI nút có cột này > 0 khỏi nút "Chọn vị trí này", dù `da_gan_cho`
+	của nó là NULL — nếu không, bấm vào rồi mới ăn lỗi vẫn y nguyên như trước khi vá.
+
+	`tru_ten` (bắt được ở vòng soát lại sau khi vá `co_gan_ben_trong`, TRƯỚC khi bàn giao — không
+	phải một mục review riêng, mà là hệ quả trực tiếp của cột trên nếu bỏ sót): nút "Chọn trên cây
+	vị trí" ở `item_location_preference.js` gắn vào `refresh`, tức hiện ra CẢ KHI đang SỬA một
+	bản ghi đã lưu — người dùng đang giữ gán ở Tầng `self.tang`, mở cây định DỜI LÊN Khoang cha
+	của chính nó (một thao tác HỢP LỆ: `kiem_tra_chong_lan()` phía `validate()` loại trừ đúng bản
+	ghi đang sửa qua `tru_ten=self.name`, xem `item_location_preference.py`). Không loại trừ tương
+	tự ở đây thì `co_gan_ben_trong` của Khoang đó đếm luôn CHÍNH gán đang sửa, báo "có gán bên
+	trong" và khoá nút chọn — một thao tác hợp lệ trở nên không làm được qua giao diện, dù qua API
+	vẫn lưu được bình thường: đúng kiểu UI và validate() nói ngược nhau mà toàn bộ Mục 1 sinh ra để
+	dẹp, chỉ là chiều ngược. Áp `p2.name != %(tru_ten)s` cho `co_gan_ben_trong` VÀ `p.name !=
+	%(tru_ten)s` cho `da_gan_cho` (đối xứng — nếu không, mở cây ngay tại ĐÚNG nút mình đang giữ sẽ
+	hiện "đã gán: chính-mình", một nhãn đúng nhưng gây khó chịu khi người dùng chỉ định xem lại).
+	`tru_ten or ""` (cùng khuôn với `chu_cua_nhanh()`) giữ vị từ vô hại khi không có gì cần loại —
+	`p.name != ""` luôn đúng.
 
 	`ZZZ-CHUA-XEP` (ô ảo "chưa xếp vị trí") bị loại — nó không phải kệ thật, và
 	`ItemLocationPreference.kiem_tra_nut_hop_le()` chặn gán vào đó ngay từ Python; cho nó lên cây
@@ -251,8 +288,14 @@ def cay_chon_vi_tri(kho: str, parent: str | None = None, is_root=None) -> list[d
 		       (select p.vat_tu
 		          from `tabItem Location Preference` p
 		          join `tabStorage Location` s2 on s2.name = p.vi_tri
-		         where s2.lft <= sl.lft and s2.rgt >= sl.rgt
+		         where p.name != %(tru_ten)s
+		           and s2.lft <= sl.lft and s2.rgt >= sl.rgt
 		         order by s2.lft asc limit 1) as da_gan_cho,
+		       (select count(*)
+		          from `tabItem Location Preference` p2
+		          join `tabStorage Location` s5 on s5.name = p2.vi_tri
+		         where p2.name != %(tru_ten)s
+		           and s5.lft > sl.lft and s5.rgt < sl.rgt) as co_gan_ben_trong,
 		       (select count(distinct lb.vat_tu)
 		          from `tabLocation Balance` lb
 		          join `tabStorage Location` s3 on s3.name = lb.o
@@ -262,6 +305,7 @@ def cay_chon_vi_tri(kho: str, parent: str | None = None, is_root=None) -> list[d
 		         where s4.lft between sl.lft and sl.rgt
 		           and ifnull(s4.is_group, 0) = 0
 		           and ifnull(s4.la_o_chua_xep, 0) = 0
+		           and not {to_tien_tat("s4")}
 		           and ifnull((select sum(lb2.so_luong) from `tabLocation Balance` lb2
 		                        where lb2.o = s4.name), 0) = 0) as so_o_trong
 		from `tabStorage Location` sl
@@ -271,6 +315,6 @@ def cay_chon_vi_tri(kho: str, parent: str | None = None, is_root=None) -> list[d
 		  and sl.lft > 0
 		order by sl.lft asc
 		""",
-		{"kho": kho, "parent": parent},
+		{"kho": kho, "parent": parent, "tru_ten": tru_ten or ""},
 		as_dict=True,
 	)

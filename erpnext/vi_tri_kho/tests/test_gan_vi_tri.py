@@ -515,6 +515,77 @@ class TestCayChonViTri(_Nen):
 		nut = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent="7A010101")}
 		self.assertEqual(nut[self.o1]["da_gan_cho"], self.vt_a)
 
+	def test_gan_o_tang_khien_khoang_cha_bi_khoa_qua_co_gan_ben_trong(self):
+		"""Mục 1 (review tổng — khe hở CON CHÁU). Bài trên
+		(`test_con_chau_cua_nut_da_co_chu_cung_bao_co_chu`) khoá chiều ĐANG
+		chạy được (Ô con hiện 'đã gán' khi Tầng cha nó được gán) — giữ
+		nguyên nó. Bài này khoá CHIỀU NGƯỢC LẠI, thứ `da_gan_cho` (tra tổ
+		tiên-hoặc-chính-nó) không thấy được: gán ở Tầng `self.tang`
+		(`7A010101`), rồi mở cây tới KHOANG CHA của nó (`7A0101`, qua
+		`parent="7A01"` — cấp Dãy). Khoang cha CHƯA thuộc về ai (nó không
+		phải nút được gán, chỉ BAO TRÙM một nút đã gán) nên `da_gan_cho`
+		đúng ra phải là None — nhưng nó vẫn phải hiện KHÔNG CHỌN ĐƯỢC qua
+		`co_gan_ben_trong`, nếu không thì `condition()` phía JS vẫn dựng nút
+		"Chọn vị trí này", bấm vào ăn đúng lỗi 'bao trùm ... đã được gán
+		cho' từ `kiem_tra_chong_lan()` — với 214 ô đó là trò chơi đoán."""
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		_gan(self.vt_a, self.tang)
+		nut = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent="7A01")}
+		khoang = nut["7A0101"]
+		self.assertIsNone(khoang["da_gan_cho"], "Khoang chưa thuộc về ai — nhãn 'đã gán' sẽ nói sai")
+		self.assertTrue(khoang["co_gan_ben_trong"], "phải báo có gán bên trong để JS chặn nút chọn")
+
+	def test_tru_ten_loai_tru_chinh_gan_dang_sua_khoi_co_gan_ben_trong(self):
+		"""Bắt được ở vòng soát lại SAU khi vá `co_gan_ben_trong` (advisor,
+		trước khi bàn giao) — hệ quả trực tiếp của cột đó nếu bỏ sót, không
+		phải một mục review riêng.
+
+		`item_location_preference.js` gắn nút "Chọn trên cây vị trí" vào
+		`refresh`, nên nó hiện ra CẢ KHI đang SỬA một bản ghi đã lưu. Người
+		dùng đang giữ gán ở Tầng `self.tang`, mở cây định DỜI LÊN Khoang
+		cha của CHÍNH nó — thao tác này HỢP LỆ: `kiem_tra_chong_lan()` phía
+		`validate()` loại trừ đúng bản ghi đang sửa qua `tru_ten=self.name`.
+		Không loại trừ tương tự ở `cay_chon_vi_tri()` thì Khoang cha sẽ báo
+		`co_gan_ben_trong` = 1 vì đếm nhầm CHÍNH gán đang sửa, khoá nút
+		"Chọn vị trí này" cho một thao tác lẽ ra phải làm được.
+
+		Đối chứng với bài trên (không truyền `tru_ten`, `co_gan_ben_trong`
+		phải khác 0): bài này CHỨNG MINH truyền đúng `tru_ten` gỡ được khoá
+		đó, chứ không phải một tham số vô tác dụng."""
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		_gan(self.vt_a, self.tang)
+		nut = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent="7A01", tru_ten=self.vt_a)}
+		khoang = nut["7A0101"]
+		self.assertFalse(
+			khoang["co_gan_ben_trong"], "gán của CHÍNH bản ghi đang sửa phải được loại trừ"
+		)
+
+	def test_so_o_trong_loai_nhanh_ngung_dung(self):
+		"""Mục 2 (review tổng). `so_o_trong` từng dùng một vị từ RIÊNG,
+		KHÔNG loại nhánh ngừng dùng như `goi_y._UNG_VIEN` — cây khoe "N ô
+		trống" ở một nhánh mà `goi_y_o()` đã coi là đầy, hai màn hình của
+		cùng một tính năng nói ngược nhau, không gì báo. Tắt cả một Khoang
+		để sửa kệ (chỉ TỔ TIÊN `disabled`, hai Ô lá bên dưới vẫn
+		`disabled = 0` của riêng chúng — đúng hình dạng kịch bản spec §5.2
+		nêu tên) rồi kiểm `so_o_trong` của CHÍNH Khoang đó phải ra 0, không
+		phải đếm hai ô lá trống như thể chúng còn dùng được."""
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		for o in ("8D01020101", "8D01020102"):
+			_o(o)
+		frappe.db.set_value("Storage Location", "8D0102", "disabled", 1)
+		try:
+			nut = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent="8D01")}
+			self.assertEqual(nut["8D0102"]["so_o_trong"], 0)
+		finally:
+			# BẮT BUỘC dù bài đỏ: nút `8D0102` KHÔNG riêng của bài này (mọi
+			# nút vị trí sống hết vòng đời lớp, `FrappeTestCase` chỉ
+			# rollback ở `tearDownClass`) — để `disabled = 1` sót lại sẽ làm
+			# lệch mọi bài khác trong lớp lỡ đụng nhánh `8D`.
+			frappe.db.set_value("Storage Location", "8D0102", "disabled", 0)
+
 	def test_o_chua_xep_khong_xuat_hien_trong_cay(self):
 		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
 

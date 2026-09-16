@@ -15,7 +15,18 @@ frappe.ui.form.on("Item Location Preference", {
 				return;
 			}
 			frappe.require(DUONG_CAY, () => {
-				erpnext.vi_tri_kho.chon_vi_tri(frm.doc.kho, (o) => frm.set_value("vi_tri", o));
+				// `tru_ten`: khi đang SỬA một bản ghi đã lưu (không phải tạo
+				// mới), truyền tên chính nó để cây loại trừ gán này ra khỏi
+				// `co_gan_ben_trong` — nếu không, dời gán từ Tầng lên Khoang
+				// cha của chính nó (thao tác HỢP LỆ, `validate()` phía máy
+				// chủ cũng loại trừ y hệt qua `tru_ten=self.name`) sẽ bị nút
+				// "Chọn vị trí này" khoá oan vì cây đếm nhầm CHÍNH gán đang
+				// sửa là "gán bên trong". `frm.is_new()` chặn gửi tên tạm
+				// (`new-item-location-preference-...`) khi đang tạo mới —
+				// tên đó không khớp bản ghi nào nên vô hại, nhưng gửi đúng
+				// `undefined` rõ ràng hơn là gửi rác.
+				const tru_ten = frm.is_new() ? null : frm.doc.name;
+				erpnext.vi_tri_kho.chon_vi_tri(frm.doc.kho, (o) => frm.set_value("vi_tri", o), tru_ten);
 			});
 		});
 	},
