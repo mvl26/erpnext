@@ -466,6 +466,10 @@ scheduler_events = {
 		"0 8 * * *": [
 			"erpnext.supply_notification.reminders.send_due_reminders",
 		],
+		# HĐĐT: tự tải PDF chính thức khi Fast ký số xong (~1 phút sau phát hành, mục E5 nhánh 7a).
+		"* * * * *": [
+			"erpnext.einvoice.actions.download_pending_official_pdfs",
+		],
 		# HĐĐT: quét các hóa đơn còn chờ Cơ quan Thuế (mục E8).
 		"0/20 * * * *": [
 			"erpnext.einvoice.tax_status.poll_pending_tax_status",

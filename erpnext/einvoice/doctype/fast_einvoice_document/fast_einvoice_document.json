@@ -101,6 +101,7 @@
   "issued_by",
   "issued_time",
   "official_pdf",
+  "public_pdf_url",
   "converted_pdf",
   "delivery_section",
   "invoice_sent_to",
@@ -747,6 +748,14 @@
    "read_only": 1
   },
   {
+   "description": "Link công khai tới PDF chính thức — gửi cho khách xem, ai có link đều mở được. Có sau khi PDF tải về (khoảng 1 phút sau phát hành).",
+   "fieldname": "public_pdf_url",
+   "fieldtype": "Data",
+   "label": "Link xem hóa đơn",
+   "options": "URL",
+   "read_only": 1
+  },
+  {
    "fieldname": "converted_pdf",
    "fieldtype": "Attach",
    "label": "PDF chuyển đổi",
@@ -854,7 +863,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 0,
  "links": [],
- "modified": "2026-09-16 18:00:00.000000",
+ "modified": "2026-09-16 19:00:00.000000",
  "modified_by": "Administrator",
  "module": "Einvoice",
  "name": "Fast EInvoice Document",
