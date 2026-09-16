@@ -133,6 +133,31 @@ erpnext.vi_tri_kho.tem = (function () {
 	 * Trả về một "máy" dùng lại được cho cả xấp tem: dựng control một lần rồi
 	 * vẽ nhiều mã, thay vì dựng lại 200 control cho 200 ô.
 	 */
+	/** Tuỳ chọn JsBarcode — MỘT bản cho cả VẼ (`ve`) lẫn ĐO (`ve_tho`).
+	 *
+	 * Tách ra thành hằng số chứ không viết lặp hai chỗ, vì hai con số ở đây là
+	 * giả thiết của phép đo số module ở `tem_lo.js`:
+	 *
+	 *     số module = bề rộng px của SVG ÷ 2
+	 *
+	 * đúng CHỈ KHI `width: 2` (mỗi module 2 px) và `margin: 0` (không có lề
+	 * cộng thêm vào bề rộng). Nếu một ngày ai đó sửa `width` ở chỗ vẽ mà quên
+	 * chỗ đo, `tem_lo.js` sẽ chọn SAI bố cục — nghĩa là nhồi một mã dài vào
+	 * khung 28mm, module hẹp hơn 2 dot, và máy quét đọc ra SAI KÝ TỰ. Một bản
+	 * duy nhất thì không có "quên chỗ kia".
+	 */
+	const TUY_CHON_VACH = JSON.stringify({
+		format: "CODE128",
+		// Ba nhóm số ở khối trên ĐÃ là phần cho mắt người đọc (xem chú thích
+		// số 2 đầu file). In thêm chữ ở đây là lấy mất chiều cao của chính các
+		// vạch. (Và nó đi ĐÔI với `preserveAspectRatio="none"` dưới kia —
+		// đổi một cái là méo chữ.)
+		displayValue: false,
+		width: 2,
+		height: 60,
+		margin: 0,
+	});
+
 	function may_ve_ma_vach() {
 		const khung = $('<div style="display:none"></div>').appendTo(document.body);
 		const control = frappe.ui.form.make_control({
@@ -149,28 +174,51 @@ erpnext.vi_tri_kho.tem = (function () {
 			 * hiện thì tem đã dán lên kệ rồi.
 			 */
 			ve(ma, k) {
-				control.df.options = JSON.stringify({
-					format: "CODE128",
-					// Ba nhóm số ở khối trên ĐÃ là phần cho mắt người đọc (xem
-					// chú thích số 2 đầu file). In thêm chữ ở đây là lấy mất
-					// chiều cao của chính các vạch.
-					displayValue: false,
-					width: 2,
-					height: 60,
-					margin: 0,
-				});
+				control.df.options = TUY_CHON_VACH;
 				control.get_barcode_html(ma);
 				const svg = control.barcode_area.find("svg")[0];
 				if (!svg) return "";
 
 				const ban_sao = svg.cloneNode(true);
-				// JsBarcode đặt width/height theo px và KHÔNG kèm viewBox. Đổi
-				// thẳng sang mm mà không có viewBox thì nội dung bị CẮT chứ
-				// không co lại — thêm viewBox từ đúng kích thước px trước đã.
-				const w = parseFloat(svg.getAttribute("width")) || 0;
-				const h = parseFloat(svg.getAttribute("height")) || 0;
-				if (w && h) {
-					ban_sao.setAttribute("viewBox", `0 0 ${w} ${h}`);
+
+				// viewBox phải phủ ĐÚNG bề rộng px thật của nội dung. Đổi sang
+				// mm mà viewBox hẹp hơn nội dung thì phần thừa bị CẮT chứ
+				// không co lại — và mã vạch cụt vẫn trông như một mã vạch.
+				//
+				// SỬA 2026-09-16 (Task 8). Bản trước dựng viewBox từ thuộc
+				// tính `width` của SVG, dựa trên nhận định "JsBarcode đặt
+				// width/height theo px và KHÔNG kèm viewBox". ĐO RA LÀ SAI ở
+				// cả hai vế:
+				//
+				//   (a) JsBarcode CÓ đặt viewBox — `SVGRenderer.setSvgAttributes`
+				//       ghi `viewBox="0 0 <px> <px>"`, đúng bề rộng nội dung.
+				//   (b) `svg.getAttribute("width")` KHÔNG phải số px: ngay sau
+				//       khi vẽ, `frappe/form/controls/barcode.js` chạy
+				//       `$(svg).attr("width", "100%")`. Nên `parseFloat` ra
+				//       đúng 100, cho MỌI mã, và viewBox dựng ra luôn là
+				//       `0 0 100 60`.
+				//
+				// Hệ quả của bản trước, đo bằng chính JsBarcode mà frappe đóng
+				// gói (bề rộng nội dung so với viewBox 100 đơn vị):
+				//
+				//   1B01040302 (mã vị trí) → 224px → hiện 44,6% số vạch
+				//   25L4125    (số lô)     → 202px → hiện 49,5%
+				//   LOT-2026-A45           → 334px → hiện 29,9%
+				//
+				// Tem in ra vẫn rộng đúng 28,0mm và vẫn trông như một mã vạch
+				// bình thường — chỉ là hơn một nửa số vạch không có mặt. Không
+				// màn hình nào báo, không phép đo bố cục nào bắt được (khối vẫn
+				// đúng 28,0 × 7,25mm). Chỉ máy quét mới biết.
+				//
+				// Giữ viewBox của JsBarcode; chỉ tự dựng khi KHÔNG có sẵn (một
+				// bản JsBarcode khác, hoặc renderer khác) — an toàn dưới cả
+				// hai giả thiết.
+				if (!ban_sao.getAttribute("viewBox")) {
+					const w = parseFloat(svg.getAttribute("width")) || 0;
+					const h = parseFloat(svg.getAttribute("height")) || 0;
+					if (w && h) ban_sao.setAttribute("viewBox", `0 0 ${w} ${h}`);
+				}
+				if (ban_sao.getAttribute("viewBox")) {
 					// `none` chứ không phải `meet`: `meet` giữ tỉ lệ gốc nên
 					// chiều cao yêu cầu chỉ là TRẦN, thực tế ra thấp hơn và
 					// phần thừa thành khoảng trắng — không có lỗi nào báo, chỉ
@@ -185,6 +233,35 @@ erpnext.vi_tri_kho.tem = (function () {
 				ban_sao.setAttribute("width", `${k.vach_rong}mm`);
 				ban_sao.setAttribute("height", `${k.vach_cao}mm`);
 				return new XMLSerializer().serializeToString(ban_sao);
+			},
+			/** SVG GỐC của JsBarcode, chưa đổi đơn vị — để ĐO, không để in.
+			 *
+			 * TEM VỊ TRÍ KHÔNG DÙNG HÀM NÀY. Mã vị trí Miyano luôn dài đúng
+			 * 112 module (10 ký tự, xem khối chú thích đầu file), nên tem vị
+			 * trí không có gì để đo: bố cục của nó là hằng số.
+			 *
+			 * Hàm này có mặt cho `tem_lo.js`. Số lô thì DÀI NGẮN TUỲ LÔ, nên
+			 * nhãn lô phải đo số module TRƯỚC khi chọn bố cục: `ve()` đặt bề
+			 * rộng SVG theo mm kèm `preserveAspectRatio="none"`, tức nó KÉO
+			 * GIÃN mã cho vừa khung bất kể mã dài bao nhiêu. Nhồi một mã 13 ký
+			 * tự vào 28mm ra module hẹp hơn 2 dot, và máy quét đọc ra SAI KÝ
+			 * TỰ — không phải đọc hỏng. Sai lặng lẽ, trên tem đã dán lên hàng.
+			 *
+			 * Trả BẢN SAO rời: lần gọi `ve()`/`ve_tho()` kế tiếp thay phần tử
+			 * trong `barcode_area`, nên giữ tham chiếu sống là giữ một thứ sẽ
+			 * đổi dưới chân mình.
+			 *
+			 * (Không tự cài đặt lại phép đếm Code 128 ở JS. `vitri/ma_vach.py`
+			 * đã có một bản cho phía máy chủ; hai bản cài đặt của cùng một
+			 * phép tính thì một ngày nào đó `validate` cho qua một số lô mà
+			 * nhãn không vẽ nổi — phát hiện ra lúc tem đã in. Đo từ chính thứ
+			 * SẼ ĐƯỢC IN RA là nguồn sự thật duy nhất.)
+			 */
+			ve_tho(ma) {
+				control.df.options = TUY_CHON_VACH;
+				control.get_barcode_html(ma);
+				const svg = control.barcode_area.find("svg")[0];
+				return svg ? svg.cloneNode(true) : null;
 			},
 			don() {
 				khung.remove();
