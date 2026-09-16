@@ -82,38 +82,70 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 	 * `cot_trai + gap + cot_phai` = 29,4 + 0,6 + 17,0 = 47,0 ✓ cho cả hai.
 	 *
 	 * ─────────────────────────────────────────────────────────────────────
-	 * BA CỠ CHỮ CỦA BỐ CỤC A KHÔNG VỪA Ô — ĐÃ ĐO, CHỜ CHỦ ĐẦU TƯ QUYẾT
+	 * SÀN CHIỀU CAO HÀNG — vì sao đo HỘP CHỮ chứ không đo chiều cao chữ hoa
 	 *
-	 * Ba con số dưới đây giữ NGUYÊN theo brief (đổi hằng số của brief là
-	 * việc của chủ đầu tư, không phải của người thi công), nhưng đo trên
-	 * Chrome — font Arial/Liberation Sans, đúng mm thật — thì chúng KHÔNG
-	 * vừa cột phải 17,0mm, với chính bộ dữ liệu mẫu của spec §6.1:
+	 * Mỗi hàng phải cao ít nhất bằng HỘP CHỮ (đỉnh ascender → đáy descender)
+	 * của cỡ chữ lớn nhất trong nó, chứ không phải bằng chiều cao chữ hoa.
+	 * Một trường tiếng Việt có dấu đâm xuống (`ạ` `ợ` `ậ` `ộ`) sẽ chạm hàng
+	 * dưới dù chữ hoa không chạm. Số đo (Chrome, Arial/Liberation Sans):
 	 *
-	 *   A.co.f9 = 22pt  "3856"  cần 17,26mm / 17,0mm → tràn 0,26mm
-	 *                   "38561" cần 21,58mm / 17,0mm → tràn 4,58mm, BỊ CẮT
-	 *                   và hộp dòng cao 8,73mm / hàng R6 cao 7,0mm
-	 *   A.co.f7 = 6,5pt "NHẬP 2026/09/03" cần 18,42mm / 17,0mm → BỊ CẮT
-	 *   A.co.f8 = 7pt   "VT 3B1205-0401"  cần 18,80mm / 17,0mm → BỊ CẮT
+	 *   5pt → 1,85   6pt → 2,38   6,5/7pt → 2,65   8pt → 3,18   9pt → 3,70
+	 *   11pt → 4,23  16pt → 6,35  18pt → 7,14      22pt → 8,73   (mm)
 	 *
-	 * F8 là Ô KHO — bị cắt thành "VT 3B1205-04…" thì người đứng trước kệ
-	 * đọc ra một ô KHÁC. F9 là số gọi, spec §6.4 nói riêng "16pt bốn chữ số
-	 * vừa" cho bố cục B trong CÙNG cột 17,0mm này.
+	 * Bản trước của bố cục B có hàng R4 cao 3,0mm chứa F5 8pt (hộp chữ
+	 * 3,18mm) — đo được va chạm 0,18mm xuống hàng dưới.
 	 *
-	 * Đề xuất (CHƯA áp dụng), mỗi con số đều đo được chứ không ước lượng:
+	 * ─────────────────────────────────────────────────────────────────────
+	 * CỠ CHỮ: TÌM RA BẰNG PHÉP ĐO, KHÔNG PHẢI CHỌN
 	 *
-	 *   A.co.f9  22  → 16   ("38561" 21,58 → 15,69mm; 18pt vẫn 17,66mm, KHÔNG đủ)
-	 *   A.co.f8   7  → 6    ("VT 3B1205-0401" 18,80 → 16,12mm)
-	 *   A.co.f7  6,5 → 5,5  ("NHẬP 2026/09/03" 18,42 → 15,60mm; 6pt ra 17,02mm,
-	 *                        vẫn hụt 0,02mm — sát tới mức đổi font là tràn lại)
+	 * Luật: cỡ NGUYÊN lớn nhất sao cho hộp chữ của chuỗi DÀI NHẤT THỰC TẾ
+	 * vừa ô, chừa biên ≥ 0,5mm. Cột phải 17,0mm → trần 16,5mm.
 	 *
-	 * Hoặc nới `cot_phai` và bù vào `cot_trai` — nhưng `cot_trai` phải đủ
-	 * chứa mã vạch nên chỉ nới được tới 29,4 − 25,25 = 4,15mm, và số lô dài
-	 * hơn thì hết chỗ.
+	 *   F7 "NHẬP 2026/09/03"  6pt = 17,02 ✗  →  5pt = 14,17 ✓   (A: 6,5 → 5)
+	 *   F8 "VT 3B1205-0401"   7pt = 18,80 ✗  →  6pt = 16,12 ✓   (A: 7 → 6)
 	 *
-	 * Bố cục B KHÔNG bị hai ô F8/F9 này (F8 chiếm trọn 47,0mm, F9 đã 16pt),
-	 * nhưng hàng R5 của nó nhồi F6 + F7 vào 29,4mm: 19,62 + 18,42 = 38,04mm,
-	 * cả hai bị cắt. Đó là chuyện CẤU TRÚC chứ không phải cỡ chữ — cũng để
-	 * chủ đầu tư quyết.
+	 * ─────────────────────────────────────────────────────────────────────
+	 * F9 — RÀNG BUỘC KHÔNG THOẢ ĐƯỢC, CHỜ CHỦ ĐẦU TƯ QUYẾT
+	 *
+	 * Hai yêu cầu loại trừ nhau trong cột 17,0mm, và đây là phép chứng minh
+	 * bằng số chứ không phải ý kiến:
+	 *
+	 *   (a) F9 không được nhỏ hơn 18pt (đọc từ giữa lối đi)
+	 *   (b) §4.4: số gọi vượt 9999 thành 5 chữ số thì phải CO CHỮ, không
+	 *       được CẮT SỐ
+	 *
+	 *   "38561" @ 18pt = 17,66mm  >  17,0mm cột  →  BỊ CẮT, phạm (b)
+	 *   "38561" @ 17pt = 17,00mm  =  17,0mm cột  →  vừa khít, biên 0
+	 *   "38561" @ 16pt = 15,69mm  ✓  vừa, biên 1,31mm  →  phạm (a)
+	 *   "3856"  @ 21pt = 16,47mm  ✓  (bốn chữ số thì rộng rãi)
+	 *
+	 * Bố cục A giữ SÀN 18pt theo đúng chỉ thị ("18pt không vừa thì đừng hạ
+	 * tiếp, báo lại") — nên số gọi 5 chữ số Ở BỐ CỤC A VẪN BỊ CẮT.
+	 *
+	 * Bố cục B KHÔNG nâng lên 18pt được, và lý do là CHIỀU CAO chứ không
+	 * phải bề ngang: F9 trải hai hàng R4+R5, 18pt cần 7,14mm, mà tổng sàn
+	 * của bảy hàng khi đó là 4,23 + 3,70 + 2,65 + 7,14 + 2,65 + 6,65 =
+	 * 27,02mm > 27,0mm ngân sách. Thiếu 0,02mm. Nên B giữ 16pt — và B là
+	 * chỗ DUY NHẤT trên cả hai bố cục mà số gọi 5 chữ số in ra KHÔNG bị cắt.
+	 *
+	 * Muốn thoả cả (a) và (b) thì phải nới cột phải lên ≥ 18,16mm
+	 * (17,66 + 0,5). Cột trái còn 47,0 − 0,6 − 18,16 = 28,24mm. Mã vạch bố
+	 * cục A dài nhất là 112 module = 28,0mm, cộng vùng yên tĩnh tối thiểu
+	 * 10 module = 2,5mm mỗi bên thì cần 33,0mm. 28,24 < 33,0 → KHÔNG đủ
+	 * chỗ. Tức là: mã vạch và số gọi 5 chữ số 18pt không cùng đứng một hàng
+	 * ngang được. Lối ra là đổi bố cục (cho F9 một hàng riêng), và đó là
+	 * quyết định của chủ đầu tư.
+	 *
+	 * ─────────────────────────────────────────────────────────────────────
+	 * VÙNG YÊN TĨNH CỦA MÃ VẠCH BỐ CỤC A — một điểm cần biết
+	 *
+	 * Code 128 cần vùng trắng ≥ 10 module = 2,5mm mỗi đầu. Bố cục A đặt mã
+	 * vạch trong cột trái 29,4mm, và ngay bên phải cột đó có một NÉT KẺ ĐEN.
+	 * Với mã 101 module (25,25mm) căn giữa: 2,08mm bên trái, 2,25mm từ đuôi
+	 * mã tới nét kẻ. Cả hai dưới 2,5mm. Với mã dài 112 module (28,0mm) thì
+	 * chỉ còn 0,7mm mỗi bên. Bố cục B không bị (mã vạch chiếm trọn chiều
+	 * ngang, hai bên là nền trắng của tem). Không tự sửa vì sửa là đổi
+	 * `cot_trai`/`cot_phai` — cùng một quyết định bố cục ở trên.
 	 */
 	const KHO = {
 		rong: 50,
@@ -122,18 +154,31 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 		A: {
 			ma: "A",
 			ten: "A (mã vạch cột trái, trần 28,0mm)",
-			hang: [5.0, 4.5, 3.5, 3.5, 3.5, 7.0], // = 27,0
+			// Chiều cao hàng: mỗi hàng cao ÍT NHẤT bằng hộp chữ cao nhất trong
+			// nó (đo thật, xem khối "SÀN CHIỀU CAO HÀNG" dưới đây), tổng đúng
+			// 27,0. Mọi con số là bội của 0,125mm = 1 dot chẵn.
+			//   R1 ≥ 4,23 (F1 11pt) · R2 ≥ 3,70 (F2 9pt) · R3 ≥ 2,65 (F4 6,5pt)
+			//   R4 ≥ 3,18 (F5 8pt)  · R5 ≥ 2,65 (F6 7pt) · R6 ≥ 7,14 (F9 18pt)
+			hang: [5.0, 4.5, 3.5, 3.5, 3.0, 7.5], // = 27,0
 			cot_trai: 29.4,
 			gap: 0.6,
 			cot_phai: 17.0,
 			vach_rong: 28.0,
 			vach_cao: 5.0,
-			co: { f1: 11, f2: 9, f3: 6.5, f4: 6.5, f5: 8, f6: 7, f7: 6.5, f8: 7, f9: 22, f11: 5 },
+			co: { f1: 11, f2: 9, f3: 6.5, f4: 6.5, f5: 8, f6: 7, f7: 5, f8: 6, f9: 18, f11: 5 },
 		},
 		B: {
 			ma: "B",
 			ten: "B (mã vạch hết ngang, trần 47,0mm)",
-			hang: [4.5, 4.0, 3.0, 3.0, 3.0, 3.0, 6.5], // = 27,0
+			// Sàn từng hàng (đo thật), tổng đúng 27,0, mọi số là bội 0,125mm:
+			//   R1 ≥ 4,23 (F1 11pt)   · R2 ≥ 3,70 (F2 9pt) · R3 ≥ 2,65 (F4 6,5pt)
+			//   R4 ≥ 3,18 (F5 8pt)    · R5 ≥ 2,65 (F6 7pt)
+			//   R4+R5 ≥ 6,35 (F9 16pt trải hai hàng)
+			//   R6 ≥ 2,65 (F8 7pt · F7 6,5pt)
+			//   R7 ≥ 6,65 (mã vạch 4,8 + F11 5pt 1,85)
+			// Tổng sàn = 26,23; dư 0,77 chia cho các hàng chữ. Chật đến mức
+			// này là lý do B KHÔNG nâng F9 lên 18pt được — xem khối dưới.
+			hang: [4.375, 3.875, 2.75, 3.375, 3.125, 2.75, 6.75], // = 27,0
 			cot_trai: 29.4,
 			gap: 0.6,
 			cot_phai: 17.0,
@@ -348,11 +393,11 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 	<div class="giua">
 		<div class="cot-trai">
 			<div class="hang h4"><span class="f5">${esc(o.F5)}</span></div>
-			<div class="hang h5"><span class="f6">${esc(o.F6)}</span><span class="f7">${esc(o.F7)}</span></div>
+			<div class="hang h5"><span class="f6">${esc(o.F6)}</span></div>
 		</div>
 		<div class="cot-phai o-f9"><span class="f9">${esc(o.F9)}</span></div>
 	</div>
-	<div class="hang h6"><span class="f8">${esc(o.F8)}</span></div>
+	<div class="hang h6"><span class="f8">${esc(o.F8)}</span><span class="f7">${esc(o.F7)}</span></div>
 	<div class="hang h7 o-vach">${khoi_vach}</div>
 </div>`;
 		}
@@ -435,7 +480,19 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 	   tot, va hai hang chu ben trai von da kin.
 	   (KHONG dung dau huyen va dau nguoc trong chu thich CSS: ca khoi nay nam
 	   trong mot template literal, mot dau nguoc lac la cat dut chuoi.) */
-	${goc} .h5 { justify-content: space-between; }
+	/* F7 đi cùng F8 trên hàng R6 (rộng TRỌN 47,0mm), KHÔNG đi cùng F6 trên
+	   hàng R5 (rộng 29,4mm).
+	   Đo thật, cùng font đang dựng:
+	     F6 + F7 trên 29,4mm = 19,62 + 18,42 = 38,04mm  -> cả hai bị cắt
+	     F5 + F7 trên 29,4mm = 20,85 + 18,42 = 39,27mm  -> còn TỆ HƠN
+	     F8 + F7 trên 47,0mm = 18,80 + 18,42 = 37,22mm  -> VỪA, dư 9,78mm
+	   Hàng R6 trước đây chỉ có mỗi F8 (18,80mm trong 47,0mm), tức bỏ không
+	   28,2mm ngay cạnh hai ô đang phải cắt chữ. Đây là chỗ duy nhất trên con
+	   tem còn đủ bề ngang cho F7. */
+	${goc} .h6 { justify-content: space-between; }
+	/* F8 không được nuốt hết hàng R6 nữa (luật chung cho nó là flex: 1 1 auto)
+	   — có space-between thì nó phải nhường chỗ cho F7. */
+	${goc} .h6 .f8 { flex: 0 1 auto; }
 	/* Duong ke tren hang F8, doi xung voi duong ke tren .giua. Van la lop phu
 	   tuyet doi, khong phai border - xem ly do o khoi chung. */
 	${goc} .h6 { position: relative; }
@@ -489,8 +546,22 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 		   ca khoi duoi xuong 0,76mm. Voi min-height: 0 thi chu qua to bi CAT
 		   trong o cua no va phep do bat duoc ngay. */
 		min-height: 0;
-		display: flex; align-items: baseline;
-		overflow: hidden;
+		/* align-items: center, KHONG phai baseline.
+		   Voi baseline, hop dong (line-height 1 = 1,0em) bam DINH hang, con
+		   hop CHU that (dinh ascender -> day descender) cao khoang 1,15em nen
+		   no tho ra 0,18mm PHIA TREN dinh hang - tuc dam vao hang o tren.
+		   Do duoc: 0,18mm giua F5 va hang duoi no o bo cuc B.
+		   Voi center, hop chu nam giua hang, nen chi can hang cao it nhat bang
+		   hop chu (dung luat o khoi hang so) la chu nam TRON trong hang. */
+		display: flex; align-items: center;
+		/* KHONG dat overflow: hidden o HANG.
+		   Ngan sach 27,0mm cua bo cuc B chi con 0,768mm du sau khi tru san
+		   chieu cao cua bay hang, nen ba hang cua no chi con 0,10mm bien va
+		   hop chu con tho ra toi 0,12mm. Neu HANG tu cat thi 0,12mm do bi
+		   xen mat - dung vao chan cac dau tieng Viet dam xuong.
+		   Cat chu la viec cua tung O (moi span da co overflow: hidden kem
+		   ellipsis, cat theo chieu NGANG dung cho no), con luoi do cuoi cung
+		   van la overflow: hidden o .tem. Hang o giua khong can cat gi. */
 	}
 	/* min-width: 0 trên mọi ô chữ — chặn một lỗi IM LẶNG.
 	   Flex item mặc định là min-width: auto, tức KHÔNG co xuống dưới bề rộng
