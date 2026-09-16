@@ -158,6 +158,18 @@ class TestSubmit(FrappeTestCase):
 		self.assertEqual(lo.reference_name, self.pr.name)
 		self.assertTrue(lo.custom_so_goi)
 
+		# "Produces" của brief: mỗi dòng phiếu nhập lô cũng phải có lo_da_tao và
+		# so_goi sau submit. Đọc lại từ DB (không dùng be.items[0] trong bộ nhớ)
+		# vì `db_set` cũng sửa bản ghi trong bộ nhớ — đọc DB mới thật sự khoá
+		# được việc ghi đã XUỐNG được CSDL, không chỉ đứng trong RAM.
+		dong = be.items[0].name
+		self.assertEqual(
+			frappe.db.get_value("Batch Entry Item", dong, "lo_da_tao"), "LO-SUBMIT-1"
+		)
+		self.assertEqual(
+			frappe.db.get_value("Batch Entry Item", dong, "so_goi"), lo.custom_so_goi
+		)
+
 	def test_submit_ghi_batch_no_len_dong_phieu_nhap(self):
 		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-SUBMIT-2")])
 		be.insert(ignore_permissions=True)
@@ -219,14 +231,30 @@ class TestSubmit(FrappeTestCase):
 
 	def test_dung_lai_lo_da_co_cua_chinh_mat_hang_nay(self):
 		"""NCC giao làm hai đợt cùng một số lô. Không tạo mới, không nổ khoá
-		chính — dùng lại, và điền HSD nếu lô cũ còn trống."""
+		chính — dùng lại, và điền HSD nếu lô cũ còn trống.
+
+		`manufacturing_date` của lô cũ được khai SẴN (2028-06-01) còn
+		`expiry_date` để TRỐNG — cố tình lệch nhau để một bài chỉ khẳng định
+		"đã điền HSD" không đủ phân biệt "chỉ điền chỗ trống" với "ghi đè hết":
+		nếu mã ghi đè vô điều kiện, `manufacturing_date` sẽ đổi thành
+		`ngay_san_xuat` của dòng phiếu nhập (2029-01-01) — khác 2028-06-01, lộ
+		ngay. Đây chính là nhánh "Chỉ ĐIỀN CHỖ TRỐNG, không ghi đè" trong
+		`_dam_bao_lo` — lô cũ có thể đã in tem với ngày cũ.
+		"""
 		lo_cu = frappe.get_doc(
-			{"doctype": "Batch", "batch_id": "LO-DOT-2B", "item": self.item}
+			{
+				"doctype": "Batch",
+				"batch_id": "LO-DOT-2B",
+				"item": self.item,
+				"manufacturing_date": "2028-06-01",
+			}
 		).insert(ignore_permissions=True)
 		self.assertFalse(lo_cu.expiry_date)
 		self.assertFalse(lo_cu.custom_so_goi)
 
-		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-DOT-2B")])
+		be = _phieu_nhap_lo(
+			self.pr, [self._dong(so_lo="LO-DOT-2B", ngay_san_xuat="2029-01-01")]
+		)
 		be.insert(ignore_permissions=True)
 		# Không được nổ DuplicateEntryError — "LO-DOT-2B" đã là tên một
 		# bản ghi Batch. Submit lỗi tức là mã đang cố TẠO MỚI thay vì DÙNG LẠI.
@@ -236,7 +264,11 @@ class TestSubmit(FrappeTestCase):
 		self.assertEqual(frappe.db.count("Batch", {"name": "LO-DOT-2B"}), 1)
 
 		lo = frappe.get_doc("Batch", "LO-DOT-2B")
+		# Chỗ TRỐNG (expiry_date) được điền từ dòng phiếu nhập.
 		self.assertEqual(str(lo.expiry_date), "2030-01-31")
+		# Chỗ ĐÃ CÓ (manufacturing_date) giữ nguyên — không bị ghi đè bởi
+		# ngay_san_xuat="2029-01-01" của dòng phiếu nhập.
+		self.assertEqual(str(lo.manufacturing_date), "2028-06-01")
 		self.assertTrue(lo.custom_so_goi)
 
 	def test_huy_khi_phieu_nhap_con_nhap_thi_go_batch_no_va_GIU_lo(self):
