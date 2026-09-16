@@ -21,6 +21,9 @@ KHO = "Kho Miyano - MYN"
 SO_LO = "QUET-LO-0001"
 MA_KHONG_TON_TAI = "MA-KHONG-TON-TAI-XYZ-999"
 MA_VACH_VAT_TU = "_TEST-QUET-BARCODE-0001"
+# `scan_barcode` phân giải Warehouse bằng CHÍNH `name` của nó (không phải
+# barcode riêng) — dùng thẳng `KHO`, một Warehouse có thật, không tạo thêm.
+MA_KHO = KHO
 
 # Ô lá + tổ tiên: khu "9Q" đã có tiền lệ dùng cho dữ liệu scratch ở
 # `test_cay_vi_tri.py` (dãy "18") — chọn dãy "50" để KHÔNG trùng, xem docstring
@@ -78,7 +81,7 @@ class TestTraCuu(FrappeTestCase):
 		# `tra_cuu`, và bài đỏ SAI CHỖ (không phải vì mã sai, mà vì cache cũ).
 		# Xoá cache ở đầu MỖI bài để không phụ thuộc thứ tự chạy hay khoảng
 		# cách thời gian giữa hai lần `run-tests`.
-		for ma in (SO_LO, MA_KHONG_TON_TAI, MA_VACH_VAT_TU):
+		for ma in (SO_LO, MA_KHONG_TON_TAI, MA_VACH_VAT_TU, MA_KHO):
 			frappe.cache().delete_value(f"erpnext:barcode_scan:{ma}")
 
 		self.ncc = _ncc_thu()
@@ -172,6 +175,26 @@ class TestTraCuu(FrappeTestCase):
 		# KHÔNG được giả vờ là lô: không có bất kỳ khoá nào chỉ "lo" mới có.
 		for khoa_cua_lo in ("hsd", "ngay_san_xuat", "nha_cung_cap", "so_lo", "ton_theo_o"):
 			self.assertNotIn(khoa_cua_lo, ket_qua)
+
+	def test_quet_ma_kho_tra_ve_loai_kho(self):
+		"""Vòng sửa 1/5 (điều phối): `loai` là HỢP ĐỒNG phía JS dựa vào để chọn
+		hiển thị gì — ba nhánh kia đã có bài khoá, nhánh `kho` không có lý do gì
+		để là ngoại lệ, dù brief gốc chỉ định đúng bốn bài (không có bài này).
+
+		`scan_barcode` phân giải Warehouse bằng CHÍNH `name` của nó (khác hẳn
+		đường Item Barcode/Batch — xem nhánh cuối `stock/utils.py::scan_barcode`),
+		nên quét thẳng `KHO` — một `Warehouse` có thật, không cần dựng thêm gì.
+		"""
+		ket_qua = tra_cuu(MA_KHO)
+
+		# Vế BẮT BUỘC — khẳng định ĐÚNG `loai == "kho"`, không chỉ "có trả về gì
+		# đó": một cài đặt lỡ gộp nhánh `kho` vào nhánh `vat_tu` (hoặc bỏ sót,
+		# rơi xuống `None`) vẫn "trả về một dict" nhưng SAI hợp đồng.
+		self.assertEqual(ket_qua["loai"], "kho")
+		self.assertEqual(ket_qua["kho"], MA_KHO)
+		# Không giả vờ là lô/vật tư: không lẫn khoá của hai nhánh kia vào đây.
+		for khoa_khac_nhanh in ("so_lo", "vat_tu", "ten_hang", "ton_theo_o"):
+			self.assertNotIn(khoa_khac_nhanh, ket_qua)
 
 	def test_khong_co_vai_tro_kho_thi_bi_chan(self):
 		"""Hàm này lộ tồn kho theo ô — đăng nhập hợp lệ không phải điều kiện đủ.
