@@ -639,8 +639,11 @@ class TestUuTienOInTem(_NenGoiY):
 	def _lo(self, ten, vat_tu, o_tem=None):
 		"""Bản ghi `Batch` tối thiểu, mang sẵn `custom_o_in_tem`.
 
-		`db.set_value` cho `custom_o_in_tem` vì field đó `read_only` — đặt qua
-		doc thì Frappe bỏ qua trong im lặng và bài test xanh mà không kiểm gì.
+		`db.set_value` cho `custom_o_in_tem` KHÔNG phải vì `read_only` chặn —
+		`read_only` là cờ phía trình duyệt, máy chủ ghi thoải mái. Lý do là tránh
+		một vòng `Batch.validate` nữa: `set_expiry_date()` (`batch.py:184`) có
+		thể `throw` khi mặt hàng bật `has_expiry_date`, và bài này không nói gì
+		về hạn dùng.
 		"""
 		frappe.get_doc({"doctype": "Batch", "batch_id": ten, "item": vat_tu}).insert(
 			ignore_permissions=True
@@ -1147,8 +1150,8 @@ Kỳ vọng: FAIL — `DoesNotExistError: DocType Batch Entry not found`.
   {"fieldname": "o_goi_y", "fieldtype": "Link", "label": "Ô gợi ý", "options": "Storage Location", "read_only": 1, "in_list_view": 1, "columns": 2},
   {"fieldname": "ly_do_goi_y", "fieldtype": "Small Text", "label": "Lý do gợi ý", "read_only": 1},
   {"fieldname": "col_2", "fieldtype": "Column Break"},
-  {"fieldname": "lo_da_tao", "fieldtype": "Link", "label": "Lô đã tạo", "options": "Batch", "read_only": 1},
-  {"fieldname": "so_goi", "fieldtype": "Data", "label": "Số gọi", "read_only": 1}
+  {"fieldname": "lo_da_tao", "fieldtype": "Link", "label": "Lô đã tạo", "options": "Batch", "read_only": 1, "allow_on_submit": 1},
+  {"fieldname": "so_goi", "fieldtype": "Data", "label": "Số gọi", "read_only": 1, "allow_on_submit": 1}
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
@@ -1235,6 +1238,11 @@ class BatchEntryItem(Document):
 }
 ```
 
+`allow_on_submit: 1` trên `lo_da_tao` và `so_goi` KHÔNG phải trang trí: Task 6 ghi hai
+trường này trong `on_submit`, lúc `docstatus` đã bằng 1. Thiếu cờ đó thì `db_set` ném
+`UpdateAfterSubmitError` và cả `on_submit` đổ — sau khi `Batch` đã được tạo. Tức là một
+phiếu hỏng giữa chừng: lô có thật, phiếu báo lỗi.
+
 Bộ vai trò khớp `VAI_TRO_DUOC_XEP` ở `xep.py:17` — nhập lô cũng là việc hằng ngày của
 thủ kho, không phải thao tác thiết lập. `Stock User` không được `delete`, giống khuôn
 `Location Transfer`.
@@ -1252,10 +1260,28 @@ VÌ SAO LÀ PHIẾU RIÊNG chứ không phải sửa hộp thoại lô sẵn có
 là lựa chọn nghiệp vụ.
 
 VÌ SAO GHI `batch_no` LÊN DÒNG PHIẾU NHẬP thay vì tự dựng `Serial and Batch
-Bundle`: `stock_controller.py:231-234` tự bật `use_serial_batch_fields` khi thấy
-`batch_no` có giá trị, rồi tự dựng bundle lúc submit. Một trường, không có gì
-khác. Tự dựng bundle là bám vào nội bộ một hệ thống đã đổi kiến trúc lô một lần
-giữa v14 và v15 — và sẽ đổi nữa.
+Bundle`: một trường, không có gì khác. Tự dựng bundle là bám vào nội bộ một hệ
+thống đã đổi kiến trúc lô một lần giữa v14 và v15 — và sẽ đổi nữa.
+
+ĐÃ ĐO TRÊN erptest.local (16/09/2026), không phải suy từ mã:
+
+    A. sau frappe.db.set_value  batch_no = 'PROBE-LO-001'
+    B. sau reload + save (nháp) batch_no = 'PROBE-LO-001'   <- KHÔNG bị xoá
+    C. sau submit phiếu nhập    batch_no = 'PROBE-LO-001'
+       số Batch của mặt hàng    1 -> 1                      <- KHÔNG sinh lô máy
+       bundle                   docstatus 1, dòng con {batch_no: PROBE-LO-001, qty: 10}
+    E. scan_barcode('PROBE-LO-001') -> {batch_no, item_code, has_batch_no}
+
+Điểm B là điểm phải đo: `frappe.db.set_value` đi thẳng xuống CSDL, không qua bản
+sao trong bộ nhớ. Nếu ai đó mở phiếu nháp ra lưu lại giữa lúc ta ghi và lúc
+submit, một bản sao cũ có thể ghi đè `batch_no` về rỗng — và lô của NCC mất mà
+không có lỗi nào báo. Đo cho thấy KHÔNG xảy ra. Nếu một bản ERPNext sau này đổi
+điều đó, `test_phieu_nhap_submit_sau_do_khong_sinh_lo_may_nao_nua` sẽ đỏ.
+
+Đáng ghi lại: sau submit `use_serial_batch_fields` vẫn bằng 0, tức bundle được
+dựng bằng một nhánh KHÁC nhánh `stock_controller.py:231-234`. Không cần biết
+nhánh nào — đừng viết mã dựa trên nó. Thứ ràng buộc là KẾT QUẢ đo được ở trên,
+và bài test khoá đúng kết quả đó.
 """
 
 import frappe
@@ -1650,6 +1676,8 @@ Yêu cầu bắt buộc với người thi công:
 
 **Files:**
 - Create: `erpnext/public/js/vi_tri_kho/tem_lo.js`
+- Modify: `erpnext/public/js/vi_tri_kho/tem_vi_tri.js` (thêm `ve_tho()` vào
+  `may_ve_ma_vach`, xem Step 2 — **thêm**, không đổi `ve()`)
 
 **Interfaces:**
 - Consumes: `erpnext.vi_tri_kho.tem.may_ve_ma_vach()` (đã export sẵn ở
