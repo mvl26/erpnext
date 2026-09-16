@@ -38,11 +38,15 @@ có tồn kho, có nhập xuất, chỉ là không biết hàng nằm ở ô nà
 | Việc | Vai trò cần có |
 |---|---|
 | Sinh ô, bật/tắt quản lý vị trí, đồng bộ lại | `System Manager` **hoặc** `Stock Manager` |
-| Xem ba báo cáo, xem danh mục ô | thêm `Stock User` |
+| **Gán vị trí cố định cho mặt hàng** (tạo / sửa / xoá) | `System Manager` **hoặc** `Stock Manager` |
+| Xem bốn báo cáo, xem danh mục ô, **xem các gán vị trí** | thêm `Stock User` |
 | Nhập/xuất kho như thường lệ | như ERPNext gốc, không đổi |
 
-Sinh ô và bật/tắt kho là **thao tác thiết lập**, cố ý không mở cho `Stock User` — không phải
-việc hằng ngày. Khách hàng đăng nhập cổng (`Website User`) **không vào được gì** của phần này.
+Sinh ô, bật/tắt kho và **gán vị trí cố định** đều là **thao tác thiết lập**, cố ý không mở cho
+`Stock User` — không phải việc hằng ngày. Thủ kho **xem** được mặt hàng nào thuộc ô nào (và phiếu
+xếp vẫn tự điền ô đích cho họ), chỉ không tự đổi được chỗ của một mặt hàng.
+
+Khách hàng đăng nhập cổng (`Website User`) **không vào được gì** của phần này.
 
 ### Vào ở đâu
 
@@ -57,6 +61,8 @@ Gõ tên màn hình vào ô tìm kiếm (kính lúp trên thanh trên cùng), ho
 | Báo cáo **Tồn kho theo vị trí** | `/app/query-report/Ton Kho Theo Vi Tri` |
 | Báo cáo **Hàng chưa xếp vị trí** | `/app/query-report/Hang Chua Xep Vi Tri` |
 | Báo cáo **Đối soát tồn vị trí** | `/app/query-report/Doi Soat Ton Vi Tri` |
+| **Item Location Preference** — gán vị trí cố định | `/app/item-location-preference` |
+| Báo cáo **Hàng nằm sai vị trí** | `/app/query-report/Hang Nam Sai Vi Tri` |
 
 *(Đường dẫn **có dấu**, giống `/app/bán-hàng` và `/app/kho-khách-hàng`. Trước 14/09/2026 trang
 này nằm ở `/app/vi-tri-kho` không dấu — lệch với mọi trang khác của site và gây lỗi "Not found"
@@ -348,10 +354,25 @@ cuối kho:
 
 1. Mở **Phiếu xếp / chuyển vị trí** (`/app/location-transfer/new`), chọn **Kho**.
 2. Bấm **"Lấy hàng chưa xếp"** — hệ đổ toàn bộ hàng đang ở ô "Chưa xếp vị trí" thành các dòng
-   sẵn, cột *Từ ô* điền sẵn.
-3. Điền **Đến ô** cho từng dòng. Chia một lô ra nhiều ô thì tách thành nhiều dòng và sửa số
-   lượng. Hệ **không gợi ý ô đích** — chưa khai sức chứa cho ô nào, gợi ý bừa thì thủ kho tin
-   theo rồi xếp nhầm.
+   sẵn, cột *Từ ô* điền sẵn, và **cột *Đến ô* cũng điền sẵn** cho những mặt hàng đã được gán vị
+   trí cố định (xem mục 10).
+3. **Soát lại cột *Đến ô*.** Dòng nào hệ chưa điền thì tự chọn ô. Chia một lô ra nhiều ô thì
+   tách thành nhiều dòng và sửa số lượng.
+
+   Hệ **không ép** — sửa đè lên ô hệ gợi ý lúc nào cũng được. Thủ kho đứng trước kệ biết những
+   thứ hệ không biết.
+
+   Sau khi bấm "Lấy hàng chưa xếp", nếu có dòng chưa được điền thì hệ hiện một dòng nhắc màu cam
+   nói **có bao nhiêu dòng và vì sao**, gộp theo từng lý do. Ba lý do có thể gặp:
+
+   | Lý do hiện ra | Nghĩa là | Việc cần làm |
+   |---|---|---|
+   | *mặt hàng chưa gán vị trí cố định* | chưa ai gán chỗ cho mặt hàng này | gán một lần ở mục 10, lần sau khỏi phải điền |
+   | *vùng `<nút>` đã đầy: N/N ô đang chứa hàng khác* | đã gán rồi, nhưng vùng đó hết chỗ trống và cũng không ô nào đang chứa chính mặt hàng này | dọn bớt vùng đó, hoặc gán mặt hàng sang nút rộng hơn |
+   | *không gợi ý được cho `<mã>` — xem Error Log* | có trục trặc dữ liệu ở nút đã gán | báo quản trị; **đừng** đi gán lại, gán lại không chữa được |
+
+   > Ba lý do là ba việc khác nhau. Đọc nhầm "đã đầy" thành "chưa gán" rồi đi gán lại một thứ đã
+   > gán là mất công mà vùng kho vẫn hết chỗ.
 4. **Lưu** rồi **Duyệt**. Duyệt xong sổ vị trí mới ghi.
 
 Phiếu này cũng dùng để **dồn hàng, đổi kệ**: chọn *Từ ô* là một ô thật thay vì ô "Chưa xếp".
@@ -379,16 +400,28 @@ không ảnh hưởng kế toán.
 
 ---
 
-## 7. Ba báo cáo
+## 7. Bốn báo cáo
 
 | Báo cáo | Trả lời câu hỏi | Rỗng nghĩa là |
 |---|---|---|
 | **Tồn kho theo vị trí** | hàng nào đang ở ô nào (hiển thị dạng cây, gộp theo từng cấp) | kho trống |
 | **Hàng chưa xếp vị trí** | việc cần dọn của thủ kho | đã xếp hết, tốt |
 | **Đối soát tồn vị trí** | hệ có lệch không | **khớp, tốt** |
+| **Hàng nằm sai vị trí** | ô nào đang chứa hàng khác với mặt hàng đã gán cho nó | **đúng chỗ hết, tốt** |
 
-**Đối soát là báo cáo *sai lệch*, không phải báo cáo tồn kho.** Rỗng mới là tốt. Muốn xem tồn
-thì mở *Tồn kho theo vị trí*.
+**Hai báo cáo cuối là báo cáo *sai lệch*, không phải báo cáo tồn kho.** Rỗng mới là tốt. Muốn
+xem tồn thì mở *Tồn kho theo vị trí*.
+
+> ### Vì sao cần *Hàng nằm sai vị trí* khi đã có *Đối soát*
+>
+> Hai cái soi hai thứ khác hẳn nhau, và cái này **không** thay được cái kia.
+>
+> *Đối soát* so **tổng** tồn theo ô với tồn kho ERPNext. Một ô chứa nhầm mặt hàng thì tổng vẫn
+> đúng y nguyên — **đối soát không bao giờ thấy**. Nó khớp tuyệt đối trong khi kệ đã sai.
+>
+> Lúc **gán** vị trí, hệ đã chặn nếu vùng đó đang có hàng của mặt hàng khác. Nhưng đó là chặn
+> **một lần**, lúc gán. Sau đó hàng vẫn vào sai ô được — qua phiếu xếp khai tay, qua huỷ chứng
+> từ, qua kiểm kê. *Hàng nằm sai vị trí* là thứ duy nhất soi việc đó, và nên xem **hằng tuần**.
 
 ### Xem tồn theo Khu, theo Dãy
 
@@ -451,7 +484,7 @@ trí" rồi mới cho bật lại. Đây là chặn cố ý, không phải lỗi
 
 ---
 
-## 9. Bốn điều dễ hiểu nhầm
+## 9. Sáu điều dễ hiểu nhầm
 
 **1. Ô "Chưa xếp vị trí" được lấy hàng SAU CÙNG, không phải trước.** Nó mang thứ tự lấy hàng
 9999. Cùng hạn dùng thì hệ lấy từ ô đã xếp đàng hoàng trước — thủ kho biết đi tới đâu; chỉ khi
@@ -470,6 +503,87 @@ hồi trên một site mới, quản trị phải chạy một lần thao tác d
 — xem `BAN-GIAO-nen-tang-vi-tri-kho.md`). Chưa chạy thì tích "Ngừng dùng" trên nút cha **không
 chặn được gì** ở các ô lá bên dưới, dù giao diện vẫn cho tích bình thường. Trên `erptest.local`
 bước này đã xong.
+
+**5. "Đã gán vị trí" KHÔNG có nghĩa là "còn chỗ".** Gán chỉ nói *mặt hàng này thuộc vùng nào*;
+nó không giữ chỗ trống nào cả. Một mặt hàng đã gán vẫn có thể không được gợi ý ô nào, vì vùng của
+nó đã đầy. Khi đó phiếu xếp nói **"vùng ... đã đầy"** chứ không nói "chưa gán" — hai câu khác
+nhau, hai việc khác nhau. Đọc nhầm rồi đi gán lại là mất công mà vùng vẫn hết chỗ.
+
+**6. Ô đích hệ điền sẵn là GỢI Ý, không phải lệnh.** Sửa đè lúc nào cũng được, hệ không chặn.
+Thủ kho đứng trước kệ biết những thứ hệ không biết — hàng cồng kềnh, kệ đang hỏng, lô sắp xuất
+ngay. Ngược lại: **hệ cũng không tự sửa lại** cái bạn đã chọn.
+
+---
+
+## 10. Gán vị trí cố định cho mặt hàng
+
+Từ 16/09/2026. Đây là thứ làm cho cột *Đến ô* ở mục 6.3 tự điền được.
+
+**Ý tưởng:** mỗi mặt hàng có **một chỗ cố định** trên kệ, như kho SPD bên Nhật vẫn làm. Khi ô đã
+thuộc về đúng một mặt hàng thì câu "hàng này xếp đâu" trả lời được ngay, **không cần khai sức
+chứa cho ô nào** — đó là lý do trước đây hệ không dám gợi ý.
+
+### 10.1 Gán một mặt hàng
+
+1. Mở **`/app/item-location-preference`** (hoặc bấm **Gán vị trí cố định** trên trang *Vị trí kho*).
+2. **Mặt hàng** — chọn một lần, **không sửa được về sau**. Gán nhầm thì xoá bản ghi rồi tạo lại.
+3. **Kho** — phải là kho đang quản lý vị trí.
+4. **Vị trí cố định** — gõ mã ô, hoặc bấm **"Chọn trên cây vị trí"** để chọn trực quan.
+
+Ô **Cấp** tự hiện ra (Khu / Dãy / Khoang / Tầng / Ô) — chỉ để nhìn cho chắc, không gõ.
+
+### 10.2 Nên gán ở cấp TẦNG, đừng gán một Ô lẻ
+
+Chọn một **Tầng** nghĩa là **cả nhánh dưới nó** thuộc mặt hàng đó — mọi ô trong tầng.
+
+Đây không phải lời khuyên cho đẹp. Luật gợi ý là *"ô trống đầu tiên"*, nên nếu gán vào **một Ô
+lẻ**: lần nhập đầu hệ chỉ đúng ô đó; từ **lần nhập thứ hai** ô đã có hàng, không còn ô trống nào
+khác trong "vùng" (vùng chỉ có một ô) — hệ sẽ gợi ý dồn tiếp vào chính ô đó cho tới khi kệ thật
+sự không còn chỗ, và khi đó không còn đường nào khác để gợi ý.
+
+Gán ở cấp Tầng cho mặt hàng chỗ để lớn lên.
+
+### 10.3 Cây vị trí: vì sao có nút không chọn được
+
+Cây hiện mỗi nốt kèm **số ô trống** và **số mặt hàng đang nằm** trong nhánh đó, để biết chỗ nào
+còn rộng mà không phải mở ra đếm.
+
+Nốt **không chọn được thì không có nút "Chọn"** — cố ý. Với 214 ô, bắt người dùng bấm thử rồi
+đọc thông báo lỗi không phải là giao diện, đó là trò đoán mò. Ba lý do, ba việc khác nhau:
+
+| Cây báo | Nghĩa là | Việc cần làm |
+|---|---|---|
+| *đã gán: `<mặt hàng>`* | nốt này, hoặc một nút trên nó, đã thuộc mặt hàng khác | chọn nhánh khác |
+| *có gán bên trong* | bên trong nhánh này đã có mặt hàng khác giữ chỗ | gỡ gán con đó trước, hoặc chọn nhánh khác |
+| *đang ngừng dùng* | nốt này hoặc một nút trên nó đang tắt | bật lại nhánh, hoặc chờ sửa kệ xong |
+
+> **Một ô chỉ thuộc về một mặt hàng.** Hệ chặn cả ba chiều: gán trùng đúng nút, gán vào **con
+> cháu** của nút đã có chủ, và gán vào **nút cha bao trùm** nút đã có chủ. Hai nhánh **cạnh
+> nhau** thì không sao.
+
+### 10.4 Hệ gợi ý ô theo luật nào
+
+Khi bấm *"Lấy hàng chưa xếp"*, với mỗi mặt hàng đã gán:
+
+1. Duyệt các ô trong vùng đã gán **theo thứ tự cây** (Khu → Dãy → Khoang → Tầng → Ô), bỏ qua ô
+   nằm dưới nhánh đang ngừng dùng.
+2. Lấy **ô trống đầu tiên**.
+3. Hết ô trống thì lấy **ô đang chứa chính mặt hàng đó** (dồn vào chỗ cũ).
+4. Không có cả hai → báo **"vùng `<nút>` đã đầy"**, để trống ô đích.
+
+Gợi ý **không ép**. Sửa đè lúc nào cũng được.
+
+### 10.5 Hai điều cần biết trước
+
+**Không gán được nếu trong nhánh đang có hàng của mặt hàng khác.** Hệ nói rõ ô nào, mặt hàng nào,
+bao nhiêu — chuyển những ô đó đi bằng phiếu xếp / chuyển vị trí rồi gán lại. Hôm nay gần như
+không bao giờ gặp vì hàng còn nằm ở ô "Chưa xếp"; nó sẽ bắt đầu gặp khi kho đã xếp được một thời
+gian.
+
+**Một mặt hàng chỉ gán được ở MỘT kho.** Hôm nay vô hại vì chỉ `Kho Miyano - MYN` quản lý vị trí.
+Ngày bật kho thứ hai, đây là chỗ phải sửa lược đồ — xem `BAN-GIAO-nen-tang-vi-tri-kho.md`.
+
+**Đổi mã mặt hàng thì gán tự đi theo**, không phải gán lại.
 
 ---
 
@@ -529,4 +643,5 @@ Tổng nút Khu `1A` = 50 = đúng tổng hai ô lá bên dưới.
 | File | Cho ai |
 |---|---|
 | `BAN-GIAO-nen-tang-vi-tri-kho.md` | kỹ thuật — kiến trúc, cách bảo trì, cách merge ERPNext bản mới |
+| `../superpowers/specs/2026-09-15-gan-vi-tri-co-dinh-theo-mat-hang-design.md` | kỹ thuật — thiết kế phần gán vị trí cố định (mục 10) và những chỗ cố ý KHÔNG làm |
 | `QUYET-DINH-thi-cong-cay-vi-tri.md` | chủ dự án — những chỗ tự chốt trong lúc làm và cái giá nếu chốt sai |
