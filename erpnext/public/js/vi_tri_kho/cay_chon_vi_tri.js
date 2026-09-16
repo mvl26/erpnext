@@ -89,6 +89,17 @@ erpnext.vi_tri_kho.chon_vi_tri = function (kho, khi_chon) {
 		method: "erpnext.vi_tri_kho.vitri.gan.cay_chon_vi_tri",
 		args: { kho: kho },
 
+		// CỐ Ý không truyền `root_value` riêng (ví dụ chuỗi rỗng) để né việc
+		// gốc gửi `parent = kho` — vòng sửa 2 điều phối (bấm thật trên trình
+		// duyệt bắt được cây chết ở gốc: xem `gan.py::cay_chon_vi_tri()` và
+		// bài test mô phỏng đúng cách widget gọi). Không đổi ở đây vì
+		// `root_value` mặc định BẰNG `label` (tree.js dòng 22-24), và
+		// `label` ở trên chính là TÊN KHO hiện trên đầu cây — nếu ép
+		// `root_value: ""` để né vấn đề, nhãn gốc của cây sẽ mất tên kho
+		// (đổi hẳn UI). Sửa đúng chỗ là ở máy chủ: `cay_chon_vi_tri()` giờ
+		// nhận thêm `is_root` và coi `parent == kho` cũng LÀ cấp gốc, nên
+		// JS không cần đổi gì ở đây.
+
 		// `node.data` là nguyên dòng máy chủ trả về cho nút này (xem chú
 		// thích đầu file) — tên trường KHỚP đúng các cột `as` của
 		// `gan.py::cay_chon_vi_tri()`: `value`, `title`, `expandable`,

@@ -9,6 +9,7 @@ hàm thuần truy vấn — và cái giá thật không phải hiệu năng mà 
 
 import frappe
 from frappe import _
+from frappe.utils import sbool
 
 
 def chu_cua_nhanh(lft: int, rgt: int, tru_ten: str | None = None) -> dict | None:
@@ -179,7 +180,7 @@ VAI_TRO_DUOC_XEM_CAY = {"System Manager", "Stock Manager", "Stock User"}
 
 
 @frappe.whitelist()
-def cay_chon_vi_tri(kho: str, parent: str | None = None) -> list[dict]:
+def cay_chon_vi_tri(kho: str, parent: str | None = None, is_root=None) -> list[dict]:
 	"""Các nút con để vẽ một cấp của cây chọn vị trí (Task 7 — bảng dữ liệu cho `frappe.ui.Tree`
 	phía JS, xem `public/js/vi_tri_kho/cay_chon_vi_tri.js`).
 
@@ -202,15 +203,46 @@ def cay_chon_vi_tri(kho: str, parent: str | None = None) -> list[dict]:
 	ở `item_location_preference.py`) bị loại bằng `sl.lft > 0`. Cùng cái bẫy đã trả giá ở
 	`fefo.py` và `tem.py`: một nút `lft = rgt = 0` lọt vào cây thì `da_gan_cho` của nó (và mọi
 	nút 0/0 khác trên toàn hệ, kể cả kho khác) sẽ tự nhận nhầm gán của nhau qua vị từ giao nhau.
+
+	VÌ SAO NHẬN `is_root` MÀ THÂN HÀM KHÔNG DÙNG TRỰC TIẾP GIÁ TRỊ ĐÓ ĐỂ TRUY VẤN (vòng sửa 2,
+	điều phối tự bấm trên trình duyệt bắt được): `frappe.ui.Tree.get_nodes()`
+	(`frappe/public/js/frappe/ui/tree.js:41-56`) LUÔN gửi cả `parent` lẫn `is_root` cho mọi lệnh
+	gọi — kể cả ở CẤP GỐC. Widget không gọi hàm này với chữ ký "đẹp" mà ta tưởng tượng lúc viết
+	(`cay_chon_vi_tri(kho)` không `parent`); nó gọi `cay_chon_vi_tri(kho=..., parent=root_value,
+	is_root=True)`, và `root_value` (constructor dòng 22-24: `if (root_value == null) {
+	this.root_value = label; }`) CHÍNH LÀ giá trị `label` mà `cay_chon_vi_tri.js` truyền vào —
+	tức TÊN KHO, không phải tên một `Storage Location` nào. Bản trước Task 7 coi
+	`if parent: ... else: (gốc)` là đủ — sai, vì ở gốc `parent` KHÔNG rỗng, nó mang tên kho, nên
+	nhánh gốc (`parent_storage_location is null`) không bao giờ được chọn: hộp thoại mở ra,
+	cây hiện đúng một nốt gốc rỗng, bấm vào không ra gì — chết ngay cửa vào duy nhất của cây.
+	Không bài test Python nào ở vòng nộp trước bắt được vì chúng gọi hàm theo chữ ký Python nghĩ
+	ra (`cay_chon_vi_tri(KHO)`, không `parent`), không theo cách widget THẬT SỰ gọi — hợp đồng
+	thật của hàm `@frappe.whitelist()` là hợp đồng của WIDGET gọi nó, không phải chữ ký ta thấy
+	gọn. Coi là cấp gốc khi BẤT KỲ điều nào đúng — ba điều vì ba nơi gọi khác nhau:
+	  1. `is_root` là true — widget ở CẤP GỐC (case bắt lỗi ở đây).
+	  2. `parent` rỗng — mã gọi trực tiếp/bài test kiểu cũ, hoặc widget gọi qua
+	     `get_all_nodes()` (dùng `frappe.desk.treeview.get_all_nodes`, không thuộc phạm vi sửa ở
+	     đây nhưng cùng lớp "không truyền parent" nên gộp chung điều kiện cho an toàn).
+	  3. `parent == kho` — widget ở NHÁNH nhưng lỡ truyền `root_value` trùng tên kho (không xảy
+	     ra ở luồng hiện tại vì nhánh luôn dùng `value` thật của `Storage Location`, nhưng đây là
+	     đúng tình huống đã đo được ở gốc — giữ điều kiện này tường minh thay vì chỉ dựa vào
+	     `is_root` để không phụ thuộc một mình vào việc widget luôn gửi cờ đó đúng).
+
+	`is_root` tới đây dưới dạng CHUỗI `"true"`/`"false"` khi gọi qua HTTP (`frappe.call` gửi mọi
+	tham số dạng chuỗi), KHÔNG phải Python bool — `if is_root:` trần sẽ đúng cho CẢ HAI vì
+	`"false"` là một chuỗi khác rỗng. Phải qua `frappe.utils.sbool()` (chuyển `"true"/"1"` →
+	`True`, `"false"/"0"` → `False`, giữ nguyên giá trị khác — kể cả khi gọi trực tiếp từ Python
+	với `is_root=True`/`None`, `sbool()` bắt `AttributeError` của `.lower()` trên bool/None và trả
+	nguyên giá trị đó) rồi mới ép `bool()`.
 	"""
 	if not VAI_TRO_DUOC_XEM_CAY & set(frappe.get_roles()):
 		frappe.throw(_("Bạn không có quyền xem cây vị trí."), frappe.PermissionError)
 
-	dieu_kien = (
-		"sl.parent_storage_location = %(parent)s"
-		if parent
-		else "ifnull(sl.parent_storage_location, '') = ''"
-	)
+	la_goc = bool(sbool(is_root)) if is_root is not None else False
+	if la_goc or not parent or parent == kho:
+		dieu_kien = "ifnull(sl.parent_storage_location, '') = ''"
+	else:
+		dieu_kien = "sl.parent_storage_location = %(parent)s"
 	return frappe.db.sql(
 		f"""
 		select sl.name as value,

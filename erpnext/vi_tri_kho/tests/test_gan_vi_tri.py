@@ -454,7 +454,32 @@ class TestDoiMaMatHang(_Nen):
 
 class TestCayChonViTri(_Nen):
 	"""Chỉ kiểm phần MÁY CHỦ. Việc vẽ cây nằm ở JS và không bài Python nào ở
-	đây chứng minh nó vẽ đúng — đừng đọc bộ test này như thể nó chứng minh."""
+	đây chứng minh nó vẽ đúng — đừng đọc bộ test này như thể nó chứng minh.
+
+	VÒNG SỬA 2 (điều phối, tự bấm trên trình duyệt bắt được lỗi mà cả lớp
+	này lẫn brief đều không thấy): các bài DƯỚI những dòng này phải gọi
+	`cay_chon_vi_tri()` đúng CÁCH `frappe.ui.Tree` GỌI THẬT, không phải theo
+	chữ ký Python mà ta tự nghĩ ra. Căn cứ là `get_nodes()`
+	(`frappe/public/js/frappe/ui/tree.js:41-56`):
+
+		get_nodes(value, is_root) {
+			var args = Object.assign({}, this.args);
+			args.parent = value;        // LUÔN gửi, kể cả ở gốc
+			args.is_root = is_root;     // LUÔN gửi, dạng chuỗi qua HTTP
+			frappe.call({ method: this.method, args, ... });
+		}
+
+	Ở CẤP GỐC, `value` truyền vào là `root_value` — mà constructor
+	(tree.js dòng 22-24) mặc định `root_value = label`, và
+	`cay_chon_vi_tri.js` truyền `label: kho`. Nghĩa là widget gọi
+	`cay_chon_vi_tri(kho=..., parent=<TÊN KHO>, is_root=true)` ở gốc, KHÔNG
+	PHẢI `cay_chon_vi_tri(kho)` suông như các bài phía trên trong lớp này
+	(`test_tra_ve_khu_khi_khong_co_parent` và các bài khác gọi không
+	`parent` — đó là chữ ký Python gọn, không phải cách widget thật sự gọi
+	ở gốc, nên không bắt được lỗi này). Bài kiểm nào chỉ gọi theo chữ ký mà
+	không mô phỏng đúng bộ tham số widget gửi thì không chứng minh được gì
+	về màn hình thật — đây chính là lỗ mà vòng nộp trước lọt qua.
+	"""
 
 	def tearDown(self):
 		# Cùng bẫy đã trả giá ở `TestLuocDo`/`TestChongLan`/`TestChanTheoTon`:
@@ -496,3 +521,38 @@ class TestCayChonViTri(_Nen):
 		zzz = frappe.db.get_value("Storage Location", {"la_o_chua_xep": 1, "kho": KHO}, "name")
 		gia_tri = {n["value"] for n in cay_chon_vi_tri(KHO)}
 		self.assertNotIn(zzz, gia_tri)
+
+	def test_widget_goi_dung_o_cap_goc_van_ra_khu(self):
+		"""VÒNG SỬA 2 (điều phối, bắt được bằng cách bấm thật trên trình
+		duyệt — không bài Python nào trước đó bắt được). Đây là bài mô
+		phỏng ĐÚNG cách `frappe.ui.Tree.get_nodes()` gọi ở CẤP GỐC
+		(`tree.js:41-56`): `args.parent = value` LUÔN được gán (ở gốc,
+		`value` là `root_value`, mặc định bằng `label` — mà
+		`cay_chon_vi_tri.js` truyền `label: kho` — nên `parent` mang TÊN
+		KHO, không rỗng), và `args.is_root = is_root` LUÔN được gửi. Các
+		bài PHÍA TRÊN trong lớp này gọi `cay_chon_vi_tri(KHO)` — không
+		`parent`, không `is_root` — đó là chữ ký Python gọn ta tự nghĩ ra,
+		KHÔNG PHẢI cách widget thật sự gọi ở gốc, nên không bắt được lỗi
+		khiến cây chết trên màn hình (mọi lệnh gọi gốc đều rơi vào nhánh
+		`sl.parent_storage_location = %(parent)s` với `parent` = tên kho —
+		không khớp `Storage Location` nào, luôn ra rỗng)."""
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		nut = cay_chon_vi_tri(KHO, parent=KHO, is_root="true")
+		self.assertTrue(nut, "gọi đúng như widget ở CẤP GỐC phải ra các Khu, không rỗng")
+		self.assertTrue(all(len(n["value"]) == 2 for n in nut), "cấp gốc phải là Khu (2 ký tự)")
+		self.assertIn("7A", {n["value"] for n in nut})
+
+	def test_is_root_chuoi_false_khong_bi_hieu_nham_la_goc(self):
+		"""CHỐT ÂM của bài trên. `is_root` tới dưới dạng CHUỖI `"false"` khi
+		gọi qua HTTP (`frappe.call` gửi mọi tham số dạng chuỗi) — một
+		`if is_root:` trần sẽ coi `"false"` (chuỗi khác rỗng) là ĐÚNG, tức
+		MỌI lệnh gọi xuống nhánh cũng bị hiểu nhầm thành gốc và trả về các
+		Khu thay vì con thật của `parent`. Gọi xuống nhánh của Khu `7A`
+		(chính lớp `_Nen` dựng sẵn) với `is_root="false"` phải ra con của nó
+		(`7A01`, cấp Dãy), TUYỆT ĐỐI không được lẫn Khu (2 ký tự) nào vào."""
+		from erpnext.vi_tri_kho.vitri.gan import cay_chon_vi_tri
+
+		nut = {n["value"] for n in cay_chon_vi_tri(KHO, parent="7A", is_root="false")}
+		self.assertIn("7A01", nut)
+		self.assertTrue(all(len(v) > 2 for v in nut), "không được lẫn Khu (2 ký tự) vào nhánh")
