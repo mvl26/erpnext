@@ -33,8 +33,24 @@ và bài test khoá đúng kết quả đó.
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.model.naming import make_autoname
 
 from erpnext.vi_tri_kho.vitri.ma_vach import kiem_tra_do_dai
+
+#: Tiền tố chỉ để `make_autoname` có khoá đếm riêng; nó bị cắt khỏi giá trị lưu.
+_SERIES_SO_GOI = "SOGOI-.####"
+
+
+def _sinh_so_goi() -> str:
+	"""Số gọi 4 chữ số, bộ đếm TOÀN CỤC không reset theo năm.
+
+	Không reset vì số gọi là thứ người ta đọc cho nhau qua kho. Trùng lại sau
+	một năm là đủ để một câu nói trỏ vào hai thùng hàng khác nhau.
+
+	Vượt 9999 thì số thành 5 chữ số — nhãn phải co cỡ chữ (§6.4), KHÔNG được cắt
+	bớt số.
+	"""
+	return make_autoname(_SERIES_SO_GOI).removeprefix("SOGOI-")
 
 
 class BatchEntry(Document):
@@ -118,3 +134,67 @@ class BatchEntry(Document):
 						d.idx, d.hsd, d.ngay_san_xuat
 					)
 				)
+
+	def on_submit(self):
+		for d in self.items:
+			lo = self._dam_bao_lo(d)
+			d.db_set("lo_da_tao", lo.name, update_modified=False)
+			d.db_set("so_goi", lo.custom_so_goi, update_modified=False)
+			# `db_set` trên dòng chứng từ NHÁP: `Purchase Receipt` chưa submit nên
+			# sửa hợp lệ, và đi thẳng xuống DB để không kích lại `validate` của cả
+			# phiếu nhập (nó sẽ tính lại thuế, tỉ giá, và có thể `throw` vì một lý
+			# do không liên quan gì tới việc ta đang làm).
+			frappe.db.set_value(
+				"Purchase Receipt Item", d.dong_phieu_nhap, "batch_no", lo.name
+			)
+
+	def _dam_bao_lo(self, d):
+		"""Trả về bản ghi `Batch` cho dòng `d` — dùng lại nếu đã có.
+
+		Dùng lại chứ không tạo mới vì NCC giao làm hai đợt cùng một số lô là
+		chuyện thật. `validate` đã chặn ca số lô thuộc mặt hàng KHÁC, nên tới
+		đây mà đã tồn tại thì chắc chắn là lô của chính mặt hàng này.
+		"""
+		if frappe.db.exists("Batch", d.so_lo):
+			lo = frappe.get_doc("Batch", d.so_lo)
+			# Chỉ ĐIỀN CHỖ TRỐNG, không ghi đè: lô cũ có thể đã in tem với HSD cũ.
+			doi = False
+			for truong, gia_tri in (("expiry_date", d.hsd), ("manufacturing_date", d.ngay_san_xuat)):
+				if gia_tri and not lo.get(truong):
+					lo.set(truong, gia_tri)
+					doi = True
+			if not lo.custom_so_goi:
+				lo.custom_so_goi = _sinh_so_goi()
+				doi = True
+			if doi:
+				lo.save(ignore_permissions=True)
+			return lo
+
+		return frappe.get_doc(
+			{
+				"doctype": "Batch",
+				"batch_id": d.so_lo,
+				"item": d.vat_tu,
+				"expiry_date": d.hsd,
+				"manufacturing_date": d.ngay_san_xuat,
+				"supplier": self.nha_cung_cap,
+				"reference_doctype": "Purchase Receipt",
+				"reference_name": self.phieu_nhap,
+				"custom_so_goi": _sinh_so_goi(),
+			}
+		).insert(ignore_permissions=True)
+
+	def on_cancel(self):
+		trang_thai = frappe.db.get_value("Purchase Receipt", self.phieu_nhap, "docstatus")
+		if trang_thai != 0:
+			frappe.throw(
+				_(
+					"Phiếu nhập {0} đã duyệt nên không huỷ phiếu nhập lô được. Tồn đã ghi "
+					"theo lô rồi — muốn gỡ thì huỷ chính phiếu nhập."
+				).format(self.phieu_nhap)
+			)
+
+		for d in self.items:
+			# GỠ `batch_no`, GIỮ bản ghi `Batch`. Tem có thể đã in và đang dán trên
+			# thùng hàng; xoá bản ghi biến tờ tem đó thành rác không tra được.
+			frappe.db.set_value("Purchase Receipt Item", d.dong_phieu_nhap, "batch_no", None)

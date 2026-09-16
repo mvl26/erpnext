@@ -124,3 +124,157 @@ class TestValidate(FrappeTestCase):
 		)
 		with self.assertRaises(frappe.ValidationError):
 			be.insert(ignore_permissions=True)
+
+
+class TestSubmit(FrappeTestCase):
+	def setUp(self):
+		self.ncc = _ncc_thu()
+		self.item = _tao_item("_Test NhapLo Co Lo", co_lo=1)
+		self.kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+		self.pr = _phieu_nhap_nhap(self.item, self.kho, self.ncc)
+		self.dong_pr = self.pr.items[0].name
+
+	def _dong(self, **ghi_de):
+		d = {
+			"dong_phieu_nhap": self.dong_pr,
+			"vat_tu": self.item,
+			"kho": self.kho,
+			"so_luong": 10,
+			"so_lo": "LO-TEST-01",
+			"hsd": "2030-01-31",
+		}
+		d.update(ghi_de)
+		return d
+
+	def test_submit_tao_lo_day_du(self):
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-SUBMIT-1")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+		lo = frappe.get_doc("Batch", "LO-SUBMIT-1")
+		self.assertEqual(lo.item, self.item)
+		self.assertEqual(str(lo.expiry_date), "2030-01-31")
+		self.assertEqual(lo.supplier, self.ncc)
+		self.assertEqual(lo.reference_doctype, "Purchase Receipt")
+		self.assertEqual(lo.reference_name, self.pr.name)
+		self.assertTrue(lo.custom_so_goi)
+
+	def test_submit_ghi_batch_no_len_dong_phieu_nhap(self):
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-SUBMIT-2")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+		self.assertEqual(
+			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
+			"LO-SUBMIT-2",
+		)
+
+	def test_phieu_nhap_submit_sau_do_khong_sinh_lo_may_nao_nua(self):
+		"""Đây là bài chứng minh cả thiết kế chạy được.
+
+		Nếu `batch_no` không tới được `stock_controller`, ERPNext sẽ tự sinh một
+		lô theo `batch_number_series` của mặt hàng và số lô của NCC thành vô dụng
+		— đúng thứ cả khối C sinh ra để tránh.
+		"""
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-SUBMIT-3")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+		truoc = frappe.db.count("Batch", {"item": self.item})
+		self.pr.reload()
+		self.pr.submit()
+		self.assertEqual(frappe.db.count("Batch", {"item": self.item}), truoc)
+
+	def test_so_goi_khac_nhau_giua_hai_lo(self):
+		"""Số gọi là thứ người ta ĐỌC CHO NHAU qua kho. Trùng nhau thì câu nói
+		trỏ vào hai thùng hàng khác nhau."""
+		be1 = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-GOI-1")])
+		be1.insert(ignore_permissions=True)
+		be1.submit()
+
+		# Lô thứ hai phải thuộc một DÒNG PHIẾU NHẬP khác (§5.4: một dòng chỉ
+		# nhận một lô) nên dựng một phiếu nhập thứ hai cho cùng mặt hàng.
+		pr2 = _phieu_nhap_nhap(self.item, self.kho, self.ncc)
+		be2 = frappe.get_doc(
+			{
+				"doctype": "Batch Entry",
+				"phieu_nhap": pr2.name,
+				"items": [
+					{
+						"dong_phieu_nhap": pr2.items[0].name,
+						"vat_tu": self.item,
+						"kho": self.kho,
+						"so_luong": 10,
+						"so_lo": "LO-GOI-2",
+						"hsd": "2030-01-31",
+					}
+				],
+			}
+		)
+		be2.insert(ignore_permissions=True)
+		be2.submit()
+
+		so_goi_1 = frappe.db.get_value("Batch", "LO-GOI-1", "custom_so_goi")
+		so_goi_2 = frappe.db.get_value("Batch", "LO-GOI-2", "custom_so_goi")
+		self.assertTrue(so_goi_1)
+		self.assertTrue(so_goi_2)
+		self.assertNotEqual(so_goi_1, so_goi_2)
+
+	def test_dung_lai_lo_da_co_cua_chinh_mat_hang_nay(self):
+		"""NCC giao làm hai đợt cùng một số lô. Không tạo mới, không nổ khoá
+		chính — dùng lại, và điền HSD nếu lô cũ còn trống."""
+		lo_cu = frappe.get_doc(
+			{"doctype": "Batch", "batch_id": "LO-DOT-2B", "item": self.item}
+		).insert(ignore_permissions=True)
+		self.assertFalse(lo_cu.expiry_date)
+		self.assertFalse(lo_cu.custom_so_goi)
+
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-DOT-2B")])
+		be.insert(ignore_permissions=True)
+		# Không được nổ DuplicateEntryError — "LO-DOT-2B" đã là tên một
+		# bản ghi Batch. Submit lỗi tức là mã đang cố TẠO MỚI thay vì DÙNG LẠI.
+		be.submit()
+
+		# Đúng MỘT bản ghi Batch tên này tồn tại — không có bản ghi đè lên.
+		self.assertEqual(frappe.db.count("Batch", {"name": "LO-DOT-2B"}), 1)
+
+		lo = frappe.get_doc("Batch", "LO-DOT-2B")
+		self.assertEqual(str(lo.expiry_date), "2030-01-31")
+		self.assertTrue(lo.custom_so_goi)
+
+	def test_huy_khi_phieu_nhap_con_nhap_thi_go_batch_no_va_GIU_lo(self):
+		"""Không xoá `Batch`: tem có thể đã in và đang dán trên thùng hàng. Xoá
+		bản ghi biến tem thành rác không tra được."""
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-HUY-1")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+		self.assertEqual(
+			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
+			"LO-HUY-1",
+		)
+
+		be.cancel()
+
+		# Vế 1: batch_no bị GỠ khỏi dòng phiếu nhập.
+		self.assertFalse(
+			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no")
+		)
+		# Vế 2: bản ghi Batch vẫn CÒN — thiếu vế này thì một cài đặt xoá luôn
+		# `Batch` khi huỷ vẫn làm bài xanh.
+		self.assertTrue(frappe.db.exists("Batch", "LO-HUY-1"))
+
+	def test_huy_khi_phieu_nhap_da_submit_thi_chan(self):
+		"""Tồn đã ghi theo lô. Gỡ lô khỏi một chứng từ đã submit là việc của
+		`Purchase Receipt.cancel`, không phải của phiếu này."""
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-HUY-2")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+
+		self.pr.reload()
+		self.pr.submit()
+
+		with self.assertRaises(frappe.ValidationError):
+			be.cancel()
+
+		# Chặn phải xảy ra TRƯỚC khi gỡ batch_no — dòng phiếu nhập còn nguyên.
+		self.assertEqual(
+			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
+			"LO-HUY-2",
+		)
