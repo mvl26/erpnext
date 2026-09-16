@@ -430,3 +430,4 @@ erpnext.patches.v15_0.add_tbyt_module_def
 erpnext.patches.v15_0.seed_tbyt_document_types
 erpnext.patches.v15_0.add_supply_notification_module_def
 erpnext.patches.v15_0.seed_supply_notification_points
+erpnext.patches.v15_0.disable_email_guard_server_scripts

@@ -102,6 +102,7 @@
   "issued_time",
   "official_pdf",
   "public_pdf_url",
+  "official_xml",
   "converted_pdf",
   "delivery_section",
   "invoice_sent_to",
@@ -756,6 +757,13 @@
    "read_only": 1
   },
   {
+   "depends_on": "eval:doc.fast_invoice_no",
+   "description": "API Fast chưa có lệnh tải XML — tải file XML trên portal Fast rồi đính vào đây. Bắt buộc có trước khi ERP gửi hóa đơn cho khách (email kèm cả PDF và XML).",
+   "fieldname": "official_xml",
+   "fieldtype": "Attach",
+   "label": "XML hóa đơn"
+  },
+  {
    "fieldname": "converted_pdf",
    "fieldtype": "Attach",
    "label": "PDF chuyển đổi",
@@ -863,7 +871,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 0,
  "links": [],
- "modified": "2026-09-16 19:00:00.000000",
+ "modified": "2026-09-16 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Einvoice",
  "name": "Fast EInvoice Document",

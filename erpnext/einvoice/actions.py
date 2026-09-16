@@ -28,6 +28,7 @@ from erpnext.einvoice.constants import (
 from erpnext.einvoice.errors import describe_error
 from erpnext.einvoice.fast_client import decode_message
 from erpnext.einvoice.fast_settings import check_enabled, get_settings
+from erpnext.einvoice.folders import invoice_folder, move_invoice_files
 from erpnext.einvoice.gateway import call_fast
 from erpnext.einvoice.payload import build_payload
 from erpnext.einvoice.setup import DRAFT_TEMPLATE, ISSUED_TEMPLATE
@@ -130,8 +131,20 @@ def _attach_pdf(doc, base64_message, filename, is_private=1):
 	from frappe.utils.file_manager import save_file
 
 	content = decode_message(base64_message)
-	saved = save_file(filename, content, FEI, doc.name, is_private=is_private)
+	folder = invoice_folder(doc)
+	saved = save_file(filename, content, FEI, doc.name, folder=folder, is_private=is_private)
+	_keep_in_folder(saved, folder)
 	return saved.file_url
+
+
+def _keep_in_folder(saved, folder):
+	"""Ép file về đúng thư mục hóa đơn.
+
+	``save_file`` gặp file cùng nội dung đã đính vào chính chứng từ đó thì trả lại
+	bản ghi File cũ — thư mục cũ vẫn giữ nguyên (thường là ``Home/Attachments``).
+	"""
+	if saved.folder != folder:
+		frappe.db.set_value("File", saved.name, "folder", folder, update_modified=False)
 
 
 def _draft_filename(doc):
@@ -433,6 +446,9 @@ def download_official_pdf(fei, client=None):
 			"Delivery Note", doc.delivery_note, "fast_einvoice_pdf_url", public_url, update_modified=False
 		)
 
+	# Hóa đơn phát hành từ trước khi có cây thư mục: gom bản nháp cũ về cùng chỗ với PDF chính thức.
+	move_invoice_files(doc.name)
+
 	return {"ok": True, "file_url": file_url, "public_url": public_url}
 
 
@@ -613,7 +629,13 @@ def _assert_pdf_throttle():
 def _attach_pdf_to(doc, base64_message, filename, doctype, name, is_private=1):
 	from frappe.utils.file_manager import save_file
 
-	return save_file(filename, decode_message(base64_message), doctype, name, is_private=is_private).file_url
+	# Bản trên phiếu giao nằm cùng thư mục hóa đơn — một hóa đơn, một chỗ tìm.
+	folder = invoice_folder(doc)
+	saved = save_file(
+		filename, decode_message(base64_message), doctype, name, folder=folder, is_private=is_private
+	)
+	_keep_in_folder(saved, folder)
+	return saved.file_url
 
 
 # --- Nút 10 — gửi hóa đơn chính thức cho khách hàng (mục E7) ----------------
@@ -649,10 +671,14 @@ def send_invoice_to_customer(
 
 
 def _send_invoice_via_erp(doc, to, cc, subject, message, mailer):
+	"""Email gửi khách luôn kèm đủ hai file: PDF để đọc, XML là hóa đơn điện tử gốc có chữ ký số."""
+	missing = []
 	if not doc.official_pdf:
-		frappe.throw(
-			_("Chưa tải PDF chính thức — bấm “Tải PDF” trước, nếu không khách nhận email không có hóa đơn.")
-		)
+		missing.append(_("PDF chính thức (bấm “Tải PDF chính thức”)"))
+	if not doc.official_xml:
+		missing.append(_("XML hóa đơn (tải trên portal Fast rồi đính vào trường “XML hóa đơn”)"))
+	if missing:
+		frappe.throw(_("Chưa đủ file để gửi khách — còn thiếu: {0}.").format("; ".join(missing)))
 
 	rendered = _render_template(ISSUED_TEMPLATE, doc, subject, message)
 	log = _open_email_log(doc, _("Gửi hóa đơn chính thức cho khách"), to)
@@ -662,7 +688,7 @@ def _send_invoice_via_erp(doc, to, cc, subject, message, mailer):
 		cc=_recipient_list(cc),
 		subject=rendered["subject"],
 		message=rendered["message"],
-		attachments=[{"file_url": doc.official_pdf}],
+		attachments=[{"file_url": doc.official_pdf}, {"file_url": doc.official_xml}],
 		reference_doctype=FEI,
 		reference_name=doc.name,
 	)

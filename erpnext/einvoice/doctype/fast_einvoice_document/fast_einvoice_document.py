@@ -110,6 +110,27 @@ class FastEInvoiceDocument(Document):
 		self._validate_fast_key_is_immutable()
 		self._validate_lineage()
 		self._guard_locked_data()
+		self._validate_official_xml()
+
+	def on_update(self):
+		if self.official_xml and self.has_value_changed("official_xml"):
+			from erpnext.einvoice.folders import place_attached_file
+
+			place_attached_file(self, self.official_xml)
+
+	def _validate_official_xml(self):
+		"""XML hóa đơn: chỉ nhận file ``.xml``, và chỉ khi hóa đơn đã có số.
+
+		API Fast không có lệnh tải XML (tài liệu API chỉ có PDF 380/385), nên kế
+		toán tải XML trên portal Fast rồi đính vào đây. Hóa đơn chưa phát hành thì
+		chưa có XML thật nào — chặn để khỏi đính nhầm file khác.
+		"""
+		if not self.official_xml:
+			return
+		if not self.fast_invoice_no:
+			frappe.throw(_("Hóa đơn chưa phát hành (chưa có số) nên chưa có XML để đính kèm."))
+		if not self.official_xml.split("?")[0].lower().endswith(".xml"):
+			frappe.throw(_("File XML hóa đơn phải có đuôi .xml."))
 
 	def on_trash(self):
 		"""Gỡ chứng từ ra khỏi mọi thứ đang trỏ tới nó, rồi mới để Frappe xóa.

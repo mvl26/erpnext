@@ -56,6 +56,7 @@ _RESULT_FIELDS = (
 	"issued_time",
 	"official_pdf",
 	"public_pdf_url",
+	"official_xml",
 	"converted_pdf",
 	"draft_pdf",
 	"draft_pdf_time",
