@@ -35,7 +35,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.model.naming import make_autoname
 
-from erpnext.vi_tri_kho.vitri.ma_vach import kiem_tra_do_dai
+from erpnext.vi_tri_kho.vitri.ma_vach import kiem_tra_do_dai, kiem_tra_ky_tu
 
 #: Tiền tố chỉ để `make_autoname` có khoá đếm riêng; nó bị cắt khỏi giá trị lưu.
 _SERIES_SO_GOI = "SOGOI-.####"
@@ -144,6 +144,11 @@ class BatchEntry(Document):
 			if not d.so_lo:
 				frappe.throw(_("Dòng {0}: chưa có số lô.").format(d.idx))
 
+			# Ký tự TRƯỚC, độ dài sau: một số lô có dấu tiếng Việt vừa sai ký tự
+			# vừa có thể quá dài, mà câu báo về ký tự là câu chỉ đúng việc phải
+			# làm (gõ lại không dấu). Báo độ dài trước thì thủ kho đi cắt bớt ký
+			# tự — và số lô cắt bớt là số lô sai dán lên hàng.
+			kiem_tra_ky_tu(d.so_lo, _("lô"))
 			kiem_tra_do_dai(d.so_lo, _("lô"))
 
 			chu_lo = frappe.db.get_value("Batch", d.so_lo, "item")

@@ -42,6 +42,30 @@ class TestValidate(FrappeTestCase):
 		d.update(ghi_de)
 		return d
 
+	def test_so_lo_co_ky_tu_ngoai_ascii_bi_chan_ngay_o_validate(self):
+		"""Khoá DÂY NỐI giữa `BatchEntry.validate` và `ma_vach.kiem_tra_ky_tu`.
+
+		`test_ma_vach` đã khoá bản thân phép kiểm; bài này khoá việc nó ĐƯỢC GỌI.
+		Nếu dây nối đứt thì phiếu lưu được, và tới lúc in thì JsBarcode ném lỗi,
+		`barcode.js` nuốt lỗi, SVG giữ nguyên nội dung lần vẽ trước — tem của lô
+		này in ra mã vạch của lô LIỀN TRƯỚC trong cùng xấp, không một dấu hiệu
+		nào. Đã tái hiện được trên trình duyệt.
+		"""
+		for xau in ("LÔ-2026", "7Fr\u20132026"):
+			with self.subTest(so_lo=xau):
+				be = _phieu_nhap_lo(self.pr, [self._dong(so_lo=xau)])
+				with self.assertRaises(frappe.ValidationError) as ctx:
+					be.insert(ignore_permissions=True)
+				# Câu báo phải nêu đích danh ký tự vi phạm, không phải câu chung
+				# chung — xem docstring `kiem_tra_ky_tu`.
+				self.assertIn("U+", str(ctx.exception))
+
+	def test_so_lo_ascii_thuan_van_luu_duoc(self):
+		"""Vế còn lại: phép kiểm ký tự KHÔNG được chặn nhầm số lô hợp lệ."""
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LOT-2026-A45")])
+		be.insert(ignore_permissions=True)
+		self.assertEqual(be.items[0].so_lo, "LOT-2026-A45")
+
 	def test_phieu_hop_le_thi_luu_duoc(self):
 		be = _phieu_nhap_lo(self.pr, [self._dong()])
 		be.insert(ignore_permissions=True)

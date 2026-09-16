@@ -19,11 +19,16 @@ from frappe import _
 #: khung. Đây là giá trị DUY NHẤT dùng được trên ZD421 — xem spec §6.2.
 X_MM = 0.25
 
-#: Bố cục A (theo mockup SPD): mã vạch nằm ở cột trái, rộng 28,0 mm.
-MODULE_BO_CUC_A = int(28.0 / X_MM)  # 112
-
-#: Bố cục B: mã vạch chiếm hết chiều ngang vùng in an toàn, 47,0 mm.
-MODULE_BO_CUC_B = int(47.0 / X_MM)  # 188
+#: Trần số module vẽ được: mã vạch chiếm hết chiều ngang vùng in an toàn của
+#: nhãn 50×30 (47,0 mm) ở bề rộng module bắt buộc 0,25 mm.
+#:
+#: Trước đây có thêm `MODULE_BO_CUC_A = int(28.0 / X_MM)` cho một bố cục đặt mã
+#: vạch ở cột trái 29,4 mm. BỐ CỤC ĐÓ ĐÃ BỊ BỎ và hằng số đó đã xoá: Code 128
+#: cần vùng yên tĩnh ≥ 10 module = 2,5 mm mỗi đầu, nên 112 module cần
+#: 28,0 + 2,5 + 2,5 = 33,0 mm mà cột đó chỉ có 29,4 mm — thiếu 3,6 mm và không
+#: cách nào bù. Giữ lại một hằng số quảng cáo rằng "có hỗ trợ bố cục A" chính
+#: là thứ khiến người sau khôi phục nó cho giống mockup.
+MODULE_TOI_DA = int(47.0 / X_MM)  # 188
 
 #: start (11) + checksum (11) + stop (13). Không phụ thuộc dữ liệu.
 _MODULE_CO_DINH = 35
@@ -51,6 +56,49 @@ def so_module(s: str) -> int:
 	return _MODULE_CO_DINH + _MODULE_MOI_KY_HIEU * so_ky_hieu(s)
 
 
+#: Code 128 chỉ mã hoá được ASCII. `CODE128.valid()` của JsBarcode là
+#: `/^[\x00-\x7F\xC8-\xD3]+$/` — dải `\xC8-\xD3` là các ký hiệu điều khiển
+#: nội bộ (FNC1…) mà người dùng không bao giờ gõ, nên với dữ liệu nhập tay thì
+#: điều kiện thực tế là: MỌI ký tự phải < U+0080.
+_MA_HOA_DUOC_TOI_DA = 0x7F
+
+
+def kiem_tra_ky_tu(s: str, nhan: str) -> None:
+	"""`throw` nếu `s` có ký tự Code 128 không mã hoá được, NÊU ĐÍCH DANH ký tự đó.
+
+	VÌ SAO PHẢI CHẶN TỪ ĐÂY chứ không để tới lúc in: JsBarcode ném lỗi khi gặp
+	ký tự ngoài ASCII, `frappe/form/controls/barcode.js` NUỐT lỗi đó, và phần tử
+	SVG giữ nguyên nội dung của lần vẽ TRƯỚC. Hệ quả đã tái hiện được: tem của
+	lô `LÔ-2026` in chữ `LÔ-2026` dưới mã vạch, còn mã vạch quét ra `25L4125` —
+	số lô của con tem liền trước trong cùng xấp. Phía JS nay đã chặn
+	(`_ve_vao_control` ở `tem_vi_tri.js`, và nhánh "đo hỏng" ở `tem_lo.js` bỏ
+	hẳn mã vạch), nhưng lúc ấy thủ kho đã gõ xong số lô và phiếu đã submit. Chặn
+	ở `validate` là chặn lúc người ta còn đang nhìn ô nhập.
+
+	Câu báo phải NÊU ĐÍCH DANH ký tự và vị trí. "Số lô có ký tự không mã hoá
+	được" là câu khiến thủ kho xoá bừa vài ký tự rồi thử lại — mà số lô cắt bớt
+	là số lô SAI dán lên hàng. Hai thủ phạm hay gặp nhất là dấu tiếng Việt và
+	dấu gạch ngang dài `–` (U+2013) dán từ phiếu đóng gói của nhà cung cấp, nên
+	câu báo nói thẳng cả hai.
+	"""
+	if not s:
+		return
+
+	for i, c in enumerate(s):
+		if ord(c) <= _MA_HOA_DUOC_TOI_DA:
+			continue
+		frappe.throw(
+			_(
+				"Số {0} '{1}' có ký tự '{2}' (U+{3:04X}) ở vị trí {4} — mã vạch Code 128 "
+				"không mã hoá được ký tự này, nên nhãn sẽ không có mã vạch để quét. "
+				"Code 128 chỉ nhận chữ cái không dấu, chữ số và dấu câu ASCII. Hai thứ "
+				"hay lọt vào nhất là DẤU TIẾNG VIỆT và dấu gạch ngang dài '–' (U+2013) "
+				"dán từ phiếu của nhà cung cấp — hãy gõ lại bằng dấu trừ '-' thường. "
+				"ĐỪNG xoá bớt ký tự: số lô cắt bớt là số lô sai dán lên hàng."
+			).format(nhan, s, c, ord(c), i + 1)
+		)
+
+
 def kiem_tra_do_dai(s: str, nhan: str) -> None:
 	"""`throw` nếu `s` không vẽ nổi trong vùng in, kèm CON SỐ cụ thể.
 
@@ -61,7 +109,7 @@ def kiem_tra_do_dai(s: str, nhan: str) -> None:
 	lô cắt bớt là số lô SAI dán lên hàng.
 	"""
 	m = so_module(s)
-	if m <= MODULE_BO_CUC_B:
+	if m <= MODULE_TOI_DA:
 		return
 
 	frappe.throw(
@@ -70,5 +118,5 @@ def kiem_tra_do_dai(s: str, nhan: str) -> None:
 			"chứa được {4} module. Giới hạn thực tế: 26 chữ số (độ dài chẵn), "
 			"23 chữ số (độ dài lẻ), hoặc 13 ký tự nếu có chữ. Không thu nhỏ mã vạch "
 			"được: dưới 2 dot trên máy in nhiệt thì máy quét đọc ra SAI ký tự."
-		).format(nhan, s, len(s), m, MODULE_BO_CUC_B)
+		).format(nhan, s, len(s), m, MODULE_TOI_DA)
 	)

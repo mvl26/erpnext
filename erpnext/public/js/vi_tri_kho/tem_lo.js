@@ -261,9 +261,35 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 	function ke_hoach_vach(may, ma) {
 		const m = so_module(may, ma);
 
-		// ĐO HỎNG (m = 0): vẽ trọn bề rộng. Không có cách nào đúng hơn, và
-		// rộng hơn thì ít nhất module không bị bóp.
-		const rong = m ? Math.min(m * X_MM, KHO.vach_rong) : KHO.vach_rong;
+		// ĐO HỎNG (m = 0) — KHÔNG IN MÃ VẠCH NÀO, và nói thẳng ra.
+		//
+		// Bản trước vẽ trọn 47,0mm ở nhánh này. Đó là MẶT THỨ HAI của cùng lỗi
+		// mà `_ve_vao_control` chặn ở `tem_vi_tri.js`: chú thích cũ viết "bên
+		// gọi phải hiểu 0 là ĐO HỎNG", nhưng bên gọi không hiểu thế — nó cứ
+		// thế kéo giãn một mã ra 47mm. Vá một đầu mà không vá đầu này thì lỗi
+		// chỉ đổi dạng, từ "mã vạch của lô khác" thành "mã vạch bị kéo giãn
+		// trong im lặng".
+		//
+		// THÀ KHÔNG CÓ MÃ VẠCH CÒN HƠN CÓ MỘT MÃ SAI: không quét được thì người
+		// ta gõ tay theo F11 (số lô in nguyên văn dưới mã vạch); quét ra SAI
+		// thì không ai biết để mà gõ lại.
+		if (!m) {
+			frappe.msgprint({
+				title: __("KHÔNG in được mã vạch cho lô này"),
+				indicator: "red",
+				message: __(
+					"Số lô {0} có ký tự mà Code 128 không mã hoá được — Code 128 chỉ nhận " +
+						"ký tự ASCII, còn dấu tiếng Việt và dấu gạch ngang dài “–” (hay bị dán " +
+						"từ phiếu của nhà cung cấp) thì không. Nhãn vẫn in, nhưng CHỪA TRỐNG " +
+						"chỗ mã vạch: số lô vẫn đọc được bằng mắt ở dòng dưới. Sửa số lô thành " +
+						"ký tự ASCII rồi in lại.",
+					[esc(ma)]
+				),
+			});
+			return { so_module: 0, k_ve: Object.assign({}, KHO) };
+		}
+
+		const rong = Math.min(m * X_MM, KHO.vach_rong);
 
 		if (m > TRAN_VE_DUOC) {
 			frappe.msgprint({
@@ -359,12 +385,17 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 			? `@page { size: ${KHO.rong}mm ${KHO.cao}mm; margin: 0; }
 	.tem { page-break-after: always; break-after: page; }
 	/* Không có dòng này thì máy nhả thêm một con tem TRẮNG ở cuối mỗi xấp. */
-	.tem:last-child { page-break-after: auto; break-after: auto; }`
-			: // `outline` chu KHONG `border`: border (voi box-sizing: border-box)
-			  // an 0,2mm moi phia vao chinh vung in, nen o xem truoc se co bo cuc
-			  // LECH voi to giay se in ra - do duoc 0,26mm o moi le va 0,53mm be
-			  // ngang. O xem truoc khac to in la o xem truoc mat y nghia.
-			  // outline khong chiem cho trong bo cuc.
+	/* :last-of-type chứ KHÔNG phải :last-child — phần tử con CUỐI CÙNG của
+	   <body> là thẻ <script> gọi window.print(), nên :last-child không bao giờ
+	   khớp một con tem nào và cái lưới đỡ mô tả ở dòng trên CHƯA TỪNG chạy.
+	   Hôm nay không lộ ra vì Chrome tự bỏ trang trắng cuối, nhưng đó là may
+	   mắn của một engine cụ thể, không phải điều ta đặt ra. */
+	.tem:last-of-type { page-break-after: auto; break-after: auto; }`
+			: // `outline` chứ KHÔNG `border`: border (với box-sizing: border-box)
+			  // ăn 0,2mm mỗi phía vào chính vùng in, nên ô xem trước sẽ có bố cục
+			  // LỆCH với tờ giấy sẽ in ra — đo được 0,26mm ở mỗi lề và 0,53mm bề
+			  // ngang. Ô xem trước khác tờ in là ô xem trước mất ý nghĩa.
+			  // `outline` không chiếm chỗ trong bố cục.
 			  `.tem { outline: 0.2mm dashed #b8b8b8; outline-offset: -0.2mm; }`;
 
 		return `
@@ -376,54 +407,52 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 		display: flex; flex-direction: column;
 		background: #fff; color: #000;
 		font-family: Arial, Helvetica, sans-serif;
-		/* Chu so cung be rong: HSD, ngay nhap, so goi va so lo deu la so, va so
-		   rong bang nhau thi be rong o doan truoc duoc - do la dieu kien de
-		   phep do tren trinh duyet co nghia cho MOI lo chu khong chi cho lo
-		   vua do. */
+		/* Chữ số cùng bề rộng: HSD, ngày nhập, số gọi và số lô đều là số, mà số
+		   rộng bằng nhau thì bề rộng ô đoán trước được — đó là điều kiện để phép
+		   đo trên trình duyệt có nghĩa cho MỌI lô chứ không chỉ cho lô vừa đo. */
 		font-variant-numeric: tabular-nums;
-		/* Luoi do cuoi cung: mot con tem TRAN khong chi xau - tren cuon lien
-		   tuc no day lech MOI con tem in sau no. Nhung day la luoi DO, khong
-		   phai phep kiem: no nuot phan tran trong im lang, nen phep do tung o
-		   bang Range moi la thu bat duoc loi. */
+		/* Lưới đỡ cuối cùng: một con tem TRÀN không chỉ xấu — trên cuộn liên tục
+		   nó đẩy lệch MỌI con tem in sau nó. Nhưng đây là lưới ĐỠ, không phải
+		   phép kiểm: nó nuốt phần tràn trong im lặng, nên phép đo từng ô bằng
+		   Range mới là thứ bắt được lỗi. */
 		overflow: hidden;
 	}
-	/* flex: 0 0 auto tren MOI hang - KHONG phai thua. Xem luat 1 dau file. */
+	/* flex: 0 0 auto trên MỌI hàng — KHÔNG phải thừa. Xem luật 1 đầu file. */
 	.tem .hang {
 		flex: 0 0 auto;
 		min-width: 0;
-		/* min-height: 0 la ve DOC cua luat min-width: 0, va no can thiet vi
-		   cung mot ly do. Flex item mac dinh min-height: auto, tuc KHONG co
-		   xuong duoi chieu cao noi dung. Mot co chu qua to se NONG hang do ra
-		   thay vi bi cat: cac hang duoi bi day xuong, ma vach tut ra khoi vung
-		   in, va overflow: hidden o .tem nuot phan thua. Voi min-height: 0 thi
-		   chu qua to bi CAT trong o cua no va phep do bat duoc ngay. */
+		/* min-height: 0 là vế DỌC của luật min-width: 0, và nó cần thiết vì cùng
+		   một lý do. Flex item mặc định là min-height: auto, tức KHÔNG co xuống
+		   dưới chiều cao nội dung. Một cỡ chữ quá to sẽ NỐNG hàng đó ra thay vì
+		   bị cắt: các hàng dưới bị đẩy xuống, mã vạch tụt ra khỏi vùng in, và
+		   overflow: hidden ở .tem nuốt phần thừa. Với min-height: 0 thì chữ quá
+		   to bị CẮT trong ô của nó và phép đo bắt được ngay. */
 		min-height: 0;
-		/* align-items: center, KHONG phai baseline.
-		   Voi baseline, hop dong (line-height 1 = 1,0em) bam DINH hang, con hop
-		   CHU that (dinh ascender -> day descender) cao khoang 1,15em nen no
-		   tho ra 0,18mm PHIA TREN dinh hang - tuc dam vao hang o tren. Da do
-		   duoc 0,18mm giua F5 va hang duoi no. Voi center, hop chu nam giua
-		   hang, nen chi can "hang >= hop chu" (luat o khoi hang so) la chu nam
-		   TRON trong hang. */
+		/* align-items: center, KHÔNG phải baseline.
+		   Với baseline, hộp DÒNG (line-height 1 = 1,0em) bám ĐỈNH hàng, còn hộp
+		   CHỮ thật (đỉnh ascender → đáy descender) cao khoảng 1,15em nên nó thò
+		   ra 0,18mm PHÍA TRÊN đỉnh hàng — tức đâm vào hàng ở trên. Đã đo được
+		   0,18mm giữa F5 và hàng dưới nó. Với center, hộp chữ nằm giữa hàng, nên
+		   chỉ cần "hàng ≥ hộp chữ" (luật ở khối hằng số) là chữ nằm TRỌN. */
 		display: flex; align-items: center;
-		/* KHONG dat overflow: hidden o HANG.
-		   Ngan sach 27,0mm chi con 0,503mm du sau khi tru san chieu cao cua bay
-		   hang, nen nam hang chi con khoang 0,08mm bien. Neu HANG tu cat thi
-		   phan do bi xen - dung vao chan cac dau tieng Viet dam xuong. Cat chu
-		   la viec cua tung O (moi span da co overflow: hidden kem ellipsis, cat
-		   theo chieu NGANG dung cho no), con luoi do cuoi cung van la
-		   overflow: hidden o .tem. Hang o giua khong can cat gi. */
+		/* KHÔNG đặt overflow: hidden ở HÀNG.
+		   Ngân sách 27,0mm chỉ còn dư 0,503mm sau khi trừ sàn chiều cao của bảy
+		   hàng, nên năm hàng chỉ còn khoảng 0,08mm biên. Nếu HÀNG tự cắt thì
+		   phần đó bị xén — đúng vào chân các dấu tiếng Việt đâm xuống. Cắt chữ
+		   là việc của từng Ô (mỗi span đã có overflow: hidden kèm ellipsis, cắt
+		   theo chiều NGANG đúng cho nó), còn lưới đỡ cuối cùng vẫn là
+		   overflow: hidden ở .tem. Hàng ở giữa không cần cắt gì. */
 	}
-	/* min-width: 0 tren moi o chu - chan mot loi IM LANG. Xem luat 2 dau file.
-	   Cat bang "..." chu khong cat tran: mot so lo cut trong y nhu so lo that
-	   va nguoi ta go nham no, con "25L4..." thi nhin la biet chua doc het. */
+	/* min-width: 0 trên mọi ô chữ — chặn một lỗi IM LẶNG. Xem luật 2 đầu file.
+	   Cắt bằng "…" chứ không cắt trần: một số lô cụt trông y như số lô thật và
+	   người ta gõ nhầm nó, còn "25L4…" thì nhìn là biết chưa đọc hết. */
 	.tem .f1, .tem .f2, .tem .f3, .tem .f4, .tem .f5,
 	.tem .f6, .tem .f7, .tem .f8, .tem .f11 {
 		min-width: 0;
 		white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 		line-height: 1;
 	}
-	/* Khoi giua: hai cot. 27,0 + 0,6 + 19,4 = 47,0mm dung bang vung in. */
+	/* Khối giữa: hai cột. 27,0 + 0,6 + 19,4 = 47,0mm đúng bằng vùng in. */
 	.tem .giua {
 		height: ${KHO.hang[3] + KHO.hang[4]}mm;
 		flex: 0 0 auto; min-height: 0;
@@ -440,22 +469,22 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 		display: flex; flex-direction: column;
 		position: relative;
 	}
-	/* Duong ke ve bang LOP PHU TUYET DOI, khong bang border.
-	   border an vao ngan sach 27,0mm / 47,0mm da can dung o khoi hang so, va
-	   thu bi an mat la chieu cao cua mot hang chu - cat trong im lang duoi
-	   overflow: hidden. Lop phu thi ton 0 mm bo cuc.
-	   0,25mm = 2 dot chan tren dau in 203 dpi: net roi dung luoi dot thay vi
-	   lech nua dot roi ra net manh cho dam cho nhat. */
+	/* Đường kẻ vẽ bằng LỚP PHỦ TUYỆT ĐỐI, không bằng border.
+	   border ăn vào ngân sách 27,0mm / 47,0mm đã cân đúng ở khối hằng số, và
+	   thứ bị ăn mất là chiều cao của một hàng chữ — cắt trong im lặng dưới
+	   overflow: hidden. Lớp phủ thì tốn 0mm bố cục.
+	   0,25mm = 2 dot chẵn trên đầu in 203 dpi: nét rơi đúng lưới dot thay vì
+	   lệch nửa dot rồi ra nét mảnh chỗ đậm chỗ nhạt. */
 	.tem .giua::before, .tem .h6::before {
 		content: ""; position: absolute; left: 0; right: 0; top: 0;
 		height: 0.25mm; background: #000;
 	}
 	.tem .h6 { position: relative; }
-	/* Duong ke DOC ve tu KHOI CHA, khong ve tu .cot-phai.
-	   Do duoc: dat no tren .cot-phai thi no BIEN MAT, vi .cot-phai cung mang
-	   .o-f9 (overflow: hidden) va net ke nam ngoai hop - bi chinh o do cat
-	   mat. Khong co loi nao bao, chi la mot duong ke co o nhan nay va khong co
-	   o nhan kia. Ve tu khoi cha thi net nam trong hop cua khoi cha. */
+	/* Đường kẻ DỌC vẽ từ KHỐI CHA, không vẽ từ .cot-phai.
+	   Đo được: đặt nó trên .cot-phai thì nó BIẾN MẤT, vì .cot-phai cũng mang
+	   .o-f9 (overflow: hidden) và nét kẻ nằm ngoài hộp — bị chính ô đó cắt mất.
+	   Không có lỗi nào báo, chỉ là một đường kẻ có ở nhãn này và không có ở
+	   nhãn kia. Vẽ từ khối cha thì nét nằm trong hộp của khối cha. */
 	.tem .giua::after {
 		content: ""; position: absolute; top: 0; bottom: 0;
 		left: ${KHO.cot_trai + KHO.gap / 2 - 0.125}mm;
@@ -469,10 +498,10 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 	.tem .f6 { flex: 1 1 auto; }
 	.tem .f7 { flex: 0 1 auto; }
 	.tem .f8 { flex: 0 1 auto; font-weight: 700; }
-	/* F8 va F7 day ve hai dau hang R6. */
+	/* F8 và F7 đẩy về hai đầu hàng R6. */
 	.tem .h6 { justify-content: space-between; }
-	/* O F9 (so goi): can giua ca hai chieu, cat trong o cua no.
-	   .cot-phai da la flex cot, .o-f9 chi them can giua. */
+	/* Ô F9 (số gọi): căn giữa cả hai chiều, cắt trong ô của nó.
+	   .cot-phai đã là flex cột, .o-f9 chỉ thêm căn giữa. */
 	.tem .o-f9 {
 		display: flex; align-items: center; justify-content: center;
 		overflow: hidden;
@@ -482,29 +511,29 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 		white-space: nowrap; min-width: 0;
 		overflow: hidden; text-overflow: ellipsis;
 	}
-	/* Khoi ma vach: vach tren, F11 duoi, can giua theo chieu ngang.
-	   F11 nam DUOI chu khong nam BEN (khac cach phac trong spec): ma vach
-	   chiem toi 47,0mm nen khong con be ngang nao de dat chu ben canh.
-	   align-items: center - vung trang chia deu hai ben khi ma vach hep hon
-	   o, va chia deu chinh la dieu kien de vung yen tinh hai dau bang nhau. */
+	/* Khối mã vạch: vạch trên, F11 dưới, căn giữa theo chiều ngang.
+	   F11 nằm DƯỚI chứ không nằm BÊN (khác cách phác trong spec): mã vạch
+	   chiếm tới 47,0mm nên không còn bề ngang nào để đặt chữ bên cạnh.
+	   align-items: center — vùng trắng chia đều hai bên khi mã vạch hẹp hơn ô,
+	   và chia đều chính là điều kiện để vùng yên tĩnh hai đầu bằng nhau. */
 	.tem .o-vach {
 		display: flex; flex-direction: column; align-items: center;
 		overflow: hidden;
 	}
-	/* flex: 0 0 auto - luat so 1 dau file, cho no QUAN TRONG NHAT.
-	   Chieu cao ma vach la thu DUY NHAT tren con tem nay ma co lai khong gay
-	   ra bat ky dau hieu nao nhin thay duoc. */
+	/* flex: 0 0 auto — luật số 1 đầu file, ở chỗ nó QUAN TRỌNG NHẤT.
+	   Chiều cao mã vạch là thứ DUY NHẤT trên con tem này mà co lại không gây ra
+	   bất kỳ dấu hiệu nào nhìn thấy được. */
 	.tem .vach {
 		flex: 0 0 auto;
 		height: ${KHO.vach_cao}mm; max-width: ${KHO.vach_rong}mm;
 		line-height: 0;
 	}
-	/* line-height duoi 1 cho F11 - co tinh toan, khong phai tuy tien.
-	   Hang R7 cao 6,74mm, ma vach an 4,8mm, con 1,94mm. 5pt voi line-height 1
-	   la 1,76mm nen vua; nhung hop CHU that cao 1,85mm, sat den muc mot lan
-	   doi font la tran. 0,9 cho hop dong 1,59mm, con cho cho hop chu. Chu so
-	   khong co net duoi duong chan (khong co g/j/p/q) nen thu hop dong khong
-	   cat vao net nao. */
+	/* line-height dưới 1 cho F11 — có tính toán, không phải tuỳ tiện.
+	   Hàng R7 cao 6,74mm, mã vạch ăn 4,8mm, còn 1,94mm. 5pt với line-height 1
+	   là 1,76mm nên vừa; nhưng hộp CHỮ thật cao 1,85mm, sát đến mức một lần đổi
+	   font là tràn. 0,9 cho hộp dòng 1,59mm, chừa chỗ cho hộp chữ. Chữ số không
+	   có nét dưới đường chân (không có g/j/p/q) nên thu hộp dòng không cắt vào
+	   nét nào. */
 	.tem .f11 {
 		flex: 1 1 auto; width: 100%;
 		line-height: 0.9;

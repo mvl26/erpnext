@@ -13,9 +13,9 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from erpnext.vi_tri_kho.vitri.ma_vach import (
-	MODULE_BO_CUC_A,
-	MODULE_BO_CUC_B,
+	MODULE_TOI_DA,
 	kiem_tra_do_dai,
+	kiem_tra_ky_tu,
 	so_ky_hieu,
 	so_module,
 )
@@ -43,11 +43,65 @@ class TestSoModule(FrappeTestCase):
 		self.assertEqual(so_ky_hieu("1" * 13), 8)
 		self.assertEqual(so_module("1" * 13), 123)
 
-	def test_tran_bo_cuc(self):
-		self.assertEqual(MODULE_BO_CUC_A, 112)
-		self.assertEqual(MODULE_BO_CUC_B, 188)
+	def test_tran_module(self):
+		self.assertEqual(MODULE_TOI_DA, 188)
 		# 47mm / 0,25mm = 188 module. Không phải con số tròn ngẫu nhiên.
-		self.assertEqual(MODULE_BO_CUC_B * 0.25, 47.0)
+		self.assertEqual(MODULE_TOI_DA * 0.25, 47.0)
+
+	def test_khong_con_hang_so_bo_cuc_A(self):
+		"""Bố cục A đã bị bỏ (vùng yên tĩnh 2,5mm mỗi đầu không vừa cột 29,4mm).
+
+		Khoá luôn việc hằng số của nó đã biến mất: một hằng số còn nằm đó quảng
+		cáo rằng máy chủ "có hỗ trợ bố cục A" chính là thứ khiến người sau khôi
+		phục bố cục đó cho giống mockup.
+		"""
+		from erpnext.vi_tri_kho.vitri import ma_vach
+
+		self.assertFalse(hasattr(ma_vach, "MODULE_BO_CUC_A"))
+		self.assertFalse(hasattr(ma_vach, "MODULE_BO_CUC_B"))
+
+
+class TestKiemTraKyTu(FrappeTestCase):
+	"""Code 128 chỉ mã hoá được ASCII.
+
+	Vì sao phải chặn từ máy chủ chứ không để tới lúc in: JsBarcode ném lỗi,
+	`frappe/form/controls/barcode.js` nuốt lỗi, và phần tử SVG giữ nguyên nội
+	dung lần vẽ TRƯỚC — tem của lô này in ra mã vạch của lô liền trước, không
+	một dấu hiệu nào. Đã tái hiện được trên trình duyệt.
+	"""
+
+	def test_ascii_thuan_thi_qua(self):
+		for lo in ("25L4125", "LOT-2026-A45", "1B01040302", "026090374561", "A/B_C.D"):
+			kiem_tra_ky_tu(lo, "lô")  # không throw
+
+	def test_dau_tieng_viet_bi_chan(self):
+		for lo in ("LÔ-2026", "25L4125Ộ", "lô25"):
+			with self.assertRaises(frappe.ValidationError):
+				kiem_tra_ky_tu(lo, "lô")
+
+	def test_en_dash_bi_chan(self):
+		"""`–` U+2013 — ký tự hay bị dán từ phiếu đóng gói của nhà cung cấp.
+
+		Nó TRÔNG gần y hệt dấu trừ `-` ASCII, nên không ai soi ra bằng mắt.
+		"""
+		with self.assertRaises(frappe.ValidationError):
+			kiem_tra_ky_tu("7Fr\u20132026", "lô")
+
+	def test_cau_bao_neu_dich_danh_ky_tu_va_vi_tri(self):
+		"""Câu báo chung chung khiến thủ kho xoá bừa vài ký tự rồi thử lại — mà
+		số lô cắt bớt là số lô SAI dán lên hàng. Phải nêu đúng ký tự, đúng mã
+		U+, đúng vị trí.
+		"""
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			kiem_tra_ky_tu("AB\u2013CD", "lô")
+		cau = str(ctx.exception)
+		self.assertIn("\u2013", cau)
+		self.assertIn("U+2013", cau)
+		self.assertIn("3", cau)  # vị trí ký tự vi phạm
+
+	def test_chuoi_rong_khong_no(self):
+		kiem_tra_ky_tu("", "lô")
+		kiem_tra_ky_tu(None, "lô")
 
 	def test_chuoi_rong_khong_no(self):
 		"""Guard trong `so_ky_hieu` và `so_module` độc lập — nếu chỉ khoá một trong hai

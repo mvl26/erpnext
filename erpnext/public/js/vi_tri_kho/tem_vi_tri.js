@@ -158,6 +158,46 @@ erpnext.vi_tri_kho.tem = (function () {
 		margin: 0,
 	});
 
+	/** Vẽ `ma` vào control rồi trả SVG — hoặc `null` nếu JsBarcode KHÔNG mã
+	 * hoá được `ma`.
+	 *
+	 * ĐÂY LÀ CHỖ CHẶN MỘT LỖI HẠNG NẶNG, đã tái hiện được bằng phép đo:
+	 *
+	 *   lô 1: "25L4125"  → vẽ được, 101 module
+	 *   lô 2: "LÔ-2026"  → JsBarcode NÉM LỖI, `barcode.js` NUỐT lỗi đó, và
+	 *                      phần tử SVG trong `barcode_area` GIỮ NGUYÊN nội
+	 *                      dung của lô 1. Lấy `find("svg")[0]` ra thì được
+	 *                      một mã vạch hoàn chỉnh, đúng 101 module, không một
+	 *                      dấu hiệu nào — của LÔ TRƯỚC.
+	 *
+	 * Trên giấy: tem của lô `LÔ-2026` in chữ `LÔ-2026` dưới mã vạch, còn mã
+	 * vạch quét ra `25L4125`. Trong `in_xap` (một `may` dùng cho cả xấp) thì
+	 * lô hỏng thứ k nhận mã vạch của lô thứ k−1 — một lô KHÁC của CÙNG chuyến
+	 * hàng, tức trường hợp dễ nhầm nhất có thể. 200 con tem chạy ra khỏi cuộn
+	 * và không có gì để thủ kho nhìn thấy.
+	 *
+	 * Vì sao `CODE128` từ chối: `CODE128.valid()` là `/^[\x00-\x7F\xC8-\xD3]+$/`
+	 * — CHỈ ASCII. Dấu tiếng Việt và en-dash `–` (U+2013, hay bị dán từ phiếu
+	 * đóng gói của nhà cung cấp) đều nằm ngoài.
+	 *
+	 * Cách nhận biết thành công: `barcode.js` đặt `data-barcode-value` BÊN
+	 * TRONG khối `try`, NGAY SAU khi `JsBarcode()` trả về. Nên thuộc tính đó
+	 * bằng đúng `ma` là tín hiệu tin cậy rằng SVG này vừa được vẽ cho `ma`,
+	 * chứ không phải tàn dư của lần trước.
+	 *
+	 * (Tem vị trí hôm nay chưa với tới lỗi này vì mã SPD là 10 ký tự ASCII do
+	 * máy sinh — một sự MAY MẮN, không phải một thiết kế. Chặn ở đây thì đóng
+	 * cho cả tem vị trí lẫn tem lô.)
+	 */
+	function _ve_vao_control(control, ma) {
+		control.df.options = TUY_CHON_VACH;
+		control.get_barcode_html(ma);
+		const svg = control.barcode_area.find("svg")[0];
+		if (!svg) return null;
+		if (svg.getAttribute("data-barcode-value") !== String(ma)) return null;
+		return svg;
+	}
+
 	function may_ve_ma_vach() {
 		const khung = $('<div style="display:none"></div>').appendTo(document.body);
 		const control = frappe.ui.form.make_control({
@@ -174,9 +214,9 @@ erpnext.vi_tri_kho.tem = (function () {
 			 * hiện thì tem đã dán lên kệ rồi.
 			 */
 			ve(ma, k) {
-				control.df.options = TUY_CHON_VACH;
-				control.get_barcode_html(ma);
-				const svg = control.barcode_area.find("svg")[0];
+				// Trả chuỗi RỖNG khi không mã hoá được — KHÔNG BAO GIỜ trả mã
+				// vạch của lần vẽ trước. Xem `_ve_vao_control`.
+				const svg = _ve_vao_control(control, ma);
 				if (!svg) return "";
 
 				const ban_sao = svg.cloneNode(true);
@@ -258,9 +298,10 @@ erpnext.vi_tri_kho.tem = (function () {
 			 * SẼ ĐƯỢC IN RA là nguồn sự thật duy nhất.)
 			 */
 			ve_tho(ma) {
-				control.df.options = TUY_CHON_VACH;
-				control.get_barcode_html(ma);
-				const svg = control.barcode_area.find("svg")[0];
+				// `null` khi không mã hoá được — bên đo phải thấy "đo hỏng",
+				// chứ không phải số module của mã TRƯỚC ĐÓ. Xem
+				// `_ve_vao_control`.
+				const svg = _ve_vao_control(control, ma);
 				return svg ? svg.cloneNode(true) : null;
 			},
 			don() {
@@ -323,7 +364,12 @@ erpnext.vi_tri_kho.tem = (function () {
 			? `@page { size: ${k.rong}mm ${k.cao}mm; margin: 0; }
 	.tem { page-break-after: always; break-after: page; }
 	/* Không có dòng này thì máy nhả thêm một con tem TRẮNG ở cuối mỗi xấp. */
-	.tem:last-child { page-break-after: auto; break-after: auto; }`
+	/* :last-of-type chứ KHÔNG phải :last-child — phần tử con CUỐI CÙNG của
+	   <body> là thẻ <script> gọi window.print(), nên :last-child không bao giờ
+	   khớp một con tem nào và cái lưới đỡ mô tả ở dòng trên CHƯA TỪNG chạy.
+	   Hôm nay không lộ ra vì Chrome tự bỏ trang trắng cuối, nhưng đó là may
+	   mắn của một engine cụ thể, không phải điều ta đặt ra. */
+	.tem:last-of-type { page-break-after: auto; break-after: auto; }`
 			: `.tem { border: 0.2mm dashed #b8b8b8; }`;
 
 		return `
