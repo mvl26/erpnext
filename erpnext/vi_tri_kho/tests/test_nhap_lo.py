@@ -731,6 +731,65 @@ class TestApiMayChu(FrappeTestCase):
 		self.assertEqual(len(ket_qua), 1)
 		self.assertEqual(set(ket_qua[0].keys()), {f"F{i}" for i in range(1, 12)})
 
+	def test_du_lieu_tem_so_lo_rat_dai_ma_goi_y_o_loi_khong_lam_no(self):
+		"""Vòng sửa 2/5 (điều phối, Important): cùng bẫy đã vá ở `quet.py`/
+		`xep.py`, áp cho `du_lieu_tem` (nhánh `_f8_xem_truoc` gọi `goi_y_o`).
+
+		`Error Log.method` là `Data(140)`. Batch dựng THẲNG (không qua `Batch
+		Entry` — nơi `kiem_tra_so_lo` giới hạn số lô CÓ CHỮ tối đa 13 ký tự,
+		không đủ dài để vượt trần 140 dù ghép cả tiền đề vào) để có một
+		`so_lo` đủ dài. Ép `goi_y_o` ném lỗi rồi khẳng định `du_lieu_tem` vẫn
+		trả về bình thường (F8 = `"VT —"`, không đoán ô) — không chỉ "không
+		ném lỗi", mà đúng hình dạng `_f8_xem_truoc` trả khi không tính được ô.
+		"""
+		from unittest.mock import patch
+
+		from erpnext.vi_tri_kho.vitri import nhap_lo as nhap_lo_mod
+		from erpnext.vi_tri_kho.vitri.nhat_ky_loi import TRAN_DO_DAI_TIEU_DE
+
+		ncc = _ncc_thu()
+		kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+		item = _tao_item("_Test API Tem Rat Dai", co_lo=1)
+		pr = _phieu_nhap_nhap(item, kho, ncc)
+
+		# Dựng lô THẲNG (bỏ qua `Batch Entry`/`kiem_tra_do_dai`) rồi tự nối
+		# tới phiếu nhập đúng cách `BatchEntry.on_submit` làm thật — để
+		# `_kho_cua_lo` suy được `kho` (điều kiện để nhánh gọi `goi_y_o` chạy).
+		so_lo_dai = "L" * 110
+		lo = frappe.get_doc(
+			{
+				"doctype": "Batch",
+				"batch_id": so_lo_dai,
+				"item": item,
+				"reference_doctype": "Purchase Receipt",
+				"reference_name": pr.name,
+			}
+		).insert(ignore_permissions=True)
+		frappe.db.set_value("Purchase Receipt Item", pr.items[0].name, "batch_no", lo.name)
+
+		with patch.object(nhap_lo_mod, "goi_y_o", side_effect=RuntimeError("giả lập lỗi gán")):
+			ket_qua = du_lieu_tem(so_lo_dai)
+
+		self.assertEqual(len(ket_qua), 1)
+		self.assertEqual(ket_qua[0]["F8"], "VT —", "goi_y_o lỗi thì F8 không đoán ô")
+
+		# Đối chứng: `log_error` phải THẬT SỰ ghi được một dòng cho ĐÚNG lô
+		# này, tiêu đề `<= 140`. `log_error` KHÔNG bị `FrappeTestCase`
+		# rollback (đã đo ở `test_quet.py`/`test_phieu_xep_vi_tri.py`) nên
+		# phải tự dọn ngay sau khi kiểm, không để rác trên CSDL thật.
+		#
+		# TÌM bằng 50 ký tự ĐẦU của `so_lo_dai`, KHÔNG phải cả 110: điểm cắt
+		# (133 ký tự thô + đuôi) chỉ giữ được 96 ký tự của `so_lo` (133 trừ
+		# 37 ký tự tiền tố) — dò cả chuỗi 110 ký tự sẽ KHÔNG khớp tiêu đề đã
+		# cắt, và bài sẽ báo nhầm "không ghi được dòng nào".
+		mau_tim = so_lo_dai[:50]
+		dong_error_log = frappe.get_all(
+			"Error Log", filters={"method": ["like", f"%{mau_tim}%"]}, pluck="method"
+		)
+		self.assertEqual(len(dong_error_log), 1, "phải ghi đúng một dòng Error Log cho lô này")
+		self.assertLessEqual(len(dong_error_log[0]), TRAN_DO_DAI_TIEU_DE)
+		frappe.db.delete("Error Log", {"method": ["like", f"%{mau_tim}%"]})
+
 	def test_du_lieu_tem_F3_theo_so_dong_quy_doi_dvt(self):
 		"""0 dòng quy đổi -> chỉ ĐVT. 1 dòng -> 'Cái (1/hộp)'. 2 dòng -> chỉ ĐVT.
 
