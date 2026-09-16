@@ -10,6 +10,7 @@ Cả hai đều hỏng theo kiểu KHÔNG ném lỗi — đó là lý do chúng 
   chẳng có gì báo.
 """
 
+import json
 import os
 
 import frappe
@@ -191,3 +192,123 @@ class TestNutTrenPhieuLo(FrappeTestCase):
 		"""
 		duong_dan = frappe.get_app_path("erpnext", "public", "js", "vi_tri_kho", "in_nhan_lo.js")
 		self.assertTrue(os.path.exists(duong_dan), f"thiếu file {duong_dan}")
+
+
+#: Danh sách TRẮNG những màn hình BẮT BUỘC phải có lối vào trên workspace.
+#:
+#: Thêm một màn hình vào module mà quên dòng ở đây là quên có chủ đích — dòng
+#: này là chỗ duy nhất nói "thứ cần có thì phải có mặt".
+MAN_HINH_BAT_BUOC = (
+	"Storage Location",
+	"Warehouse Location Setup",
+	"Location Generator",
+	"Item Location Preference",
+	"Location Transfer",
+	"Batch Entry",
+)
+
+#: Hai màn hình thủ kho mở HẰNG NGÀY — phải có LỐI TẮT, không chỉ nằm trong thẻ.
+#:
+#: Một liên kết nằm trong thẻ là đủ để "vào được", nhưng không đủ cho việc làm
+#: mỗi ngày vài chục lần: thủ kho phải mở thẻ ra tìm. Lối tắt là ô bấm ngay ở
+#: đầu trang. Hai mức này khác nhau nên khoá bằng hai bài khác nhau.
+LOI_TAT_BAT_BUOC = ("Batch Entry", "Location Transfer")
+
+
+class TestManHinhBatBuocCoMat(FrappeTestCase):
+	"""Khẳng định NGƯỢC LẠI với `TestWorkspace`, và đó là cả lý do lớp này tồn tại.
+
+	`test_moi_lien_ket_deu_tro_toi_thu_co_that` khẳng định: "mọi liên kết ĐANG
+	CÓ đều trỏ tới thứ có thật". Nó xanh khi danh sách liên kết THIẾU một màn
+	hình — thậm chí xanh khi danh sách rỗng. Đó là hai mệnh đề khác nhau:
+
+	    (a) thứ đang có thì phải trỏ đúng   <- TestWorkspace khoá
+	    (b) thứ cần có thì phải có mặt      <- lớp này khoá
+
+	Bằng chứng (b) không tự có: `Location Transfer` — phiếu xếp vị trí, màn hình
+	thủ kho dùng hằng ngày — KHÔNG có một lối vào nào trên workspace từ lúc dựng
+	module cho tới 16/09/2026. Không shortcut, không link, không trong `content`.
+	Vào được chỉ bằng cách gõ tên doctype vào thanh tìm kiếm. Suốt thời gian đó
+	`test_giao_dien.py` vẫn xanh — đúng khuôn "bài test không khoá thứ nó tưởng
+	là đang khoá".
+
+	VÌ SAO PHẢI ĐỌC `content` chứ không chỉ đọc `links`/`shortcuts`: workspace có
+	BA cấu trúc song song và cả ba phải khớp nhau. `content` là chuỗi JSON của
+	các khối THẬT SỰ VẼ RA TRANG; `links` và `shortcuts` chỉ là kho dữ liệu cho
+	các khối đó tra vào. Thêm một dòng vào `links` mà quên khối `card` tương ứng
+	trong `content` thì doctype có mặt trong `links`, một bài chỉ đọc `links` sẽ
+	xanh, mà trang vẫn KHÔNG hiện gì — đúng con bug cũ, lùi xuống một lớp.
+	"""
+
+	def _khoi_ve_ra(self, ws):
+		"""Tên các thẻ và lối tắt THẬT SỰ được vẽ ra, lấy từ `content`."""
+		khoi = json.loads(ws.content or "[]")
+		the = {b["data"]["card_name"] for b in khoi if b.get("type") == "card"}
+		loi_tat = {b["data"]["shortcut_name"] for b in khoi if b.get("type") == "shortcut"}
+		return the, loi_tat
+
+	def _doctype_trong_the_ve_ra(self, ws, the_ve_ra):
+		"""DocType vào được qua một thẻ có vẽ ra.
+
+		Đi theo ranh giới `Card Break` trong danh sách phẳng `links`, đúng cách
+		Frappe nhóm chúng.
+		"""
+		duoc = set()
+		the_hien_tai = None
+		for l in ws.links:
+			if l.type == "Card Break":
+				the_hien_tai = l.label
+				continue
+			if l.link_type == "DocType" and the_hien_tai in the_ve_ra:
+				duoc.add(l.link_to)
+		return duoc
+
+	def test_moi_man_hinh_bat_buoc_deu_nam_trong_mot_the_ve_ra(self):
+		ws = frappe.get_doc("Workspace", TEN_WORKSPACE)
+		the_ve_ra, _loi_tat = self._khoi_ve_ra(ws)
+		co = self._doctype_trong_the_ve_ra(ws, the_ve_ra)
+		thieu = [dt for dt in MAN_HINH_BAT_BUOC if dt not in co]
+		self.assertEqual(
+			thieu,
+			[],
+			f"workspace {TEN_WORKSPACE!r} không còn lối vào cho: {thieu}. Màn hình vẫn "
+			"chạy, vẫn mở được bằng cách gõ tên vào thanh tìm kiếm — nên KHÔNG có lỗi "
+			"nào báo, và người dùng coi như nó không tồn tại. Thêm lại dòng trong "
+			"`links` KÈM khối `card` tương ứng trong `content`.",
+		)
+
+	def test_hai_man_hinh_hang_ngay_deu_co_loi_tat_ve_ra(self):
+		ws = frappe.get_doc("Workspace", TEN_WORKSPACE)
+		_the_ve_ra, loi_tat_ve_ra = self._khoi_ve_ra(ws)
+		co = {s.link_to for s in ws.shortcuts if s.type == "DocType" and s.label in loi_tat_ve_ra}
+		thieu = [dt for dt in LOI_TAT_BAT_BUOC if dt not in co]
+		self.assertEqual(
+			thieu,
+			[],
+			f"thiếu lối tắt cho: {thieu}. Đây là hai màn hình mở mỗi ngày — chôn chúng "
+			"trong một thẻ là bắt thủ kho tìm, mỗi lần một ít.",
+		)
+
+	def test_link_count_khop_so_dong_link_thuc_te(self):
+		"""`link_count` sai thì Frappe cắt nhầm danh sách phẳng — im lặng.
+
+		Frappe nhóm `links` bằng cách LẤY `link_count` dòng kế tiếp sau mỗi
+		`Card Break`. Thêm một liên kết mà quên tăng số này thì liên kết thừa
+		rơi ra ngoài mọi thẻ: nó vẫn nằm trong dữ liệu (nên hai bài trên vẫn
+		xanh nếu chúng đọc theo ranh giới `Card Break`) mà trang không vẽ.
+		"""
+		ws = frappe.get_doc("Workspace", TEN_WORKSPACE)
+		lech = []
+		khai_bao = None
+		nhan = None
+		dem = 0
+		for l in list(ws.links) + [None]:
+			if l is None or l.type == "Card Break":
+				if nhan is not None and dem != khai_bao:
+					lech.append(f"{nhan}: khai {khai_bao}, đếm được {dem}")
+				if l is None:
+					break
+				nhan, khai_bao, dem = l.label, l.link_count, 0
+				continue
+			dem += 1
+		self.assertEqual(lech, [], f"`link_count` lệch số dòng thật: {lech}")

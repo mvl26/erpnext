@@ -300,6 +300,10 @@ không cho lưu nếu bỏ trống.
 Gõ **kèm hạn dùng**. Hạn dùng là thứ hệ dựa vào để chọn hàng xuất trước; bỏ trống là mất tác
 dụng đó. Hiện 55/55 lô trên hệ đều đã có hạn dùng — giữ nguyên kỷ luật này.
 
+> **Từ 16/09/2026 có màn hình riêng để khai số lô: *Phiếu nhập lô* — xem mục 11.** Nó thay cho
+> việc gõ số lô vào hộp thoại lô trên dòng phiếu nhập, và nó là đường duy nhất in được nhãn lô.
+> **Thứ tự bắt buộc: khai lô TRƯỚC, duyệt phiếu nhập SAU** (mục 11.1).
+
 Hàng nhập về **dồn hết vào ô "Chưa xếp vị trí"** — chưa có ô khai vị trí ngay trên phiếu nhập.
 Việc xếp làm sau, bằng **Phiếu xếp / chuyển vị trí** (mục 6.3).
 
@@ -584,6 +588,290 @@ gian.
 Ngày bật kho thứ hai, đây là chỗ phải sửa lược đồ — xem `BAN-GIAO-nen-tang-vi-tri-kho.md`.
 
 **Đổi mã mặt hàng thì gán tự đi theo**, không phải gán lại.
+
+---
+
+## 11. Nhập lô và in nhãn lô
+
+Từ 16/09/2026. Trước đó số lô gõ thẳng vào hộp thoại lô của ERPNext trên dòng phiếu nhập và
+**không có nhãn lô**. Nay có một màn hình riêng: **Phiếu nhập lô**.
+
+Vào bằng ô **Nhập lô** trên trang *Vị trí kho*, hoặc đường dẫn `/app/batch-entry`.
+
+**Làm theo đúng sáu bước này:**
+
+1. Kế toán / người mua lập **phiếu nhập** (Purchase Receipt) và **để nguyên ở dạng nháp** — chưa
+   bấm Duyệt.
+2. Thủ kho mở **Phiếu nhập lô**, chọn **Phiếu nhập** đó và **Nhà cung cấp**.
+3. Bấm **"Lấy dòng hàng từ phiếu nhập"**. Hệ đổ xuống các dòng hàng có quản lý lô.
+4. Cầm vỏ thùng, **gõ Số lô và Hạn dùng cho từng dòng** (Ngày sản xuất nếu nhà cung cấp có in).
+5. **Lưu**, rồi **Duyệt** phiếu nhập lô. Lúc này hệ tạo bản ghi lô, cấp **số gọi**, và ghi số lô
+   lên đúng dòng của phiếu nhập.
+6. **Bây giờ mới duyệt phiếu nhập.** Rồi quay lại phiếu nhập lô bấm **"In nhãn cả phiếu"**.
+
+---
+
+### 11.1 ⚠ Thứ tự bắt buộc: NHẬP LÔ TRƯỚC, DUYỆT PHIẾU NHẬP SAU
+
+> ### ⚠ Duyệt phiếu nhập trước là hỏng cả lô tem. Không sửa lại được.
+
+**Vì sao:** một dòng hàng có quản lý lô không đi qua được bước duyệt nếu chưa có số lô — mà
+Phiếu nhập lô thì **chỉ nhận phiếu nhập còn nháp**. Duyệt trước là tự tay khoá mất đường khai lô
+đúng cách, và chỉ còn những đường khai lô **không sinh ra tem đầy đủ**.
+
+**Lô không khai qua Phiếu nhập lô thiếu những gì:**
+
+| | Khai bằng **Phiếu nhập lô** | Khai bằng đường khác |
+|---|---|---|
+| Số lô của nhà cung cấp | có | có |
+| **Số gọi** (số to trên tem) | có | **KHÔNG** — ô đó trên tem in ra **trắng**, vĩnh viễn |
+| Nhà cung cấp, chứng từ về | điền sẵn từ phiếu | chỉ tự điền khi bản ghi lô có ghi chứng từ mua gốc |
+| In cả xấp nhãn một lần | có | **không** — phải mở từng lô in lẻ |
+
+Ô **Số gọi** là ô không cứu được: chỉ Phiếu nhập lô cấp số gọi, và nó chỉ cấp **lúc duyệt phiếu**.
+Lô đã sinh ra bằng đường khác thì mãi mãi không có số gọi, tem in ra mãi mãi trắng chỗ đó.
+
+**Nếu có ai bật ô "tự sinh lô" cho một mặt hàng thì còn tệ hơn hẳn:** ERPNext **tự đẻ một số lô
+máy** (dạng `BATCH-00123`) lúc duyệt, **số lô của nhà cung cấp mất luôn**, và không có một lời
+cảnh báo nào. Hôm nay cả **84/84 mặt hàng có lô** đều đang đặt *"không tự sinh lô"* — **giữ
+nguyên như vậy**, đừng ai bật ô đó.
+
+**Nếu làm sai thì sao:** mở Phiếu nhập lô sau đó, hệ **từ chối** kèm câu:
+
+> *Phiếu nhập ... đã duyệt nên không gắn được số lô nữa. Phải nhập lô TRƯỚC rồi mới duyệt phiếu
+> nhập — duyệt trước thì ERPNext đã tự sinh số lô máy và số lô của nhà cung cấp mất luôn.*
+
+Câu từ chối đó **không cứu được gì** — nó chỉ cho biết việc đã hỏng. Đường duy nhất có lại tem
+đúng là **huỷ phiếu nhập rồi làm lại từ đầu** theo đúng sáu bước trên: huỷ phiếu nhập, mở phiếu
+nhập lô khai số lô, rồi duyệt lại phiếu nhập. Huỷ một phiếu nhập đã duyệt là việc phải nhờ kế
+toán, và **nếu hàng đã xuất đi mất một phần thì huỷ không được nữa** — khi đó lô hàng ấy sống
+suốt đời với con tem thiếu số gọi.
+
+**Vì sao hệ không tự chặn:** chỗ cần chặn là nút Duyệt trên **phiếu nhập** — chứng từ mua hàng
+gốc của ERPNext, dùng cho mọi mặt hàng của công ty, kể cả hàng không có lô. Chặn ở đó là sửa một
+chứng từ mà cả kế toán, mua hàng và kho cùng dùng; rủi ro mở ra lớn hơn nhiều so với thứ nó vá.
+**Nên ở điểm này tài liệu chính là lớp phòng vệ duy nhất.** Đọc kỹ, và dặn lại người mới.
+
+---
+
+### 11.2 Một mặt hàng về hai lô thì TÁCH DÒNG trên phiếu nhập
+
+**Làm gì:** trên **phiếu nhập** (không phải phiếu nhập lô), để mặt hàng đó thành **hai dòng**, mỗi
+dòng một số lượng — 100 hộp về hai lô 60/40 thì một dòng 60, một dòng 40. Tách xong mới sang bước
+khai lô.
+
+**Vì sao:** mỗi dòng phiếu nhập nhận **đúng một số lô**. Tách dòng còn được thêm một thứ: số lượng
+của từng lô trở nên **đúng ngay trên chứng từ mua hàng**, không phải tra ở chỗ khác.
+
+**Nếu làm sai thì sao:** gõ hai số lô cho cùng một dòng, hệ chặn lúc Lưu:
+
+> *Dòng ...: mỗi dòng phiếu nhập chỉ nhận MỘT số lô. Hàng về hai lô thì tách dòng trên phiếu
+> nhập — tách rồi số lượng theo từng lô cũng đúng luôn trên chứng từ.*
+
+Sửa được ngay, chưa mất gì. Nhưng phải quay lại phiếu nhập tách dòng, nên tách sẵn từ đầu là
+nhanh hơn.
+
+---
+
+### 11.3 Các ô trên nhãn lô
+
+Nhãn lô khổ **50 × 30mm**, in trên máy in tem nhiệt. Mỗi lô một con tem, dán lên thùng hàng.
+
+```
+┌─────────────────────────────────────────────────┐
+│ 1130-N6214210                        Cái (1/hộp)│  ← mã vật tư · đơn vị tính
+│ Stent Piglet (Piglet Stent)                     │  ← tên hàng
+│ 7Fr – Loop 10cm – HD 200cm                      │  ← thông số (có thể trống)
+├──────────────────────────────┬──────────────────┤
+│ HSD 2029/01/31               │                  │  ← hạn dùng
+│ Lô 25L4125                   │      3856        │  ← số lô  ·  SỐ GỌI
+├──────────────────────────────┴──────────────────┤
+│ VT 3B1205-0401          NHẬP 2026/09/03         │  ← ô sẽ xếp · ngày nhập
+├─────────────────────────────────────────────────┤
+│   ▌│▌▌│▌ ▌│▌▌▌│▌ ▌│▌▌ ▌│▌ ▌│▌▌│▌ ▌│▌▌▌│▌ ▌│▌    │  ← mã vạch = số lô
+│                    25L4125                      │  ← số lô in lại bằng chữ
+└─────────────────────────────────────────────────┘
+```
+
+| Ô trên tem | Nghĩa | Ghi chú |
+|---|---|---|
+| Dòng 1 trái | **Mã vật tư** | in to nhất ở đầu tem |
+| Dòng 1 phải | **Đơn vị tính** | kèm quy cách khi mặt hàng khai **đúng một** quy đổi (`Cái (1/hộp)`); khai từ hai quy cách trở lên thì chỉ in đơn vị tính |
+| Dòng 2 | **Tên hàng** | |
+| Dòng 3 | **Thông số kỹ thuật** | **để trắng** nếu mặt hàng chưa khai — ô vẫn giữ chỗ, cố ý |
+| Dòng 4 trái | **Hạn dùng** | trống nếu lô không có hạn dùng |
+| Dòng 5 trái | **Số lô** | |
+| Khối số to bên phải | **SỐ GỌI** | 4 chữ số, xem ngay dưới |
+| Dòng 6 trái | **Ô sẽ xếp** (`VT ...`) | `VT —` nghĩa là hệ chưa biết xếp vào đâu |
+| Dòng 6 phải | **Ngày nhập** | |
+| Dưới cùng | **Mã vạch** | mã hoá **đúng số lô**, không mã hoá gì khác |
+| Dòng cuối | **Số lô in lại bằng chữ** | để gõ tay khi máy quét không đọc được |
+
+**Số gọi là gì:** một số **4 chữ số**, cấp riêng cho từng lô, **không bao giờ dùng lại**. Nó để
+người trong kho gọi nhau: *"lấy hộ thùng ba-tám-năm-sáu"* thay vì đọc `25L4125`. Nó không thay
+được số lô trên chứng từ — chỉ là cái tên ngắn để nói miệng.
+
+> ### ⚠ Nhãn thật KHÔNG giống ảnh mẫu của SPD
+>
+> Ảnh mẫu dưới đây là bản thiết kế do phía SPD đưa sang. **Bố cục này đã bị bỏ, chốt ngày
+> 16/09/2026.**
+>
+> ![Ảnh mẫu SPD — bố cục ĐÃ BỎ](Screenshot%202026-09-15%20142544.png)
+>
+> **Vì sao bỏ:** trong ảnh mẫu, mã vạch nằm gọn ở **cột trái**. Mã vạch Code 128 cần một dải
+> **trắng 2,5mm ở mỗi đầu** thì máy quét mới bắt được — dải trắng đó là một phần của mã, không
+> phải lề cho đẹp. Bố cục mẫu chỉ chừa được **0,7mm**. Thiếu gần bốn lần, và không có chỗ nào để
+> bù: nống cột trái ra thì cột phải hết chỗ cho số gọi.
+>
+> **Nếu cứ giữ thì sao:** tem **trông vẫn đẹp**, in ra vẫn đúng khuôn, mọi phép đo trên màn hình
+> vẫn khớp. Chỉ máy quét ngoài kho mới biết — và lúc đó tem đã dán lên thùng hàng y tế rồi.
+>
+> **Đã đổi thành:** mã vạch chạy **trọn chiều ngang** ở đáy tem, số gọi chuyển sang khối vuông
+> bên phải. Đó là bản trong khung vẽ ở trên, và là bản sẽ in ra.
+
+---
+
+### 11.4 Khi tem nói sai vị trí — dán đè tem mới
+
+Ô `VT ...` trên tem là **ô hệ định xếp vào lúc in tem**, không phải ô hàng đang nằm.
+
+**Vì sao nó nói sai được:** tem in lúc hàng vừa về; hàng xếp lên kệ sau đó, có khi cách vài giờ.
+Giữa hai lúc ấy, **một lượt nhập khác có thể đã chiếm mất ô đó**. Tem thì đã in xong và đã dán.
+
+**Làm gì:** khi bấm *"Lấy hàng chưa xếp"* trên **Phiếu xếp / chuyển vị trí** (mục 6.3), hệ đọc lại
+tình hình kho **tại thời điểm đó** và xếp lại. Dòng nào có tem cũ không còn dùng được, hệ hiện
+một dòng nhắc màu cam:
+
+> *N dòng tem cũ không dùng được, đừng theo tem cũ: ...*
+
+Khi thấy dòng này: **đi theo cột *Đến ô* trên phiếu xếp**, và **in tem mới dán đè lên tem cũ** —
+dán đè, không bóc ra, để không ai còn đọc được con số cũ. In lại bằng nút **In nhãn** ngay trên
+màn hình lô.
+
+> **Dòng nhắc màu cam tự biến mất sau vài giây.** Bỏ lỡ thì không xem lại được. Khi đó:
+> **cột *Đến ô* trên phiếu xếp mới là thứ đúng**, tem chỉ là giấy. Nếu hai thứ khác nhau, tin cột
+> *Đến ô*.
+
+**Nếu làm sai thì sao:** đi theo tem cũ là đặt hàng vào một ô hệ không ghi. Sổ vị trí nói một
+đằng, kệ thật một nẻo. Báo cáo *Hàng nằm sai vị trí* sẽ bắt được, nhưng chỉ sau khi ai đó mở nó
+ra xem — còn *Đối soát tồn vị trí* thì **vẫn báo khớp**, vì tổng không đổi.
+
+---
+
+### 11.5 Số lô gõ sai kiểu gì thì hệ báo gì
+
+Hệ chặn ngay lúc Lưu phiếu nhập lô. Có **hai loại**, hai câu báo khác nhau, hai việc khác nhau.
+
+**Loại 1 — số lô quá dài.**
+
+> *Số lô '...' dài N ký tự, cần ... module mã vạch nhưng nhãn 50×30 chỉ chứa được 188 module.*
+
+Giới hạn thực tế:
+
+| Số lô gồm | Dài nhất |
+|---|---|
+| chỉ chữ số, độ dài chẵn | **26 chữ số** |
+| chỉ chữ số, độ dài lẻ | **23 chữ số** |
+| có lẫn chữ cái | **13 ký tự** |
+
+**Loại 2 — có ký tự không mã hoá được.**
+
+> *Số lô '...' có ký tự '...' (U+....) ở vị trí N — mã vạch Code 128 không mã hoá được ký
+> tự này, nên nhãn sẽ không có mã vạch để quét...*
+
+Hai thủ phạm gần như luôn là:
+
+- **dấu tiếng Việt** (`LÔ-2026` thay vì `LO-2026`);
+- **dấu gạch ngang dài `–`** dán từ file hoặc email của nhà cung cấp, trông gần giống dấu trừ `-`
+  thường nhưng là ký tự khác. Gõ lại bằng dấu trừ trên bàn phím.
+
+> ### ⚠ ĐỪNG CẮT BỚT KÝ TỰ CHO NÓ QUA
+>
+> Cả hai câu báo trên đều làm người ta muốn xoá bừa vài ký tự rồi bấm Lưu lại. **Số lô cắt bớt là
+> số lô SAI dán lên hàng** — và cái sai đó đi theo thùng hàng suốt vòng đời của nó, qua cả thu
+> hồi lô lẫn tra cứu bảo hành.
+>
+> Gõ **đúng nguyên văn** số lô trên vỏ thùng. Nếu nó thật sự dài hơn giới hạn ở trên, **dừng lại
+> và báo quản trị** — đó là chuyện của khổ tem, không phải chuyện của con số.
+
+---
+
+### 11.6 Tem in ra mà chỗ mã vạch là dòng chữ `KHÔNG CÓ MÃ VẠCH — GÕ TAY SỐ LÔ`
+
+**Nghĩa là:** số lô của lô này có ký tự mà mã vạch không mã hoá được, nên hệ **cố ý không in mã
+vạch nào cả**. Số lô vẫn in nguyên văn ngay dưới dòng chữ đó, vẫn đọc được bằng mắt.
+
+**Vì sao thà bỏ trống còn hơn:** nếu cứ vẽ bừa, máy quét sẽ đọc ra **một chuỗi khác** chứ không
+báo lỗi — tức là quét ra số lô của thùng hàng khác, và không ai biết để mà kiểm lại. Không có mã
+vạch thì người ta gõ tay; có mã sai thì không cứu được.
+
+**Khi nào gặp — hôm nay gần như không bao giờ:** hệ chặn ký tự xấu ở **mọi đường tạo lô mới**,
+không riêng màn hình Phiếu nhập lô — hộp thoại lô cũ của ERPNext trên dòng phiếu nhập, nhập thẳng
+vào danh mục **Lô**, nhập khẩu bằng file, tất cả đều bị chặn như nhau. Đã đếm trên hệ hôm nay:
+**63 bản ghi lô, KHÔNG bản nào có ký tự ngoài bảng chữ ASCII.**
+
+Nên dòng chữ này chỉ còn gặp ở hai chỗ: **lô tạo trước 16/09/2026**, hồi chưa có phép chặn; và lô
+bị ghi thẳng xuống cơ sở dữ liệu bằng một đường vòng qua mọi phép kiểm. Thấy nó, hiểu là **đang
+cầm một con tem của thời trước** — đừng đi tìm ai vừa gõ sai.
+
+**Làm gì:**
+
+1. **Đừng dán con tem đó lên hàng rồi coi như xong.** Nó không quét được, mãi mãi.
+2. Báo quản trị sửa số lô. **Số lô là tên bản ghi**, không sửa trên form được — phải đổi tên bản
+   ghi, hoặc huỷ chứng từ và khai lại bằng số lô gõ không dấu.
+3. Sửa xong thì in lại tem và **dán đè**.
+4. Trong lúc chờ: hàng vẫn xuất nhập bình thường, chỉ là **mọi thao tác quét với lô này phải gõ
+   tay** theo số lô ở dòng dưới.
+
+---
+
+### 11.7 Huỷ phiếu nhập lô
+
+| Trạng thái phiếu nhập | Huỷ phiếu nhập lô được không |
+|---|---|
+| **Còn nháp** (chưa duyệt) | **được** |
+| **Đã huỷ**, hoặc đã bị xoá | **được** — đây là đường thoát khi cả hai chứng từ cùng phải huỷ |
+| **Đã duyệt** | **không** |
+
+Phiếu nhập đã duyệt thì hệ từ chối, kèm câu *"Tồn đã ghi theo lô rồi — muốn gỡ thì huỷ chính phiếu
+nhập."* Đúng thứ tự: **huỷ phiếu nhập trước, huỷ phiếu nhập lô sau.**
+
+**Huỷ xong, số lô được gỡ khỏi dòng phiếu nhập — nhưng bản ghi lô thì GIỮ NGUYÊN.**
+
+**Vì sao không xoá luôn cho sạch:** vì **tem có thể đã in và đã dán lên thùng hàng**. Xoá bản ghi
+lô là biến tờ tem đang dán ngoài kho thành một mẩu giấy tra không ra gì — quét vào không thấy,
+gõ tay vào cũng không thấy. Một bản ghi lô thừa nằm trong danh mục thì vô hại; một con tem không
+tra được thì không.
+
+**Nếu về sau nhập lại đúng số lô đó:** hệ **dùng lại chính bản ghi cũ**, chỉ điền thêm những ô còn
+trống (nhà cung cấp, chứng từ, hạn dùng). Đúng như khi nhà cung cấp giao một lô làm hai đợt.
+
+---
+
+### 11.8 Việc chủ đầu tư phải tự làm — CHƯA AI LÀM THAY ĐƯỢC
+
+> ### ⚠ In thử MỘT con tem trên máy Zebra ZD421, rồi quét nó bằng điện thoại
+
+**Làm gì, đúng bốn bước:**
+
+1. Mở một lô bất kỳ, bấm **In nhãn**. Đặt tỉ lệ in **100%**, **không** dùng "Fit to page".
+2. In **một** con tem ra cuộn tem thật trên **Zebra ZD421**.
+3. Mở một ứng dụng quét mã vạch trên điện thoại, **quét con tem vừa in**.
+4. **So chuỗi quét được với số lô in bằng chữ ở dòng dưới cùng.** Phải **giống nhau từng ký tự**.
+
+**Vì sao đây là việc không bỏ được:** tới hôm nay (16/09/2026) **chưa có con tem lô nào được in
+thử ở 203 dpi thật**. Mọi con số về bề rộng vạch, vùng trắng hai đầu, cỡ chữ — đều là số học trên
+màn hình và đo trên bản PDF. Đầu in nhiệt chỉ bật/tắt được **nguyên một chấm mực**; giữa "0,25mm
+trên bản vẽ" và "hai chấm mực trên giấy thật" có một khoảng mà **không phép đo nào trên màn hình
+với tới được**.
+
+**Nếu bỏ qua thì sao:** cái sai kiểu này **không kêu**. Tem in ra trông đúng, dán lên hàng trông
+đúng, và máy quét đọc ra **một chuỗi khác** — không phải báo lỗi, mà là đọc ra số lô của thùng
+khác. Phát hiện ra thì cả loạt tem đã đi theo hàng vào kho.
+
+**Quét ra khác số lô in trên tem, hoặc không quét được:** **dừng in hàng loạt ngay** và báo lại,
+kèm con tem đã in. Đừng chỉnh tỉ lệ in cho nó "vừa hơn" — thu mã vạch nhỏ lại chính là cách làm
+hỏng nó.
 
 ---
 
