@@ -361,7 +361,11 @@ doc_events = {
 			"erpnext.portal.utils.set_default_role",
 		],
 	},
+	"Email Queue": {
+		"before_insert": "erpnext.utilities.email_guard.block_unsubscribed_recipients",
+	},
 	"Communication": {
+		"before_insert": "erpnext.utilities.email_guard.handle_bounce",
 		"on_update": [
 			"erpnext.support.doctype.service_level_agreement.service_level_agreement.on_communication_update",
 			"erpnext.support.doctype.issue.issue.set_first_response_time",
