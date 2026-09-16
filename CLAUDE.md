@@ -12,6 +12,8 @@ It runs as one app inside a Frappe *bench* (site `miyano`), not standalone. **Ru
 
 ## Golden rule for changes
 
+
+- **Git actions only on explicit request — no exceptions.** Never create a commit, create/switch a branch, push, open a PR, or amend/rebase/reset/stash on your own initiative. Do these only when the user explicitly asks for that specific action in the current request. Finishing a task, passing tests, or an earlier approval is *not* permission — leave changes uncommitted in the working tree and report them. If a git step seems useful, ask first.
 - **Edit the relevant module directly** to meet a Miyano requirement — don't route around core. Bending core to fit the business is the point of this fork.
 - Keep changes coherent and grouped in the right module. Use `git blame`/`git log` for a file's history and any prior local edits — for context, not as a reason to avoid changing it.
 - **Branding:** the product is "Miyano ERP". Do not reintroduce upstream branding, logos, doc links, or public-project infrastructure. The bench app key stays `app_name = "erpnext"` and the `erpnext/` package path stays — those are install/DB identifiers, not branding.
@@ -124,4 +126,4 @@ When adding Miyano logic that spans many documents (e.g. a shared validation acr
 
 - **Regional customizations** live in `erpnext/regional/` (country-specific tax, compliance, reports) and are dispatched via hooks — Vietnam-specific localization belongs there (or in `mvl_accounting`), not inline in generic modules.
 - Server methods callable from the client must be decorated `@frappe.whitelist()`.
-- The pre-commit `no-commit-to-branch` hook blocks direct commits to `develop` (the current working branch). Create a feature branch before committing, or adjust the hook if the team's workflow commits to `develop` directly.
+- The pre-commit `no-commit-to-branch` hook blocks direct commits to `develop` (the current working branch). When the user asks for a commit, create a feature branch first (only with their go-ahead — see the git rule under "Golden rule for changes"), or adjust the hook if the team's workflow commits to `develop` directly.
