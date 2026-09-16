@@ -42,6 +42,16 @@ doctype_js = {
 	# không còn đường vào quản lý vị trí — `vi_tri_kho/tests/test_giao_dien.py`
 	# khoá việc đó.
 	"Warehouse": "public/js/vi_tri_kho/warehouse.js",
+	# Nút "In nhãn" trên form lô (khối C §6.5) — in LẠI con tem của một lô khi
+	# tem rách hoặc thùng bị tách. Mất dòng này thì form `Batch` trông vẫn bình
+	# thường, chỉ là không còn nút In nhãn, và KHÔNG GÌ BÁO —
+	# `vi_tri_kho/tests/test_giao_dien.py::TestNutTrenPhieuLo` khoá việc đó.
+	#
+	# Đây là khoá "Batch" trong `doctype_js`. `doc_events` bên dưới CŨNG có một
+	# khoá "Batch" (móc NCC + kiểm ký tự lô) — hai dict KHÁC NHAU, đừng nhầm, và
+	# đừng tạo khoá "Batch" thứ hai trong bất kỳ dict nào: khoá sau nuốt khoá
+	# trước trong im lặng, dự án đã dính đúng việc này.
+	"Batch": "public/js/vi_tri_kho/batch.js",
 }
 doctype_list_js = {
 	"Code List": [

@@ -29,6 +29,10 @@ from frappe.tests.utils import FrappeTestCase
 TEN_WORKSPACE = "Vị trí kho"
 TEN_MODULE = "Vi Tri Kho"
 DUONG_DAN_JS = "public/js/vi_tri_kho/warehouse.js"
+# Hằng RIÊNG cho form lô — không dùng chung `DUONG_DAN_JS`: hai nút gắn vào hai
+# doctype khác nhau, gộp một hằng thì một lần đổi đường dẫn sẽ kéo bài kia xanh
+# giả theo.
+DUONG_DAN_JS_LO = "public/js/vi_tri_kho/batch.js"
 
 
 class TestWorkspace(FrappeTestCase):
@@ -121,3 +125,69 @@ class TestNutTrenPhieuKho(FrappeTestCase):
 		js = form_meta("Warehouse").as_dict().get("__js") or ""
 		for dau_hieu in ("Bật quản lý vị trí", "Ô kệ của kho", "Đối soát tồn vị trí"):
 			self.assertIn(dau_hieu, js, f"JS gửi xuống form Warehouse thiếu nút {dau_hieu!r}")
+
+
+class TestNutTrenPhieuLo(FrappeTestCase):
+	"""Nút "In nhãn" trên form `Batch` — cùng kiểu hỏng im lặng với nút Warehouse.
+
+	Mất dòng `"Batch": "public/js/vi_tri_kho/batch.js"` trong `doctype_js` thì
+	form `Batch` vẫn mở bình thường, vẫn lưu được, chỉ là không còn nút In nhãn.
+	Thủ kho cầm một con tem rách trong tay và không còn đường in lại — mà không
+	lỗi nào báo, không log nào ghi.
+
+	Ba bài, ba tầng khác nhau, KHÔNG bài nào thay được bài nào (đúng khuôn
+	`TestNutTrenPhieuKho` ở trên): hook có khai báo → file có thật → JS thật sự
+	đến được form.
+	"""
+
+	def test_doctype_js_gan_vao_batch(self):
+		"""Khoá chính dòng trong `doctype_js`.
+
+		`doctype_js` và `doc_events` trong `erpnext/hooks.py` ĐỀU có một khoá
+		`"Batch"`, hai dict khác nhau. Một lần giải merge nhầm hai chỗ đó, hoặc
+		một khoá `"Batch"` thứ hai thêm vào cùng dict, sẽ nuốt dòng này trong
+		im lặng — `doc_events` vẫn chạy nên không có triệu chứng nào khác.
+		"""
+		gan = frappe.get_hooks("doctype_js").get("Batch") or []
+		if isinstance(gan, str):
+			gan = [gan]
+		self.assertIn(
+			DUONG_DAN_JS_LO,
+			gan,
+			"Form Batch không còn nạp JS của module. Không có nó thì mất nút 'In nhãn' "
+			"— đường DUY NHẤT in lại tem cho một lô khi tem rách hoặc thùng bị tách — "
+			"mà không lỗi nào báo. Kiểm `doctype_js` trong erpnext/hooks.py.",
+		)
+
+	def test_file_js_lo_co_that(self):
+		"""`doctype_js` trỏ file không tồn tại thì Frappe im lặng bỏ qua."""
+		duong_dan = frappe.get_app_path("erpnext", *DUONG_DAN_JS_LO.split("/"))
+		self.assertTrue(os.path.exists(duong_dan), f"thiếu file {duong_dan}")
+
+	def test_ma_nut_in_nhan_thuc_su_den_duoc_form(self):
+		"""Đi đúng đường trình duyệt đi, thay vì chỉ tin hook + file có mặt.
+
+		`FormMeta` là lớp thật sự ghép JS gửi xuống; `frappe.get_meta()` thường
+		KHÔNG nạp phần này (sẽ ra chuỗi rỗng và tưởng là hỏng).
+
+		Dấu hiệu tìm là chuỗi TIẾNG VIỆT của `batch.js`. `erpnext/stock/doctype/
+		batch/batch.js` của upstream cũng được ghép vào cùng `__js` này nhưng
+		toàn tiếng Anh, nên không có đường nào cho một dấu hiệu tiếng Việt lọt
+		vào từ file khác và cho bài này xanh giả.
+		"""
+		from frappe.desk.form.meta import get_meta as form_meta
+
+		frappe.clear_cache(doctype="Batch")
+		js = form_meta("Batch").as_dict().get("__js") or ""
+		for dau_hieu in ("In nhãn", "in_nhan_lo.js"):
+			self.assertIn(dau_hieu, js, f"JS gửi xuống form Batch thiếu {dau_hieu!r}")
+
+	def test_file_in_nhan_lo_co_that(self):
+		"""`batch.js` và `batch_entry.js` đều `frappe.require` file này lúc BẤM.
+
+		Nó không nằm trong `doctype_js` nên không bài nào ở trên chạm tới. Mất
+		nó thì cả hai nút vẫn hiện ra, bấm vào mới hỏng — và hỏng ở đúng lúc thủ
+		kho đang cần tem.
+		"""
+		duong_dan = frappe.get_app_path("erpnext", "public", "js", "vi_tri_kho", "in_nhan_lo.js")
+		self.assertTrue(os.path.exists(duong_dan), f"thiếu file {duong_dan}")
