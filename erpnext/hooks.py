@@ -384,6 +384,12 @@ doc_events = {
 	"Stock Ledger Entry": {
 		"on_submit": "erpnext.vi_tri_kho.vitri.hook_sle.ghi_so_vi_tri",
 	},
+	# Lô sinh từ hộp thoại lô sẵn có của ERPNext không mang NCC. Spec khối C §4.3
+	# chọn vá dữ liệu thay vì chặn đường đó, vì `Batch` dùng chung với nhiều luồng
+	# kho khác. `vi_tri_kho/tests/test_lo_ncc.py` khoá việc này.
+	"Batch": {
+		"before_insert": "erpnext.vi_tri_kho.vitri.lo_ncc.dien_ncc_tu_chung_tu",
+	},
 	"Stock Entry": {
 		"on_submit": "erpnext.stock.doctype.material_request.material_request.update_completed_and_requested_qty",
 		"on_cancel": "erpnext.stock.doctype.material_request.material_request.update_completed_and_requested_qty",

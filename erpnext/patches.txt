@@ -434,3 +434,5 @@ erpnext.vi_tri_kho.patches.v1_0.them_co_quan_ly_vi_tri
 erpnext.vi_tri_kho.patches.v1_0.them_unique_location_balance
 erpnext.patches.v15_0.don_loai_vi_tri_khong_hop_le
 erpnext.patches.v15_0.dung_lai_cay_vi_tri
+erpnext.vi_tri_kho.patches.v1_0.them_so_goi_va_o_in_tem
+erpnext.vi_tri_kho.patches.v1_0.them_thong_so_tem_cho_item
