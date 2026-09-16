@@ -40,7 +40,7 @@ from erpnext.einvoice.reconcile import reconcile_invoice
 from erpnext.einvoice.tax_status import check_tax_status
 from erpnext.einvoice.tests.test_fast_approval import Mailbox
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.tests.test_fixtures import make_delivery_note, minimal_pdf_bytes
+from erpnext.einvoice.tests.test_fixtures import attach_official_xml, make_delivery_note, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
 
@@ -147,6 +147,7 @@ class TestScenario1HappyPath(EndToEndBase):
 		# Fast cần khoảng 1 phút ký số xong mới có PDF — giả lập đã qua thời gian đó.
 		frappe.db.set_value(FEI, self.fei, "issued_time", add_to_date(now_datetime(), seconds=-90))
 		download_official_pdf(self.fei, client=self.client(pdf()))
+		attach_official_xml(self.fei)
 		send_invoice_to_customer(self.fei, mailer=self.mailbox)
 		self.assertEqual(self.status(), STATUS_SENT)
 

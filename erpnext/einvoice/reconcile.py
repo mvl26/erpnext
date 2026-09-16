@@ -22,6 +22,7 @@ from erpnext.einvoice.constants import (
 	TAX_STATUS_PENDING,
 )
 from erpnext.einvoice.fast_settings import check_enabled
+from erpnext.einvoice.folders import move_invoice_files
 from erpnext.einvoice.gateway import call_fast
 from erpnext.einvoice.issue import ERROR_NOT_FOUND, METHOD_QUERY, parse_issue_result
 
@@ -98,6 +99,8 @@ def _apply_from_fast(doc, found):
 
 	frappe.db.set_value(FEI, doc.name, values, update_modified=False)
 	_mirror_status(doc.name, STATUS_ISSUED)
+	# Số hóa đơn vừa khôi phục từ Fast: file của chứng từ về đúng thư mục số hóa đơn.
+	move_invoice_files(doc.name)
 
 	if doc.delivery_note:
 		frappe.db.set_value(

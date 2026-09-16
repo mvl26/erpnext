@@ -49,6 +49,7 @@ from erpnext.einvoice.constants import (
 from erpnext.einvoice.errors import is_duplicate_invoice_error
 from erpnext.einvoice.fast_client import FastClient, FastTimeout
 from erpnext.einvoice.fast_settings import check_enabled, get_notify_recipients
+from erpnext.einvoice.folders import move_invoice_files
 from erpnext.einvoice.gateway import call_fast
 from erpnext.einvoice.payload import build_payload
 from erpnext.einvoice.setup import is_chief_accountant
@@ -375,6 +376,8 @@ def _store_issue_result(doc, result, issued_now):
 	frappe.db.set_value(FEI, doc.name, values, update_modified=False)
 	_stamp_delivery_note(doc, result)
 	_mirror_status(doc.name, STATUS_ISSUED)
+	# Hóa đơn vừa có số: bản nháp đang ở thư mục tạm dời về thư mục số hóa đơn.
+	move_invoice_files(doc.name)
 	if issued_now:
 		_flag_signing_date_mismatch(doc, result.get("fast_signed_date"))
 
