@@ -562,6 +562,18 @@ class TestCayChonViTri(_Nen):
 			khoang["co_gan_ben_trong"], "gán của CHÍNH bản ghi đang sửa phải được loại trừ"
 		)
 
+		# Đối xứng cho `da_gan_cho`: mở cây ngay tại CẤP CỦA `self.tang` (liệt
+		# kê con của Khoang `7A0101`) với cùng `tru_ten`. Không loại trừ ở đây
+		# thì mở cây để sửa ĐÚNG bản ghi đang xem sẽ hiện "đã gán: chính-mình"
+		# — không sai logic (không khoá gì) nhưng là nhãn thừa, gây khó chịu
+		# khi người dùng chỉ định xem/sửa lại vị trí đang giữ. Khoá tường minh
+		# để đây là quyết định có chủ đích, không phải hệ quả tình cờ.
+		nut_tang = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent="7A0101", tru_ten=self.vt_a)}
+		self.assertIsNone(
+			nut_tang[self.tang]["da_gan_cho"],
+			"gán của CHÍNH bản ghi đang sửa cũng phải được loại trừ khỏi da_gan_cho",
+		)
+
 	def test_so_o_trong_loai_nhanh_ngung_dung(self):
 		"""Mục 2 (review tổng). `so_o_trong` từng dùng một vị từ RIÊNG,
 		KHÔNG loại nhánh ngừng dùng như `goi_y._UNG_VIEN` — cây khoe "N ô
