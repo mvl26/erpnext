@@ -19,22 +19,25 @@
 // trước `dat_o_in_tem` thì F8 chỉ là một phép XEM TRƯỚC, và ô thật được chốt
 // SAU đó có thể khác — tờ tem đã in ra nói sai ngay từ giây đầu.
 //
-// VÌ SAO GỌI `du_lieu_tem` TỪNG LÔ MỘT chứ không truyền cả mảng (hàm máy chủ
-// NHẬN mảng): ĐÃ ĐO trên erptest.local 16/09/2026, không phải suy từ mã —
+// `du_lieu_tem` gọi MỘT LẦN với cả mảng — cách dùng tự nhiên, và nay nó đúng.
+// Ghi lại vì sao dòng này từng KHÔNG đúng, để không ai "sửa" ngược lại:
 //
 //     curl -H "Cookie: sid=…" -X POST …/nhap_lo.du_lieu_tem \
 //          --data-urlencode 'so_lo=["A","B"]'
-//     -> DoesNotExistError: Batch ["A","B"] not found
+//     -> DoesNotExistError: Batch ["A","B"] not found      (đo 16/09/2026)
 //
 // `frappe.request.prepare` (frappe/public/js/frappe/request.js:401) JSON.
-// stringify mọi đối số kiểu mảng, rồi gửi đi dưới dạng form-encoded; phía máy
-// chủ `make_form_dict` chỉ json.loads khi content-type là JSON, nên đối số về
-// tới Python là CHUỖI `'["A","B"]'`. Chú giải `list[str] | str` khớp nhánh
-// `str` nên pydantic không đổi gì, và `isinstance(so_lo, str)` biến cả chuỗi
-// thành MỘT tên lô bịa. Tức là truyền mảng từ JS hỏng ngay tại cú bấm — không
-// phải lúc dựng, mà lúc thủ kho bấm In. Đường vòng (ép content-type JSON) thì
-// phải bỏ `frappe.call`; đường thẳng là gọi từng lô, và ta đã gọi từng lô cho
-// `dat_o_in_tem` rồi nên không thêm hạng chi phí nào mới.
+// stringify mọi đối số kiểu mảng rồi gửi form-encoded; phía máy chủ
+// `make_form_dict` chỉ json.loads khi content-type là JSON, nên đối số tới
+// Python là CHUỖI `'["A","B"]'` — và bản cũ của `du_lieu_tem` coi cả chuỗi đó
+// là MỘT tên lô. Cách vá ĐÚNG là ở máy chủ, không phải một quy ước gọi mà mọi
+// người phải nhớ: `nhap_lo._danh_sach_lo` nay `frappe.parse_json` để nhận cả
+// ba dạng (mảng thật, chuỗi JSON của mảng, một tên lô trần), và
+// `test_nhap_lo.TestDuLieuTemNhanDuBaDangDauVao` khoá cả ba.
+//
+// `dat_o_in_tem` thì vẫn MỘT LÔ MỘT LẦN GỌI: chữ ký của nó là `so_lo: str` và
+// nó GHI — gộp một hàm ghi thành lô lớn là một quyết định khác, không phải
+// việc của Task 9.
 //
 // Nạp bằng `frappe.require` từ hai màn hình đó, KHÔNG thêm vào `app_include_js`
 // của `hooks.py` — cùng lý do đã ghi ở `tem_lo.js`/`tem_vi_tri.js`: nhãn chỉ
@@ -56,25 +59,25 @@ erpnext.vi_tri_kho.in_nhan = (function () {
 	const M_DAT_O = "erpnext.vi_tri_kho.vitri.nhap_lo.dat_o_in_tem";
 	const M_DU_LIEU = "erpnext.vi_tri_kho.vitri.nhap_lo.du_lieu_tem";
 
-	/** Chốt ô rồi lấy dữ liệu tem cho từng lô, TUẦN TỰ, giữ nguyên thứ tự.
+	/** Chốt ô cho từng lô (TUẦN TỰ), rồi lấy dữ liệu tem cho CẢ XẤP một lần.
 	 *
-	 * Tuần tự (reduce trên Promise) chứ không `Promise.all`: `dat_o_in_tem`
-	 * GHI `Batch.custom_o_in_tem`, và thứ tự tem in ra phải khớp thứ tự dòng
-	 * trên phiếu — thủ kho cầm xấp tem đối chiếu với phiếu theo thứ tự. Với
-	 * `Promise.all` thì thứ tự kết quả vẫn đúng, nhưng thứ tự GHI thì không,
-	 * và một phiếu 30 dòng bắn 60 request song song vào một dev server một
-	 * luồng là tự chuốc timeout.
+	 * `dat_o_in_tem` tuần tự (reduce trên Promise) chứ không `Promise.all`: nó
+	 * GHI `Batch.custom_o_in_tem`, và một phiếu 30 dòng bắn 30 request ghi song
+	 * song vào một dev server một luồng là tự chuốc timeout.
+	 *
+	 * `du_lieu_tem` thì CHỈ ĐỌC và nhận cả danh sách, nên một lời gọi là đủ —
+	 * và nó trả về ĐÚNG THỨ TỰ `so_lo` truyền vào (hợp đồng của hàm, có bài
+	 * `test_danh_sach_python_that_giu_dung_thu_tu` khoá). Thứ tự quan trọng:
+	 * thủ kho cầm xấp tem đối chiếu với phiếu theo thứ tự dòng.
 	 */
 	function chuoi_du_lieu(danh_sach_lo) {
-		const tem = [];
 		const khong_co_o = [];
 
 		return danh_sach_lo
 			.reduce(
 				(truoc, so_lo) =>
-					truoc
-						.then(() => frappe.xcall(M_DAT_O, { so_lo }))
-						.then((o) => {
+					truoc.then(() =>
+						frappe.xcall(M_DAT_O, { so_lo }).then((o) => {
 							// `dat_o_in_tem` trả `null` khi không suy được kho
 							// (lô không sinh từ phiếu nhập, hoặc phiếu nhập lô
 							// chưa duyệt) hoặc mặt hàng chưa gán vị trí. Spec
@@ -83,14 +86,12 @@ erpnext.vi_tri_kho.in_nhan = (function () {
 							// lặng đúng chỗ này là món nợ số 1 của Task 8.
 							// Gom lại để báo MỘT lần sau khi in.
 							if (!o) khong_co_o.push(so_lo);
-							return frappe.xcall(M_DU_LIEU, { so_lo });
 						})
-						.then((r) => {
-							(r || []).forEach((o) => tem.push(o));
-						}),
+					),
 				Promise.resolve()
 			)
-			.then(() => ({ tem, khong_co_o }));
+			.then(() => frappe.xcall(M_DU_LIEU, { so_lo: danh_sach_lo }))
+			.then((tem) => ({ tem: tem || [], khong_co_o }));
 	}
 
 	/** Mở cửa sổ in cho `danh_sach_lo` (mảng tên `Batch`), mỗi lô một nhãn. */

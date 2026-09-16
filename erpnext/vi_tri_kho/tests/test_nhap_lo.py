@@ -925,3 +925,102 @@ class TestQuyenApiMayChu(FrappeTestCase):
 			du_lieu_tem("khong-quan-trong")
 		with self.assertRaises(frappe.PermissionError):
 			dat_o_in_tem("khong-quan-trong")
+
+
+class TestDuLieuTemNhanDuBaDangDauVao(FrappeTestCase):
+	"""`du_lieu_tem` phải giữ đúng lời hứa của chữ ký `list[str] | str`.
+
+	Đây là một lỗi ĐÃ ĐO trên máy thật (16/09/2026, Task 9), không phải phòng xa:
+
+	    curl -X POST …/nhap_lo.du_lieu_tem --data-urlencode 'so_lo=["A","B"]'
+	    -> DoesNotExistError: Batch ["A","B"] not found
+
+	Qua lớp RPC, một mảng từ JS tới nơi là CHUỖI JSON (`frappe.request.prepare`
+	`JSON.stringify` rồi gửi form-encoded). Bản cũ kiểm `isinstance(so_lo, str)`
+	nên coi cả chuỗi là MỘT tên lô. Sửa bằng quy ước gọi ("nhớ gọi từng lô") là
+	để lại một cái bẫy cho người viết mã sau — họ sẽ truyền mảng, vì chữ ký nói
+	là được, và họ không đọc báo cáo Task 9.
+
+	Bốn bài: ba DẠNG đầu vào, và một bài chốt ÂM cho phép bảo vệ dễ bị rút gọn.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		ncc = _ncc_thu()
+		kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+		item = _tao_item("_Test API Tem Ba Dang", co_lo=1)
+		pr = frappe.get_doc(
+			{
+				"doctype": "Purchase Receipt",
+				"company": CONG_TY,
+				"supplier": ncc,
+				"items": [
+					{"item_code": item, "qty": 5, "warehouse": kho, "rate": 1000},
+					{"item_code": item, "qty": 5, "warehouse": kho, "rate": 1000},
+					{"item_code": item, "qty": 5, "warehouse": kho, "rate": 1000},
+				],
+			}
+		).insert(ignore_permissions=True)
+		# Lô thứ ba TOÀN CHỮ SỐ — `ma_vach.kiem_tra_ky_tu` cho qua (ASCII), nên
+		# đây là số lô hợp lệ, và nó là bẫy của bài chốt âm thứ hai bên dưới.
+		cls.lo = ["LO-BA-DANG-A", "LO-BA-DANG-B", "20260916"]
+		be = _phieu_nhap_lo(
+			pr,
+			[
+				{
+					"dong_phieu_nhap": pr.items[i].name,
+					"vat_tu": item,
+					"kho": kho,
+					"so_luong": 5,
+					"so_lo": cls.lo[i],
+					"hsd": "2031-01-01",
+				}
+				for i in range(3)
+			],
+		)
+		be.insert(ignore_permissions=True)
+		be.submit()
+
+	def test_mot_ten_lo_tran_van_tra_ve_dung_mot_dict(self):
+		"""Dạng cũ nhất, phải không đổi: chuỗi KHÔNG phải JSON là một tên lô."""
+		kq = du_lieu_tem(self.lo[0])
+		self.assertEqual(len(kq), 1)
+		self.assertEqual(kq[0]["F6"], f"Lô {self.lo[0]}")
+
+	def test_danh_sach_python_that_giu_dung_thu_tu(self):
+		"""Gọi từ Python (test, patch, job) — mảng thật, không qua RPC.
+
+		Thứ tự là một phần hợp đồng: thủ kho cầm xấp tem đối chiếu với phiếu
+		theo thứ tự dòng. Truyền NGƯỢC để một cài đặt lỡ `set()`/`sorted()` thì
+		đỏ ở đây.
+		"""
+		kq = du_lieu_tem([self.lo[1], self.lo[0]])
+		self.assertEqual([d["F6"] for d in kq], [f"Lô {self.lo[1]}", f"Lô {self.lo[0]}"])
+
+	def test_chuoi_json_cua_mang_hai_lo_tra_ve_HAI_dict(self):
+		"""BÀI CHỐT ÂM — đây là dạng JS thật sự gửi tới.
+
+		Gỡ `frappe.parse_json` khỏi `_danh_sach_lo` thì chuỗi này thành MỘT tên
+		lô bịa, `frappe.get_doc("Batch", '["…","…"]')` ném `DoesNotExistError`,
+		và bài này đỏ. Đó là đúng cú bấm "In nhãn cả phiếu" hỏng trên máy thật.
+		"""
+		import json
+
+		kq = du_lieu_tem(json.dumps([self.lo[0], self.lo[1]]))
+		self.assertEqual(len(kq), 2, "chuỗi JSON của MẢNG phải ra HAI tem, không phải một")
+		self.assertEqual([d["F6"] for d in kq], [f"Lô {self.lo[0]}", f"Lô {self.lo[1]}"])
+
+	def test_so_lo_toan_chu_so_khong_bi_hieu_thanh_mot_con_so(self):
+		"""BÀI CHỐT ÂM thứ hai — khoá phép bảo vệ `isinstance(…, list)`.
+
+		Rút gọn `_danh_sach_lo` thành `frappe.parse_json(so_lo)` trần trông rất
+		gọn và vẫn cho ba bài trên xanh. Nhưng `json.loads("20260916")` KHÔNG
+		ném lỗi — nó trả về số nguyên `20260916`. Khi ấy một số lô toàn chữ số
+		(hợp lệ với `ma_vach.kiem_tra_ky_tu`) bị biến thành một con số rồi
+		`get_doc` trượt — đúng lớp lỗi vừa vá, chỉ đổi chỗ. Bài này bắt đúng
+		phép rút gọn đó.
+		"""
+		kq = du_lieu_tem(self.lo[2])
+		self.assertEqual(len(kq), 1)
+		self.assertEqual(kq[0]["F6"], f"Lô {self.lo[2]}")

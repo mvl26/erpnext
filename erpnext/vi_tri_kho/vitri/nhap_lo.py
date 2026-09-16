@@ -224,10 +224,57 @@ def _du_lieu_mot_lo(so_lo: str) -> dict:
 	}
 
 
+def _danh_sach_lo(so_lo) -> list[str]:
+	"""`so_lo` về dạng danh sách tên lô, nhận CẢ BA dạng nó thật sự tới nơi.
+
+	VÌ SAO PHẢI CÓ HÀM NÀY — không phải phòng xa, là một lỗi ĐÃ ĐO (16/09/2026,
+	Task 9):
+
+	    curl -X POST …/nhap_lo.du_lieu_tem --data-urlencode 'so_lo=["A","B"]'
+	    -> DoesNotExistError: Batch ["A","B"] not found
+
+	Qua lớp RPC của Frappe, MỌI đối số tới nơi đều là CHUỖI:
+	`frappe.request.prepare` (frappe/public/js/frappe/request.js:401) `JSON.
+	stringify` đối số kiểu mảng rồi gửi form-encoded, và `make_form_dict` phía
+	máy chủ chỉ `json.loads` khi content-type là JSON. Chú giải `list[str] |
+	str` khớp nhánh `str` nên pydantic không đổi gì, và phép kiểm cũ
+	`isinstance(so_lo, str)` coi cả chuỗi `'["A","B"]'` là MỘT tên lô — rồi
+	`frappe.get_doc("Batch", …)` ném `DoesNotExistError` ngay tại cú bấm In.
+
+	Tức là một chữ ký nhận `list` mà không parse là một LỜI HỨA KHÔNG GIỮ ĐƯỢC.
+	Người viết mã sau sẽ truyền mảng — đó là cách dùng tự nhiên — và họ không
+	đọc báo cáo Task 9. Sửa ở đây, một lần, thay vì đẻ ra một quy ước gọi mà ai
+	cũng phải nhớ.
+
+	CHỈ nhận kết quả parse khi nó ra một LIST. Đây là phần tinh tế, đừng rút
+	gọn thành `frappe.parse_json(so_lo)` trần:
+
+	- `"T9LO-A-0001"` → `json.loads` ném `JSONDecodeError` → giữ nguyên chuỗi.
+	- `"123"` (số lô toàn chữ số — hợp lệ, `ma_vach.kiem_tra_ky_tu` cho qua) →
+	  `json.loads` trả về **số nguyên 123**, KHÔNG phải lỗi. Nhận bừa kết quả
+	  parse ở đây là biến một tên lô thành một con số, rồi `get_doc` trượt —
+	  đúng lớp lỗi vừa vá, chỉ đổi chỗ.
+	- `'["A","B"]'` → ra list → dùng.
+	"""
+	if isinstance(so_lo, str):
+		try:
+			da_parse = frappe.parse_json(so_lo)
+		except Exception:
+			da_parse = None
+		if isinstance(da_parse, list):
+			so_lo = da_parse
+		else:
+			return [so_lo]
+	return [str(sl) for sl in so_lo]
+
+
 @frappe.whitelist()
 def du_lieu_tem(so_lo: list[str] | str) -> list[dict]:
 	"""Dữ liệu ĐÃ ĐỊNH DẠNG SẴN cho nhãn 50×30 của một hoặc nhiều lô — 11 ô
 	F1–F11 mỗi lô. Thứ tự trả về khớp thứ tự `so_lo` truyền vào.
+
+	`so_lo` nhận một tên lô, một danh sách tên lô, hoặc chuỗi JSON của danh
+	sách đó (dạng nó tới nơi khi JS gọi) — xem `_danh_sach_lo`.
 
 	CHỈ ĐỌC — không gọi `dat_o_in_tem`, không ghi `custom_o_in_tem` (yêu cầu
 	#4 brief). Trộn việc GHI vào hàm XEM TRƯỚC là mở đường cho một lần mở màn
@@ -235,8 +282,7 @@ def du_lieu_tem(so_lo: list[str] | str) -> list[dict]:
 	thủ kho kịp quyết định in hay không.
 	"""
 	_kiem_tra_quyen()
-	danh_sach = [so_lo] if isinstance(so_lo, str) else list(so_lo)
-	return [_du_lieu_mot_lo(sl) for sl in danh_sach]
+	return [_du_lieu_mot_lo(sl) for sl in _danh_sach_lo(so_lo)]
 
 
 @frappe.whitelist()
