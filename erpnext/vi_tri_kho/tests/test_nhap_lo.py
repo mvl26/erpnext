@@ -11,6 +11,7 @@ from frappe.tests.utils import FrappeTestCase
 
 from erpnext.vi_tri_kho.tests.test_hook_nhap import _tao_item
 from erpnext.vi_tri_kho.tests.test_lo_ncc import _ncc_thu, _ncc_thu_2, _phieu_nhap_nhap
+from erpnext.vi_tri_kho.vitri.nhap_lo import dat_o_in_tem, du_lieu_tem, lay_dong_tu_phieu_nhap
 
 CONG_TY = "Miyano Việt Nam"
 
@@ -507,3 +508,396 @@ class TestSubmit(FrappeTestCase):
 		self.assertEqual(lo.supplier, self.ncc)
 		self.assertEqual(lo.reference_doctype, "Purchase Receipt")
 		self.assertEqual(lo.reference_name, self.pr.name)
+
+
+def _o_vt(ma_o, kho, **kw):
+	"""Nút vị trí — tham số hoá `kho` (khác `KHO` cứng của các bộ test khác)
+	vì ở đây `kho` suy từ `CONG_TY` của bộ test này."""
+	if not frappe.db.exists("Storage Location", ma_o):
+		frappe.get_doc({"doctype": "Storage Location", "ma_o": ma_o, "kho": kho, **kw}).insert(
+			ignore_permissions=True
+		)
+	return ma_o
+
+
+def _gan_vt(vat_tu, vi_tri, kho):
+	return frappe.get_doc(
+		{"doctype": "Item Location Preference", "vat_tu": vat_tu, "kho": kho, "vi_tri": vi_tri}
+	).insert(ignore_permissions=True)
+
+
+def _tao_item_tem(ma, quy_doi=None, thong_so=None, co_lo=1):
+	"""Mặt hàng đủ trường cho `du_lieu_tem`: `custom_thong_so_tem` (F4) và các
+	dòng quy đổi ĐVT (F3, §6.3) — `_tao_item` (test_hook_nhap.py) không có."""
+	if not frappe.db.exists("Item", ma):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": ma,
+				"item_name": ma,
+				"item_group": "All Item Groups",
+				"stock_uom": "Nos",
+				"is_stock_item": 1,
+				"has_batch_no": co_lo,
+				"create_new_batch": co_lo,
+				"batch_number_series": f"{ma}-.###" if co_lo else None,
+				"custom_thong_so_tem": thong_so or "",
+			}
+		)
+		for uom, cf in quy_doi or []:
+			doc.append("uoms", {"uom": uom, "conversion_factor": cf})
+		doc.insert(ignore_permissions=True)
+	return ma
+
+
+class TestApiMayChu(FrappeTestCase):
+	"""API máy chủ cho màn hình `Batch Entry` và cho việc in nhãn (Task 7).
+
+	`FrappeTestCase` chỉ rollback ở `tearDownClass` (xem `frappe/tests/
+	utils.py::_rollback_db`, gắn qua `addClassCleanup`), KHÔNG rollback theo
+	từng phương thức — cùng bẫy đã ghi ở `test_gan_vi_tri.py`/`test_goi_y_o.py`.
+	Mỗi bài dưới đây tự tạo mặt hàng/mã ô/số lô TÊN RIÊNG (không dùng chung
+	giữa các bài) để không đụng khoá chính của bài chạy trước trong cùng lớp.
+	"""
+
+	def test_lay_dong_chi_lay_mat_hang_co_lo(self):
+		"""Mặt hàng không quản lý lô không có gì để khai. Lấy về là bắt thủ kho
+		gõ số lô cho một thứ không có lô."""
+		ncc = _ncc_thu()
+		kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+		item_lo = _tao_item("_Test API Co Lo 1", co_lo=1)
+		item_khong_lo = _tao_item("_Test API Khong Lo 1", co_lo=0)
+		pr = frappe.get_doc(
+			{
+				"doctype": "Purchase Receipt",
+				"company": CONG_TY,
+				"supplier": ncc,
+				"items": [
+					{"item_code": item_lo, "qty": 5, "warehouse": kho, "rate": 1000},
+					{"item_code": item_khong_lo, "qty": 5, "warehouse": kho, "rate": 1000},
+				],
+			}
+		).insert(ignore_permissions=True)
+
+		dong = lay_dong_tu_phieu_nhap(pr.name)
+
+		vat_tu_ve = {d["vat_tu"] for d in dong}
+		self.assertEqual(len(dong), 1)
+		self.assertIn(item_lo, vat_tu_ve)
+		self.assertNotIn(item_khong_lo, vat_tu_ve)
+
+	def test_lay_dong_bo_qua_dong_da_co_batch_no(self):
+		"""Chạy lại nút 'Lấy dòng' sau khi đã nhập lô một phần không được nhân
+		đôi công việc đã làm."""
+		ncc = _ncc_thu()
+		kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+		item = _tao_item("_Test API Da Co Batch", co_lo=1)
+		pr = frappe.get_doc(
+			{
+				"doctype": "Purchase Receipt",
+				"company": CONG_TY,
+				"supplier": ncc,
+				"items": [
+					{"item_code": item, "qty": 5, "warehouse": kho, "rate": 1000},
+					{"item_code": item, "qty": 3, "warehouse": kho, "rate": 1000},
+				],
+			}
+		).insert(ignore_permissions=True)
+		# Dòng đầu ĐÃ khai lô — mô phỏng bằng cách ghi thẳng xuống CSDL, đúng
+		# đường `BatchEntry.on_submit` dùng thật (`frappe.db.set_value`).
+		frappe.db.set_value(
+			"Purchase Receipt Item", pr.items[0].name, "batch_no", "PRE-EXISTING-LOT"
+		)
+
+		dong = lay_dong_tu_phieu_nhap(pr.name)
+
+		dong_ve = {d["dong_phieu_nhap"] for d in dong}
+		self.assertEqual(len(dong), 1)
+		self.assertNotIn(pr.items[0].name, dong_ve)
+		self.assertIn(pr.items[1].name, dong_ve)
+
+	def test_lay_dong_dien_san_o_goi_y(self):
+		"""`o_goi_y`/`ly_do_goi_y` phải điền SẴN từ `goi_y_o` — màn hình không tự
+		tính gì thêm."""
+		ncc = _ncc_thu()
+		kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+		item = _tao_item("_Test API O Goi Y", co_lo=1)
+		o = _o_vt("5D01010101", kho)
+		_gan_vt(item, "5D010101", kho)
+
+		pr = frappe.get_doc(
+			{
+				"doctype": "Purchase Receipt",
+				"company": CONG_TY,
+				"supplier": ncc,
+				"items": [{"item_code": item, "qty": 5, "warehouse": kho, "rate": 1000}],
+			}
+		).insert(ignore_permissions=True)
+
+		dong = lay_dong_tu_phieu_nhap(pr.name)
+
+		self.assertEqual(len(dong), 1)
+		self.assertEqual(dong[0]["o_goi_y"], o)
+		self.assertIn("trống", dong[0]["ly_do_goi_y"])
+
+	def test_lay_dong_khong_no_khi_mot_mat_hang_hong_du_lieu_gan(self):
+		"""Ruling N của khối B, áp lại ở đây: lỗi của MỘT mặt hàng không được làm
+		sập danh sách của CẢ phiếu."""
+		ncc = _ncc_thu()
+		kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+
+		item_lanh = _tao_item("_Test API Lanh", co_lo=1)
+		_o_vt("5E01010101", kho)
+		_gan_vt(item_lanh, "5E010101", kho)
+
+		item_hong = _tao_item("_Test API Hong", co_lo=1)
+		_o_vt("5F01010101", kho)
+		_gan_vt(item_hong, "5F010101", kho)
+		# Ép toạ độ cây về 0/0 trên ĐÚNG nút được gán (`5F010101`, không phải
+		# ô lá) — `goi_y_o` đọc `lft`/`rgt` của nút này rồi `frappe.throw` khi
+		# gặp 0/0 (bẫy đã ghi ở `goi_y.py`), mô phỏng một bản ghi gán trỏ vào
+		# nút cây chưa hội tụ.
+		frappe.db.set_value("Storage Location", "5F010101", {"lft": 0, "rgt": 0})
+
+		pr = frappe.get_doc(
+			{
+				"doctype": "Purchase Receipt",
+				"company": CONG_TY,
+				"supplier": ncc,
+				"items": [
+					{"item_code": item_lanh, "qty": 5, "warehouse": kho, "rate": 1000},
+					{"item_code": item_hong, "qty": 5, "warehouse": kho, "rate": 1000},
+				],
+			}
+		).insert(ignore_permissions=True)
+
+		dong = lay_dong_tu_phieu_nhap(pr.name)
+
+		theo_vat_tu = {d["vat_tu"]: d for d in dong}
+		# Cả hai dòng đều VỀ ĐỦ — không chỉ "lệnh không ném lỗi", mà mặt hàng
+		# LÀNH còn phải mang đúng gợi ý của nó, không bị rỗng lây từ dòng hỏng.
+		self.assertEqual(len(dong), 2)
+		self.assertEqual(theo_vat_tu[item_lanh]["o_goi_y"], "5E01010101")
+		self.assertIsNone(theo_vat_tu[item_hong]["o_goi_y"])
+		self.assertIn(item_hong, theo_vat_tu[item_hong]["ly_do_goi_y"])
+
+	def test_du_lieu_tem_du_11_o(self):
+		ncc = _ncc_thu()
+		kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+		item = _tao_item("_Test API Tem 11O", co_lo=1)
+		pr = _phieu_nhap_nhap(item, kho, ncc)
+		be = _phieu_nhap_lo(
+			pr,
+			[
+				{
+					"dong_phieu_nhap": pr.items[0].name,
+					"vat_tu": item,
+					"kho": kho,
+					"so_luong": 10,
+					"so_lo": "LO-API-11O",
+					"hsd": "2031-01-01",
+				}
+			],
+		)
+		be.insert(ignore_permissions=True)
+		be.submit()
+
+		ket_qua = du_lieu_tem("LO-API-11O")
+
+		self.assertEqual(len(ket_qua), 1)
+		self.assertEqual(set(ket_qua[0].keys()), {f"F{i}" for i in range(1, 12)})
+
+	def test_du_lieu_tem_F3_theo_so_dong_quy_doi_dvt(self):
+		"""0 dòng quy đổi -> chỉ ĐVT. 1 dòng -> 'Cái (1/hộp)'. 2 dòng -> chỉ ĐVT.
+
+		Nhiều hơn một quy cách thì không có quy cách nào ĐÚNG để in; in bừa một
+		dòng là nói sai trên vật thể vật lý mà không ai đối chiếu lại.
+		"""
+		ncc = _ncc_thu()
+		kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+
+		item_0 = _tao_item_tem("_Test API F3 Khong Quy Doi", quy_doi=[])
+		item_1 = _tao_item_tem("_Test API F3 Mot Quy Doi", quy_doi=[("Box", 1)])
+		item_2 = _tao_item_tem("_Test API F3 Hai Quy Doi", quy_doi=[("Box", 1), ("Pair", 2)])
+
+		f3 = {}
+		for idx, item in enumerate((item_0, item_1, item_2), start=1):
+			pr = _phieu_nhap_nhap(item, kho, ncc)
+			so_lo = f"LO-F3-{idx}"
+			be = _phieu_nhap_lo(
+				pr,
+				[
+					{
+						"dong_phieu_nhap": pr.items[0].name,
+						"vat_tu": item,
+						"kho": kho,
+						"so_luong": 10,
+						"so_lo": so_lo,
+						"hsd": "2031-01-01",
+					}
+				],
+			)
+			be.insert(ignore_permissions=True)
+			be.submit()
+			f3[item] = du_lieu_tem(so_lo)[0]["F3"]
+
+		self.assertEqual(f3[item_0], "Nos")
+		self.assertEqual(f3[item_1], "Nos (1/Box)")
+		self.assertEqual(f3[item_2], "Nos")
+		# Ba ca chỉ cho ra HAI chuỗi khác nhau — ca 0 và ca 2 TRÙNG NHAU (cùng
+		# "chỉ ĐVT"). Thiếu ca 0 hoặc ca 2 thì hai ca còn lại không phân biệt
+		# được nhánh "đúng 1 dòng" với nhánh "khác 1 dòng" (0 hay ≥2 dòng).
+		self.assertEqual(f3[item_0], f3[item_2])
+		self.assertNotEqual(f3[item_0], f3[item_1])
+
+	def test_dat_o_in_tem_lan_dau_thi_dat_lan_sau_giu_nguyen(self):
+		"""In lại lần hai phải ra ĐÚNG tờ giấy như lần đầu — lần đầu có thể đã
+		dán lên hàng."""
+		ncc = _ncc_thu()
+		kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+		item = _tao_item("_Test API Bat Bien", co_lo=1)
+		item_khac = _tao_item("_Test API Bat Bien Khac", co_lo=0)
+
+		leaf1 = _o_vt("5G01010101", kho)
+		_o_vt("5G01010102", kho)
+		_gan_vt(item, "5G010101", kho)
+
+		pr = _phieu_nhap_nhap(item, kho, ncc)
+		be = _phieu_nhap_lo(
+			pr,
+			[
+				{
+					"dong_phieu_nhap": pr.items[0].name,
+					"vat_tu": item,
+					"kho": kho,
+					"so_luong": 10,
+					"so_lo": "LO-BATBIEN-1",
+					"hsd": "2031-01-01",
+				}
+			],
+		)
+		be.insert(ignore_permissions=True)
+		be.submit()
+
+		lan_1 = dat_o_in_tem("LO-BATBIEN-1")
+		self.assertEqual(lan_1, leaf1)
+		self.assertEqual(
+			frappe.db.get_value("Batch", "LO-BATBIEN-1", "custom_o_in_tem"), leaf1
+		)
+
+		# Chiếm `leaf1` bằng một mặt hàng KHÁC — nếu `dat_o_in_tem` TÍNH LẠI
+		# thay vì đọc giá trị đã lưu, `goi_y_o` sẽ bỏ qua `leaf1` (không còn
+		# trống, không cùng hàng) và trả `leaf2` — khác `leaf1`, lộ ngay đột
+		# biến "xoá điều kiện bất biến".
+		frappe.get_doc(
+			{
+				"doctype": "Location Balance",
+				"o": leaf1,
+				"kho": kho,
+				"vat_tu": item_khac,
+				"so_lo": "",
+				"so_luong": 3,
+			}
+		).insert(ignore_permissions=True)
+
+		lan_2 = dat_o_in_tem("LO-BATBIEN-1")
+		self.assertEqual(lan_2, leaf1)
+
+	def test_du_lieu_tem_khong_ghi_du_lieu(self):
+		"""Xem trước không được ghi dữ liệu (yêu cầu #4 brief) — hai việc tách
+		nhau. Dựng mặt hàng ĐÃ GÁN vị trí để F8 xem trước có ô để gợi ý (không
+		rơi vào nhánh "VT —" — nhánh đó không thử thách được việc ghi/không
+		ghi), gọi `du_lieu_tem`, rồi khẳng định `custom_o_in_tem` VẪN TRỐNG."""
+		ncc = _ncc_thu()
+		kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+		item = _tao_item("_Test API Khong Ghi", co_lo=1)
+		_o_vt("5H01010101", kho)
+		_gan_vt(item, "5H010101", kho)
+
+		pr = _phieu_nhap_nhap(item, kho, ncc)
+		be = _phieu_nhap_lo(
+			pr,
+			[
+				{
+					"dong_phieu_nhap": pr.items[0].name,
+					"vat_tu": item,
+					"kho": kho,
+					"so_luong": 10,
+					"so_lo": "LO-KHONGGHI-1",
+					"hsd": "2031-01-01",
+				}
+			],
+		)
+		be.insert(ignore_permissions=True)
+		be.submit()
+
+		ket_qua = du_lieu_tem("LO-KHONGGHI-1")
+
+		# Xem trước PHẢI thấy được gợi ý — không rơi vào "VT —" vô nghĩa, thứ
+		# không thử thách gì việc ghi/không ghi.
+		self.assertNotEqual(ket_qua[0]["F8"], "VT —")
+		# Nhưng KHÔNG được ghi xuống CSDL — xem trước, không phải in.
+		self.assertFalse(frappe.db.get_value("Batch", "LO-KHONGGHI-1", "custom_o_in_tem"))
+
+	def test_dat_o_in_tem_tra_None_khi_mat_hang_chua_gan(self):
+		"""F8 in 'VT —', KHÔNG đoán, và KHÔNG chặn in."""
+		ncc = _ncc_thu()
+		kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+		item = _tao_item("_Test API Chua Gan", co_lo=1)  # KHÔNG gán vị trí cố định
+
+		pr = _phieu_nhap_nhap(item, kho, ncc)
+		be = _phieu_nhap_lo(
+			pr,
+			[
+				{
+					"dong_phieu_nhap": pr.items[0].name,
+					"vat_tu": item,
+					"kho": kho,
+					"so_luong": 10,
+					"so_lo": "LO-CHUAGAN-1",
+					"hsd": "2031-01-01",
+				}
+			],
+		)
+		be.insert(ignore_permissions=True)
+		be.submit()
+
+		ket_qua = dat_o_in_tem("LO-CHUAGAN-1")
+
+		self.assertIsNone(ket_qua)
+		# KHÔNG đoán: không có gì được ghi xuống CSDL từ lần gọi này.
+		self.assertFalse(frappe.db.get_value("Batch", "LO-CHUAGAN-1", "custom_o_in_tem"))
+
+
+class TestQuyenApiMayChu(FrappeTestCase):
+	"""Đối chứng cho yêu cầu #1 (kiểm quyền ở mọi hàm whitelist) — cùng khuôn
+	`test_tem.py::TestQuyenInTem`. Không nằm trong 7 bài của brief, nhưng
+	"Tám điều" của điều phối nêu đích danh đây là điều bắt buộc phải đúng."""
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+
+	def _nguoi_dung_khong_vai_tro(self):
+		ten = "nhaplo-khong-quyen@mo-phong.local"
+		if not frappe.db.exists("User", ten):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": ten,
+					"first_name": "NhapLo",
+					"send_welcome_email": 0,
+					"roles": [],
+				}
+			).insert(ignore_permissions=True)
+		return ten
+
+	def test_khach_vang_lai_hop_le_van_bi_chan_ca_ba_ham(self):
+		"""Đăng nhập hợp lệ không phải điều kiện đủ — cả ba hàm đều lộ tồn kho
+		theo ô hoặc ghi dữ liệu vận hành."""
+		frappe.set_user(self._nguoi_dung_khong_vai_tro())
+		with self.assertRaises(frappe.PermissionError):
+			lay_dong_tu_phieu_nhap("khong-quan-trong")
+		with self.assertRaises(frappe.PermissionError):
+			du_lieu_tem("khong-quan-trong")
+		with self.assertRaises(frappe.PermissionError):
+			dat_o_in_tem("khong-quan-trong")
