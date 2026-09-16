@@ -35,8 +35,13 @@ _UNG_VIEN = f"""
 """
 
 
-def goi_y_o(vat_tu: str, kho: str) -> tuple[str | None, str]:
-	"""Ô nên xếp `vat_tu` vào, kèm lý do. `(None, lý do)` nếu không gợi ý được."""
+def goi_y_o(vat_tu: str, kho: str, so_lo: str | None = None) -> tuple[str | None, str]:
+	"""Ô nên xếp `vat_tu` vào, kèm lý do. `(None, lý do)` nếu không gợi ý được.
+
+	`so_lo` TUỲ CHỌN: lúc nạp dòng trên `Batch Entry` thì lô chưa tồn tại, và
+	phiếu xếp thì có. Có `so_lo` và lô đó đã in tem → ưu tiên đúng ô đã in
+	(spec khối C §8).
+	"""
 	gan = frappe.db.sql(
 		"""
 		select p.vi_tri as vi_tri, s.lft as lft, s.rgt as rgt
@@ -64,6 +69,44 @@ def goi_y_o(vat_tu: str, kho: str) -> tuple[str | None, str]:
 
 	tham_so = {"lft": g.lft, "rgt": g.rgt, "vat_tu": vat_tu}
 
+	# Ô ĐÃ IN TEM đi trước mọi thứ khác (spec khối C §8).
+	#
+	# Vì sao ưu tiên chứ không phải "giữ chỗ": giữ chỗ cần hết hạn, cần dọn khi
+	# huỷ, cần thêm một doctype nữa — tất cả để giải một bài mà một trường đã
+	# giải xong. Ưu tiên khiến tem TỰ ỨNG NGHIỆM: cái gì in ra thì cái đó thành
+	# sự thật, miễn là còn xếp vào được.
+	#
+	# Bốn điều kiện dưới đều CẦN, mỗi cái khoá một đường tem nói dối khác nhau:
+	# nằm trong vùng gán (ai đó đổi gán sau khi in), là ô lá thật, không nằm
+	# dưới nhánh ngừng dùng, và chưa bị mặt hàng KHÁC chiếm.
+	ly_do_tem = None
+	if so_lo:
+		o_tem = frappe.db.get_value("Batch", so_lo, "custom_o_in_tem")
+		if o_tem:
+			dung_duoc = frappe.db.sql(
+				f"""
+				select sl.name
+				{_UNG_VIEN}
+				  and sl.name = %(o_tem)s
+				  and not exists (
+				        select 1 from `tabLocation Balance` lb
+				        where lb.o = sl.name and lb.vat_tu != %(vat_tu)s and lb.so_luong != 0
+				      )
+				limit 1
+				""",
+				dict(tham_so, o_tem=o_tem),
+			)
+			if dung_duoc:
+				return o_tem, _("theo ô đã in trên tem của lô {0}").format(so_lo)
+			# Không im lặng bỏ qua: thủ kho đang cầm một tờ tem in ô này trên tay.
+			# Phải biết tem đó không dùng được nữa, và vì sao.
+			ly_do_tem = _("tem của lô {0} in ô {1} nhưng ô đó không xếp được nữa").format(
+				so_lo, o_tem
+			)
+
+	def _ly_do(goc: str) -> str:
+		return f"{ly_do_tem} — {goc}" if ly_do_tem else goc
+
 	trong = frappe.db.sql(
 		f"""
 		select sl.name
@@ -77,7 +120,7 @@ def goi_y_o(vat_tu: str, kho: str) -> tuple[str | None, str]:
 		tham_so,
 	)
 	if trong:
-		return trong[0][0], _("ô trống đầu tiên trong {0}").format(g.vi_tri)
+		return trong[0][0], _ly_do(_("ô trống đầu tiên trong {0}").format(g.vi_tri))
 
 	# Không còn ô trống → dồn vào ô đang chứa CHÍNH mặt hàng này (phương án (b),
 	# chủ đầu tư chốt 15/09). Không có nhánh này thì gán vào một Ô lẻ khiến lần
@@ -96,7 +139,7 @@ def goi_y_o(vat_tu: str, kho: str) -> tuple[str | None, str]:
 		tham_so,
 	)
 	if cung_hang:
-		return cung_hang[0][0], _("dồn vào ô đang có hàng cùng mặt hàng")
+		return cung_hang[0][0], _ly_do(_("dồn vào ô đang có hàng cùng mặt hàng"))
 
 	tong = frappe.db.sql(f"select count(*) {_UNG_VIEN}", tham_so)[0][0]
-	return None, _("vùng {0} đã đầy: {1}/{1} ô đang chứa hàng khác").format(g.vi_tri, tong)
+	return None, _ly_do(_("vùng {0} đã đầy: {1}/{1} ô đang chứa hàng khác").format(g.vi_tri, tong))

@@ -276,3 +276,150 @@ class TestPhieuXepDuocDienSan(_NenGoiY):
 		# sẽ xanh dù ai đó lỡ xoá mất phần phân biệt — "đừng gán lại" chỉ
 		# xuất hiện ở nhánh lỗi dữ liệu/lỗi mã, khoá đúng thứ cần khoá.
 		self.assertIn("đừng gán lại", d_hong["ly_do_goi_y"])
+
+
+class TestUuTienOInTem(_NenGoiY):
+	"""Spec khối C §8 — tem in ô cụ thể có thể nói dối, và cách xử.
+
+	Nhãn in lúc nhập, hàng xếp sau. Giữa hai thời điểm đó một lượt nhập khác có
+	thể chiếm mất ô đã in. Không xử thì tem dán trên thùng hàng nói sai — hạng
+	lỗi tệ hơn mọi lỗi màn hình, vì màn hình sai thì làm lại được còn tem sai thì
+	đi theo thùng hàng suốt vòng đời.
+
+	Cách xử: ưu tiên ô đã in. Tem TỰ ỨNG NGHIỆM thay vì nói dối.
+	"""
+
+	def tearDown(self):
+		# Cùng lý do đã ghi ở `TestGoiY.tearDown`: rollback chỉ chạy ở
+		# `tearDownClass`, nên mỗi bài phải tự dọn phần của mình.
+		frappe.db.delete("Location Balance", {"vat_tu": self.vt_khac})
+
+	def _lo(self, ten, vat_tu, o_tem=None):
+		"""Bản ghi `Batch` tối thiểu, mang sẵn `custom_o_in_tem`.
+
+		`db.set_value` cho `custom_o_in_tem` KHÔNG phải vì `read_only` chặn —
+		`read_only` là cờ phía trình duyệt, máy chủ ghi thoải mái. Lý do là tránh
+		một vòng `Batch.validate` nữa: `set_expiry_date()` (`batch.py:184`) có
+		thể `throw` khi mặt hàng bật `has_expiry_date`, và bài này không nói gì
+		về hạn dùng.
+
+		LỆCH KHỎI BRIEF, có đo (cùng ca đã gặp và đã ghi ở
+		`test_fefo.py::_dam_bao_item`): `_mat_hang()` (dùng chung từ
+		`test_gan_vi_tri.py`) không bật `has_batch_no`, nên `insert()` Batch
+		bên dưới ném `ValidationError: The selected item cannot have Batch`
+		(`batch.py::item_has_batch_enabled`). Bật cờ bằng `db.set_value`
+		TRƯỚC khi insert — không đi qua `Item.validate()` lần nữa nên không
+		đổi hành vi nào khác của mặt hàng.
+		"""
+		frappe.db.set_value("Item", vat_tu, "has_batch_no", 1)
+		frappe.get_doc({"doctype": "Batch", "batch_id": ten, "item": vat_tu}).insert(
+			ignore_permissions=True
+		)
+		if o_tem:
+			frappe.db.set_value("Batch", ten, "custom_o_in_tem", o_tem)
+		return ten
+
+	def test_tra_dung_o_da_in_du_khong_phai_o_dau_theo_lft(self):
+		"""Chốt then chốt của cả task.
+
+		Ô đã in phải KHÁC ô mà thứ tự `lft` sẽ chọn. Trùng nhau thì bài xanh mà
+		không chứng minh được gì — đúng cái bẫy đã ghi ở khối B §10. Nên ở đây
+		tầng còn trống hoàn toàn (ô đầu theo `lft` là `...01`) và tem in `...03`.
+		"""
+		v = _mat_hang("_Test Tem UuTien")
+		_gan(v, self.tang)
+		lo = self._lo("_TEST-TEM-UUTIEN", v, "6B01020103")
+
+		o, ly_do = goi_y_o(v, KHO, lo)
+		self.assertEqual(o, "6B01020103")
+		self.assertIn("tem", ly_do)
+
+		# Chốt âm trong cùng một bài: bỏ `so_lo` ra thì câu trả lời phải KHÁC.
+		# Không có vế này, một cài đặt bỏ qua hẳn tham số `so_lo` vẫn có thể
+		# xanh nếu dữ liệu vô tình trùng.
+		self.assertEqual(goi_y_o(v, KHO)[0], "6B01020101")
+
+		frappe.db.delete("Item Location Preference", {"vat_tu": v})
+
+	def test_khong_truyen_so_lo_thi_bo_qua_nhanh_nay(self):
+		"""Lúc nạp dòng `Batch Entry`, lô CHƯA tồn tại. Nhánh này phải im lặng
+		bỏ qua chứ không nổ."""
+		v = _mat_hang("_Test Tem KhongLo")
+		_gan(v, self.tang)
+
+		o, ly_do = goi_y_o(v, KHO)
+		self.assertEqual(o, "6B01020101")
+		self.assertNotIn("tem", ly_do)
+
+		frappe.db.delete("Item Location Preference", {"vat_tu": v})
+
+	def test_o_da_in_bi_mat_hang_khac_chiem_thi_tra_o_khac(self):
+		"""Và lý do phải NÊU TÊN ô trên tem cũ.
+
+		Thủ kho đang cầm tờ tem in `6B01020103` trên tay. Một câu chung chung
+		("ô trống đầu tiên trong 6B010201") để họ tự đoán xem tem còn đúng không
+		— và phần lớn sẽ đi theo tem.
+		"""
+		v = _mat_hang("_Test Tem BiChiem")
+		_gan(v, self.tang)
+		_ton("6B01020103", self.vt_khac, 7)
+		lo = self._lo("_TEST-TEM-BICHIEM", v, "6B01020103")
+
+		o, ly_do = goi_y_o(v, KHO, lo)
+		self.assertEqual(o, "6B01020101")
+		self.assertIn("6B01020103", ly_do)
+
+		frappe.db.delete("Item Location Preference", {"vat_tu": v})
+
+	def test_o_da_in_dang_co_hang_cung_mat_hang_thi_van_uu_tien(self):
+		"""Dồn vào ô cũ là hành vi ĐÚNG — §3.4 (b) của khối B.
+
+		Chốt âm cho một cài đặt lười: điều kiện "ô còn dùng được" mà viết thành
+		"ô phải TRỐNG" sẽ làm bài này đỏ, đúng như mong muốn.
+		"""
+		v = _mat_hang("_Test Tem DonVaoCu")
+		_gan(v, self.tang)
+		_ton("6B01020103", v, 4)
+		lo = self._lo("_TEST-TEM-DONCU", v, "6B01020103")
+
+		o, _ly_do = goi_y_o(v, KHO, lo)
+		self.assertEqual(o, "6B01020103")
+
+		frappe.db.delete("Location Balance", {"vat_tu": v})
+		frappe.db.delete("Item Location Preference", {"vat_tu": v})
+
+	def test_o_da_in_nam_ngoai_vung_gan_thi_bo_qua(self):
+		"""Ai đó đổi gán vị trí SAU khi đã in tem.
+
+		Tem cũ trỏ ra ngoài vùng mới; đi theo nó là xếp hàng ra ngoài vùng đã
+		gán, tức phá đúng cái bất biến mà cả khối B dựng lên.
+		"""
+		_o("6D01020101")
+		v = _mat_hang("_Test Tem NgoaiVung")
+		_gan(v, self.tang)
+		lo = self._lo("_TEST-TEM-NGOAI", v, "6D01020101")
+
+		o, ly_do = goi_y_o(v, KHO, lo)
+		self.assertEqual(o, "6B01020101")
+		self.assertIn("6D01020101", ly_do)
+
+		frappe.db.delete("Item Location Preference", {"vat_tu": v})
+
+	def test_o_da_in_dang_ngung_dung_thi_bo_qua(self):
+		"""Dãy bị tắt thì không xếp vào, kể cả khi tem đã in.
+
+		`_UNG_VIEN` đã mang sẵn luật "chính nó HOẶC tổ tiên `disabled`"
+		(`fefo.to_tien_tat`). Bài này khoá việc nhánh mới DÙNG LẠI `_UNG_VIEN`
+		chứ không tự viết một truy vấn riêng bỏ quên điều kiện đó.
+		"""
+		v = _mat_hang("_Test Tem Tat")
+		_gan(v, self.tang)
+		lo = self._lo("_TEST-TEM-TAT", v, "6B01020103")
+		frappe.db.set_value("Storage Location", "6B01020103", "disabled", 1)
+		try:
+			o, ly_do = goi_y_o(v, KHO, lo)
+			self.assertEqual(o, "6B01020101")
+			self.assertIn("6B01020103", ly_do)
+		finally:
+			frappe.db.set_value("Storage Location", "6B01020103", "disabled", 0)
+			frappe.db.delete("Item Location Preference", {"vat_tu": v})
