@@ -11,7 +11,7 @@ import json
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import now_datetime
+from frappe.utils import add_to_date, now_datetime
 
 from erpnext.einvoice.actions import (
 	download_official_pdf,
@@ -144,6 +144,8 @@ class TestScenario1HappyPath(EndToEndBase):
 		mark_customer_approved(self.fei, approved_by="Chị Lan", channel="Email")
 		issue_invoice(self.fei, client=self.client(NOT_FOUND, ISSUE_OK))
 
+		# Fast cần khoảng 1 phút ký số xong mới có PDF — giả lập đã qua thời gian đó.
+		frappe.db.set_value(FEI, self.fei, "issued_time", add_to_date(now_datetime(), seconds=-90))
 		download_official_pdf(self.fei, client=self.client(pdf()))
 		send_invoice_to_customer(self.fei, mailer=self.mailbox)
 		self.assertEqual(self.status(), STATUS_SENT)

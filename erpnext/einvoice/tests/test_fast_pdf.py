@@ -6,9 +6,13 @@ import base64
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import add_to_date, now_datetime
+from frappe.utils import add_to_date, get_url, now_datetime
 
-from erpnext.einvoice.actions import download_converted_pdf, download_official_pdf
+from erpnext.einvoice.actions import (
+	download_converted_pdf,
+	download_official_pdf,
+	download_pending_official_pdfs,
+)
 from erpnext.einvoice.builder import create_from_delivery_note
 from erpnext.einvoice.constants import STATUS_DRAFT, STATUS_ISSUED, STATUS_TAX_ACCEPTED
 from erpnext.einvoice.fast_client import FastClient
@@ -56,6 +60,9 @@ class PdfTestBase(FrappeTestCase):
 	def _client(self, *responses):
 		self.transport = FakeTransport(checkkey_ok(), *responses)
 		return FastClient(transport=self.transport)
+
+	def _issued_seconds_ago(self, seconds):
+		frappe.db.set_value(FEI, self.fei.name, "issued_time", add_to_date(now_datetime(), seconds=-seconds))
 
 	def _age_pdf_logs(self, seconds=60):
 		"""Lùi thời điểm các lời gọi PDF để vượt qua cửa chặn 5 giây."""
@@ -184,39 +191,133 @@ class TestPdfThrottle(PdfTestBase):
 			)
 
 
-class TestAutoDownloadAfterIssue(PdfTestBase):
-	def test_issuance_queues_the_delayed_pdf_download_when_configured(self):
-		"""Mục E5 nhánh 7a: tự tải PDF sau khi phát hành, qua job có đợi ký số."""
-		from erpnext.einvoice.issue import _queue_pdf_download
+class TestOfficialPdfIsPublic(PdfTestBase):
+	"""PDF chính thức công khai — link gửi thẳng cho khách, khỏi giải thích mã tra cứu."""
 
-		queued = []
-		_queue_pdf_download(self.fei, enqueue=lambda **kwargs: queued.append(kwargs))
-		self.assertTrue(queued)
-		self.assertEqual(queued[0]["fei"], self.fei.name)
-		self.assertIn("download_official_pdf_after_signing", queued[0]["method"])
+	def _download(self):
+		download_official_pdf(self.fei.name, client=self._client(pdf_envelope()))
+		self.fei.reload()
 
-	def test_background_download_waits_and_retries_until_the_pdf_is_ready(self):
-		"""HSM ký số mất vài giây — job đợi rồi thử lại tới khi có PDF."""
-		from erpnext.einvoice.actions import download_official_pdf_after_signing
+	def test_the_official_pdf_is_public(self):
+		self._download()
+		self.assertEqual(frappe.db.get_value("File", {"file_url": self.fei.official_pdf}, "is_private"), 0)
 
-		calls = {"n": 0}
-
-		def fake_download(fei):
-			calls["n"] += 1
-			return {"ok": calls["n"] >= 3}  # sẵn sàng ở lần thử thứ 3
-
-		slept = []
-		result = download_official_pdf_after_signing(
-			self.fei.name, _download=fake_download, _sleep=slept.append
+	def test_the_delivery_note_copy_is_public_too(self):
+		self._download()
+		privacy = frappe.get_all(
+			"File",
+			filters={"attached_to_doctype": "Delivery Note", "attached_to_name": self.dn.name},
+			pluck="is_private",
 		)
-		self.assertTrue(result["ok"])
-		self.assertEqual(calls["n"], 3)
-		self.assertTrue(all(s > 0 for s in slept), "phải đợi giữa các lần thử")
+		self.assertTrue(privacy)
+		self.assertEqual(set(privacy), {0})
 
-	def test_nothing_is_queued_when_auto_download_is_off(self):
+	def test_the_link_cannot_be_guessed_from_serial_and_number(self):
+		"""Chỉ có ký hiệu + số thì đổi số trên link là ra hóa đơn của khách khác."""
+		self._download()
+		self.assertNotIn("/files/HD_1C26TMY_2.pdf", self.fei.official_pdf)
+		self.assertRegex(self.fei.official_pdf, r"HD_1C26TMY_2_[0-9a-f]{16}")
+
+	def test_a_full_erp_link_lands_on_the_invoice_and_the_delivery_note(self):
+		self._download()
+		self.assertEqual(self.fei.public_pdf_url, get_url(self.fei.official_pdf))
+		self.assertTrue(self.fei.public_pdf_url.startswith("http"))
+
+		self.dn.reload()
+		self.assertEqual(self.dn.fast_einvoice_pdf_url, self.fei.public_pdf_url)
+
+	def test_the_converted_pdf_stays_private(self):
+		"""Bản chuyển đổi mang tên người chuyển đổi — không công khai."""
+		download_converted_pdf(
+			self.fei.name, convert_name="Chu Văn Hiếu", client=self._client(pdf_envelope(b"%%conv\n"))
+		)
+		self.fei.reload()
+		self.assertEqual(frappe.db.get_value("File", {"file_url": self.fei.converted_pdf}, "is_private"), 1)
+
+
+class TestWaitForSigning(PdfTestBase):
+	"""Fast cần khoảng 30 giây – 1 phút ký số xong mới có PDF — gọi sớm chỉ nhận về rỗng."""
+
+	def test_downloading_right_after_issuance_is_refused_without_calling_fast(self):
+		self._issued_seconds_ago(10)
+		client = self._client(pdf_envelope())
+
+		with self.assertRaises(frappe.ValidationError) as caught:
+			download_official_pdf(self.fei.name, client=client)
+		self.assertIn("giây", str(caught.exception))
+		self.assertEqual(self.transport.calls, [])
+
+	def test_it_downloads_once_a_minute_has_passed(self):
+		self._issued_seconds_ago(70)
+		download_official_pdf(self.fei.name, client=self._client(pdf_envelope()))
+
+		self.fei.reload()
+		self.assertTrue(self.fei.official_pdf)
+
+
+class TestAutoDownloadJob(PdfTestBase):
+	"""Job mỗi phút tự tải PDF khi Fast ký số xong — thay cho tải ngay sau phát hành."""
+
+	def setUp(self):
+		super().setUp()
+		configure(token="TOKEN-ABC", token_time=now_datetime(), auto_download_pdf=1)
+
+	def _run(self):
+		return download_pending_official_pdfs(client=self._client(pdf_envelope()), _sleep=lambda _s: None)
+
+	def _fail_once(self):
+		"""Một lần Fast trả rỗng (PDF chưa sẵn sàng) — để lại một dòng nhật ký 380."""
+		from erpnext.einvoice.tests.test_fast_client import auth_empty
+
+		download_official_pdf(self.fei.name, client=self._client(auth_empty("ExcuteCommand")))
+
+	def test_a_just_issued_invoice_is_left_alone(self):
+		self._issued_seconds_ago(30)
+		self.assertNotIn(self.fei.name, self._run())
+
+	def test_it_downloads_once_fast_has_had_a_minute(self):
+		self._issued_seconds_ago(90)
+		self.assertIn(self.fei.name, self._run())
+
+		self.fei.reload()
+		self.assertTrue(self.fei.official_pdf)
+		self.assertTrue(self.fei.public_pdf_url)
+
+	def test_a_recent_failed_attempt_is_not_retried_straight_away(self):
+		self._issued_seconds_ago(300)
+		self._fail_once()
+		self._age_pdf_logs(seconds=60)
+		self.assertNotIn(self.fei.name, self._run())
+
+	def test_it_retries_once_two_minutes_have_passed(self):
+		self._issued_seconds_ago(300)
+		self._fail_once()
+		self._age_pdf_logs(seconds=150)
+		self.assertIn(self.fei.name, self._run())
+
+	def test_it_gives_up_after_five_attempts(self):
+		"""Hết lượt thì để kế toán bấm tay — không gọi Fast mãi."""
+		self._issued_seconds_ago(3000)
+		for _attempt in range(5):
+			self._age_pdf_logs(seconds=150)  # vượt cửa chặn 5 giây giữa hai lần gọi PDF
+			self._fail_once()
+		self._age_pdf_logs(seconds=150)
+		self.assertNotIn(self.fei.name, self._run())
+
+	def test_an_invoice_that_already_has_its_pdf_is_skipped(self):
+		self._issued_seconds_ago(90)
+		frappe.db.set_value(FEI, self.fei.name, "official_pdf", "/files/da_co.pdf")
+		self.assertNotIn(self.fei.name, self._run())
+
+	def test_invoices_older_than_a_day_are_left_for_manual_download(self):
+		self._issued_seconds_ago(25 * 3600)
+		self.assertNotIn(self.fei.name, self._run())
+
+	def test_nothing_happens_when_auto_download_is_off(self):
 		configure(auto_download_pdf=0, token="TOKEN-ABC", token_time=now_datetime())
-		from erpnext.einvoice.issue import _queue_pdf_download
+		self._issued_seconds_ago(90)
+		self.assertEqual(self._run(), [])
 
-		queued = []
-		_queue_pdf_download(self.fei, enqueue=lambda **kwargs: queued.append(kwargs))
-		self.assertEqual(queued, [])
+	def test_the_job_runs_every_minute(self):
+		cron = frappe.get_hooks("scheduler_events").get("cron") or {}
+		self.assertIn("erpnext.einvoice.actions.download_pending_official_pdfs", cron.get("* * * * *", []))
