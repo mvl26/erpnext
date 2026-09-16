@@ -587,7 +587,7 @@ Ngày bật kho thứ hai, đây là chỗ phải sửa lược đồ — xem `B
 
 ---
 
-## Phụ lục. Một lần chạy thật, từ mua hàng tới tồn theo ô
+## Phụ lục A. Một lần chạy thật, từ mua hàng tới tồn theo ô
 
 Chạy ngày 13/09/2026 trên `erptest.local`, mặt hàng `MYN-IMP-NEP-8` (Nẹp khoá 8 lỗ titan,
 đơn vị Cái). Số chứng từ có thật, mở ra xem lại được.
@@ -635,6 +635,83 @@ Tổng tồn các ô vị trí:      50 Cái        ← khớp
 ```
 
 Tổng nút Khu `1A` = 50 = đúng tổng hai ô lá bên dưới.
+
+---
+
+## Phụ lục B. Một lần chạy thật của luồng gán vị trí
+
+Chạy ngày 16/09/2026 trên `erptest.local`, mặt hàng `TEST-LUONG-GAC` (Gạc tiệt trùng 10×10,
+đơn vị Cái, **có quản lý lô**). Số chứng từ có thật, mở ra xem lại được. Dữ liệu này **cố ý để
+lại** trên site thử làm ví dụ sống — mở `/app/item-location-preference/TEST-LUONG-GAC` là thấy.
+
+**1. Gán vị trí** — `TEST-LUONG-GAC` → Tầng `1A010102`. Ô *Cấp* tự hiện "Tầng". Tầng này có hai
+ô: `1A01010201` và `1A01010202`.
+
+Gán ở cấp **Tầng** chứ không phải một Ô lẻ — xem mục 10.2 để biết vì sao.
+
+**2. Ba lần nhập, ba lý do gợi ý khác nhau.** Đây là phần đáng xem nhất: cùng một mặt hàng,
+cùng một vùng đã gán, mà hệ chỉ ba ô khác nhau vì tình trạng kệ mỗi lúc một khác.
+
+| Lần | Phiếu nhập | Lô | SL | Ô hệ gợi ý | Lý do hệ hiện ra |
+|---|---|---|---|---|---|
+| 1 | `MAT-PRE-2026-00003` | `LO-GAC-A` | 100 | `1A01010201` | *ô trống đầu tiên trong 1A010102* |
+| 2 | `MAT-PRE-2026-00004` | `LO-GAC-B` | 60 | `1A01010202` | *ô trống đầu tiên trong 1A010102* |
+| 3 | `MAT-PRE-2026-00006` | `LO-GAC-C` | 25 | `1A01010201` | ***dồn vào ô đang có hàng cùng mặt hàng*** |
+
+Lần 3 là lúc cả hai ô đều đã có hàng. Hệ **không** báo "đã đầy" — nó dồn tiếp vào ô đang chứa
+chính mặt hàng đó. Không có nhánh này thì một mặt hàng gán vào vùng nhỏ sẽ tắc ngay từ lần
+nhập thứ hai, dù kệ còn chỗ.
+
+Mỗi lần nhập, hàng rơi vào ô "Chưa xếp vị trí" trước; phiếu xếp (`XVT-2026-00002`, `-00003`,
+`-00004`) mới đưa vào ô thật.
+
+**3. Kết quả cuối** — hai ô, ba lô, tổng khớp tồn kho ERPNext:
+
+```
+1A01010201   lô LO-GAC-A   100
+1A01010201   lô LO-GAC-C    25
+1A01010202   lô LO-GAC-B    60
+                          ----
+                           185   = Bin của ERPNext
+```
+
+Một ô chứa **hai lô** của cùng mặt hàng là bình thường. Sổ vị trí tách theo lô, nên xuất hàng
+vẫn chọn đúng lô theo hạn dùng.
+
+**4. Huỷ phiếu nhập thì sổ vị trí đảo theo** — phiếu `MAT-PRE-2026-00005` (60 Cái) bị huỷ:
+
+```
+trước huỷ:  ZZZ-CHUA-XEP 120 · Bin 220
+sau huỷ:    ZZZ-CHUA-XEP  60 · Bin 160
+```
+
+Tồn kho ERPNext và sổ vị trí đi cùng một nhịp, không ai phải sửa tay.
+
+**5. Lưới an toàn có thật sự bắt được không** — đây là phép thử quan trọng nhất, vì báo cáo
+*Hàng nằm sai vị trí* bình thường **rỗng**, mà rỗng thì không chứng minh được gì.
+
+Cố tình xếp tay 5 đơn vị `MYN-ALC-OXY` vào ô `1A01010202` (ô đã thuộc `TEST-LUONG-GAC`). Báo cáo
+bắt ngay, đủ thông tin để đi dọn mà không phải tra cứu thêm:
+
+```
+Ô            Mã trên nhãn   Mặt hàng đang nằm   Số lô              SL   Đã gán cho       Nút gán
+1A01010202   1A0101-0202    MYN-ALC-OXY         LO-ALC-OXY-2026     5   TEST-LUONG-GAC   1A010102
+```
+
+Huỷ phiếu xếp sai → báo cáo về 0 dòng.
+
+> **Vì sao phép thử này đáng làm:** *Đối soát tồn vị trí* trong suốt lúc đó vẫn báo **khớp tuyệt
+> đối** — vì nó chỉ so **tổng**. Một ô chứa nhầm mặt hàng không làm tổng lệch một đơn vị nào.
+> Đó chính là lý do phải có báo cáo thứ tư.
+
+**6. Kiểm lại toàn kho** — sau khi dọn, mọi phép kiểm đều sạch:
+
+```
+Đối soát tồn vị trí:    khớp, 0 dòng lệch, 0 ô âm, 0 lệch bộ đệm
+Hàng chưa xếp vị trí:   0 dòng cho mặt hàng này
+Hàng nằm sai vị trí:    0 dòng
+Cây vị trí:             lft 1..428, 214 nút, 0 nút chưa hội tụ
+```
 
 ---
 
