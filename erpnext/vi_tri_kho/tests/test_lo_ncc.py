@@ -23,6 +23,22 @@ def _ncc_thu() -> str:
 	return ten
 
 
+def _ncc_thu_2() -> str:
+	"""NCC thứ hai, KHÁC hẳn `_ncc_thu()` — dùng riêng cho bài kiểm tra "không ghi
+	đè". Vòng sửa 1 (review): bản trước dùng CÙNG một NCC cho cả lô lẫn phiếu
+	nhập, nên xoá hẳn guard `if doc.supplier: return` trong `lo_ncc.py` thì móc
+	vẫn ghi lại đúng giá trị cũ (NCC của phiếu nhập trùng NCC đã khai trên lô) —
+	`assertEqual` không phân biệt được "giữ nguyên" với "ghi đè bằng đúng giá trị
+	cũ", nên bài không bắt được chính đột biến nó tuyên bố phải bắt.
+	"""
+	ten = "_Test NCC Nhap Lo 2"
+	if not frappe.db.exists("Supplier", ten):
+		frappe.get_doc(
+			{"doctype": "Supplier", "supplier_name": ten, "supplier_group": "All Supplier Groups"}
+		).insert(ignore_permissions=True)
+	return ten
+
+
 def _phieu_nhap_nhap(item: str, kho: str, ncc: str, qty=10):
 	"""Phiếu nhập CÒN NHÁP — không submit."""
 	pr = frappe.get_doc(
@@ -57,8 +73,17 @@ class TestDienNccTuChungTu(FrappeTestCase):
 		self.assertEqual(lo.supplier, self.ncc)
 
 	def test_khong_ghi_de_ncc_da_co(self):
-		"""Móc chỉ ĐIỀN CHỖ TRỐNG. Ghi đè là lặng lẽ sửa dữ liệu người khác đã khai."""
-		ncc_khac = self.ncc
+		"""Móc chỉ ĐIỀN CHỖ TRỐNG. Ghi đè là lặng lẽ sửa dữ liệu người khác đã khai.
+
+		Vòng sửa 1 (review): `ncc_khac` PHẢI khác NCC của `self.pr` (`self.ncc`).
+		Bản trước gán `ncc_khac = self.ncc` — cùng giá trị — nên xoá hẳn guard
+		`if doc.supplier: return` trong `lo_ncc.py` thì móc vẫn lấy `supplier` từ
+		`self.pr` (= `self.ncc`) và ghi đè `doc.supplier` thành đúng `ncc_khac`:
+		`assertEqual` vẫn xanh dù cơ chế "không ghi đè" đã bị xoá sạch. Dùng NCC
+		thứ hai để "giữ nguyên" và "ghi đè bằng giá trị của phiếu nhập" cho ra hai
+		kết quả khác nhau — chỉ khi đó `assertEqual` mới thật sự phân biệt được.
+		"""
+		ncc_khac = _ncc_thu_2()
 		lo = frappe.get_doc(
 			{
 				"doctype": "Batch",
