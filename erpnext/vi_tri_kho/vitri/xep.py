@@ -51,6 +51,14 @@ def hang_chua_xep(kho: str) -> list[dict]:
 	của những mặt hàng lành vẫn đang chờ ở `ZZZ-CHUA-XEP`. Đó là hình dạng
 	chặn nặng hơn hẳn tinh thần "gợi ý không chặn" ở trên. Lỗi thật không mất
 	— xem Error Log tiêu đề `vi_tri_kho: hang_chua_xep goi_y_o loi`.
+
+	Khối C §8 (Task 4): bộ đệm `goi_y_o` giờ khoá theo CẶP (mặt hàng, lô),
+	không còn khoá theo riêng mặt hàng. Trước §8, gợi ý chỉ phụ thuộc vị trí
+	gán — thứ CHUNG cho mọi lô của một mặt hàng — nên khoá theo mặt hàng vẫn
+	đúng. Từ §8, `goi_y_o` còn nhận `so_lo` và ưu tiên đúng ô đã in trên tem
+	của LÔ đó (`Batch.custom_o_in_tem`, riêng từng lô). Giữ khoá cũ thì lô
+	thứ hai của cùng một mặt hàng nhận lại gợi ý của lô thứ nhất, và tem của
+	nó nói dối.
 	"""
 	_kiem_tra_quyen()
 	dong = frappe.db.sql(
@@ -66,20 +74,29 @@ def hang_chua_xep(kho: str) -> list[dict]:
 		as_dict=True,
 	)
 
-	# Một lời gọi `goi_y_o` cho mỗi MẶT HÀNG, không phải mỗi dòng: một mặt hàng
-	# nhiều lô cho ra nhiều dòng nhưng cùng một gợi ý.
-	bo_nho: dict[str, tuple] = {}
+	# Một lời gọi `goi_y_o` cho mỗi (MẶT HÀNG, LÔ).
+	#
+	# Trước khối C khoá đệm chỉ là `vat_tu`, vì gợi ý khi ấy chỉ phụ thuộc vị trí
+	# gán — thứ chung cho mọi lô của mặt hàng. Từ khối C §8, gợi ý còn phụ thuộc
+	# `Batch.custom_o_in_tem`, vốn RIÊNG từng lô. Giữ khoá cũ thì lô thứ hai
+	# nhận gợi ý của lô thứ nhất và tem của nó nói dối.
+	bo_nho: dict[tuple, tuple] = {}
 	for d in dong:
-		if d.vat_tu not in bo_nho:
+		khoa = (d.vat_tu, d.so_lo)
+		if khoa not in bo_nho:
 			try:
-				bo_nho[d.vat_tu] = goi_y_o(d.vat_tu, kho)
+				bo_nho[khoa] = goi_y_o(d.vat_tu, kho, d.so_lo)
 			except Exception:
-				# Ruling N: KHÔNG để lỗi của MỘT mặt hàng làm sập danh sách của
-				# CẢ kho — xem lý do đầy đủ ở docstring hàm này. `frappe.log_error`
+				# Ruling N: KHÔNG để lỗi của MỘT (mặt hàng, lô) làm sập danh sách
+				# của CẢ kho — xem lý do đầy đủ ở docstring hàm này. `frappe.log_error`
 				# (không truyền `message`) tự chụp traceback hiện tại, giữ dấu vết
 				# thật trong Error Log để người vận hành đi sửa dữ liệu gán, thay
-				# vì lỗi biến mất lặng lẽ.
-				frappe.log_error(title=f"vi_tri_kho: hang_chua_xep goi_y_o loi ({d.vat_tu})")
+				# vì lỗi biến mất lặng lẽ. Tiêu đề mang cả số lô — Task 4 tách
+				# khoá theo lô nên một lô lỗi (vd. tem trỏ vào dữ liệu hỏng) không
+				# còn định danh đủ chỉ bằng mặt hàng.
+				frappe.log_error(
+					title=f"vi_tri_kho: hang_chua_xep goi_y_o loi ({d.vat_tu}/{d.so_lo})"
+				)
 				# Mục 5 (review tổng): câu cũ KHẲNG ĐỊNH đây là "lỗi dữ liệu vị
 				# trí" — sai, vì `except Exception` ở trên bắt MỌI ngoại lệ,
 				# kể cả một lỗi LẬP TRÌNH trong `goi_y_o` (không chỉ toạ độ
@@ -89,12 +106,12 @@ def hang_chua_xep(kho: str) -> list[dict]:
 				# phần phân biệt với "chưa gán" (mặt hàng đã có gán, ai đó
 				# đừng tưởng nhầm là chưa gán rồi đi gán lại một gán vốn đã
 				# đúng, chỉ là `goi_y_o` đang không tính được cho nó).
-				bo_nho[d.vat_tu] = (
+				bo_nho[khoa] = (
 					None,
 					_(
 						"không gợi ý được cho {0} — xem Error Log. KHÔNG PHẢI mặt hàng "
 						"chưa gán, đừng gán lại"
 					).format(d.vat_tu),
 				)
-		d["den_o"], d["ly_do_goi_y"] = bo_nho[d.vat_tu]
+		d["den_o"], d["ly_do_goi_y"] = bo_nho[khoa]
 	return dong

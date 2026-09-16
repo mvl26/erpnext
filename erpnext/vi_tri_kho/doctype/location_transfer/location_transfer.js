@@ -77,18 +77,50 @@ function lay_hang_chua_xep(frm) {
 			// ngoài phạm vi vòng sửa này) nên không hiện được theo TỪNG dòng
 			// trên lưới — chỉ hiện được ở đây, một lần, dạng tóm tắt, lấy từ
 			// `dong` (phản hồi RPC gốc), không phải từ các dòng con đã tạo.
-			const thieu = dong.filter((d) => !d.den_o);
-			if (thieu.length) {
+			//
+			// Task 4 (khối C §8): trước đây lọc CHỈ bắt dòng TRỐNG (`!d.den_o`)
+			// vì trước §8 một dòng CÓ gợi ý không mang gì thêm cần đọc — gợi ý
+			// chỉ có đúng một lý do khi có ("ô trống"/"dồn vào ô cùng hàng").
+			// Từ §8, `goi_y_o` có thể trả CẢ gợi ý LẪN một cảnh báo: tem của lô
+			// đã in một ô mà giờ không dùng được nữa, và `den_o` là ô THAY THẾ
+			// (xem `ly_do_goi_y` chứa từ "tem" trong `goi_y.py`). Thủ kho đang
+			// cầm tờ tem cũ trên tay — không tách riêng ra thì tin đó chìm mất
+			// trong im lặng của "dòng đã có gợi ý", và họ đi dán hàng theo đúng
+			// ô đã in, sai với nơi hệ vừa xếp lại. Tách thành HAI nhóm cảnh báo
+			// riêng vì hai nhóm cần hai hành động khác nhau: nhóm "chưa có gợi
+			// ý" phải tự tay CHỌN ô; nhóm "tem cũ không dùng được" đã có `den_o`
+			// đúng rồi, chỉ cần biết để DÁN ĐÈ tem mới, không phải đi chọn gì.
+			const chua_co_goi_y = dong.filter((d) => !d.den_o);
+			const tem_cu_khong_dung_duoc = dong.filter(
+				(d) => d.den_o && (d.ly_do_goi_y || "").includes("tem")
+			);
+
+			const tom_tat_theo_ly_do = (ds) => {
 				const theo_ly_do = {};
-				thieu.forEach((d) => {
+				ds.forEach((d) => {
 					const ly_do = d.ly_do_goi_y || __("không rõ lý do");
 					theo_ly_do[ly_do] = (theo_ly_do[ly_do] || 0) + 1;
 				});
-				const chi_tiet = Object.keys(theo_ly_do)
+				return Object.keys(theo_ly_do)
 					.map((ly_do) => __("{0} dòng ({1})", [theo_ly_do[ly_do], ly_do]))
 					.join(", ");
+			};
+
+			if (chua_co_goi_y.length) {
 				frappe.show_alert({
-					message: __("{0} dòng chưa có gợi ý: {1}.", [thieu.length, chi_tiet]),
+					message: __("{0} dòng chưa có gợi ý: {1}.", [
+						chua_co_goi_y.length,
+						tom_tat_theo_ly_do(chua_co_goi_y),
+					]),
+					indicator: "orange",
+				});
+			}
+			if (tem_cu_khong_dung_duoc.length) {
+				frappe.show_alert({
+					message: __("{0} dòng tem cũ không dùng được, đã gợi ý ô khác thay thế: {1}.", [
+						tem_cu_khong_dung_duoc.length,
+						tom_tat_theo_ly_do(tem_cu_khong_dung_duoc),
+					]),
 					indicator: "orange",
 				});
 			}

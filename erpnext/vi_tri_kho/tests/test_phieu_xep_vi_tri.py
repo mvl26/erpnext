@@ -14,6 +14,8 @@ dòng chỉ mục của InnoDB trong `INSERT ... ON DUPLICATE KEY UPDATE` — l�
 luận từ cơ chế, KHÔNG phải từ phép đo.
 """
 
+from unittest.mock import patch
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import now, nowdate
@@ -53,6 +55,15 @@ def _lo(ma, vat_tu):
 	if not frappe.db.exists("Batch", ma):
 		frappe.get_doc({"doctype": "Batch", "batch_id": ma, "item": vat_tu}).insert(ignore_permissions=True)
 	return ma
+
+
+def _gan(vat_tu, vi_tri, kho=KHO):
+	"""Gán vị trí cố định — cần cho các bài kiểm gợi ý theo tem (Task 4)."""
+	if not frappe.db.exists("Item Location Preference", vat_tu):
+		frappe.get_doc(
+			{"doctype": "Item Location Preference", "vat_tu": vat_tu, "kho": kho, "vi_tri": vi_tri}
+		).insert(ignore_permissions=True)
+	return vat_tu
 
 
 def _phieu(dong, kho=KHO, **kw):
@@ -542,3 +553,77 @@ class TestLayHangChuaXep(FrappeTestCase):
 			).insert(ignore_permissions=True)
 		frappe.set_user(ten)
 		self.assertIsInstance(hang_chua_xep(KHO), list)
+
+	def test_hai_lo_cung_mat_hang_co_the_ra_hai_o_khac_nhau(self):
+		"""Khoá đệm phải là (mặt hàng, lô), không phải mặt hàng.
+
+		Trước khối C, một mặt hàng nhiều lô cho ra MỘT gợi ý chung — đúng khi
+		căn cứ duy nhất là vị trí gán. Từ khi tem ghi lại ô đã in (§8), hai lô
+		của cùng một mặt hàng có thể có hai ô in tem khác nhau, và đệm theo mặt
+		hàng sẽ lấy gợi ý của lô ĐẦU TIÊN gán cho cả hai — tức nửa số tem nói dối.
+		"""
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		v = _vat_tu("9X-LC-2LO-VT", co_lo=True)
+		a = _o("9X12010101")
+		b = _o("9X12010102")
+		# Gán cả tầng chứa cả hai ô cho mặt hàng — cả a lẫn b đều là ứng viên
+		# hợp lệ của goi_y_o, khác nhau chỉ ở ô nào tem của TỪNG lô đã in.
+		_gan(v, "9X120101")
+		lo1 = _lo("9X-LC-2LO-01", v)
+		lo2 = _lo("9X-LC-2LO-02", v)
+		frappe.db.set_value("Batch", lo1, "custom_o_in_tem", a)
+		frappe.db.set_value("Batch", lo2, "custom_o_in_tem", b)
+		_nap(self.zzz, v, lo1, 5)
+		_nap(self.zzz, v, lo2, 5)
+
+		theo_lo = {d["so_lo"]: d["den_o"] for d in hang_chua_xep(KHO) if d["vat_tu"] == v}
+		self.assertEqual(theo_lo[lo1], a)
+		self.assertEqual(theo_lo[lo2], b)
+		self.assertNotEqual(
+			theo_lo[lo1],
+			theo_lo[lo2],
+			"đệm theo (mặt hàng, lô): hai lô cùng mặt hàng nhưng hai tem khác ô "
+			"phải ra hai gợi ý khác nhau",
+		)
+
+	def test_van_chi_goi_goi_y_mot_lan_cho_moi_lo(self):
+		"""Không được bỏ đệm đi: một kho có thể có hàng trăm dòng.
+
+		Dựng hai dòng CÙNG (mặt hàng, lô) nhưng khác Ô NGUỒN — cần hai ô "chưa
+		xếp vị trí" trong cùng kho, một tình huống biên nhưng hợp lệ về dữ
+		liệu — để có hai dòng thật sự đệm được cùng một khoá, rồi đếm số lần
+		`goi_y_o` bị gọi.
+		"""
+		from erpnext.vi_tri_kho.vitri import xep as xep_mod
+		from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+
+		v = _vat_tu("9X-LC-CACHE-VT", co_lo=True)
+		lo = _lo("9X-LC-CACHE-LO", v)
+		zzz2 = "9X-ZZZ-CHUA-XEP-2"
+		if not frappe.db.exists("Storage Location", zzz2):
+			frappe.get_doc(
+				{
+					"doctype": "Storage Location",
+					"ma_o": zzz2,
+					"kho": KHO,
+					"la_o_chua_xep": 1,
+					"thu_tu_lay_hang": 9998,
+				}
+			).insert(ignore_permissions=True)
+		_nap(self.zzz, v, lo, 3)
+		_nap(zzz2, v, lo, 4)
+
+		with patch.object(xep_mod, "goi_y_o", wraps=xep_mod.goi_y_o) as gian_diep:
+			dong = [d for d in hang_chua_xep(KHO) if d["vat_tu"] == v]
+
+		self.assertEqual(len(dong), 2, "hai ô nguồn khác nhau phải cho ra hai dòng riêng")
+		# Kho thật (dữ liệu có sẵn trên site) có thể còn hàng trăm mặt hàng khác
+		# đang chờ ở ô chưa xếp, nên KHÔNG đếm `call_count` tổng — phải lọc
+		# đúng các lời gọi mang mặt hàng `v` của bài này rồi mới đếm.
+		goi_cho_v = [c for c in gian_diep.call_args_list if c.args[0] == v]
+		self.assertEqual(
+			len(goi_cho_v),
+			1,
+			"cùng một (mặt hàng, lô) trải trên nhiều dòng chỉ được gọi goi_y_o một lần",
+		)
