@@ -85,15 +85,16 @@ bench --site miyano doctor            # phải thấy "Scheduler enabled/active"
 **b) Gắn `user_id` cho nhân viên (chặn mọi thông báo theo phòng ban).**
 Hiện chỉ `HR-EMP-00001` có `user_id`. Nhân viên không gắn tài khoản → **không nhận được gì**, và cơ chế xem trước sẽ cảnh báo. Việc của Miyano (D3).
 
-**c) Chuẩn hoá phòng ban.** Đang có `Kế toán - M`, `Kinh doanh - M`, `Kỹ thuật - M`, `Sản xuất - M`, `Ban Giám đốc - M`, `Hành chính - Nhân sự - M` + bộ mặc định tiếng Anh. **Thiếu `Kho` và `Mua hàng`.**
-Hàm cài đặt tạo bù hai phòng này (idempotent); ánh xạ chốt:
+**c) Chuẩn hoá phòng ban.** Khảo sát ban đầu có `Kế toán - M`, `Kinh doanh - M`…; sau đó site đã đổi sang dạng `P. Kế toán tài chính - M`, `P. Kinh doanh - M`, `P. Mua hàng - M`. So khớp tên cứng vì vậy **không dùng được** (tạo trùng `Mua hàng - M`, bỏ trống phòng Kế toán/Kinh doanh).
 
-| Vai trò nghiệp vụ | Department dùng |
-|---|---|
-| Phòng Kho | `Kho - M` *(tạo mới)* |
-| Phòng Mua hàng | `Mua hàng - M` *(tạo mới)* |
-| Phòng Bán hàng | `Kinh doanh - M` *(đã có)* |
-| Phòng Kế toán | `Kế toán - M` *(đã có)* |
+Cách làm: danh mục phòng ban chuẩn `erpnext/setup/department_catalog.py` — mỗi phòng có **mã** (`stock`, `purchase`, `sales`, `accounts`, …), tên chuẩn và bí danh. So khớp bỏ dấu, bỏ tiền tố `P.`/`Phòng`, bỏ hậu tố viết tắt công ty, khớp hẳn hoặc khớp tiền tố theo từ. Nhiều phòng cùng khớp → ưu tiên khớp hẳn, rồi phòng nhiều nhân viên Active hơn, rồi phòng tạo trước. Điểm thông báo tham chiếu **mã**; hàm cài đặt gọi `ensure_departments` chỉ tạo phòng thật sự chưa có (tên chuẩn, đặt cạnh các phòng sẵn có của công ty). Công ty mới dựng bộ phòng ban theo danh mục này thay bộ tiếng Anh.
+
+| Vai trò nghiệp vụ | Mã | Tên chuẩn khi tạo mới |
+|---|---|---|
+| Phòng Kho | `stock` | `P. Kho` |
+| Phòng Mua hàng | `purchase` | `P. Mua hàng` |
+| Phòng Bán hàng | `sales` | `P. Kinh doanh` |
+| Phòng Kế toán | `accounts` | `P. Kế toán tài chính` |
 
 **d) Bổ sung liên hệ NCC/khách (chặn NTF-03/07/10/11/12 phần gửi ra ngoài).**
 Khảo sát: **0 Contact nào đang gắn với Supplier** (9 NCC, 2 khách hàng). Chưa bù thì phần email ra ngoài im lặng bỏ qua (đúng thiết kế, không lỗi chứng từ — TC9), nhưng **không nghiệm thu được**.
