@@ -59,6 +59,10 @@ frappe.ui.form.on("Batch Entry", {
 			// tới khi tình cờ bấm Lưu. Đã thấy tận mắt trên trình duyệt trước
 			// khi sửa (16/09/2026) — đây không phải lo xa.
 			frm.add_custom_button(__("Lấy dòng hàng từ phiếu nhập"), () => lay_dong(frm));
+
+			// Mở từ nút "Nhập lô & in nhãn" trên phiếu nhập (`purchase_receipt.js`):
+			// phiếu mới đã mang sẵn `phieu_nhap`. Xem `tu_nap_neu_can`.
+			tu_nap_neu_can(frm);
 			return;
 		}
 
@@ -78,12 +82,20 @@ frappe.ui.form.on("Batch Entry", {
 		// dòng mang SỐ LÔ và HẠN DÙNG do thủ kho GÕ TAY từ vỏ thùng — gõ lại
 		// hai chục dòng vì một cú chọn nhầm phiếu là mất việc thật, và mất
 		// trong im lặng.
-		if (!frm.doc.items || !frm.doc.items.length) return;
+		//
+		// Đếm DÒNG THẬT, không đếm `items.length` — xem `dong_that`. Bản cũ đếm
+		// `items.length` nên trên một phiếu MỚI, chọn phiếu nhập là bật hộp "sẽ xoá 1
+		// dòng đang có (kèm số lô và hạn dùng đã gõ)" trong khi dòng đó là dòng trống
+		// Frappe tự thêm — cảnh báo mất dữ liệu khi chẳng có dữ liệu nào.
+		if (!dong_that(frm).length) {
+			tu_nap_neu_can(frm);
+			return;
+		}
 
 		frappe.confirm(
 			__(
 				"Đổi phiếu nhập sẽ xoá {0} dòng đang có (kèm số lô và hạn dùng đã gõ). Tiếp tục?",
-				[frm.doc.items.length]
+				[dong_that(frm).length]
 			),
 			() => {
 				frm.clear_table("items");
@@ -92,6 +104,7 @@ frappe.ui.form.on("Batch Entry", {
 					message: __("Đã xoá các dòng vì đổi phiếu nhập."),
 					indicator: "orange",
 				});
+				tu_nap_neu_can(frm);
 			},
 			() => {
 				// Trả `phieu_nhap` về giá trị cũ thì phải nhớ giá trị cũ — mà
@@ -126,15 +139,28 @@ function lay_dong(frm) {
 		callback(r) {
 			const dong = r.message || [];
 			if (!dong.length) {
-				frappe.msgprint({
-					title: __("Không có dòng nào cần khai lô"),
-					message: __(
-						"Phiếu nhập {0} không còn dòng hàng quản lý lô nào chưa có số lô. "
-						+ "Mặt hàng KHÔNG bật 'Có lô' cũng không hiện ở đây.",
-						[frm.doc.phieu_nhap]
-					),
-					indicator: "green",
-				});
+				// Câu báo cũ ở đây chỉ nói "không còn dòng hàng quản lý lô nào chưa
+				// có số lô" — đúng về kỹ thuật, nhưng chủ đầu tư gặp nó ngày
+				// 17/09/2026 trên một phiếu nhập ĐÃ DUYỆT mà số lô là ngày tháng gõ
+				// tay, và câu đó không nói gì về cả hai điều ấy. Ba nguyên nhân cần
+				// ba việc khác nhau, nên hỏi máy chủ vì sao thay vì đoán ở đây.
+				// Câu chữ sống ở `phieu_nhap._cau_bao` — một chỗ, dùng chung với nút
+				// trên phiếu nhập.
+				frappe
+					.call({
+						method: "erpnext.vi_tri_kho.vitri.phieu_nhap.chan_doan_phieu_nhap",
+						args: { phieu_nhap: frm.doc.phieu_nhap },
+					})
+					.then((r2) => {
+						const cd = r2.message || {};
+						frappe.msgprint({
+							title: __("Không có dòng nào cần khai lô"),
+							message: cd.cau_bao,
+							// Cam khi có việc phải sửa (đã duyệt, hay lô gõ tay);
+							// xanh dương khi chỉ là thông tin.
+							indicator: cd.docstatus || (cd.dong_go_tay || []).length ? "orange" : "blue",
+						});
+					});
 				return;
 			}
 
@@ -367,4 +393,32 @@ function _ve_khung_ket_qua(d) {
 	}
 
 	return "";
+}
+
+// Dòng có DỮ LIỆU THẬT trong bảng con.
+//
+// `items` là bảng bắt buộc (`reqd`), nên Frappe tự thêm MỘT dòng trống vào mọi
+// phiếu mới. Mọi phép "bảng con có dòng chưa" phải đi qua hàm này chứ không đếm
+// `items.length`: đếm thẳng thì phiếu mới luôn "đã có 1 dòng". Đã hỏng thật hai
+// chỗ trước khi có hàm này (kiểm trên trình duyệt 17/09/2026) — tự nạp dòng không
+// bao giờ chạy, và chọn phiếu nhập bật cảnh báo mất dữ liệu cho một dòng trống.
+// Có `so_lo` cũng tính là dòng thật: người dùng có thể gõ lô vào chính dòng trống.
+function dong_that(frm) {
+	return (frm.doc.items || []).filter((d) => d.dong_phieu_nhap || d.vat_tu || d.so_lo);
+}
+
+// Tự nạp dòng hàng khi phiếu nháp đã có `phieu_nhap` mà chưa có dòng thật — cả khi
+// mở từ nút trên phiếu nhập, lẫn khi thủ kho tự chọn phiếu nhập. Bắt người vừa chọn
+// phiếu nhập lại phải bấm thêm "Lấy dòng" mới thấy dòng hàng là làm đúng cái luồng
+// chủ đầu tư chê hôm 17/09.
+//
+// Khoá theo `tên phiếu | phiếu nhập`, không phải cờ true/false: đối tượng `frm`
+// được Frappe dùng lại cho MỌI bản ghi cùng doctype trong phiên, nên một cờ boolean
+// ở phiếu thứ nhất sẽ chặn tự nạp ở phiếu thứ hai; và đổi phiếu nhập thì phải nạp lại.
+function tu_nap_neu_can(frm) {
+	const khoa = `${frm.doc.name}|${frm.doc.phieu_nhap}`;
+	if (frm.doc.docstatus !== 0 || !frm.doc.phieu_nhap || dong_that(frm).length) return;
+	if (frm.__da_tu_nap_cho === khoa) return;
+	frm.__da_tu_nap_cho = khoa;
+	lay_dong(frm);
 }

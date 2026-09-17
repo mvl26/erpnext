@@ -74,3 +74,35 @@ def dam_bao_kho_thu() -> str:
 		if not ton:
 			_nhap(item, 20)
 	return TEN_KHO_THU
+
+
+TEN_KHO_KHONG_VI_TRI = "_Test Kho Khong Vi Tri - MYN"
+
+
+def dam_bao_kho_khong_vi_tri() -> str:
+	"""Một kho CHẮC CHẮN chưa bật quản lý vị trí. Trả tên kho.
+
+	Vì sao cần từ 17/09/2026: kho ĐÃ bật vị trí nay chặn duyệt phiếu nhập có dòng
+	hàng quản lý lô mà số lô không khai qua phiếu nhập lô (`phieu_nhap.chan_lo_go_
+	tay_khi_duyet`). Bài test nào cần một phiếu nhập ĐÃ DUYỆT mà KHÔNG qua phiếu
+	nhập lô — tức tình huống của phiếu duyệt trước ngày đó, hoặc phiếu ở kho
+	thường — phải dựng nó ở kho này, bằng một lần duyệt thật.
+
+	Không dùng lại kho thử khác: vài bài bật/tắt cờ trên kho của chúng, nên trạng
+	thái cờ ở đó không đoán được. Đặt cờ tường minh rồi xoá bộ đệm, vì
+	`kho_co_quan_ly_vi_tri` đọc qua `get_cached_value`.
+	"""
+	from erpnext.vi_tri_kho.vitri.kho import xoa_cache_kho
+
+	if not frappe.db.exists("Warehouse", TEN_KHO_KHONG_VI_TRI):
+		frappe.get_doc(
+			{
+				"doctype": "Warehouse",
+				"warehouse_name": "_Test Kho Khong Vi Tri",
+				"company": "Miyano Việt Nam",
+				"is_group": 0,
+			}
+		).insert(ignore_permissions=True)
+	frappe.db.set_value("Warehouse", TEN_KHO_KHONG_VI_TRI, "custom_quan_ly_vi_tri", 0)
+	xoa_cache_kho(TEN_KHO_KHONG_VI_TRI)
+	return TEN_KHO_KHONG_VI_TRI

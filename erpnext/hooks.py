@@ -52,6 +52,12 @@ doctype_js = {
 	# đừng tạo khoá "Batch" thứ hai trong bất kỳ dict nào: khoá sau nuốt khoá
 	# trước trong im lặng, dự án đã dính đúng việc này.
 	"Batch": "public/js/vi_tri_kho/batch.js",
+	# Hai lối vào chủ đầu tư đòi sau khi thử luồng thật 17/09/2026: nút "Nhập lô &
+	# in nhãn" trên phiếu nhập, và chỗ gán vị trí ngay trên form mặt hàng. Mất một
+	# trong hai dòng này thì form vẫn trông bình thường, chỉ là mất đường vào —
+	# `vi_tri_kho/tests/test_giao_dien.py` khoá việc đó.
+	"Purchase Receipt": "public/js/vi_tri_kho/purchase_receipt.js",
+	"Item": "public/js/vi_tri_kho/item.js",
 }
 doctype_list_js = {
 	"Code List": [
@@ -403,6 +409,16 @@ doc_events = {
 		# khoá sau nuốt khoá trước trong im lặng và móc NCC sẽ biến mất mà
 		# không ai thấy.
 		"validate": "erpnext.vi_tri_kho.vitri.ma_vach.kiem_ky_tu_lo",
+	},
+	# Kho đã bật quản lý vị trí: số lô phải đến từ phiếu nhập lô, không gõ tay trên
+	# phiếu nhập. Chủ đầu tư chốt 17/09/2026 sau khi phiếu MAT-PRE-2026-00008 được
+	# duyệt với số lô `17/09/2026` gõ thẳng vào ô lô chuẩn — mất số lô NCC, không có
+	# tem. Đây là khoá CHUỖI "Purchase Receipt"; khối cuối `doc_events` có một khoá
+	# TUPLE chứa "Purchase Receipt" (thông báo chuỗi cung ứng) — Python coi là hai
+	# khoá khác nhau và `frappe.get_doc_hooks()` gộp cả hai, nên không đè nhau.
+	# `vi_tri_kho/tests/test_loi_vao_nhap_lo.py` khoá việc này.
+	"Purchase Receipt": {
+		"before_submit": "erpnext.vi_tri_kho.vitri.phieu_nhap.chan_lo_go_tay_khi_duyet",
 	},
 	"Stock Entry": {
 		"on_submit": "erpnext.stock.doctype.material_request.material_request.update_completed_and_requested_qty",

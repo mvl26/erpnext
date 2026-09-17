@@ -9,6 +9,7 @@ trước khi kiểm trùng số lô thì người gõ nhầm một số lô dài
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from erpnext.vi_tri_kho.tests.kho_thu import dam_bao_kho_khong_vi_tri
 from erpnext.vi_tri_kho.tests.test_hook_nhap import _tao_item
 from erpnext.vi_tri_kho.tests.test_lo_ncc import _ncc_thu, _ncc_thu_2, _phieu_nhap_nhap
 from erpnext.vi_tri_kho.vitri.nhap_lo import dat_o_in_tem, du_lieu_tem, lay_dong_tu_phieu_nhap
@@ -74,9 +75,18 @@ class TestValidate(FrappeTestCase):
 	def test_phieu_nhap_da_submit_thi_chan(self):
 		"""Và câu báo phải nói rõ THỨ TỰ đúng, vì đây là lỗi thao tác chứ không
 		phải lỗi dữ liệu — người dùng cần biết làm gì tiếp, không phải biết cái
-		gì sai."""
-		self.pr.submit()
-		be = _phieu_nhap_lo(self.pr, [self._dong()])
+		gì sai.
+
+		Tiền đề dựng ở KHO CHƯA BẬT VỊ TRÍ, không phải `self.kho`. Từ 17/09/2026
+		kho đã bật vị trí chặn luôn việc duyệt phiếu nhập có dòng hàng quản lý lô
+		mà chưa khai lô — nên ở đó không còn dựng được "một phiếu đã duyệt, chưa
+		khai lô" bằng đường thường. Nhưng tình huống đó vẫn CÓ THẬT: phiếu duyệt
+		trước ngày ấy (như MAT-PRE-2026-00008), và phiếu ở kho thường. Vẫn duyệt
+		THẬT, không đặt cờ `docstatus` bằng tay."""
+		kho_thuong = dam_bao_kho_khong_vi_tri()
+		pr = _phieu_nhap_nhap(self.item, kho_thuong, self.ncc)
+		pr.submit()
+		be = _phieu_nhap_lo(pr, [self._dong(dong_phieu_nhap=pr.items[0].name, kho=kho_thuong)])
 		with self.assertRaises(frappe.ValidationError) as ngu_canh:
 			be.insert(ignore_permissions=True)
 		self.assertIn("trước", str(ngu_canh.exception))

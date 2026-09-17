@@ -340,3 +340,49 @@ def cay_chon_vi_tri(
 		{"kho": kho, "parent": parent, "tru_ten": tru_ten or ""},
 		as_dict=True,
 	)
+
+
+@frappe.whitelist()
+def vi_tri_cua_mat_hang(vat_tu: str) -> dict | None:
+	"""Vị trí cố định đang gán cho `vat_tu`, để form Item hiện ra. `None` nếu chưa gán.
+
+	Vì sao form Item cần: chủ đầu tư thử luồng thật ngày 17/09/2026 và thấy
+	"trong item chưa có phần setup vị trí" — việc gán chỉ làm được trên một
+	doctype riêng mà không ai biết tìm ở đâu, nên mặt hàng được nhập kho rồi
+	vẫn chưa từng có vị trí.
+	"""
+	frappe.has_permission("Item", "read", vat_tu, throw=True)
+	gan = frappe.db.get_value(
+		"Item Location Preference", vat_tu, ["name", "kho", "vi_tri", "cap_do"], as_dict=True
+	)
+	return gan or None
+
+
+@frappe.whitelist()
+def gan_vi_tri_cho_mat_hang(vat_tu: str, kho: str, vi_tri: str) -> dict:
+	"""Tạo hoặc sửa bản gán vị trí cố định của `vat_tu`, từ form Item.
+
+	ĐI QUA `Document.save()`/`insert()` của `Item Location Preference`, không
+	ghi thẳng `db.set_value`. Hai lý do, cùng quan trọng:
+
+	1. `validate()` của bản gán chạy đủ các phép kiểm — nút nằm trong cây, cùng
+	   kho, KHÔNG chồng lấn nhánh của mặt hàng khác, không đè lên hàng đang nằm
+	   đó. Ghi thẳng xuống CSDL là để hai mặt hàng cùng giữ một tầng, đúng thứ
+	   khối B sinh ra để chặn.
+	2. Quyền: bản gán chỉ cho System Manager và Stock Manager tạo/sửa. Nút trên
+	   form Item không được là cửa sau vượt quyền đó — nên không có
+	   `ignore_permissions`.
+
+	Sửa bản cũ chứ không xoá-rồi-tạo: `autoname: field:vat_tu` nên mỗi mặt hàng
+	đúng một bản ghi, và giữ bản cũ là giữ lịch sử thay đổi (`track_changes`).
+	"""
+	if frappe.db.exists("Item Location Preference", vat_tu):
+		gan = frappe.get_doc("Item Location Preference", vat_tu)
+		gan.kho = kho
+		gan.vi_tri = vi_tri
+		gan.save()
+	else:
+		gan = frappe.get_doc(
+			{"doctype": "Item Location Preference", "vat_tu": vat_tu, "kho": kho, "vi_tri": vi_tri}
+		).insert()
+	return {"name": gan.name, "kho": gan.kho, "vi_tri": gan.vi_tri, "cap_do": gan.cap_do}

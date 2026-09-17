@@ -302,7 +302,10 @@ dụng đó. Hiện 55/55 lô trên hệ đều đã có hạn dùng — giữ n
 
 > **Từ 16/09/2026 có màn hình riêng để khai số lô: *Phiếu nhập lô* — xem mục 11.** Nó thay cho
 > việc gõ số lô vào hộp thoại lô trên dòng phiếu nhập, và nó là đường duy nhất in được nhãn lô.
-> **Thứ tự bắt buộc: khai lô TRƯỚC, duyệt phiếu nhập SAU** (mục 11.1).
+>
+> **Từ 17/09/2026:** trên phiếu nhập nháp có nút **"Nhập lô & in nhãn"** — bấm là vào thẳng phiếu
+> nhập lô với dòng hàng đã nạp sẵn. Và ở **kho đã bật quản lý vị trí**, phiếu nhập **không duyệt
+> được** nếu số lô gõ tay thay vì khai qua nút đó (mục 11.1).
 
 Hàng nhập về **dồn hết vào ô "Chưa xếp vị trí"** — chưa có ô khai vị trí ngay trên phiếu nhập.
 Việc xếp làm sau, bằng **Phiếu xếp / chuyển vị trí** (mục 6.3).
@@ -529,6 +532,23 @@ chứa cho ô nào** — đó là lý do trước đây hệ không dám gợi �
 
 ### 10.1 Gán một mặt hàng
 
+**Cách nhanh nhất — ngay trên form mặt hàng** (từ 17/09/2026):
+
+1. Mở mặt hàng cần gán (chỉ mặt hàng có **Lưu kho**).
+2. Ngay đầu form có một dòng cho biết mặt hàng **đã gán ở đâu**, hoặc báo màu cam
+   *"chưa gán vị trí cố định — tem in ra sẽ trống ô vị trí"*.
+3. Bấm nhóm nút **Vị trí kho → Gán vị trí** (đã gán rồi thì là **Đổi vị trí**).
+4. Chọn **Kho** — ô này chỉ hiện kho đã bật quản lý vị trí.
+5. Bấm **"Chọn trên cây vị trí"**, rồi chọn nút trên cây (nên chọn cấp **Tầng**, xem 10.2).
+
+Không thấy nhóm nút **Vị trí kho**? Việc gán chỉ dành cho **Stock Manager** và **System
+Manager**. Thủ kho vai trò *Stock User* xem được dòng vị trí nhưng không đổi được — nhờ quản lý kho.
+
+Hệ chạy **đủ các phép kiểm** như khi gán ở màn hình riêng: nút đã thuộc mặt hàng khác thì bị từ
+chối, kèm tên mặt hàng đang giữ nó.
+
+**Cách cũ — màn hình riêng**, vẫn dùng được, tiện khi gán nhiều mặt hàng liền tay:
+
 1. Mở **`/app/item-location-preference`** (hoặc bấm **Gán vị trí cố định** trên trang *Vị trí kho*).
 2. **Mặt hàng** — chọn một lần, **không sửa được về sau**. Gán nhầm thì xoá bản ghi rồi tạo lại.
 3. **Kho** — phải là kho đang quản lý vị trí.
@@ -596,18 +616,21 @@ Ngày bật kho thứ hai, đây là chỗ phải sửa lược đồ — xem `B
 Từ 16/09/2026. Trước đó số lô gõ thẳng vào hộp thoại lô của ERPNext trên dòng phiếu nhập và
 **không có nhãn lô**. Nay có một màn hình riêng: **Phiếu nhập lô**.
 
-Vào bằng ô **Nhập lô** trên trang *Vị trí kho*, hoặc đường dẫn `/app/batch-entry`.
+**Vào từ chính phiếu nhập** — nút **"Nhập lô & in nhãn"** ở đầu phiếu nhập còn nháp. Đây là
+đường chính. (Vẫn vào được từ ô **Nhập lô** trên trang *Vị trí kho*, hoặc `/app/batch-entry`.)
 
 **Làm theo đúng sáu bước này:**
 
 1. Kế toán / người mua lập **phiếu nhập** (Purchase Receipt) và **để nguyên ở dạng nháp** — chưa
-   bấm Duyệt.
-2. Thủ kho mở **Phiếu nhập lô**, chọn **Phiếu nhập** đó và **Nhà cung cấp**.
-3. Bấm **"Lấy dòng hàng từ phiếu nhập"**. Hệ đổ xuống các dòng hàng có quản lý lô.
+   bấm Duyệt. **Đừng gõ gì vào ô số lô trên dòng hàng.**
+2. Trên phiếu nhập đó, bấm **"Nhập lô & in nhãn"**. Phiếu chưa lưu thì hệ tự lưu trước.
+3. Hệ mở **Phiếu nhập lô** với các dòng hàng có quản lý lô **đã nạp sẵn**. Đã có một phiếu nhập
+   lô nháp cho phiếu này thì hệ **mở lại đúng phiếu đó**, không tạo phiếu thứ hai.
 4. Cầm vỏ thùng, **gõ Số lô và Hạn dùng cho từng dòng** (Ngày sản xuất nếu nhà cung cấp có in).
 5. **Lưu**, rồi **Duyệt** phiếu nhập lô. Lúc này hệ tạo bản ghi lô, cấp **số gọi**, và ghi số lô
    lên đúng dòng của phiếu nhập.
-6. **Bây giờ mới duyệt phiếu nhập.** Rồi quay lại phiếu nhập lô bấm **"In nhãn cả phiếu"**.
+6. **Bây giờ mới duyệt phiếu nhập.** Rồi quay lại phiếu nhập lô bấm **"In nhãn cả phiếu"** —
+   từ phiếu nhập đã duyệt có nút **"Xem phiếu nhập lô"** để quay lại đó, kể cả khi cần in lại tem.
 
 ---
 
@@ -636,7 +659,23 @@ máy** (dạng `BATCH-00123`) lúc duyệt, **số lô của nhà cung cấp m�
 cảnh báo nào. Hôm nay cả **84/84 mặt hàng có lô** đều đang đặt *"không tự sinh lô"* — **giữ
 nguyên như vậy**, đừng ai bật ô đó.
 
-**Nếu làm sai thì sao:** mở Phiếu nhập lô sau đó, hệ **từ chối** kèm câu:
+**Ở kho đã bật quản lý vị trí, từ 17/09/2026 hệ CHẶN ngay nút Duyệt.** Phiếu nhập có dòng hàng
+quản lý lô mà số lô **chưa có**, hoặc **gõ tay** thay vì khai qua phiếu nhập lô, thì bấm Duyệt sẽ
+bị từ chối, kèm danh sách từng dòng sai và câu *"bấm nút **Nhập lô & in nhãn** ở đầu phiếu nhập"*.
+Gặp câu đó: **xoá số lô gõ tay trên dòng hàng, lưu phiếu, rồi bấm nút**.
+
+Việc này bắt đầu từ một lần chạy thử thật: phiếu `MAT-PRE-2026-00008` được duyệt với số lô
+**`17/09/2026`** — một **ngày tháng** gõ vào ô lô trên phiếu nhập. Hệ lúc đó không chặn, nên số lô
+của nhà cung cấp mất và lô đó không có tem.
+
+Hai chỗ **không** bị chặn, có chủ ý:
+
+- **Kho chưa bật quản lý vị trí** — không có tem, không có ô; chặn ở đó là chặn luồng nhập kho
+  thường của cả công ty mà không được gì.
+- **Phiếu trả hàng** — trả lại một lô đã có, không khai lô mới.
+
+**Với phiếu đã lỡ duyệt từ trước** (như `MAT-PRE-2026-00008`), mở Phiếu nhập lô sẽ bị **từ chối**
+kèm câu:
 
 > *Phiếu nhập ... đã duyệt nên không gắn được số lô nữa. Phải nhập lô TRƯỚC rồi mới duyệt phiếu
 > nhập — duyệt trước thì ERPNext đã tự sinh số lô máy và số lô của nhà cung cấp mất luôn.*
@@ -647,10 +686,19 @@ nhập lô khai số lô, rồi duyệt lại phiếu nhập. Huỷ một phiế
 toán, và **nếu hàng đã xuất đi mất một phần thì huỷ không được nữa** — khi đó lô hàng ấy sống
 suốt đời với con tem thiếu số gọi.
 
-**Vì sao hệ không tự chặn:** chỗ cần chặn là nút Duyệt trên **phiếu nhập** — chứng từ mua hàng
-gốc của ERPNext, dùng cho mọi mặt hàng của công ty, kể cả hàng không có lô. Chặn ở đó là sửa một
-chứng từ mà cả kế toán, mua hàng và kho cùng dùng; rủi ro mở ra lớn hơn nhiều so với thứ nó vá.
-**Nên ở điểm này tài liệu chính là lớp phòng vệ duy nhất.** Đọc kỹ, và dặn lại người mới.
+**Nút "Không có dòng nào cần khai lô" nay nói rõ vì sao.** Trước 17/09/2026 câu báo chỉ nói
+*"không còn dòng hàng quản lý lô nào chưa có số lô"* — đúng, nhưng không cho biết phải làm gì.
+Nay nó nói đúng một trong các nguyên nhân, mỗi nguyên nhân một việc:
+
+| Câu báo nói | Làm gì |
+|---|---|
+| Phiếu nhập **đã duyệt** — kèm danh sách lô **gõ thẳng trên phiếu** nếu có | Nhờ kế toán huỷ phiếu nhập, làm lại theo sáu bước |
+| Các dòng **đã có số lô gõ thẳng trên phiếu nhập** | Xoá số lô trên các dòng đó, lưu, bấm **Nhập lô & in nhãn** |
+| **Không mặt hàng nào bật "Có lô"** | Mở form mặt hàng, bật **Có lô**, lưu — rồi làm lại |
+| Mọi dòng **đã khai lô qua phiếu nhập lô** … | Không phải làm gì — mở phiếu nhập lô đó để in lại tem |
+
+**Kho chưa bật quản lý vị trí thì hệ vẫn không chặn** — ở những kho đó, thứ tự khai lô trước /
+duyệt sau vẫn chỉ dựa vào người làm. Đọc kỹ, và dặn lại người mới.
 
 ---
 

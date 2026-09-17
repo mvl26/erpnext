@@ -312,3 +312,56 @@ class TestManHinhBatBuocCoMat(FrappeTestCase):
 				continue
 			dem += 1
 		self.assertEqual(lech, [], f"`link_count` lệch số dòng thật: {lech}")
+
+
+DUONG_DAN_JS_PHIEU_NHAP = "public/js/vi_tri_kho/purchase_receipt.js"
+DUONG_DAN_JS_MAT_HANG = "public/js/vi_tri_kho/item.js"
+
+
+class TestLoiVaoTuPhieuNhapVaMatHang(FrappeTestCase):
+	"""Hai lối vào chủ đầu tư đòi sau khi thử luồng thật ngày 17/09/2026.
+
+	Phiếu nhập MAT-PRE-2026-00008 được duyệt với số lô gõ tay `17/09/2026`, vì
+	phiếu nhập lô không có lối vào nào từ phiếu nhập; và mặt hàng đó chưa từng
+	gán vị trí, vì form Item không có chỗ nào để gán. Cả hai lối vào gắn qua
+	`doctype_js` — mất một dòng thì form vẫn mở bình thường, chỉ là mất đường
+	vào, không lỗi nào báo. Đúng hạng hỏng im lặng mà cả file này sinh ra để bắt.
+	"""
+
+	def _gan(self, doctype):
+		gan = frappe.get_hooks("doctype_js").get(doctype) or []
+		return [gan] if isinstance(gan, str) else gan
+
+	def test_doctype_js_gan_vao_phieu_nhap(self):
+		self.assertIn(
+			DUONG_DAN_JS_PHIEU_NHAP,
+			self._gan("Purchase Receipt"),
+			"Phiếu nhập không còn nạp JS của module — mất nút 'Nhập lô & in nhãn', và thủ "
+			"kho quay lại gõ số lô thẳng trên phiếu nhập. Kiểm `doctype_js` trong hooks.py.",
+		)
+
+	def test_doctype_js_gan_vao_mat_hang(self):
+		self.assertIn(
+			DUONG_DAN_JS_MAT_HANG,
+			self._gan("Item"),
+			"Form Item không còn nạp JS của module — mất chỗ gán vị trí cố định. Kiểm "
+			"`doctype_js` trong hooks.py.",
+		)
+
+	def test_hai_file_js_co_that(self):
+		"""`doctype_js` trỏ file không tồn tại thì Frappe im lặng bỏ qua."""
+		for tuong_doi in (DUONG_DAN_JS_PHIEU_NHAP, DUONG_DAN_JS_MAT_HANG):
+			duong_dan = frappe.get_app_path("erpnext", *tuong_doi.split("/"))
+			self.assertTrue(os.path.exists(duong_dan), f"thiếu file {duong_dan}")
+
+	def test_nhan_nut_tren_phieu_nhap_khop_cau_bao_chan_duyet(self):
+		"""Câu báo chặn duyệt (`phieu_nhap.chan_lo_go_tay_khi_duyet`) bảo người dùng
+		"bấm nút <tên>". Nhãn nút thật nằm trong một file JS khác. Hai chỗ giữ cùng
+		một chuỗi mà không gì nối chúng lại — lệch một chữ là thủ kho đi tìm một nút
+		không tồn tại, ngay lúc họ đang bị chặn và cần nút đó nhất."""
+		from erpnext.vi_tri_kho.vitri.phieu_nhap import NHAN_NUT_NHAP_LO
+
+		duong_dan = frappe.get_app_path("erpnext", *DUONG_DAN_JS_PHIEU_NHAP.split("/"))
+		with open(duong_dan, encoding="utf-8") as f:
+			ma_js = f.read()
+		self.assertIn(f'"{NHAN_NUT_NHAP_LO}"', ma_js)
