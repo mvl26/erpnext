@@ -482,9 +482,10 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 		   Ngân sách 27,0mm chỉ còn dư 0,503mm sau khi trừ sàn chiều cao của bảy
 		   hàng, nên năm hàng chỉ còn khoảng 0,08mm biên. Nếu HÀNG tự cắt thì
 		   phần đó bị xén — đúng vào chân các dấu tiếng Việt đâm xuống. Cắt chữ
-		   là việc của từng Ô (mỗi span đã có overflow: hidden kèm ellipsis, cắt
-		   theo chiều NGANG đúng cho nó), còn lưới đỡ cuối cùng vẫn là
-		   overflow: hidden ở .tem. Hàng ở giữa không cần cắt gì. */
+		   theo chiều ngang (dấu "…") là việc của từng Ô, còn lưới đỡ cuối cùng
+		   vẫn là overflow: hidden ở .tem. Hàng ở giữa không cần cắt gì.
+		   LƯU Ý: overflow: hidden của Ô cắt CẢ HAI CHIỀU, không riêng chiều ngang
+		   — xem chú thích ở luật .f1…f11 ngay dưới. */
 	}
 	/* min-width: 0 trên mọi ô chữ — chặn một lỗi IM LẶNG. Xem luật 2 đầu file.
 	   Cắt bằng "…" chứ không cắt trần: một số lô cụt trông y như số lô thật và
@@ -493,7 +494,26 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 	.tem .f6, .tem .f7, .tem .f8, .tem .f11 {
 		min-width: 0;
 		white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-		line-height: 1;
+		/* line-height: 1.5, KHÔNG phải 1 — đây là lỗi tem in ra bị cắt chữ,
+		   chủ đầu tư báo ngày 17/09/2026 trên tem lô 123456.
+
+		   overflow: hidden cắt CẢ HAI CHIỀU (CSS không có kiểu "chỉ cắt ngang").
+		   Hộp của Ô cao đúng bằng hộp dòng; với line-height 1 hộp đó cao 1,0 cỡ
+		   chữ, trong khi mực chữ Arial cao ~1,12 cỡ chữ, và chữ HOA có dấu chồng
+		   tầng (Ố, Ậ, Ự…) còn cao hơn. Phần thừa bị chính Ô xén: đáy chữ g/p/y
+		   phẳng, đầu dấu mũ mất. Bản đầu tưởng overflow: hidden chỉ cắt ngang.
+
+		   1,5 thì hộp Ô chứa trọn mực kể cả tên hàng viết HOA có dấu chồng (đo:
+		   1,3 vẫn xén đầu chữ "ỐNG THÔNG ĐƯỜNG MẬT"). KHÔNG tốn chỗ: hàng có
+		   chiều cao cố định (khối cao_hang) và căn giữa, nên Ô cao hơn hàng chỉ
+		   tràn đều hai phía, không đẩy hàng nào, chữ không dời chỗ. Hàng không
+		   cắt (xem trên) nên phần tràn đó vẫn in ra.
+
+		   Đo bằng MỰC THẬT trên ảnh chụp ×10, từng Ô một (chữ các Ô khác đổi
+		   sang trong suốt — màu không ảnh hưởng bố cục). Đo theo hộp phông
+		   (Range) như bản đầu KHÔNG thấy lỗi này: hộp phông không phải hộp cắt,
+		   cũng không phải mực. */
+		line-height: 1.5;
 	}
 	/* Khối giữa: hai cột. 27,0 + 0,6 + 19,4 = 47,0mm đúng bằng vùng in. */
 	.tem .giua {
@@ -522,6 +542,15 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 		content: ""; position: absolute; left: 0; right: 0; top: 0;
 		height: 0.25mm; background: #000;
 	}
+	/* Nét kẻ trên hàng R6 vẽ LÊN TRÊN mép hàng (top: -0.25mm), không đè vào hàng.
+	   Hàng R6 cao 2,73mm mà mực F7 "NHẬP …" (dấu mũ + chấm dưới chữ Ậ) cao
+	   2,36mm, nên vẽ nét 0,25mm ở MÉP TRONG của hàng là đè thẳng lên đầu chữ:
+	   đo được nét đè đầu ô vị trí F8 0,044mm và đầu chữ Ậ 0,07mm — trên tem in
+	   ra, đầu chữ dính vào nét kẻ. Dời lên thì nét nằm trong dải trống dưới F6
+	   "Lô …" và F9 (đo: đáy mực F6 cách nét 0,71mm). Góc nối với nét dọc
+	   (.giua::after, chạy suốt chiều cao .giua) vẫn khít vì nét ngang giờ nằm
+	   TRONG khối .giua. */
+	.tem .h6::before { top: -0.25mm; }
 	.tem .h6 { position: relative; }
 	/* Đường kẻ DỌC vẽ từ KHỐI CHA, không vẽ từ .cot-phai.
 	   Đo được: đặt nó trên .cot-phai thì nó BIẾN MẤT, vì .cot-phai cũng mang
@@ -593,15 +622,27 @@ erpnext.vi_tri_kho.tem_lo = (function () {
 		border: 0.25mm dashed #000;
 		padding: 0 1mm;
 	}
-	/* line-height dưới 1 cho F11 — có tính toán, không phải tuỳ tiện.
-	   Hàng R7 cao 6,74mm, mã vạch ăn 4,8mm, còn 1,94mm. 5pt với line-height 1
-	   là 1,76mm nên vừa; nhưng hộp CHỮ thật cao 1,85mm, sát đến mức một lần đổi
-	   font là tràn. 0,9 cho hộp dòng 1,59mm, chừa chỗ cho hộp chữ. Chữ số không
-	   có nét dưới đường chân (không có g/j/p/q) nên thu hộp dòng không cắt vào
-	   nét nào. */
+	/* F11 (số lô dưới mã vạch): line-height 1.2 + đệm trên 0,1mm.
+
+	   Bản đầu dùng line-height 0.9 với lý lẽ "chữ số không có nét dưới chân nên
+	   thu hộp dòng không cắt vào nét nào". Lý lẽ đó chỉ nghĩ tới ĐÁY. Thu hộp
+	   dòng xuống dưới hộp chữ cắt đều CẢ HAI ĐẦU: đầu chữ số bị đẩy LÊN chui
+	   vào mã vạch. Trên tem lô 123456 in ra, đầu các số 2, 3, 6 bị mã vạch che
+	   (đo: mã vạch đè 0,023mm và Ô tự xén đầu). Và số lô là ASCII bất kỳ, không
+	   riêng chữ số — "ABgjpqy" có cả nét dưới chân.
+
+	   Vì sao đệm ĐÚNG 0,1mm: Chrome làm tròn đường chân chữ theo bậc 1 điểm
+	   ảnh CSS (0,265mm), nên chữ chỉ có HAI vị trí thật trong ô này. Không đệm:
+	   chữ cách mã vạch 0,03mm — mọi tem đều sát nguy cơ chạm. Đệm từ 0,1mm trở
+	   lên đều nhảy sang vị trí thứ hai: chữ số / chữ hoa cách mã vạch 0,32mm,
+	   cách đáy 0,34mm. Riêng số lô có chữ thường đuôi dài thì đuôi chạm đáy Ô
+	   0,003mm — khoảng 1/40 điểm in của máy 203 dpi, không thấy được trên
+	   giấy. Muốn hết hẳn ca đó phải lấy thêm chiều cao từ hàng khác, dời cả bố
+	   cục đã đo — không đáng. */
 	.tem .f11 {
 		flex: 1 1 auto; width: 100%;
-		line-height: 0.9;
+		line-height: 1.2;
+		padding-top: 0.1mm;
 		text-align: center;
 		letter-spacing: 0.02em;
 	}
