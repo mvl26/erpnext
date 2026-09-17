@@ -56,6 +56,7 @@ Gõ tên màn hình vào ô tìm kiếm (kính lúp trên thanh trên cùng), ho
 |---|---|
 | **Vị trí kho** (trang tổng hợp, vào đây trước) | `/app/vị-trí-kho` |
 | **Quét mã tra cứu** — dùng trên PDA, xem mục 12 | `/app/quet-ma-tra-cuu` |
+| **Xếp hàng vào ô** — dùng trên PDA, xem mục 13 | `/app/xep-hang-pda` |
 | Storage Location — danh mục ô | `/app/storage-location` |
 | Location Generator — sinh mã ô hàng loạt | `/app/location-generator` |
 | Warehouse Location Setup — bật/tắt/đồng bộ | `/app/warehouse-location-setup` |
@@ -358,7 +359,10 @@ cuối kho:
 Đây là bước biến "hàng đã về kho" thành "hàng nằm ở ô nào". Không có nó thì mọi thứ dồn ở ô
 "Chưa xếp vị trí" và cả phần vị trí chỉ chạy được một nửa.
 
-**Cách làm:**
+> **Có PDA thì dùng trang "Xếp hàng vào ô" (mục 13)** — quét tem lô rồi quét tem ô, không phải
+> gõ gì. Cách trên máy tính dưới đây vẫn dùng được, hợp khi xếp cả loạt theo danh sách.
+
+**Cách làm trên máy tính:**
 
 1. Mở **Phiếu xếp / chuyển vị trí** (`/app/location-transfer/new`), chọn **Kho**.
 2. Bấm **"Lấy hàng chưa xếp"** — hệ đổ toàn bộ hàng đang ở ô "Chưa xếp vị trí" thành các dòng
@@ -964,6 +968,48 @@ Ngưỡng 90 ngày là **tạm đặt**; kho dùng mốc cận date khác thì b
   đúng, vì một Dãy chứa nhiều mặt hàng.
 - Tồn hiện trên trang là **tồn theo ô** (sổ vị trí). Hàng đã nhập mà chưa xếp nằm ở ô
   `ZZZ-CHUA-XEP-…` và cũng hiện ra như một ô.
+
+---
+
+## 13. Xếp hàng vào ô (trên PDA)
+
+Trang để **cầm PDA đi xếp hàng**: quét tem lô trên thùng, quét tem ô trên kệ — xong một dòng. Xếp
+bao nhiêu thùng cũng dồn vào **một** phiếu xếp, cuối cùng bấm **Hoàn tất** để ghi sổ. Vào từ ô
+bấm **Xếp hàng vào ô** đầu trang **Vị trí kho**.
+
+### 13.1 Một vòng xếp
+
+1. Mở trang. Kho tự chọn nếu chỉ có một kho quản lý vị trí; nhiều kho thì chạm chọn kho.
+2. **① Quét tem LÔ** trên thùng. Thẻ lô hiện ra:
+   - **Lấy từ ô**: mặc định là **Chưa xếp** (hàng mới nhập). Lô đã nằm ở ô khác thì ô đó cũng
+     hiện — chạm chọn để **chuyển ô**.
+   - **Số lượng xếp**: điền sẵn **toàn bộ** số đang chờ ở ô nguồn. Chia lô ra nhiều ô thì giảm số
+     (nút − / + hoặc chạm vào số để gõ), xếp xong phần đầu thì quét lại tem lô cho phần còn lại.
+   - **Ô gợi ý** (chữ to, nền xanh) — theo vị trí cố định của mặt hàng (mục 10).
+3. **② Quét tem Ô** trên kệ nơi vừa đặt thùng. Viền cam và dòng *"② Quét tem Ô…"* cho biết hệ
+   đang chờ tem ô.
+   - Đúng ô gợi ý → dòng được ghi ngay lên phiếu, PDA rung, quay về bước ①.
+   - **Khác ô gợi ý** → hệ **chưa ghi**, hiện khung cam *"Quét LẠI tem … để xác nhận"*. Quét lại
+     đúng tem đó (hoặc chạm **Xếp vào …**) mới ghi. Đổi ý thì quét tem ô gợi ý.
+   - Ô không hợp lệ (ô nhóm, dãy đang ngừng dùng, ô kho khác, không đủ hàng) → hệ báo lý do, lô
+     vẫn chờ để quét ô khác.
+4. Lặp lại cho thùng kế tiếp. Danh sách **Trên phiếu** nằm dưới; chạm **×** để bỏ một dòng.
+5. Xếp xong: bấm **Hoàn tất phiếu** → **Ghi phiếu**. Lúc này tồn theo ô mới đổi.
+
+### 13.2 Những điều cần biết
+
+- **Mỗi dòng được lưu ngay** lên một phiếu xếp **nháp** của chính người quét. PDA hết pin, rớt
+  mạng hay lỡ đóng trình duyệt: mở lại trang là thấy lại đúng phiếu đó, không mất dòng nào.
+- Phiếu nháp là **của từng người** — hai thủ kho cùng xếp một kho không dồn dòng vào nhau.
+- **Chưa bấm Hoàn tất thì tồn theo ô chưa đổi.** Hàng đã nằm trên kệ nhưng hệ vẫn ghi ở
+  *Chưa xếp*. Đừng để phiếu nháp qua ngày.
+- Số *"tối đa"* đã **trừ phần đã lên phiếu** — quét cùng một lô hai lần không xếp được quá số đang
+  có.
+- Bỏ **dòng cuối cùng** thì phiếu nháp rỗng tự bị xoá.
+- Hỏi *"Ghi phiếu?"* và *"Bỏ dòng?"* **chỉ nhận chạm tay** — bóp cò quét lúc hộp đang mở không
+  bấm được nút nào. Cố ý: súng quét gửi phím Enter sau mỗi lần quét.
+- Quét **mã hàng** của mặt hàng có quản lý lô → hệ nhắc quét **tem lô** (không đoán lô nào).
+  Mặt hàng không quản lý lô thì quét mã hàng là được.
 
 ---
 

@@ -371,6 +371,14 @@ TEN_TRANG_QUET = "quet-ma-tra-cuu"
 
 
 class TestTrangQuetMa(FrappeTestCase):
+	TRANG = TEN_TRANG_QUET
+	THU_MUC = "quet_ma_tra_cuu"
+
+	def _vai_tro_may_chu(self):
+		from erpnext.vi_tri_kho.vitri.quet import VAI_TRO_DUOC_TRA_CUU
+
+		return VAI_TRO_DUOC_TRA_CUU
+
 	"""Trang quét mã tra cứu cho PDA — chủ đầu tư đòi 17/09/2026 "quét mã tra cứu
 	là chức năng riêng và ở trong workspace vị trí kho".
 
@@ -380,24 +388,20 @@ class TestTrangQuetMa(FrappeTestCase):
 	"""
 
 	def test_trang_ton_tai_thuoc_module(self):
-		self.assertEqual(frappe.db.get_value("Page", TEN_TRANG_QUET, "module"), TEN_MODULE)
+		self.assertEqual(frappe.db.get_value("Page", self.TRANG, "module"), TEN_MODULE)
 
 	def test_dung_ba_vai_tro_duoc_tra_cuu(self):
 		"""Khớp `quet.VAI_TRO_DUOC_TRA_CUU` — trang mở được mà máy chủ chặn thì
 		thủ kho thấy một trang quét cứ báo lỗi quyền mỗi lần bóp cò."""
-		from erpnext.vi_tri_kho.vitri.quet import VAI_TRO_DUOC_TRA_CUU
-
-		vai_tro = set(
-			frappe.get_all("Has Role", {"parent": TEN_TRANG_QUET, "parenttype": "Page"}, pluck="role")
-		)
-		self.assertEqual(vai_tro, VAI_TRO_DUOC_TRA_CUU)
+		vai_tro = set(frappe.get_all("Has Role", {"parent": self.TRANG, "parenttype": "Page"}, pluck="role"))
+		self.assertEqual(vai_tro, self._vai_tro_may_chu())
 
 	def test_co_loi_tat_ve_ra_va_nam_trong_the_hang_ngay(self):
 		ws = frappe.get_doc("Workspace", TEN_WORKSPACE)
 		khoi = json.loads(ws.content or "[]")
 		loi_tat_ve_ra = {b["data"]["shortcut_name"] for b in khoi if b.get("type") == "shortcut"}
 		self.assertIn(
-			TEN_TRANG_QUET,
+			self.TRANG,
 			{s.link_to for s in ws.shortcuts if s.type == "Page" and s.label in loi_tat_ve_ra},
 		)
 
@@ -408,13 +412,27 @@ class TestTrangQuetMa(FrappeTestCase):
 				the = l.label
 			elif l.link_type == "Page":
 				trong_the.add((the, l.link_to))
-		self.assertIn(("Hằng ngày", TEN_TRANG_QUET), trong_the)
+		self.assertIn(("Hằng ngày", self.TRANG), trong_the)
 
 	def test_file_trang_co_that(self):
 		"""Trang tiêu chuẩn nạp JS/CSS theo ĐÚNG tên file trong thư mục trang —
 		đặt sai tên thì trang mở ra trắng trơn."""
 		for duoi in ("js", "css"):
 			duong_dan = frappe.get_app_path(
-				"erpnext", "vi_tri_kho", "page", "quet_ma_tra_cuu", f"quet_ma_tra_cuu.{duoi}"
+				"erpnext", "vi_tri_kho", "page", self.THU_MUC, f"{self.THU_MUC}.{duoi}"
 			)
 			self.assertTrue(os.path.exists(duong_dan), f"thiếu file {duong_dan}")
+
+class TestTrangXepHangPda(TestTrangQuetMa):
+	"""Trang xếp hàng trên PDA — chủ đầu tư 17/09/2026 "giao diện xếp hàng cũng là
+	pda". Cùng bốn kiểu hỏng im lặng với trang quét mã, nên chạy lại đúng bốn bài
+	của lớp cha trên trang này. Vai trò so với `xep.VAI_TRO_DUOC_XEP` — bộ vai trò
+	máy chủ thật sự kiểm cho các hàm trang này gọi."""
+
+	TRANG = "xep-hang-pda"
+	THU_MUC = "xep_hang_pda"
+
+	def _vai_tro_may_chu(self):
+		from erpnext.vi_tri_kho.vitri.xep import VAI_TRO_DUOC_XEP
+
+		return VAI_TRO_DUOC_XEP
