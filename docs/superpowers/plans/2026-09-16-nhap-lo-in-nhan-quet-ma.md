@@ -1691,7 +1691,10 @@ Yêu cầu bắt buộc với người thi công:
 **Interfaces:**
 - Consumes: `erpnext.vi_tri_kho.tem.may_ve_ma_vach()` (đã export sẵn ở
   `tem_vi_tri.js:136`, dòng cuối file), `nhap_lo.du_lieu_tem` (Task 7).
-- Produces: `erpnext.vi_tri_kho.tem_lo` = `{ KHO, chon_bo_cuc, ve_tem, css, ve_xem_truoc, in_xap }`.
+- Produces: `erpnext.vi_tri_kho.tem_lo` = `{ KHO, X_MM, YEN_TINH_MM, TRAN_VE_DUOC, TRAN_YEN_TINH, so_module, ke_hoach_vach, ve_tem, css, ve_xem_truoc, in_xap }`.
+  **ĐÍNH CHÍNH 16/09 (sau thi công Task 8): `chon_bo_cuc` KHÔNG tồn tại** — chủ đầu tư
+  đã chốt bỏ hẳn bố cục A, nhãn chỉ còn MỘT bố cục. `css(cho_in)` một tham số,
+  `ve_tem(o, hinh_vach)` hai tham số.
 
 - [ ] **Step 1: Đọc `tem_vi_tri.js` từ đầu đến cuối trước khi viết một dòng nào**
 
