@@ -68,7 +68,7 @@ class TestWorkspace(FrappeTestCase):
 		for l in ws.links:
 			if l.type != "Link":
 				continue
-			dt = "Report" if l.link_type == "Report" else "DocType"
+			dt = l.link_type if l.link_type in ("Report", "Page") else "DocType"
 			if not frappe.db.exists(dt, l.link_to):
 				hong.append(f"{l.label} -> {dt} {l.link_to!r}")
 		self.assertEqual(hong, [], f"liên kết trỏ vào hư không: {hong}")
@@ -77,7 +77,7 @@ class TestWorkspace(FrappeTestCase):
 		ws = frappe.get_doc("Workspace", TEN_WORKSPACE)
 		hong = []
 		for s in ws.shortcuts:
-			dt = "Report" if s.type == "Report" else "DocType"
+			dt = s.type if s.type in ("Report", "Page") else "DocType"
 			if not frappe.db.exists(dt, s.link_to):
 				hong.append(f"{s.label} -> {dt} {s.link_to!r}")
 		self.assertEqual(hong, [], f"lối tắt trỏ vào hư không: {hong}")
@@ -365,3 +365,56 @@ class TestLoiVaoTuPhieuNhapVaMatHang(FrappeTestCase):
 		with open(duong_dan, encoding="utf-8") as f:
 			ma_js = f.read()
 		self.assertIn(f'"{NHAN_NUT_NHAP_LO}"', ma_js)
+
+
+TEN_TRANG_QUET = "quet-ma-tra-cuu"
+
+
+class TestTrangQuetMa(FrappeTestCase):
+	"""Trang quét mã tra cứu cho PDA — chủ đầu tư đòi 17/09/2026 "quét mã tra cứu
+	là chức năng riêng và ở trong workspace vị trí kho".
+
+	Trang Frappe hỏng theo đúng kiểu cả file này bắt: thiếu dòng `roles` thì
+	Stock User mở ra "Not permitted"; thiếu khối trong `content` thì workspace
+	không vẽ ô bấm; cả hai đều không lỗi nào báo ở phía máy chủ.
+	"""
+
+	def test_trang_ton_tai_thuoc_module(self):
+		self.assertEqual(frappe.db.get_value("Page", TEN_TRANG_QUET, "module"), TEN_MODULE)
+
+	def test_dung_ba_vai_tro_duoc_tra_cuu(self):
+		"""Khớp `quet.VAI_TRO_DUOC_TRA_CUU` — trang mở được mà máy chủ chặn thì
+		thủ kho thấy một trang quét cứ báo lỗi quyền mỗi lần bóp cò."""
+		from erpnext.vi_tri_kho.vitri.quet import VAI_TRO_DUOC_TRA_CUU
+
+		vai_tro = set(
+			frappe.get_all("Has Role", {"parent": TEN_TRANG_QUET, "parenttype": "Page"}, pluck="role")
+		)
+		self.assertEqual(vai_tro, VAI_TRO_DUOC_TRA_CUU)
+
+	def test_co_loi_tat_ve_ra_va_nam_trong_the_hang_ngay(self):
+		ws = frappe.get_doc("Workspace", TEN_WORKSPACE)
+		khoi = json.loads(ws.content or "[]")
+		loi_tat_ve_ra = {b["data"]["shortcut_name"] for b in khoi if b.get("type") == "shortcut"}
+		self.assertIn(
+			TEN_TRANG_QUET,
+			{s.link_to for s in ws.shortcuts if s.type == "Page" and s.label in loi_tat_ve_ra},
+		)
+
+		the = None
+		trong_the = set()
+		for l in ws.links:
+			if l.type == "Card Break":
+				the = l.label
+			elif l.link_type == "Page":
+				trong_the.add((the, l.link_to))
+		self.assertIn(("Hằng ngày", TEN_TRANG_QUET), trong_the)
+
+	def test_file_trang_co_that(self):
+		"""Trang tiêu chuẩn nạp JS/CSS theo ĐÚNG tên file trong thư mục trang —
+		đặt sai tên thì trang mở ra trắng trơn."""
+		for duoi in ("js", "css"):
+			duong_dan = frappe.get_app_path(
+				"erpnext", "vi_tri_kho", "page", "quet_ma_tra_cuu", f"quet_ma_tra_cuu.{duoi}"
+			)
+			self.assertTrue(os.path.exists(duong_dan), f"thiếu file {duong_dan}")

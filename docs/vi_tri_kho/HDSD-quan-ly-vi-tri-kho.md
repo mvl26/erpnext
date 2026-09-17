@@ -39,7 +39,7 @@ có tồn kho, có nhập xuất, chỉ là không biết hàng nằm ở ô nà
 |---|---|
 | Sinh ô, bật/tắt quản lý vị trí, đồng bộ lại | `System Manager` **hoặc** `Stock Manager` |
 | **Gán vị trí cố định cho mặt hàng** (tạo / sửa / xoá) | `System Manager` **hoặc** `Stock Manager` |
-| Xem bốn báo cáo, xem danh mục ô, **xem các gán vị trí** | thêm `Stock User` |
+| Xem bốn báo cáo, xem danh mục ô, **xem các gán vị trí**, **quét mã tra cứu** | thêm `Stock User` |
 | Nhập/xuất kho như thường lệ | như ERPNext gốc, không đổi |
 
 Sinh ô, bật/tắt kho và **gán vị trí cố định** đều là **thao tác thiết lập**, cố ý không mở cho
@@ -55,6 +55,7 @@ Gõ tên màn hình vào ô tìm kiếm (kính lúp trên thanh trên cùng), ho
 | Màn hình | Đường dẫn |
 |---|---|
 | **Vị trí kho** (trang tổng hợp, vào đây trước) | `/app/vị-trí-kho` |
+| **Quét mã tra cứu** — dùng trên PDA, xem mục 12 | `/app/quet-ma-tra-cuu` |
 | Storage Location — danh mục ô | `/app/storage-location` |
 | Location Generator — sinh mã ô hàng loạt | `/app/location-generator` |
 | Warehouse Location Setup — bật/tắt/đồng bộ | `/app/warehouse-location-setup` |
@@ -920,6 +921,49 @@ khác. Phát hiện ra thì cả loạt tem đã đi theo hàng vào kho.
 **Quét ra khác số lô in trên tem, hoặc không quét được:** **dừng in hàng loạt ngay** và báo lại,
 kèm con tem đã in. Đừng chỉnh tỉ lệ in cho nó "vừa hơn" — thu mã vạch nhỏ lại chính là cách làm
 hỏng nó.
+
+---
+
+## 12. Quét mã tra cứu (trên PDA)
+
+Trang riêng để **cầm PDA đi trong kho, quét bất cứ tem nào và xem ngay nó là gì**. Vào từ ô bấm
+**Quét mã tra cứu** đầu trang **Vị trí kho**, hoặc nút cùng tên trên phiếu nhập lô đã duyệt.
+Trên PDA nên **ghim trang này ra màn hình chính** (menu trình duyệt → *Thêm vào màn hình chính*)
+để mở bằng một chạm.
+
+### 12.1 Quét thế nào
+
+1. Mở trang. Ô quét **tự sẵn sàng** — không cần chạm vào ô.
+2. Bóp cò quét trên PDA, chiếu vào tem. Kết quả hiện ngay, ô quét tự xoá và sẵn sàng cho tem kế.
+3. Tem mờ không quét được: bấm nút **⌨** để hiện bàn phím, gõ mã rồi **Enter**. Bấm ⌨ lần nữa để
+   quay lại chế độ quét.
+4. Không có súng quét (điện thoại thường): bấm nút **máy ảnh** và đưa tem vào khung hình.
+5. Mười mã quét gần nhất nằm dưới mục **Vừa quét** — chạm một dòng để xem lại. Danh sách này mất
+   khi tải lại trang; hệ **không lưu** lịch sử quét.
+
+> Ở chế độ quét, bàn phím ảo **cố ý không hiện** (nếu hiện nó sẽ che nửa màn hình mỗi lần quét).
+> Nếu PDA của kho cài súng quét không tự gửi phím Enter, trang vẫn tự tra khi súng ngừng gửi ký tự.
+
+### 12.2 Quét được những gì
+
+| Quét | Hiện ra |
+|---|---|
+| **Tem lô** (hoặc gõ số lô) | Số lô, tên hàng, **hạn dùng tô màu**, ngày SX, ngày nhập, số gói, phiếu nhập, NCC; vị trí cố định, ô ghi trên tem, **tồn theo từng ô** |
+| **Tem vị trí** (hoặc gõ mã ô, kể cả dạng in trên tem `1A0101-0101`) | Ô thuộc kho nào, mặt hàng nào giữ vị trí này, **đang chứa lô nào, bao nhiêu**. Quét tem cấp Tầng/Khoang ra hàng của mọi ô bên dưới (tối đa 50 dòng) |
+| **Mã vạch trên bao bì** hoặc **gõ mã vật tư** | Tên hàng, vị trí cố định, **các lô còn tồn — hạn gần nhất lên đầu**, mỗi lô nằm ô nào |
+| **Mã kho** | Kho có quản lý vị trí không, bao nhiêu ô đang dùng, bao nhiêu ô có hàng |
+| Mã khác (vỏ thùng, tem vận chuyển…) | Khung xám **"Không nhận ra mã này"** — không phải lỗi, chỉ là quét nhầm. PDA rung hai nhịp nếu máy cho trình duyệt rung |
+
+**Màu hạn dùng:** 🟢 xanh — còn trên 90 ngày · 🟠 cam — còn 90 ngày trở xuống · 🔴 đỏ — đã hết hạn.
+Ngưỡng 90 ngày là **tạm đặt**; kho dùng mốc cận date khác thì báo để đổi.
+
+### 12.3 Hai điều cần biết
+
+- **"Mặt hàng cố định" trên tem vị trí** chỉ hiện khi chính ô đó (hoặc Tầng/Khoang chứa nó) đã gán
+  cho một mặt hàng. Quét tem cả một Dãy thì thường thấy *"Chưa mặt hàng nào giữ vị trí này"* —
+  đúng, vì một Dãy chứa nhiều mặt hàng.
+- Tồn hiện trên trang là **tồn theo ô** (sổ vị trí). Hàng đã nhập mà chưa xếp nằm ở ô
+  `ZZZ-CHUA-XEP-…` và cũng hiện ra như một ô.
 
 ---
 

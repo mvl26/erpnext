@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\": \"vtk-tieu-de\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>V\u1ecb tr\u00ed kho</b></span>\", \"col\": 12}}, {\"id\": \"vtk-loi-tat\", \"type\": \"paragraph\", \"data\": {\"text\": \"Gi\u00e1 k\u1ec7, \u00f4 k\u1ec7 v\u00e0 s\u1ed5 t\u1ed3n theo t\u1eebng \u00f4. M\u1edf r\u1ed9ng c\u1ee7a <b>Warehouse</b>.\", \"col\": 12}}, {\"id\": \"vtk-sc-lo\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Nh\u1eadp l\u00f4\", \"col\": 3}}, {\"id\": \"vtk-sc-xep\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"X\u1ebfp / chuy\u1ec3n v\u1ecb tr\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"\u00d4 k\u1ec7\", \"col\": 3}}, {\"id\": \"vtk-sc-2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"B\u1eadt qu\u1ea3n l\u00fd v\u1ecb tr\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sinh m\u00e3 \u00f4\", \"col\": 3}}, {\"id\": \"vtk-sc-4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"T\u1ed3n kho theo v\u1ecb tr\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"H\u00e0ng ch\u01b0a x\u1ebfp v\u1ecb tr\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"\u0110\u1ed1i so\u00e1t t\u1ed3n v\u1ecb tr\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"G\u00e1n v\u1ecb tr\u00ed c\u1ed1 \u0111\u1ecbnh\", \"col\": 3}}, {\"id\": \"vtk-sp\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"vtk-card-0\", \"type\": \"card\", \"data\": {\"card_name\": \"H\u1eb1ng ng\u00e0y\", \"col\": 3}}, {\"id\": \"vtk-card-1\", \"type\": \"card\", \"data\": {\"card_name\": \"Thi\u1ebft l\u1eadp\", \"col\": 3}}, {\"id\": \"vtk-card-2\", \"type\": \"card\", \"data\": {\"card_name\": \"B\u00e1o c\u00e1o\", \"col\": 3}}, {\"id\": \"vtk-card-3\", \"type\": \"card\", \"data\": {\"card_name\": \"S\u1ed5 v\u1ecb tr\u00ed\", \"col\": 3}}]",
+ "content": "[{\"id\": \"vtk-tieu-de\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>V\\u1ecb tr\\u00ed kho</b></span>\", \"col\": 12}}, {\"id\": \"vtk-loi-tat\", \"type\": \"paragraph\", \"data\": {\"text\": \"Gi\\u00e1 k\\u1ec7, \\u00f4 k\\u1ec7 v\\u00e0 s\\u1ed5 t\\u1ed3n theo t\\u1eebng \\u00f4. M\\u1edf r\\u1ed9ng c\\u1ee7a <b>Warehouse</b>.\", \"col\": 12}}, {\"id\": \"vtk-sc-quet\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Qu\\u00e9t m\\u00e3 tra c\\u1ee9u\", \"col\": 3}}, {\"id\": \"vtk-sc-lo\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Nh\\u1eadp l\\u00f4\", \"col\": 3}}, {\"id\": \"vtk-sc-xep\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"X\\u1ebfp / chuy\\u1ec3n v\\u1ecb tr\\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"\\u00d4 k\\u1ec7\", \"col\": 3}}, {\"id\": \"vtk-sc-2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"B\\u1eadt qu\\u1ea3n l\\u00fd v\\u1ecb tr\\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sinh m\\u00e3 \\u00f4\", \"col\": 3}}, {\"id\": \"vtk-sc-4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"T\\u1ed3n kho theo v\\u1ecb tr\\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"H\\u00e0ng ch\\u01b0a x\\u1ebfp v\\u1ecb tr\\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"\\u0110\\u1ed1i so\\u00e1t t\\u1ed3n v\\u1ecb tr\\u00ed\", \"col\": 3}}, {\"id\": \"vtk-sc-7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"G\\u00e1n v\\u1ecb tr\\u00ed c\\u1ed1 \\u0111\\u1ecbnh\", \"col\": 3}}, {\"id\": \"vtk-sp\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"vtk-card-0\", \"type\": \"card\", \"data\": {\"card_name\": \"H\\u1eb1ng ng\\u00e0y\", \"col\": 3}}, {\"id\": \"vtk-card-1\", \"type\": \"card\", \"data\": {\"card_name\": \"Thi\\u1ebft l\\u1eadp\", \"col\": 3}}, {\"id\": \"vtk-card-2\", \"type\": \"card\", \"data\": {\"card_name\": \"B\\u00e1o c\\u00e1o\", \"col\": 3}}, {\"id\": \"vtk-card-3\", \"type\": \"card\", \"data\": {\"card_name\": \"S\\u1ed5 v\\u1ecb tr\\u00ed\", \"col\": 3}}]",
  "creation": "2026-09-11 00:00:00",
  "custom_blocks": [],
  "docstatus": 0,
@@ -16,10 +16,20 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "H\u1eb1ng ng\u00e0y",
-   "link_count": 2,
+   "link_count": 3,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Qu\u00e9t m\u00e3 tra c\u1ee9u",
+   "link_count": 0,
+   "link_to": "quet-ma-tra-cuu",
+   "link_type": "Page",
+   "onboard": 1,
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -169,7 +179,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-16 19:52:00.668817",
+ "modified": "2026-09-17 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vi Tri Kho",
  "name": "V\u1ecb tr\u00ed kho",
@@ -182,6 +192,13 @@
  "roles": [],
  "sequence_id": 40.0,
  "shortcuts": [
+  {
+   "color": "Cyan",
+   "doc_view": "",
+   "label": "Qu\u00e9t m\u00e3 tra c\u1ee9u",
+   "link_to": "quet-ma-tra-cuu",
+   "type": "Page"
+  },
   {
    "color": "Orange",
    "doc_view": "",

@@ -22,33 +22,13 @@
 
 const DUONG_IN_NHAN = "/assets/erpnext/js/vi_tri_kho/in_nhan_lo.js";
 
-// Task 10 — quét mã tra cứu: CHIỀU NGƯỢC của việc in nhãn ở trên. Không dùng
-// `process_scan()`/`update_table()` của `erpnext.utils.BarcodeScanner`: lớp
-// đó hard-code tên trường `item_code`/`batch_no`/`qty` của một bảng con kiểu
-// chuẩn ERPNext (`stock_entry.js`, `pick_list.js`...), còn bảng con của phiếu
-// này dùng tên trường RIÊNG (`vat_tu`, `so_lo`...) và mục đích ở đây là ĐỌC
-// thông tin để XEM, không phải thêm dòng vào bảng — gọi `update_table()` sẽ
-// vừa sai tên trường vừa sai cả việc cần làm. Cũng không gắn field
-// `scan_barcode` vào lược đồ doctype (cách `BarcodeScanner` đòi hỏi qua
-// `frm.fields_dict[scan_field_name]`): mã cần quét là mã trên nhãn ĐÃ IN, tức
-// là quét SAU KHI phiếu đã duyệt (`docstatus === 1`) — một trường thường trên
-// chứng từ đã duyệt phải `allow_on_submit` mới gõ được, nghĩa là mỗi lần quét
-// đều ghi xuống một chứng từ kho ĐÃ DUYỆT, chỉ để chứa một ô nhập tạm thời.
-// Cái giá đó không đáng cho một ô không lưu gì cả.
-//
-// Vì vậy: một khung `frm.dashboard.add_section()` độc lập, KHÔNG gắn với
-// field nào của doc — input quét + khung kết quả nằm chung trong đó, gọi
-// thẳng `erpnext.vi_tri_kho.vitri.quet.tra_cuu` bằng `frappe.call` (chữ ký
-// `tra_cuu(ma)` khác `scan_barcode(search_value)` mà `BarcodeScanner.
-// scan_api_call()` hard-code gửi, nên gọi trực tiếp còn rõ ràng hơn là ghi đè
-// một phương thức của lớp đó). Máy quét mã vạch cắm ngoài gõ như bàn phím —
-// input thường + bắt phím Enter là đủ, không cần control kiểu "Barcode".
-const KHOA_KHUNG_QUET = "vi_tri_kho_khung_quet";
+// Quét mã tra cứu KHÔNG còn nằm trong form này: từ 17/09/2026 là trang riêng
+// `quet-ma-tra-cuu` (thư mục `vi_tri_kho/page/quet_ma_tra_cuu/`), dùng trên PDA,
+// theo yêu cầu chủ đầu tư "quét mã tra cứu là chức năng riêng". Ở đây chỉ còn
+// nút mở trang đó, trên phiếu đã duyệt — lúc tem đã in ra và có cái để quét.
 
 frappe.ui.form.on("Batch Entry", {
 	refresh(frm) {
-		_dung_khung_quet(frm);
-
 		if (frm.doc.docstatus === 0) {
 			// Nút hiện NGAY CẢ KHI `phieu_nhap` còn trống, và điều kiện được
 			// kiểm TRONG `lay_dong()` chứ không ở đây. Bản đầu gắn thêm
@@ -68,6 +48,7 @@ frappe.ui.form.on("Batch Entry", {
 
 		if (frm.doc.docstatus === 1) {
 			frm.add_custom_button(__("In nhãn cả phiếu"), () => in_nhan_ca_phieu(frm));
+			frm.add_custom_button(__("Quét mã tra cứu"), () => frappe.set_route("quet-ma-tra-cuu"));
 		}
 	},
 
@@ -250,149 +231,6 @@ function in_nhan_ca_phieu(frm) {
 	frappe.require(DUONG_IN_NHAN, () => {
 		erpnext.vi_tri_kho.in_nhan.in_cho_cac_lo(lo);
 	});
-}
-
-function _dung_khung_quet(frm) {
-	// `refresh` chạy lại nhiều lần (mở form, lưu, nạp lại) — CHỈ dựng khung khi
-	// nó CHƯA CÓ TRONG DOM, không phải chỉ dựa vào biến `frm[KHOA_KHUNG_QUET]`
-	// còn giữ tham chiếu hay không.
-	//
-	// Bẫy ĐÃ ĐO trên mã nguồn `frappe/public/js/frappe/form/dashboard.js`
-	// (KHÔNG phải suy diễn): mỗi lần `frm.refresh()` chạy (sau khi lưu, sau
-	// khi nạp lại), `Form.refresh_header()` gọi `dashboard.refresh()`, và
-	// `Dashboard.refresh()` MỞ ĐẦU bằng `this.reset()` — hàm này xoá THẲNG
-	// mọi phần tử con khớp `.custom` (`this.parent.find(".custom").remove()`).
-	// `add_section()` mặc định gắn ĐÚNG class `"custom"` đó. Nếu guard ở đây
-	// chỉ kiểm biến `frm[KHOA_KHUNG_QUET]` (một tham chiếu jQuery) thì sau cú
-	// `reset()` đầu tiên, biến đó vẫn "có giá trị" nhưng đang trỏ vào một nút
-	// DOM ĐÃ BỊ GỠ — khung quét biến mất vĩnh viễn sau lần lưu/nạp lại ĐẦU
-	// TIÊN mà không có cách nào tự hồi phục, đúng họ lỗi "refresh chạy lại mà
-	// mã cũ tưởng nó chỉ chạy một lần" đã ghi ở đầu file này (món nợ số 1,
-	// Task 8). Hai lớp phòng vệ, không lớp nào thừa:
-	//
-	//   1. Đặt `css_class` RIÊNG (không phải mặc định `"custom"`) khi gọi
-	//      `add_section` bên dưới — `reset()` không còn khớp được khung này,
-	//      nên nó KHÔNG BỊ XOÁ ở lần `refresh()` kế tiếp, không cần dựng lại.
-	//   2. Vẫn kiểm DOM THẬT (`document.body.contains(...)`), không chỉ biến
-	//      JS — phòng một đường gỡ DOM khác trong tương lai mà lớp 1 không
-	//      lường trước (ví dụ đổi tab, đổi layout).
-	if (frm[KHOA_KHUNG_QUET] && document.body.contains(frm[KHOA_KHUNG_QUET][0])) return;
-
-	const than = frm.dashboard.add_section(
-		`<div class="vi-tri-kho-khung-quet">
-			<input type="text" class="form-control input-sm vi-tri-kho-quet-o-nhap"
-				placeholder="${__("Quét mã vạch trên nhãn (lô / vật tư / kho)...")}" />
-			<div class="vi-tri-kho-quet-ket-qua text-muted small" style="margin-top: 10px;"></div>
-		</div>`,
-		__("Quét mã tra cứu"),
-		"vi-tri-kho-khung-quet-section"
-	);
-	frm[KHOA_KHUNG_QUET] = than;
-
-	// Máy quét mã vạch cắm ngoài mô phỏng bàn phím: gõ nhanh rồi tự gửi phím
-	// Enter — không cần nút bấm, chỉ cần bắt đúng phím này.
-	than.find(".vi-tri-kho-quet-o-nhap").on("keydown", (ev) => {
-		if (ev.key !== "Enter") return;
-		ev.preventDefault();
-		const $o_nhap = $(ev.currentTarget);
-		const ma = ($o_nhap.val() || "").trim();
-		$o_nhap.val("");
-		if (!ma) return;
-		_quet_va_hien_thi(frm, ma);
-	});
-}
-
-function _quet_va_hien_thi(frm, ma) {
-	const $ket_qua = frm[KHOA_KHUNG_QUET].find(".vi-tri-kho-quet-ket-qua");
-	$ket_qua.html(frappe.utils.escape_html(__("Đang tra cứu...")));
-
-	frappe.call({
-		method: "erpnext.vi_tri_kho.vitri.quet.tra_cuu",
-		args: { ma: ma },
-		callback(r) {
-			// `tra_cuu` không bao giờ ném lỗi (bọc `try/except` ở máy chủ,
-			// điều #2 brief Task 10) — nhánh "không tìm thấy" là `loai: null`
-			// chứ KHÔNG PHẢI một exception `frappe.call` phải bắt riêng.
-			const du_lieu = r && r.message;
-			if (!du_lieu || !du_lieu.loai) {
-				$ket_qua.html(
-					`<span class="text-danger">${frappe.utils.escape_html(
-						__("Không tìm thấy thông tin cho mã {0}.", [ma])
-					)}</span>`
-				);
-				return;
-			}
-			$ket_qua.html(_ve_khung_ket_qua(du_lieu));
-		},
-	});
-}
-
-function _dong_thong_tin(nhan, gia_tri) {
-	// Bỏ qua dòng có giá trị RỖNG (`undefined`/`null`/chuỗi rỗng/0 dòng) thay
-	// vì in một dòng trống — khung kết quả chỉ nên nói những gì THẬT SỰ biết,
-	// đúng tinh thần "không suy diễn" xuyên suốt cả kế hoạch (`goi_y_o` trả
-	// `None` thay vì đoán, `nhap_lo` để trống F4 thay vì placeholder).
-	if (gia_tri === undefined || gia_tri === null || gia_tri === "") return "";
-	return `<div><b>${frappe.utils.escape_html(nhan)}:</b> ${frappe.utils.escape_html(
-		String(gia_tri)
-	)}</div>`;
-}
-
-function _ve_khung_ket_qua(d) {
-	// Rẽ nhánh THEO KHOÁ `loai` — KHÔNG dò chữ trong bất kỳ chuỗi nào để suy
-	// loại (bài học đã trả giá ở `goi_y.py`/`location_transfer.js`: chuỗi
-	// hiển thị đi qua `__()` nên dịch được, so khớp chuỗi con sẽ âm thầm gộp
-	// nhầm hoặc khớp 0 dòng khi đổi ngôn ngữ).
-	if (d.loai === "lo") {
-		const o_dang_co_hang = (d.o_dang_co_hang || []).join(", ");
-		const ton_theo_o = (d.ton_theo_o || [])
-			.map(
-				(dong) =>
-					`<li>${frappe.utils.escape_html(dong.o)}: ${frappe.utils.escape_html(
-						String(dong.so_luong)
-					)}</li>`
-			)
-			.join("");
-
-		return [
-			`<div><b>${__("Loại")}:</b> ${__("Lô")}</div>`,
-			_dong_thong_tin(__("Số lô"), d.so_lo),
-			_dong_thong_tin(__("Mã vật tư"), d.vat_tu),
-			_dong_thong_tin(__("Tên hàng"), d.ten_hang),
-			_dong_thong_tin(__("Hạn dùng"), d.hsd),
-			_dong_thong_tin(__("Ngày sản xuất"), d.ngay_san_xuat),
-			_dong_thong_tin(__("Nhà cung cấp"), d.nha_cung_cap),
-			_dong_thong_tin(__("Số gói"), d.so_goi),
-			_dong_thong_tin(__("Ngày nhập"), d.ngay_nhap),
-			_dong_thong_tin(__("Phiếu nhập"), d.so_phieu_nhap),
-			_dong_thong_tin(__("Vị trí cố định"), d.vi_tri_co_dinh),
-			_dong_thong_tin(__("Ô đang có hàng"), o_dang_co_hang),
-			_dong_thong_tin(__("Ô đã in tem"), d.o_in_tem),
-			ton_theo_o
-				? `<div><b>${__("Tồn theo ô")}:</b><ul style="margin-bottom:0">${ton_theo_o}</ul></div>`
-				: "",
-		]
-			.filter(Boolean)
-			.join("");
-	}
-
-	if (d.loai === "vat_tu") {
-		return [
-			`<div><b>${__("Loại")}:</b> ${__("Mặt hàng")}</div>`,
-			_dong_thong_tin(__("Mã vật tư"), d.vat_tu),
-			_dong_thong_tin(__("Tên hàng"), d.ten_hang),
-		]
-			.filter(Boolean)
-			.join("");
-	}
-
-	if (d.loai === "kho") {
-		return [`<div><b>${__("Loại")}:</b> ${__("Kho")}</div>`, _dong_thong_tin(__("Kho"), d.kho)]
-			.filter(Boolean)
-			.join("");
-	}
-
-	return "";
 }
 
 // Dòng có DỮ LIỆU THẬT trong bảng con.

@@ -270,3 +270,120 @@ class TestTraCuu(FrappeTestCase):
 		frappe.set_user(ten)
 		with self.assertRaises(frappe.PermissionError):
 			tra_cuu("bat-ky-ma-nao")
+
+
+# ---------------------------------------------------------------------------
+# Trang "Quét mã tra cứu" cho PDA (17/09/2026)
+#
+# Chủ đầu tư: "anh muốn quét mã tra cứu là chức năng riêng và ở trong workspace
+# vị trí kho". Một trang đứng riêng thì quét gì cũng phải ra được thứ đáng xem —
+# không chỉ tem lô. Bốn mở rộng, mỗi bài khoá một:
+#
+#   - quét TEM VỊ TRÍ (mã ô) — `scan_barcode` không biết `Storage Location`, nên
+#     trước đây quét tem trên kệ ra "không nhận ra mã", trên chính trang của
+#     module vị trí kho;
+#   - GÕ TAY mã vật tư — `scan_barcode` chỉ tra `Item Barcode`, không tra mã hàng;
+#   - quét vật tư ra các lô còn tồn theo ô, quét kho ra tóm tắt ô.
+# ---------------------------------------------------------------------------
+
+VI_TRI_PDA_A = "9Q51010101"
+VI_TRI_PDA_B = "9Q51010102"
+LO_PDA_SOM = "QUET-PDA-LO-SOM"
+LO_PDA_MUON = "QUET-PDA-LO-MUON"
+
+
+class TestTraCuuChoPda(FrappeTestCase):
+	def setUp(self):
+		self.item = _tao_item("_Test Quet PDA Co Lo", co_lo=1)
+		ma_da_quet = (self.item, VI_TRI_PDA_A, VI_TRI_PDA_A[:6], VI_TRI_PDA_A[:8], VI_TRI_PDA_B, KHO)
+		for ma in (*ma_da_quet, LO_PDA_SOM, LO_PDA_MUON):
+			frappe.cache().delete_value(f"erpnext:barcode_scan:{ma}")
+
+		for so_lo, hsd in ((LO_PDA_SOM, "2027-03-01"), (LO_PDA_MUON, "2029-12-31")):
+			if not frappe.db.exists("Batch", so_lo):
+				frappe.get_doc(
+					{"doctype": "Batch", "batch_id": so_lo, "item": self.item, "expiry_date": hsd}
+				).insert(ignore_permissions=True)
+
+		_o(VI_TRI_PDA_A)
+		_o(VI_TRI_PDA_B)
+		# Gán cấp TẦNG (tổ tiên của cả hai ô) — đúng cách HDSD §10.2 khuyên.
+		_gan(self.item, VI_TRI_PDA_A[:8])
+		_ton_lo(VI_TRI_PDA_B, self.item, LO_PDA_MUON, 4)
+		_ton_lo(VI_TRI_PDA_A, self.item, LO_PDA_SOM, 7)
+
+	def test_lo_co_don_vi_tinh(self):
+		ket_qua = tra_cuu(LO_PDA_SOM)
+		self.assertEqual(ket_qua["loai"], "lo")
+		self.assertEqual(ket_qua["don_vi"], "Nos")
+
+	def test_quet_tem_vi_tri_ra_o_va_hang_dang_nam_trong_do(self):
+		ket_qua = tra_cuu(VI_TRI_PDA_A)
+
+		self.assertEqual(ket_qua["loai"], "o")
+		self.assertEqual(ket_qua["ma_o"], VI_TRI_PDA_A)
+		self.assertEqual(ket_qua["kho"], KHO)
+		self.assertEqual(ket_qua["mat_hang_co_dinh"]["vat_tu"], self.item)
+		self.assertEqual(ket_qua["mat_hang_co_dinh"]["vi_tri"], VI_TRI_PDA_A[:8])
+		self.assertEqual(
+			[(d["o"], d["vat_tu"], d["so_lo"], float(d["so_luong"])) for d in ket_qua["hang_trong_o"]],
+			[(VI_TRI_PDA_A, self.item, LO_PDA_SOM, 7.0)],
+			"chỉ hàng của ĐÚNG ô này — không lẫn ô anh em B",
+		)
+		self.assertEqual(str(ket_qua["hang_trong_o"][0]["hsd"]), "2027-03-01")
+
+	def test_go_tay_ma_in_tren_tem_vi_tri_cung_ra_o(self):
+		"""Tem mờ thì thủ kho gõ theo chữ in dưới mã vạch (`1A0101-0101`), không
+		phải mã liền 10 ký tự — HDSD §12.2 hứa gõ kiểu đó cũng ra ô."""
+		ma_in = frappe.db.get_value("Storage Location", VI_TRI_PDA_A, "ma_in_nhan")
+		self.assertTrue(ma_in and ma_in != VI_TRI_PDA_A, f"ô lá phải có mã in khác mã liền: {ma_in!r}")
+		frappe.cache().delete_value(f"erpnext:barcode_scan:{ma_in}")
+		ket_qua = tra_cuu(ma_in)
+		self.assertEqual((ket_qua["loai"], ket_qua.get("ma_o")), ("o", VI_TRI_PDA_A))
+
+	def test_quet_nut_cha_ra_hang_ca_nhanh(self):
+		"""Tem cấp tầng/khoang cũng là một tem quét được — ra hàng của mọi ô con."""
+		ket_qua = tra_cuu(VI_TRI_PDA_A[:8])
+		self.assertEqual(ket_qua["loai"], "o")
+		self.assertTrue(ket_qua["la_nhom"])
+		self.assertEqual(
+			sorted(d["o"] for d in ket_qua["hang_trong_o"]), sorted([VI_TRI_PDA_A, VI_TRI_PDA_B])
+		)
+		# Tầng này CHÍNH LÀ nút được gán → có mặt hàng cố định.
+		self.assertEqual(ket_qua["mat_hang_co_dinh"]["vat_tu"], self.item)
+
+	def test_quet_nut_to_tien_cua_ban_gan_khong_nhan_la_cua_mat_hang_do(self):
+		"""Tem cấp Khoang chứa tầng đã gán cho một mặt hàng: Khoang đó KHÔNG phải
+		"vị trí cố định" của mặt hàng ấy — trong một Khoang/Dãy thật có thể có
+		năm mặt hàng. Nói tên mặt hàng đầu tiên tìm thấy là nói sai."""
+		ket_qua = tra_cuu(VI_TRI_PDA_A[:6])
+		self.assertEqual(ket_qua["loai"], "o")
+		self.assertIsNone(ket_qua["mat_hang_co_dinh"])
+		self.assertIn(VI_TRI_PDA_A, [d["o"] for d in ket_qua["hang_trong_o"]])
+
+	def test_go_tay_ma_vat_tu_ra_mat_hang_va_lo_con_ton_theo_hsd(self):
+		ket_qua = tra_cuu(self.item)
+
+		self.assertEqual(ket_qua["loai"], "vat_tu")
+		self.assertEqual(ket_qua["vat_tu"], self.item)
+		self.assertEqual(ket_qua["don_vi"], "Nos")
+		self.assertTrue(ket_qua["co_lo"])
+		self.assertEqual(ket_qua["vi_tri_co_dinh"], VI_TRI_PDA_A[:8])
+		self.assertEqual(ket_qua["kho_co_dinh"], KHO)
+		# Hạn gần nhất đi trước — thủ kho cầm PDA đi lấy hàng theo FEFO.
+		self.assertEqual(
+			[(d["so_lo"], d["o"], float(d["so_luong"])) for d in ket_qua["lo_con_ton"]],
+			[(LO_PDA_SOM, VI_TRI_PDA_A, 7.0), (LO_PDA_MUON, VI_TRI_PDA_B, 4.0)],
+		)
+
+	def test_quet_kho_ra_tom_tat_o(self):
+		ket_qua = tra_cuu(KHO)
+
+		self.assertEqual(ket_qua["loai"], "kho")
+		self.assertTrue(ket_qua["quan_ly_vi_tri"])
+		self.assertGreaterEqual(ket_qua["so_o"], 2)
+		self.assertGreaterEqual(ket_qua["so_o_co_hang"], 2)
+		self.assertTrue(ket_qua["ten_kho"])
+
+	def test_ma_la_van_khong_bi_nhan_nham_la_o_hay_vat_tu(self):
+		self.assertEqual(tra_cuu("9Q99999999-KHONG-CO"), {"loai": None})
