@@ -12,9 +12,10 @@ chỗ cho từ giai đoạn 1 — file này dựng tiếp đúng thiết kế đ
 
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import flt, now
 
 from erpnext.vi_tri_kho.vitri.fefo import chon_o_xuat
+from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri
 from erpnext.vi_tri_kho.vitri.nhat_ky_loi import cat_tieu_de
 from erpnext.vi_tri_kho.vitri.so import ton_o
 
@@ -359,6 +360,16 @@ def mo_phieu_giao(phieu: str) -> dict:
 	phân bổ, nên danh sách gợi ý và hành vi mặc định không bao giờ nói khác nhau.
 	Hết hàng thì `chon_o_xuat` ném lỗi; ở đây nuốt và trả danh sách rỗng, vì màn
 	hình phải mở được để thủ kho thấy vì sao (khuôn Ruling N ở `xep.hang_chua_xep`).
+
+	`can_quet` (bổ sung điều phối, cùng đợt với quyết định mở rộng `hoan_tat`
+	ở Task 5 — sửa bất đối xứng đọc/ghi): `False` khi kho của dòng đó KHÔNG
+	bật quản lý vị trí — `hoan_tat` đã BỎ QUA đúng những dòng này (xem
+	`kho_co_quan_ly_vi_tri`), nên trang phải biết để hiện mờ/không đòi quét,
+	KHÔNG lọc bỏ hẳn dòng khỏi danh sách: thủ kho vẫn phải lấy tay những dòng
+	đó (giao thường, không qua sổ vị trí) — giấu dòng đi là giấu việc còn
+	phải làm. Cũng bỏ qua gọi `chon_o_xuat` cho các dòng này: kho không quản
+	lý vị trí không có `Storage Location` nào để gợi ý, gọi vẫn nuốt được lỗi
+	nhưng chỉ tổ ghi rác vào Error Log ở MỌI lần mở phiếu.
 	"""
 	_kiem_tra_quyen()
 	doc = frappe.get_doc("Delivery Note", phieu)
@@ -371,15 +382,15 @@ def mo_phieu_giao(phieu: str) -> dict:
 	da = _da_lay_theo_dong(doc)
 	dong = []
 	for d in doc.items:
+		can_quet = kho_co_quan_ly_vi_tri(d.warehouse)
 		con_can = flt(d.qty) - da.get(d.name, 0.0)
-		try:
-			if con_can > 0:
+		goi_y = []
+		if can_quet and con_can > 0:
+			try:
 				goi_y = chon_o_xuat(d.warehouse, d.item_code, d.batch_no or None, max(con_can, 0))
-			else:
+			except Exception:
+				frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: mo_phieu_giao goi y loi ({phieu})"))
 				goi_y = []
-		except Exception:
-			frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: mo_phieu_giao goi y loi ({phieu})"))
-			goi_y = []
 		dong.append(
 			{
 				"dong_hang": d.name,
@@ -390,6 +401,7 @@ def mo_phieu_giao(phieu: str) -> dict:
 				"hsd": frappe.db.get_value("Batch", d.batch_no, "expiry_date") if d.batch_no else None,
 				"can_lay": flt(d.qty),
 				"da_lay": da.get(d.name, 0.0),
+				"can_quet": can_quet,
 				"o_nen_lay": [
 					{
 						"o": g["o"],
@@ -545,3 +557,279 @@ def quet_de_lay(phieu: str, ma: str, dong_hang: str | None = None) -> dict:
 	except Exception:
 		frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: quet_de_lay loi ({ma})"))
 	return {"loai": None}
+
+
+# ---------------------------------------------------------------------------
+# Máy chủ cho trang PDA lấy hàng (Task 5, 18/09/2026) — phần GHI.
+#
+# Ghi lượt đã lấy vào bảng phân bổ, bỏ lượt quét nhầm, đổi lô, chốt thiếu, và
+# hoàn tất (duyệt phiếu giao). Mọi phép KIỂM đã có ở `kiem_phan_bo_khi_luu`
+# (gắn `validate`, Task 3) — các hàm dưới đây chỉ SỬA bảng con rồi `doc.save()`,
+# để lớp sớm đó làm việc của nó; không viết lại các phép kiểm ấy ở đây.
+# ---------------------------------------------------------------------------
+
+
+def _dong_cua(doc, dong_hang):
+	d = next((x for x in doc.items if x.name == dong_hang), None)
+	if not d:
+		frappe.throw(_("Dòng hàng {0} không thuộc phiếu {1}.").format(dong_hang, doc.name))
+	return d
+
+
+def _mo_de_ghi(phieu: str):
+	"""Mở phiếu giao để GHI: kiểm vai trò (toàn cục) + quyền ghi trên CHÍNH
+	chứng từ này + còn đang ở trạng thái NHÁP.
+
+	`frappe.get_doc` không tự chạy `has_permission` (cùng bẫy đã vá ở phần ĐỌC,
+	xem `mo_phieu_giao`) — năm hàm GHI của file này hỏng chỗ đó còn nặng hơn.
+	Kiểm `docstatus == 0` gộp vào MỘT chỗ: `ghi_da_lay`/`bo_dong_da_lay`/
+	`doi_lo` vốn tự rơi vào lỗi khung ("Cannot edit submitted document", tiếng
+	Anh, khó hiểu) khi thiếu, nhưng `chot_thieu` không gọi `save()` nào cả —
+	không có gì chặn nó ghi một cờ Redis vô nghĩa lên một phiếu đã duyệt/đã
+	huỷ nếu không kiểm tay ở đây.
+	"""
+	_kiem_tra_quyen()
+	doc = frappe.get_doc("Delivery Note", phieu)
+	doc.check_permission("write")
+	if doc.docstatus != 0:
+		frappe.throw(
+			_("Phiếu giao {0} không còn ở trạng thái nháp — không lấy hàng tiếp được.").format(phieu)
+		)
+	return doc
+
+
+@frappe.whitelist()
+def ghi_da_lay(phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong) -> dict:
+	"""Ghi một lần quét (lô, ô, số lượng) vào bảng phân bổ và LƯU NGAY.
+
+	Lưu ngay chứ không gom trong trình duyệt: PDA hết pin giữa ca là mất cả chục
+	lượt quét mà thủ kho đã đi lấy thật ngoài kệ — cùng lẽ với trang xếp hàng.
+
+	Cùng (dòng hàng, lô, ô) thì CỘNG DỒN vào dòng phân bổ sẵn có, không đẻ dòng mới.
+	"""
+	so_lo = so_lo or None
+	so_luong = flt(so_luong)
+	if so_luong <= 0:
+		frappe.throw(_("Số lượng lấy phải lớn hơn 0."))
+
+	doc = _mo_de_ghi(phieu)
+	d = _dong_cua(doc, dong_hang)
+	if (d.batch_no or None) != so_lo:
+		frappe.throw(
+			_("Dòng hàng đang chốt lô {0}, không phải {1}. Đổi lô trước khi ghi.").format(
+				d.batch_no or "—", so_lo or "—"
+			)
+		)
+
+	trung = next(
+		(
+			p
+			for p in doc.get(TEN_BANG_PHAN_BO) or []
+			if p.dong_hang == dong_hang and (p.so_lo or None) == so_lo and p.o == o
+		),
+		None,
+	)
+	if trung:
+		trung.so_luong = flt(trung.so_luong) + so_luong
+		trung.nguoi_lay = frappe.session.user
+		trung.luc_lay = now()
+	else:
+		doc.append(
+			TEN_BANG_PHAN_BO,
+			{
+				"dong_hang": dong_hang,
+				"vat_tu": d.item_code,
+				"so_lo": so_lo,
+				"o": o,
+				"so_luong": so_luong,
+				"nguoi_lay": frappe.session.user,
+				"luc_lay": now(),
+			},
+		)
+	doc.save()
+	return mo_phieu_giao(phieu)
+
+
+@frappe.whitelist()
+def bo_dong_da_lay(phieu: str, ten_dong: str) -> dict:
+	"""Quét nhầm thì gỡ đúng dòng phân bổ đó.
+
+	Nếu `ten_dong` không khớp dòng nào (đã bị bỏ trước đó, hai tab cùng bấm)
+	thì CHẶN thay vì âm thầm trả về nguyên trạng — một phép "bỏ" tưởng thành
+	công mà thực ra không làm gì là đúng loại lỗi mà cả module này phải tránh.
+	"""
+	doc = _mo_de_ghi(phieu)
+	bang = doc.get(TEN_BANG_PHAN_BO) or []
+	con_lai = [p for p in bang if p.name != ten_dong]
+	if len(con_lai) == len(bang):
+		frappe.throw(
+			_("Dòng phân bổ {0} không tồn tại trên phiếu {1} — có thể đã bị bỏ trước đó.").format(
+				ten_dong, phieu
+			)
+		)
+	doc.set(TEN_BANG_PHAN_BO, con_lai)
+	doc.save()
+	return mo_phieu_giao(phieu)
+
+
+@frappe.whitelist()
+def doi_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
+	"""Đổi lô của một dòng phiếu giao sang lô thủ kho thật sự cầm trên tay.
+
+	Chỉ cho đổi khi dòng CHƯA có phân bổ nào: đã quét lấy ở ô nào đó rồi mà đổi
+	lô là để lại một phân bổ trỏ vào lô cũ — sổ vị trí sẽ trừ nhầm lô.
+	"""
+	doc = _mo_de_ghi(phieu)
+	d = _dong_cua(doc, dong_hang)
+	da_lay = [p for p in doc.get(TEN_BANG_PHAN_BO) or [] if p.dong_hang == dong_hang]
+	if da_lay:
+		frappe.throw(
+			_("Dòng này đã ghi {0} lượt lấy cho lô {1}. Bỏ các lượt đó trước khi đổi lô.").format(
+				len(da_lay), d.batch_no
+			)
+		)
+	if not frappe.db.exists("Batch", so_lo_moi):
+		frappe.throw(_("Lô {0} không tồn tại.").format(so_lo_moi))
+	chu = frappe.db.get_value("Batch", so_lo_moi, "item")
+	if chu != d.item_code:
+		frappe.throw(_("Lô {0} là lô của mặt hàng {1}, không phải {2}.").format(so_lo_moi, chu, d.item_code))
+	d.batch_no = so_lo_moi
+	doc.save()
+	return mo_phieu_giao(phieu)
+
+
+def _KHOA_CHOT_THIEU(phieu: str) -> str:
+	return f"vi_tri_kho:lay_hang:chot_thieu:{phieu}"
+
+
+@frappe.whitelist()
+def chot_thieu(phieu: str, dong_hang: str) -> dict:
+	"""Đánh dấu dòng này lấy được bao nhiêu thì tính bấy nhiêu.
+
+	KHÔNG sửa số lượng ngay ở đây — `hoan_tat` mới sửa, vì thủ kho còn có thể
+	quét thêm ở ô khác sau khi đã chốt thiếu.
+
+	Cờ nằm ở `frappe.cache()` (Redis), KHÔNG phải trên chứng từ: nó là ý định
+	của một lượt làm việc, không phải dữ liệu kế toán. Redis bị xoá thì cờ mất
+	và `hoan_tat` báo "chưa lấy đủ" — hỏng về phía AN TOÀN (bắt quét/chốt lại),
+	không bao giờ tự hạ số lượng phiếu giao vì một cờ rác.
+
+	BẪY ĐÃ ĐO (đo trên erptest.local): PHẢI gọi `get_value(..., expires=True)`
+	cho khoá này, ở MỌI lần đọc — kể cả lần đọc ĐẦU TIÊN, lúc khoá còn chưa hề
+	tồn tại. `RedisWrapper.get_value` (`frappe/utils/redis_wrapper.py`) kiểm
+	`frappe.local.cache` (dict trong tiến trình) TRƯỚC KHI hỏi Redis, không
+	xét `expires` của LẦN GỌI NÀY: nếu một lần đọc bất kỳ TRƯỚC ĐÓ từng gọi
+	không kèm `expires=True` và thấy khoá rỗng, nó tự ghi `None` vào
+	`frappe.local.cache[khoa]` — và `set_value(..., expires_in_sec=...)` sau
+	đó KHÔNG cập nhật `frappe.local.cache` (chỉ ghi thẳng xuống Redis qua
+	`setex`), nên `None` đã lưu SỐNG SÓT vĩnh viễn trong tiến trình đó: mọi
+	lần `get_value` sau, dù có `expires=True` hay không, đều trả về đúng
+	`None` cũ mà không bao giờ chạm lại Redis nữa. Hậu quả đo được: gọi
+	`chot_thieu` rồi `hoan_tat` TRONG CÙNG MỘT TIẾN TRÌNH PYTHON (đúng kịch
+	bản `bench run-tests`, nơi cả file test chạy trong một tiến trình duy
+	nhất) khiến `hoan_tat` không bao giờ thấy cờ, cứ báo "chưa lấy đủ" mãi.
+	Trên web request thật, lỗi này bị CHE (không phải không tồn tại): mỗi
+	request gọi lại `frappe.init()` (`frappe/app.py`), và `init()` gán lại
+	`local.cache = {}` — `chot_thieu` (request A) chỉ đầu độc bản
+	`local.cache` chết theo request A, `hoan_tat` (request B) khởi động với
+	`local.cache` rỗng nên đọc đúng Redis. Vẫn phải sửa: đây là một bẫy thật
+	sẽ tái phát bất cứ khi nào một luồng khác (test, job nền, script) đọc/ghi
+	cùng khoá trong một tiến trình sống lâu.
+	"""
+	doc = _mo_de_ghi(phieu)
+	_dong_cua(doc, dong_hang)
+	danh_dau = set(frappe.cache().get_value(_KHOA_CHOT_THIEU(phieu), expires=True) or [])
+	danh_dau.add(dong_hang)
+	frappe.cache().set_value(_KHOA_CHOT_THIEU(phieu), list(danh_dau), expires_in_sec=86400)
+	return mo_phieu_giao(phieu)
+
+
+@frappe.whitelist()
+def hoan_tat(phieu: str) -> dict:
+	"""Chỉnh số lượng theo số lấy thật (nếu có chốt thiếu) rồi DUYỆT phiếu giao.
+
+	QUYẾT ĐỊNH 18/09/2026 (mở rộng brief gốc, điều phối chốt): xét MỌI dòng
+	hàng của phiếu thuộc kho có BẬT quản lý vị trí — không chỉ các dòng của
+	kho đang mở trên màn hình PDA. Task 2 đã chốt ngữ nghĩa "một phiếu giao:
+	hoặc quét trọn, hoặc không quét dòng nào" (`hook_sle._phan_bo_da_khai`
+	CHẶN nếu chứng từ có bảng phân bổ mà dòng đang ghi không khớp) — nếu
+	`hoan_tat` chỉ xét một phần dòng, phiếu được duyệt (docstatus ghi xuống
+	CSDL) rồi CHẾT ngay trong `on_submit` với một câu báo khó hiểu, và phải
+	cậy tới savepoint bên dưới để dọn. Dòng thuộc kho KHÔNG bật quản lý vị trí
+	thì BỎ QUA — hook ghi sổ không đụng tới chúng (`kho_co_quan_ly_vi_tri`),
+	không có ý nghĩa gì để đòi chúng "đã lấy đủ".
+
+	Savepoint riêng bọc quanh CẢ việc lưu số lượng/ghi chú lẫn `submit()`, đặt
+	TRƯỚC lần `save()` đầu tiên: `Document.submit()` ghi `docstatus = 1` xuống
+	CSDL TRƯỚC khi `on_submit` chạy, nên hỏng ở hook mà không ai rollback thì
+	phiếu mang docstatus 1 không một dòng sổ nào (cùng bẫy đã vá ở
+	`xep.duyet_phieu_xep`). Đặt savepoint trước cả bước hạ số lượng/ghi chú —
+	không chỉ trước `submit()` — để một `hoan_tat` hỏng LUÔN là một no-op
+	hoàn toàn trên phiếu nháp, không để lại nửa vời số lượng đã hạ mà chưa
+	duyệt được.
+	"""
+	doc = _mo_de_ghi(phieu)
+	da = _da_lay_theo_dong(doc)
+	# `expires=True` bắt buộc — cùng lý do đã ghi ở docstring `chot_thieu`.
+	thieu = set(frappe.cache().get_value(_KHOA_CHOT_THIEU(phieu), expires=True) or [])
+	lay_thieu = []
+
+	for d in doc.items:
+		if not kho_co_quan_ly_vi_tri(d.warehouse):
+			continue
+		lay = flt(da.get(d.name, 0.0))
+		if abs(lay - flt(d.qty)) <= _SAI_SO:
+			continue
+		if d.name not in thieu:
+			frappe.throw(
+				_(
+					"Dòng {0} ({1}) chưa lấy đủ: cần {2}, đã lấy {3}. Quét tiếp, hoặc bấm 'Chốt "
+					"thiếu' cho dòng đó."
+				).format(d.idx, d.item_code, flt(d.qty, 3), flt(lay, 3))
+			)
+		if lay <= 0:
+			frappe.throw(
+				_(
+					"Dòng {0} ({1}) chưa lấy được gì — bỏ dòng khỏi phiếu giao thay vì chốt "
+					"thiếu 0."
+				).format(d.idx, d.item_code)
+			)
+		lay_thieu.append({"vat_tu": d.item_code, "so_lo": d.batch_no, "thieu": flt(d.qty) - lay})
+		d.qty = lay
+
+	diem = "vi_tri_kho_hoan_tat_lay_hang"
+	frappe.db.savepoint(diem)
+	try:
+		if lay_thieu:
+			doc.save()
+		doc.submit()
+		if lay_thieu:
+			# QUYẾT ĐỊNH ĐIỀU PHỐI (thay brief/spec §6.3 — "ghi vào remarks" viết
+			# theo ERPNext gốc, không đúng fork này: `Delivery Note` KHÔNG có
+			# field `remarks`, đo bằng `frappe.get_meta(...).has_field`). KHÔNG
+			# dùng `instructions` (Text CÓ thật trên DocType) vì nó HIỆN TRÊN
+			# BẢN IN gửi khách — nội dung "ô trống sớm hơn sổ, cần kiểm kê" là
+			# chuyện NỘI BỘ kho, in ra là lộ chuyện kho ra ngoài. KHÔNG thêm
+			# Custom Field mới (ngoài phạm vi file được giao). Dùng
+			# `add_comment`: một bản ghi `Comment` gắn vào timeline của chính
+			# phiếu — không bao giờ in ra, truy được ai/lúc nào, không đổi
+			# lược đồ. Gọi SAU `doc.submit()`, trong CÙNG try/except với
+			# savepoint: `add_comment` tự `insert()` ngay (không đợi
+			# `doc.save()`), nên phải chắc chắn phiếu ĐÃ duyệt thật trước khi
+			# gọi — nếu không, một `hoan_tat` bị chặn ở lớp kiểm sớm (`throw`,
+			# ném ra TRƯỚC dòng này) sẽ không bao giờ chạm tới đây, và nếu một
+			# lỗi xảy ra ngay sau khi gọi (hiếm) thì rollback theo `diem` sẽ
+			# xoá luôn cả comment vừa `insert`, giữ đúng lời hứa "hỏng thì
+			# không để lại gì".
+			ghi_chu = "; ".join(
+				_("Lấy thiếu {0} {1}{2} — ô trống sớm hơn sổ, cần kiểm kê.").format(
+					flt(x["thieu"], 3), x["vat_tu"], f" lô {x['so_lo']}" if x["so_lo"] else ""
+				)
+				for x in lay_thieu
+			)
+			doc.add_comment("Comment", ghi_chu)
+	except Exception:
+		frappe.db.rollback(save_point=diem)
+		raise
+	frappe.cache().delete_value(_KHOA_CHOT_THIEU(phieu))
+	return {"name": doc.name, "so_dong": len(doc.items), "lay_thieu": lay_thieu}
