@@ -32,6 +32,25 @@ CHUNG_TU_CO_PHAN_BO = ("Delivery Note",)
 # hằng ngày.
 VAI_TRO_DUOC_LAY = {"System Manager", "Stock Manager", "Stock User"}
 
+# VÒNG SỬA 1/5 (Critical, review điều phối model mạnh): TTL cờ "chốt thiếu"
+# hạ từ 24h xuống MỘT CA LÀM VIỆC (8 giờ). Cờ là Ý ĐỊNH của một lượt làm việc
+# — để nó sống qua đêm là để nó cắn ca sau: ca chiều mở lại phiếu, thấy cờ của
+# ca sáng (nếu không có `da_chot_thieu` hiển thị rõ, xem `mo_phieu_giao`) và
+# vô tình để `hoan_tat` hạ `qty` dựa trên một ý định không còn là của họ.
+_TTL_CHOT_THIEU = 8 * 60 * 60
+
+
+def _khoa_chot_thieu(phieu: str) -> str:
+	"""Khoá Redis cho cờ "chốt thiếu" của một phiếu.
+
+	VÒNG SỬA 1/5 (Minor): đổi tên từ `_KHOA_CHOT_THIEU` (viết hoa như hằng số
+	nhưng là HÀM, dễ đọc nhầm) sang tên hàm bình thường. Đặt gần đầu file
+	(không còn cạnh `chot_thieu`) vì từ vòng sửa này cả phần ĐỌC
+	(`mo_phieu_giao`) lẫn phần GHI (`chot_thieu`, `bo_chot_thieu`, `hoan_tat`)
+	cùng dùng chung khoá này.
+	"""
+	return f"vi_tri_kho:lay_hang:chot_thieu:{phieu}"
+
 
 def phan_bo_cua_dong(chung_tu_type: str, chung_tu: str, dong_hang: str, so_lo: str | None) -> list[dict]:
 	"""Các dòng phân bổ của ĐÚNG (dòng hàng, lô). Không có → danh sách rỗng.
@@ -204,7 +223,20 @@ def kiem_phan_bo_khi_luu(doc, method=None):
 		# Tồn của ô đọc từ bộ đệm — đủ cho lớp sớm; phép chặn tồn âm THẬT vẫn nằm
 		# ở đường ghi sổ, nơi có khoá dòng của InnoDB (xem `location_transfer.py`).
 		con = flt(ton_o(p.o, p.vat_tu, p.so_lo or None))
-		if theo_o[khoa_o] > con + _SAI_SO:
+		# VÒNG SỬA 1/5 (Important 1, review điều phối): `doc.flags.
+		# vi_tri_kho_dang_bo_phan_bo` (đặt DUY NHẤT bởi `bo_dong_da_lay`, xem
+		# đó) bỏ qua ĐÚNG phép so tồn này — các phép kiểm khác phía trên (ô
+		# đúng kho, không phải ô nhóm, lô khớp dòng, số lượng > 0) vẫn giữ
+		# nguyên. Ca hỏng thật: dòng hàng có ≥2 dòng phân bổ, một ô bị người
+		# khác rút cạn (chuyển/giao mất hàng) sau khi đã quét — bỏ MỘT dòng
+		# phân bổ rồi lưu vẫn bị chặn vì (các) dòng CÒN LẠI giờ xin nhiều hơn
+		# tồn hiện có, bất kể bỏ dòng nào trước, mà bảng lại `read_only` nên
+		# desk cũng không xoá tay được: kẹt cứng đúng ở tình huống mà tính
+		# năng "chốt thiếu" sinh ra để giải quyết. Dùng `doc.flags` (không
+		# phải field CSDL) — cờ chỉ sống trong ĐÚNG một lần gọi `doc.save()`
+		# của `bo_dong_da_lay`, không sống qua lần lưu sau vì mỗi lệnh gọi API
+		# sau đó `frappe.get_doc()` lại một đối tượng MỚI với `flags` rỗng.
+		if theo_o[khoa_o] > con + _SAI_SO and not doc.flags.vi_tri_kho_dang_bo_phan_bo:
 			# Minor (vòng sửa 1): nêu rõ số ĐANG XIN CẤP (cộng dồn của mọi dòng
 			# phân bổ trỏ vào CÙNG (ô, vật tư, lô) này trên phiếu) — không bắt
 			# người đọc tự lấy tổng số lượng trừ số "chỉ còn" mới ra được số dư.
@@ -370,6 +402,18 @@ def mo_phieu_giao(phieu: str) -> dict:
 	phải làm. Cũng bỏ qua gọi `chon_o_xuat` cho các dòng này: kho không quản
 	lý vị trí không có `Storage Location` nào để gợi ý, gọi vẫn nuốt được lỗi
 	nhưng chỉ tổ ghi rác vào Error Log ở MỌI lần mở phiếu.
+
+	`da_chot_thieu`/`chot_thieu_boi`/`chot_thieu_luc` (VÒNG SỬA 1/5, Critical,
+	review điều phối model mạnh): trước sửa này, cờ "chốt thiếu" hoàn toàn VÔ
+	HÌNH trên trang — thủ kho A bấm "Chốt thiếu" dòng X rồi bỏ dở ca; ca sau
+	thủ kho B mở lại phiếu, màn hình sau khi A bấm giống HỆT màn hình trước
+	khi A bấm, nên B không biết dòng X đang mang một ý định "coi như đủ" của
+	A. B quét thiếu (vd 11/12) rồi bấm "Hoàn tất" đinh ninh sẽ bị chặn — nhưng
+	`hoan_tat` thấy cờ của A vẫn còn (TTL 8 giờ, xem `_TTL_CHOT_THIEU`) nên
+	lặng lẽ hạ `qty` xuống 11 và duyệt phiếu, kéo theo `delivered_qty`/
+	`per_delivered` của đơn bán — gỡ chỉ còn cách huỷ + amend. Trả rõ cờ (và
+	AI đặt, LÚC NÀO) để trang hiện được cảnh báo trước khi B kịp bấm "Hoàn
+	tất".
 	"""
 	_kiem_tra_quyen()
 	doc = frappe.get_doc("Delivery Note", phieu)
@@ -380,6 +424,8 @@ def mo_phieu_giao(phieu: str) -> dict:
 	# về CHỨNG TỪ cụ thể này.
 	doc.check_permission("read")
 	da = _da_lay_theo_dong(doc)
+	# `expires=True` bắt buộc — cùng lý do đã ghi ở docstring `chot_thieu`.
+	da_chot: dict = frappe.cache().get_value(_khoa_chot_thieu(phieu), expires=True) or {}
 	dong = []
 	for d in doc.items:
 		can_quet = kho_co_quan_ly_vi_tri(d.warehouse)
@@ -391,6 +437,7 @@ def mo_phieu_giao(phieu: str) -> dict:
 			except Exception:
 				frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: mo_phieu_giao goi y loi ({phieu})"))
 				goi_y = []
+		co_chot = da_chot.get(d.name)
 		dong.append(
 			{
 				"dong_hang": d.name,
@@ -402,6 +449,9 @@ def mo_phieu_giao(phieu: str) -> dict:
 				"can_lay": flt(d.qty),
 				"da_lay": da.get(d.name, 0.0),
 				"can_quet": can_quet,
+				"da_chot_thieu": bool(co_chot),
+				"chot_thieu_boi": co_chot.get("boi") if co_chot else None,
+				"chot_thieu_luc": co_chot.get("luc") if co_chot else None,
 				"o_nen_lay": [
 					{
 						"o": g["o"],
@@ -598,6 +648,46 @@ def _mo_de_ghi(phieu: str):
 	return doc
 
 
+def _chan_bundle_serial_batch(d):
+	"""VÒNG SỬA 1/5 (Important 2, review điều phối): dòng đã chốt lô qua bảng
+	`Serial and Batch Bundle` (luồng Pick List, hoặc hộp thoại chọn lô/serial
+	trên form) thì `doi_lo`/`chot_thieu`/`hoan_tat` của trang PDA đều hỏng
+	theo cách khác nhau: `hoan_tat` hạ `qty` sẽ đụng `validate_quantity` của
+	bundle, ném "Total quantity does not match" (tiếng Anh, kỹ thuật);
+	`doi_lo` thì LƯU TRÓT LỌT nhưng để `batch_no` trên dòng lệch hẳn với lô
+	trong bundle suốt thời gian nháp — chỉ nổ ra lúc DUYỆT, xa chỗ gây ra lỗi.
+	Chặn SỚM, bằng câu tiếng Việt, ngay khi phát hiện — trang Lấy hàng CHƯA
+	hỗ trợ luồng Serial & Batch Bundle, thao tác trên form gốc.
+	"""
+	if d.get("serial_and_batch_bundle"):
+		frappe.throw(
+			_(
+				"Dòng {0} ({1}) đã chốt lô bằng bảng Serial & Batch Bundle (Pick List, hoặc hộp "
+				"thoại chọn lô/serial) — trang Lấy hàng chưa hỗ trợ luồng này. Thao tác trực tiếp "
+				"trên form Phiếu giao hàng."
+			).format(d.idx, d.item_code)
+		)
+
+
+def _luu_hoac_bao_xung_dot(doc):
+	"""`doc.save()` bọc bắt `TimestampMismatchError` (VÒNG SỬA 1/5, Important
+	3, review điều phối): hai người cùng thao tác một phiếu — người lưu SAU
+	đang cầm bản đã cũ (`modified` lệch), Frappe tự chặn (an toàn, không cộng
+	đôi dữ liệu) nhưng ném ra đúng tên lớp ngoại lệ tiếng Anh kỹ thuật
+	("TimestampMismatchError") — thủ kho đọc xong không biết phải làm gì.
+	Bắt riêng, ném lại câu tiếng Việt kèm hướng xử lý (nạp lại, quét lại).
+	"""
+	try:
+		doc.save()
+	except frappe.TimestampMismatchError:
+		frappe.throw(
+			_(
+				"Phiếu giao {0} vừa được người khác sửa. Màn hình sẽ nạp lại — quét lại lượt vừa "
+				"rồi."
+			).format(doc.name)
+		)
+
+
 @frappe.whitelist()
 def ghi_da_lay(phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong) -> dict:
 	"""Ghi một lần quét (lô, ô, số lượng) vào bảng phân bổ và LƯU NGAY.
@@ -646,7 +736,7 @@ def ghi_da_lay(phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong) 
 				"luc_lay": now(),
 			},
 		)
-	doc.save()
+	_luu_hoac_bao_xung_dot(doc)
 	return mo_phieu_giao(phieu)
 
 
@@ -657,6 +747,14 @@ def bo_dong_da_lay(phieu: str, ten_dong: str) -> dict:
 	Nếu `ten_dong` không khớp dòng nào (đã bị bỏ trước đó, hai tab cùng bấm)
 	thì CHẶN thay vì âm thầm trả về nguyên trạng — một phép "bỏ" tưởng thành
 	công mà thực ra không làm gì là đúng loại lỗi mà cả module này phải tránh.
+
+	VÒNG SỬA 1/5 (Important 1, review điều phối): đặt
+	`doc.flags.vi_tri_kho_dang_bo_phan_bo = True` TRƯỚC khi lưu — CHỈ hàm này
+	đặt cờ đó, và `kiem_phan_bo_khi_luu` chỉ bỏ qua ĐÚNG phép so tồn khi thấy
+	nó (xem đó). Ca cần: dòng hàng có ≥2 dòng phân bổ, một ô bị người khác
+	rút cạn sau khi đã quét — không có cờ này thì bỏ dòng nào cũng bị chặn vì
+	(các) dòng còn lại giờ xin nhiều hơn tồn hiện có, kẹt cứng đúng ở tình
+	huống mà tính năng "chốt thiếu" sinh ra để giải quyết.
 	"""
 	doc = _mo_de_ghi(phieu)
 	bang = doc.get(TEN_BANG_PHAN_BO) or []
@@ -668,7 +766,8 @@ def bo_dong_da_lay(phieu: str, ten_dong: str) -> dict:
 			)
 		)
 	doc.set(TEN_BANG_PHAN_BO, con_lai)
-	doc.save()
+	doc.flags.vi_tri_kho_dang_bo_phan_bo = True
+	_luu_hoac_bao_xung_dot(doc)
 	return mo_phieu_giao(phieu)
 
 
@@ -681,6 +780,7 @@ def doi_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 	"""
 	doc = _mo_de_ghi(phieu)
 	d = _dong_cua(doc, dong_hang)
+	_chan_bundle_serial_batch(d)
 	da_lay = [p for p in doc.get(TEN_BANG_PHAN_BO) or [] if p.dong_hang == dong_hang]
 	if da_lay:
 		frappe.throw(
@@ -694,12 +794,8 @@ def doi_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 	if chu != d.item_code:
 		frappe.throw(_("Lô {0} là lô của mặt hàng {1}, không phải {2}.").format(so_lo_moi, chu, d.item_code))
 	d.batch_no = so_lo_moi
-	doc.save()
+	_luu_hoac_bao_xung_dot(doc)
 	return mo_phieu_giao(phieu)
-
-
-def _KHOA_CHOT_THIEU(phieu: str) -> str:
-	return f"vi_tri_kho:lay_hang:chot_thieu:{phieu}"
 
 
 @frappe.whitelist()
@@ -735,12 +831,60 @@ def chot_thieu(phieu: str, dong_hang: str) -> dict:
 	`local.cache` rỗng nên đọc đúng Redis. Vẫn phải sửa: đây là một bẫy thật
 	sẽ tái phát bất cứ khi nào một luồng khác (test, job nền, script) đọc/ghi
 	cùng khoá trong một tiến trình sống lâu.
+
+	VÒNG SỬA 1/5 (Critical, review điều phối model mạnh): giá trị lưu trong
+	Redis đổi từ MỘT DANH SÁCH tên dòng hàng sang một DICT
+	`{dong_hang: {"boi": user, "luc": timestamp}}` — cờ giờ mang theo AI đặt
+	và LÚC NÀO, để `mo_phieu_giao` trả lại cho trang hiện rõ (xem đó); trước
+	đây cờ hoàn toàn vô hình, thủ kho ca sau không biết ca trước đã bấm. TTL
+	hạ từ 24h xuống MỘT CA LÀM VIỆC (`_TTL_CHOT_THIEU`, 8 giờ).
+
+	Chặn SỚM dòng đã chốt lô bằng Serial & Batch Bundle (Important 2) và dòng
+	thuộc kho KHÔNG bật quản lý vị trí (Minor): `hoan_tat` bỏ qua đúng những
+	dòng đó nên "chốt thiếu" trên chúng là một cờ không bao giờ được đọc lại
+	— no-op câm, dễ khiến thủ kho tưởng đã xử lý xong.
+	"""
+	doc = _mo_de_ghi(phieu)
+	d = _dong_cua(doc, dong_hang)
+	_chan_bundle_serial_batch(d)
+	if not kho_co_quan_ly_vi_tri(d.warehouse):
+		frappe.throw(
+			_(
+				"Dòng {0} ({1}) thuộc kho không quản lý vị trí — không cần (và không có tác dụng) "
+				"chốt thiếu trên trang này."
+			).format(d.idx, d.item_code)
+		)
+	khoa = _khoa_chot_thieu(phieu)
+	danh_dau = frappe.cache().get_value(khoa, expires=True) or {}
+	danh_dau[dong_hang] = {"boi": frappe.session.user, "luc": now()}
+	frappe.cache().set_value(khoa, danh_dau, expires_in_sec=_TTL_CHOT_THIEU)
+	return mo_phieu_giao(phieu)
+
+
+@frappe.whitelist()
+def bo_chot_thieu(phieu: str, dong_hang: str) -> dict:
+	"""Gỡ cờ "chốt thiếu" — bấm nhầm thì phải gỡ lại được (VÒNG SỬA 1/5,
+	Critical, review điều phối). Trước sửa này, cách DUY NHẤT gỡ một cờ chốt
+	thiếu đặt nhầm là quét cho đủ số lượng (không phải lúc nào cũng còn hàng
+	để quét) hoặc chờ hết TTL — cả hai đều không phải "gỡ".
+
+	CHẶN nếu dòng chưa hề mang cờ, cùng nguyên tắc `bo_dong_da_lay`: một phép
+	"gỡ" tưởng thành công mà thực ra không làm gì là đúng loại lỗi module này
+	phải tránh.
 	"""
 	doc = _mo_de_ghi(phieu)
 	_dong_cua(doc, dong_hang)
-	danh_dau = set(frappe.cache().get_value(_KHOA_CHOT_THIEU(phieu), expires=True) or [])
-	danh_dau.add(dong_hang)
-	frappe.cache().set_value(_KHOA_CHOT_THIEU(phieu), list(danh_dau), expires_in_sec=86400)
+	khoa = _khoa_chot_thieu(phieu)
+	danh_dau = frappe.cache().get_value(khoa, expires=True) or {}
+	if dong_hang not in danh_dau:
+		frappe.throw(
+			_("Dòng {0} chưa được chốt thiếu — không có gì để gỡ.").format(dong_hang)
+		)
+	danh_dau.pop(dong_hang)
+	if danh_dau:
+		frappe.cache().set_value(khoa, danh_dau, expires_in_sec=_TTL_CHOT_THIEU)
+	else:
+		frappe.cache().delete_value(khoa)
 	return mo_phieu_giao(phieu)
 
 
@@ -767,16 +911,26 @@ def hoan_tat(phieu: str) -> dict:
 	không chỉ trước `submit()` — để một `hoan_tat` hỏng LUÔN là một no-op
 	hoàn toàn trên phiếu nháp, không để lại nửa vời số lượng đã hạ mà chưa
 	duyệt được.
+
+	`so_dong` (VÒNG SỬA 1/5, Minor): đếm đúng số dòng THUỘC KHO QUẢN LÝ VỊ TRÍ
+	(dòng mà `hoan_tat` thật sự xét) — trước sửa này trả `len(doc.items)`,
+	đếm nhầm CẢ dòng `can_quet=False` mà chính hàm này vừa bỏ qua, một con số
+	đi thẳng ra màn hình "đã duyệt N dòng" mà không khớp việc thật đã làm.
 	"""
 	doc = _mo_de_ghi(phieu)
 	da = _da_lay_theo_dong(doc)
 	# `expires=True` bắt buộc — cùng lý do đã ghi ở docstring `chot_thieu`.
-	thieu = set(frappe.cache().get_value(_KHOA_CHOT_THIEU(phieu), expires=True) or [])
+	# VÒNG SỬA 1/5: giá trị là DICT `{dong_hang: {"boi":..., "luc":...}}` từ
+	# đây trở đi (không còn là list tên dòng) — `in` trên dict vẫn so đúng
+	# theo KHOÁ nên không cần đổi gì thêm ở các dòng dùng `thieu` bên dưới.
+	thieu = frappe.cache().get_value(_khoa_chot_thieu(phieu), expires=True) or {}
 	lay_thieu = []
+	so_dong_quan_ly = 0
 
 	for d in doc.items:
 		if not kho_co_quan_ly_vi_tri(d.warehouse):
 			continue
+		so_dong_quan_ly += 1
 		lay = flt(da.get(d.name, 0.0))
 		if abs(lay - flt(d.qty)) <= _SAI_SO:
 			continue
@@ -794,6 +948,11 @@ def hoan_tat(phieu: str) -> dict:
 					"thiếu 0."
 				).format(d.idx, d.item_code)
 			)
+		# Important 2 (vòng sửa 1/5): CHỈ chặn ở đây, không chặn TOÀN BỘ hàm
+		# ngay từ đầu — một dòng dùng bundle mà đã lấy đủ (không cần hạ `qty`)
+		# không có gì để hỏng cả, chặn sớm hơn là cấm oan những phiếu không
+		# đụng gì tới bundle.
+		_chan_bundle_serial_batch(d)
 		lay_thieu.append({"vat_tu": d.item_code, "so_lo": d.batch_no, "thieu": flt(d.qty) - lay})
 		d.qty = lay
 
@@ -828,8 +987,22 @@ def hoan_tat(phieu: str) -> dict:
 				for x in lay_thieu
 			)
 			doc.add_comment("Comment", ghi_chu)
+	except frappe.TimestampMismatchError:
+		# Important 3 (vòng sửa 1/5): bắt RIÊNG trước `except Exception` chung
+		# — `TimestampMismatchError` là con của `ValidationError` nên khối
+		# chung phía dưới VẪN bắt được, nhưng sẽ ném NGUYÊN VĂN tên lớp tiếng
+		# Anh ra ngoài thay vì câu tiếng Việt. Vẫn rollback savepoint như
+		# đường hỏng thường — hướng hỏng đã AN TOÀN (Frappe tự chặn, không
+		# cộng đôi dữ liệu), chỉ đổi CÂU CHỮ cho thủ kho đọc hiểu được.
+		frappe.db.rollback(save_point=diem)
+		frappe.throw(
+			_(
+				"Phiếu giao {0} vừa được người khác sửa. Màn hình sẽ nạp lại — quét lại lượt vừa "
+				"rồi."
+			).format(phieu)
+		)
 	except Exception:
 		frappe.db.rollback(save_point=diem)
 		raise
-	frappe.cache().delete_value(_KHOA_CHOT_THIEU(phieu))
-	return {"name": doc.name, "so_dong": len(doc.items), "lay_thieu": lay_thieu}
+	frappe.cache().delete_value(_khoa_chot_thieu(phieu))
+	return {"name": doc.name, "so_dong": so_dong_quan_ly, "lay_thieu": lay_thieu}

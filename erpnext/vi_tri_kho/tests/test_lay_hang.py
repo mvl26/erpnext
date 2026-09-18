@@ -791,7 +791,7 @@ class TestDocChoTrang(FrappeTestCase):
 
 class TestGhiChoTrang(FrappeTestCase):
 	def setUp(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import _KHOA_CHOT_THIEU
+		from erpnext.vi_tri_kho.vitri.lay_hang import _khoa_chot_thieu
 
 		frappe.set_user("Administrator")
 		frappe.db.savepoint(DIEM_TEST)
@@ -806,13 +806,13 @@ class TestGhiChoTrang(FrappeTestCase):
 		# Rollback bằng savepoint không đụng tới Redis — cờ chốt-thiếu của một
 		# lần chạy trước, dưới TÊN PHIẾU cùng series bị dựng lại, có thể còn
 		# sống sót và làm bài sau đọc nhầm cờ của bài trước.
-		frappe.cache().delete_value(_KHOA_CHOT_THIEU(self.dn.name))
+		frappe.cache().delete_value(_khoa_chot_thieu(self.dn.name))
 
 	def tearDown(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import _KHOA_CHOT_THIEU
+		from erpnext.vi_tri_kho.vitri.lay_hang import _khoa_chot_thieu
 
 		frappe.set_user("Administrator")
-		frappe.cache().delete_value(_KHOA_CHOT_THIEU(self.dn.name))
+		frappe.cache().delete_value(_khoa_chot_thieu(self.dn.name))
 		frappe.db.rollback(save_point=DIEM_TEST)
 
 	def test_ghi_da_lay_luu_ngay_len_phieu(self):
@@ -1136,6 +1136,10 @@ class TestGhiChoTrang(FrappeTestCase):
 
 		kq = hoan_tat(dn2.name)
 		self.assertEqual(kq["name"], dn2.name)
+		# Minor (vòng sửa 1/5, bắt buộc): `so_dong` chỉ đếm dòng THUỘC KHO
+		# QUẢN LÝ VỊ TRÍ (1), không đếm cả dòng `can_quet=False` (2 dòng) mà
+		# chính `hoan_tat` vừa bỏ qua.
+		self.assertEqual(kq["so_dong"], 1)
 		self.assertEqual(frappe.db.get_value("Delivery Note", dn2.name, "docstatus"), 1)
 
 	def test_khong_co_quyen_ghi_thi_ca_nam_ham_bi_chan(self):
@@ -1208,7 +1212,197 @@ class TestGhiChoTrang(FrappeTestCase):
 		kq = hoan_tat(dn2.name)
 
 		self.assertEqual(kq["name"], dn2.name)
+		self.assertEqual(kq["so_dong"], 1)
 		self.assertEqual(frappe.db.get_value("Delivery Note", dn2.name, "docstatus"), 1)
 		self.assertEqual(flt(frappe.db.get_value("Delivery Note Item", dong2, "qty")), 6.0)
 		don_ban.reload()
 		self.assertEqual(flt(don_ban.items[0].delivered_qty), 6.0)
+
+		# Minor (vòng sửa 1/5, bắt buộc): số phái sinh phải tính lại đúng theo
+		# `qty` MỚI (6, không phải 10 gốc) — `amount`/`stock_qty` của dòng và
+		# `total`/`grand_total` của phiếu, không chỉ riêng `qty`.
+		doc = frappe.get_doc("Delivery Note", dn2.name)
+		self.assertEqual(flt(doc.items[0].amount), 30000.0)
+		self.assertEqual(flt(doc.items[0].stock_qty), 6.0)
+		self.assertEqual(flt(doc.total), 30000.0)
+		self.assertEqual(flt(doc.grand_total), 30000.0)
+
+	# ------------------------------------------------------------------
+	# VÒNG SỬA 1/5 (18/09/2026, review điều phối model mạnh): 1 Critical +
+	# 3 Important + vài Minor. Xem lay_hang.py cho chi tiết từng chỗ sửa.
+	# ------------------------------------------------------------------
+
+	def test_mo_phieu_giao_phan_anh_da_chot_thieu_va_go_duoc(self):
+		"""Critical, bài bắt buộc (a): `mo_phieu_giao` phải phản ánh ĐÚNG
+		`da_chot_thieu` sau khi bấm và sau khi gỡ (`bo_chot_thieu`) — trước
+		sửa này, cờ hoàn toàn VÔ HÌNH trên trang: người ca sau mở lại phiếu
+		thấy màn hình giống hệt trước khi cờ được bấm."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import bo_chot_thieu, chot_thieu, mo_phieu_giao
+
+		truoc = mo_phieu_giao(self.dn.name)["dong"][0]
+		self.assertFalse(truoc["da_chot_thieu"])
+		self.assertIsNone(truoc["chot_thieu_boi"])
+		self.assertIsNone(truoc["chot_thieu_luc"])
+
+		chot_thieu(self.dn.name, self.dong)
+		sau = mo_phieu_giao(self.dn.name)["dong"][0]
+		self.assertTrue(sau["da_chot_thieu"])
+		self.assertEqual(sau["chot_thieu_boi"], frappe.session.user)
+		self.assertIsNotNone(sau["chot_thieu_luc"])
+
+		bo_chot_thieu(self.dn.name, self.dong)
+		sau_go = mo_phieu_giao(self.dn.name)["dong"][0]
+		self.assertFalse(sau_go["da_chot_thieu"])
+		self.assertIsNone(sau_go["chot_thieu_boi"])
+
+	def test_bo_chot_thieu_khi_chua_chot_bi_chan(self):
+		"""Cùng nguyên tắc `bo_dong_da_lay`: một phép "gỡ" tưởng thành công mà
+		thực ra không làm gì là đúng loại lỗi module này phải tránh."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import bo_chot_thieu
+
+		with self.assertRaisesRegex(frappe.ValidationError, "chưa được chốt thiếu"):
+			bo_chot_thieu(self.dn.name, self.dong)
+
+	def test_co_chot_thieu_boi_nguoi_khac_hien_dung_ten_cho_nguoi_sau(self):
+		"""Critical, bài bắt buộc (b): cờ do NGƯỜI A đặt phải hiện ra cho
+		NGƯỜI B kèm ĐÚNG TÊN A — khẳng định PAYLOAD thật (`chot_thieu_boi`),
+		không chỉ khẳng định "gọi không nổ". Đây chính là ca hỏng thật đã nêu:
+		A bấm rồi bỏ dở ca, B mở lại phiếu ở ca sau."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import chot_thieu, mo_phieu_giao
+
+		nguoi_b = "lay-hang-nguoi-b@mo-phong.local"
+		if not frappe.db.exists("User", nguoi_b):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": nguoi_b,
+					"first_name": "Nguoi B",
+					"send_welcome_email": 0,
+					"roles": [{"role": "Stock User"}],
+				}
+			).insert(ignore_permissions=True)
+
+		nguoi_a = frappe.session.user  # Administrator, đóng vai "ca sáng".
+		chot_thieu(self.dn.name, self.dong)
+
+		frappe.set_user(nguoi_b)
+		dong_b = mo_phieu_giao(self.dn.name)["dong"][0]
+		self.assertTrue(dong_b["da_chot_thieu"])
+		self.assertEqual(dong_b["chot_thieu_boi"], nguoi_a)
+
+	def test_chot_thieu_dong_o_kho_khong_bat_vi_tri_bi_chan(self):
+		"""Minor: `hoan_tat` bỏ qua dòng thuộc kho không quản lý vị trí, nên
+		"chốt thiếu" trên dòng đó trước sửa này là một cờ không bao giờ được
+		đọc lại — no-op câm, dễ khiến thủ kho tưởng đã xử lý xong."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import chot_thieu
+
+		kho_khac = "Hàng trả về - MYN"
+		dn2 = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 4,
+						"rate": 5000,
+						"warehouse": kho_khac,
+						"batch_no": LO,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
+		dn2.insert(ignore_permissions=True)
+		with self.assertRaisesRegex(frappe.ValidationError, "không quản lý vị trí"):
+			chot_thieu(dn2.name, dn2.items[0].name)
+
+	def test_bo_dong_da_lay_khi_mot_o_da_bi_rut_can(self):
+		"""Important 1, bài bắt buộc: dòng hàng có 2 dòng phân bổ, MỘT ô bị
+		rút cạn bởi MỘT phiếu chuyển vị trí khác sau khi đã quét — trước sửa
+		này `bo_dong_da_lay` bị kẹt cứng vì `kiem_phan_bo_khi_luu` so tồn cho
+		MỌI dòng phân bổ còn lại, kể cả dòng không liên quan gì tới thao tác
+		bỏ. `doc.flags.vi_tri_kho_dang_bo_phan_bo` phải cho lưu đi qua."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import bo_dong_da_lay, ghi_da_lay
+
+		dn2 = _phieu_giao(20)
+		dong2 = dn2.items[0].name
+		ghi_da_lay(dn2.name, dong2, LO, O_GAN, 12)
+		p = ghi_da_lay(dn2.name, dong2, LO, O_XA, 8)
+		ten_xa = next(x["name"] for x in p["dong"][0]["da_lay_o"] if x["o"] == O_XA)
+
+		# Ai đó rút cạn O_GAN bằng MỘT phiếu chuyển vị trí khác, không liên
+		# quan gì tới `dn2`.
+		chuyen = frappe.get_doc(
+			{
+				"doctype": "Location Transfer",
+				"kho": KHO,
+				"ngay": nowdate(),
+				"items": [
+					{"vat_tu": ITEM, "so_lo": LO, "tu_o": O_GAN, "den_o": O_XA, "so_luong": 20}
+				],
+			}
+		)
+		chuyen.insert(ignore_permissions=True)
+		chuyen.submit()
+		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 0.0)
+
+		# TRƯỚC sửa: chặn "ô 9L01010101 chỉ còn 0" vì dòng O_GAN (12) còn lại
+		# giờ vượt tồn. SAU sửa: bỏ được.
+		p2 = bo_dong_da_lay(dn2.name, ten_xa)
+		self.assertEqual(len(p2["dong"][0]["da_lay_o"]), 1)
+		self.assertEqual(p2["dong"][0]["da_lay_o"][0]["o"], O_GAN)
+
+	def test_doi_lo_chan_dong_dung_serial_and_batch_bundle(self):
+		"""Important 2, bài bắt buộc cho ít nhất một hàm: dòng đã chốt lô qua
+		bảng Serial & Batch Bundle (Pick List, hoặc hộp thoại chọn lô/serial
+		trên form) — `doi_lo` phải chặn SỚM bằng câu tiếng Việt, không để
+		`batch_no` lệch bundle âm thầm tới tận lúc duyệt."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import doi_lo
+
+		frappe.db.set_value(
+			"Delivery Note Item", self.dong, "serial_and_batch_bundle", "9L-BUNDLE-GIA-LAP"
+		)
+		with self.assertRaisesRegex(frappe.ValidationError, "Serial & Batch Bundle"):
+			doi_lo(self.dn.name, self.dong, LO)
+
+	def test_hoan_tat_chan_dong_dung_bundle_khi_can_ha_qty(self):
+		"""Important 2: `hoan_tat` cũng phải chặn SỚM bằng câu tiếng Việt khi
+		dòng cần HẠ `qty` (đã chốt thiếu) mà lại đang dùng Serial & Batch
+		Bundle — nếu không, `validate_quantity` của bundle ném lỗi tiếng Anh
+		("Total quantity does not match") ngay giữa savepoint."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import chot_thieu, ghi_da_lay, hoan_tat
+
+		ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 7)
+		chot_thieu(self.dn.name, self.dong)
+		frappe.db.set_value(
+			"Delivery Note Item", self.dong, "serial_and_batch_bundle", "9L-BUNDLE-GIA-LAP"
+		)
+		with self.assertRaisesRegex(frappe.ValidationError, "Serial & Batch Bundle"):
+			hoan_tat(self.dn.name)
+		self.assertEqual(frappe.db.get_value("Delivery Note", self.dn.name, "docstatus"), 0)
+
+	def test_ghi_da_lay_bao_xung_dot_tieng_viet_khi_hai_nguoi_cung_sua(self):
+		"""Important 3, bài bắt buộc: `TimestampMismatchError` không được lộ
+		tiếng Anh kỹ thuật ra thủ kho. Mô phỏng "người khác" lưu một thay đổi
+		độc lập lên CHÍNH phiếu này NGAY GIỮA lúc `ghi_da_lay` đã tải xong
+		`doc` và đang chuẩn bị lưu — patch `_dong_cua` (điểm mà `ghi_da_lay`
+		gọi ngay sau khi `_mo_de_ghi()` tải doc) để tự nó chèn một lần lưu
+		độc lập trước khi hàm gốc kịp `save()` bản của mình."""
+		from unittest.mock import patch
+
+		import erpnext.vi_tri_kho.vitri.lay_hang as lay_hang_mod
+
+		goc = lay_hang_mod._dong_cua
+
+		def _dong_cua_roi_nguoi_khac_sua(doc, dong_hang):
+			ket_qua = goc(doc, dong_hang)
+			khac = frappe.get_doc("Delivery Note", doc.name)
+			khac.save()
+			return ket_qua
+
+		with patch.object(lay_hang_mod, "_dong_cua", side_effect=_dong_cua_roi_nguoi_khac_sua):
+			with self.assertRaisesRegex(frappe.ValidationError, "vừa được người khác sửa"):
+				lay_hang_mod.ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 5)
