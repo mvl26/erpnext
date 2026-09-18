@@ -14,6 +14,8 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
+from erpnext.vi_tri_kho.vitri.fefo import chon_o_xuat
+from erpnext.vi_tri_kho.vitri.nhat_ky_loi import cat_tieu_de
 from erpnext.vi_tri_kho.vitri.so import ton_o
 
 _SAI_SO = 1e-9
@@ -225,3 +227,212 @@ def kiem_phan_bo_khi_luu(doc, method=None):
 					"phân bổ hoặc sửa số lượng trên phiếu."
 				).format(dh.item_code, flt(tong, 3), flt(dh.qty, 3))
 			)
+
+
+# ---------------------------------------------------------------------------
+# Máy chủ cho trang PDA lấy hàng (Task 4, 18/09/2026) — phần ĐỌC.
+#
+# Trang liệt kê phiếu giao NHÁP đang chờ lấy, mở một phiếu ra xem từng dòng
+# cần lấy bao nhiêu và nên tới ô nào, và nhận diện một mã quét. Ba hàm dưới
+# đây không ghi gì cả — ghi bảng `custom_phan_bo_vi_tri` là việc của Task 5.
+# ---------------------------------------------------------------------------
+
+
+def _kiem_tra_quyen():
+	"""`@frappe.whitelist()` một mình chỉ chặn khách vãng lai — xem `xep.py`."""
+	if not VAI_TRO_DUOC_LAY & set(frappe.get_roles()):
+		frappe.throw(_("Bạn không có quyền lấy hàng theo vị trí."), frappe.PermissionError)
+
+
+def _da_lay_theo_dong(doc) -> dict:
+	"""{(tên dòng hàng): tổng đã phân bổ}."""
+	tong: dict[str, float] = {}
+	for p in doc.get(TEN_BANG_PHAN_BO) or []:
+		tong[p.dong_hang] = tong.get(p.dong_hang, 0.0) + flt(p.so_luong)
+	return tong
+
+
+def _kho_quan_ly_vi_tri() -> list[str]:
+	"""Các kho đang bật quản lý vị trí.
+
+	Cùng nội dung `xep._kho_quan_ly_vi_tri` — giữ bản riêng ở đây theo đúng
+	tiền lệ của module: mỗi file `vitri/*.py` tự giữ hằng số/hàm nhỏ của
+	mình (xem `VAI_TRO_DUOC_LAY` so với `VAI_TRO_DUOC_XEP`/`VAI_TRO_DUOC_TRA_CUU`
+	ở `xep.py`/`quet.py`), không cột chặt các module vốn độc lập vào nhau vì
+	một truy vấn ba dòng.
+	"""
+	return frappe.get_all(
+		"Warehouse",
+		filters={"custom_quan_ly_vi_tri": 1, "is_group": 0, "disabled": 0},
+		pluck="name",
+		order_by="name asc",
+	)
+
+
+@frappe.whitelist()
+def danh_sach_phieu_giao(kho: str | None = None) -> dict:
+	"""Kho để lấy hàng + phiếu giao NHÁP đang chờ lấy của kho đó, kèm tiến độ.
+
+	QUYẾT ĐỊNH 18/09/2026 (thay brief gốc — xem task-4-report.md): tìm phiếu
+	qua KHO CỦA DÒNG HÀNG (`Delivery Note Item.warehouse`), KHÔNG qua
+	`Delivery Note.set_warehouse`. `set_warehouse` là trường TUỲ CHỌN và
+	THƯỜNG TRỐNG trên phiếu tạo từ đơn bán — lọc theo nó thì danh sách rỗng
+	trong khi phiếu vẫn nằm đó, thủ kho không mở được gì.
+
+	Trả DICT theo đúng khuôn `xep.phieu_xep_dang_lam` (không phải list):
+	trang PDA không có nguồn nào khác để biết kho nào, và site có thể bật
+	quản lý vị trí ở nhiều kho cùng lúc. Không truyền `kho`: có đúng một kho
+	quản lý vị trí thì chọn luôn; nhiều kho thì để `None` cho trang hỏi.
+	"""
+	_kiem_tra_quyen()
+	kho_ds = _kho_quan_ly_vi_tri()
+	if not kho:
+		kho = kho_ds[0] if len(kho_ds) == 1 else None
+
+	phieu = []
+	if kho:
+		# Join thẳng bằng SQL (cùng phong cách `xep.py`/`quet.py`) thay vì lọc
+		# theo `Delivery Note.set_warehouse` — xem lý do ở docstring trên.
+		ten = [
+			d.name
+			for d in frappe.db.sql(
+				"""
+				select distinct dn.name, dn.modified
+				from `tabDelivery Note` dn
+				join `tabDelivery Note Item` dni on dni.parent = dn.name
+				where dn.docstatus = 0 and dni.warehouse = %(kho)s
+				order by dn.modified desc
+				limit 50
+				""",
+				{"kho": kho},
+				as_dict=True,
+			)
+		]
+		for t in ten:
+			doc = frappe.get_doc("Delivery Note", t)
+			dong_kho_nay = [d for d in doc.items if d.warehouse == kho]
+			if not dong_kho_nay:
+				continue
+			da = _da_lay_theo_dong(doc)
+			nguoi = {p.nguoi_lay for p in doc.get(TEN_BANG_PHAN_BO) or [] if p.nguoi_lay}
+			phieu.append(
+				{
+					"name": doc.name,
+					"khach_hang": doc.customer_name or doc.customer,
+					"so_dong": len(dong_kho_nay),
+					"can_lay": flt(sum(flt(d.qty) for d in dong_kho_nay)),
+					"da_lay": flt(sum(da.get(d.name, 0.0) for d in dong_kho_nay)),
+					"nguoi_dang_lay": sorted(nguoi - {frappe.session.user}),
+				}
+			)
+	return {"kho_ds": kho_ds, "kho": kho, "phieu": phieu}
+
+
+@frappe.whitelist()
+def mo_phieu_giao(phieu: str) -> dict:
+	"""Chi tiết một phiếu giao để lấy hàng: từng dòng cần bao nhiêu, nên tới ô nào.
+
+	`o_nen_lay` gọi `fefo.chon_o_xuat` — ĐÚNG hàm mà hook sẽ dùng nếu không ai
+	phân bổ, nên danh sách gợi ý và hành vi mặc định không bao giờ nói khác nhau.
+	Hết hàng thì `chon_o_xuat` ném lỗi; ở đây nuốt và trả danh sách rỗng, vì màn
+	hình phải mở được để thủ kho thấy vì sao (khuôn Ruling N ở `xep.hang_chua_xep`).
+	"""
+	_kiem_tra_quyen()
+	doc = frappe.get_doc("Delivery Note", phieu)
+	da = _da_lay_theo_dong(doc)
+	dong = []
+	for d in doc.items:
+		con_can = flt(d.qty) - da.get(d.name, 0.0)
+		try:
+			goi_y = chon_o_xuat(d.warehouse, d.item_code, d.batch_no or None, max(con_can, 0)) if con_can > 0 else []
+		except Exception:
+			frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: mo_phieu_giao goi y loi ({phieu})"))
+			goi_y = []
+		dong.append(
+			{
+				"dong_hang": d.name,
+				"vat_tu": d.item_code,
+				"ten_hang": d.item_name,
+				"don_vi": d.stock_uom or d.uom,
+				"so_lo": d.batch_no or None,
+				"hsd": frappe.db.get_value("Batch", d.batch_no, "expiry_date") if d.batch_no else None,
+				"can_lay": flt(d.qty),
+				"da_lay": da.get(d.name, 0.0),
+				"o_nen_lay": [
+					{
+						"o": g["o"],
+						"ma_in_nhan": frappe.db.get_value("Storage Location", g["o"], "ma_in_nhan"),
+						"so_luong": flt(g["so_luong"]),
+					}
+					for g in goi_y
+				],
+				"da_lay_o": [
+					{"name": p.name, "o": p.o, "so_luong": flt(p.so_luong)}
+					for p in (doc.get(TEN_BANG_PHAN_BO) or [])
+					if p.dong_hang == d.name
+				],
+			}
+		)
+	return {
+		"name": doc.name,
+		"kho": doc.set_warehouse or (doc.items[0].warehouse if doc.items else None),
+		"khach_hang": doc.customer_name or doc.customer,
+		"dong": dong,
+	}
+
+
+@frappe.whitelist()
+def quet_de_lay(phieu: str, ma: str) -> dict:
+	"""Nhận diện một mã quét trên trang lấy hàng.
+
+	`loai`: `"lo"` (lô ĐANG có trên phiếu) · `"lo_khac"` (lô khác nhưng cùng một
+	mặt hàng của phiếu — kèm `han_xa_hon` để màn hình cảnh báo) · `"o"` · `None`.
+	Quét nhầm không bao giờ nổ — cùng lời hứa `quet.py`.
+	"""
+	from erpnext.stock.utils import scan_barcode
+	from erpnext.vi_tri_kho.vitri.quet import _tim_o
+
+	_kiem_tra_quyen()
+	ma = (ma or "").strip()
+	if not ma:
+		return {"loai": None}
+	doc = frappe.get_doc("Delivery Note", phieu)
+	try:
+		kq = scan_barcode(ma) or {}
+		so_lo = kq.get("batch_no")
+		if so_lo:
+			dong = [d for d in doc.items if (d.batch_no or None) == so_lo]
+			if dong:
+				return {"loai": "lo", "so_lo": so_lo, "dong_hang": dong[0].name, "vat_tu": dong[0].item_code}
+			vat_tu = frappe.db.get_value("Batch", so_lo, "item")
+			cung_hang = [d for d in doc.items if d.item_code == vat_tu]
+			if cung_hang:
+				hsd_moi = frappe.db.get_value("Batch", so_lo, "expiry_date")
+				hsd_cu = frappe.db.get_value("Batch", cung_hang[0].batch_no, "expiry_date")
+				return {
+					"loai": "lo_khac",
+					"so_lo": so_lo,
+					"dong_hang": cung_hang[0].name,
+					"vat_tu": vat_tu,
+					"hsd": hsd_moi,
+					"hsd_dang_chot": hsd_cu,
+					"so_lo_dang_chot": cung_hang[0].batch_no,
+					"han_xa_hon": bool(hsd_moi and hsd_cu and hsd_moi > hsd_cu),
+				}
+			return {"loai": None}
+
+		ma_o = _tim_o(ma)
+		if ma_o:
+			o = frappe.db.get_value(
+				"Storage Location", ma_o, ["name", "ma_in_nhan", "kho", "is_group"], as_dict=True
+			)
+			return {
+				"loai": "o",
+				"ma_o": o.name,
+				"ma_in_nhan": o.ma_in_nhan,
+				"kho": o.kho,
+				"la_nhom": bool(o.is_group),
+			}
+	except Exception:
+		frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: quet_de_lay loi ({ma})"))
+	return {"loai": None}

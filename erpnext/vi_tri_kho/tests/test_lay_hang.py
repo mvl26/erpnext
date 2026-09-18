@@ -538,3 +538,74 @@ class TestKiemSom(FrappeTestCase):
 			"rollback rồi thì không dòng sổ nào của dn được sống sót",
 		)
 		self.assertEqual(so.ton_o(O_XA, ITEM, LO), 2.0, "tồn O_XA không đổi sau rollback")
+class TestDocChoTrang(FrappeTestCase):
+	def setUp(self):
+		frappe.set_user("Administrator")
+		frappe.db.savepoint(DIEM_TEST)
+		for ma in (LO, O_GAN, O_XA):
+			frappe.cache().delete_value(f"erpnext:barcode_scan:{ma}")
+		_vat_tu()
+		_lo()
+		_o(O_GAN)
+		_o(O_XA)
+		_nhap_kho(30)
+		_chuyen_vao_o([(O_GAN, 20), (O_XA, 10)])
+		self.dn = _phieu_giao(12)
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback(save_point=DIEM_TEST)
+
+	def test_danh_sach_hien_phieu_nhap_va_tien_do(self):
+		from erpnext.vi_tri_kho.vitri.lay_hang import danh_sach_phieu_giao
+
+		# QUYẾT ĐỊNH 18/09/2026: `danh_sach_phieu_giao` trả DICT (khuôn
+		# `xep.phieu_xep_dang_lam`), không phải list — đọc khoá "phieu".
+		ds = {d["name"]: d for d in danh_sach_phieu_giao(KHO)["phieu"]}
+		self.assertIn(self.dn.name, ds)
+		self.assertEqual(ds[self.dn.name]["can_lay"], 12.0)
+		self.assertEqual(ds[self.dn.name]["da_lay"], 0.0)
+
+	def test_mo_phieu_ra_o_nen_lay_theo_fefo(self):
+		from erpnext.vi_tri_kho.vitri.lay_hang import mo_phieu_giao
+
+		p = mo_phieu_giao(self.dn.name)
+		self.assertEqual(len(p["dong"]), 1)
+		d = p["dong"][0]
+		self.assertEqual((d["vat_tu"], d["so_lo"], d["can_lay"]), (ITEM, LO, 12.0))
+		# 12 lấy hết ô đứng trước (20) → chỉ một ô được gợi ý.
+		self.assertEqual([o["o"] for o in d["o_nen_lay"]], [O_GAN])
+
+	def test_quet_lo_cua_phieu_va_quet_o(self):
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		self.assertEqual(quet_de_lay(self.dn.name, LO)["loai"], "lo")
+		self.assertEqual(quet_de_lay(self.dn.name, O_GAN)["loai"], "o")
+		self.assertEqual(quet_de_lay(self.dn.name, "9L-KHONG-CO-GI")["loai"], None)
+
+	def test_quet_lo_khac_cung_mat_hang_bao_loai_lo_khac_kem_hsd(self):
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		lo_khac = "9L-LO-LAY-02"
+		if not frappe.db.exists("Batch", lo_khac):
+			frappe.get_doc(
+				{"doctype": "Batch", "batch_id": lo_khac, "item": ITEM, "expiry_date": "2030-12-31"}
+			).insert(ignore_permissions=True)
+		frappe.cache().delete_value(f"erpnext:barcode_scan:{lo_khac}")
+
+		kq = quet_de_lay(self.dn.name, lo_khac)
+		self.assertEqual(kq["loai"], "lo_khac")
+		self.assertEqual(kq["so_lo"], lo_khac)
+		self.assertTrue(kq["han_xa_hon"], "lô 2030 xa hơn lô 2029 của phiếu")
+
+	def test_khong_co_vai_tro_kho_thi_bi_chan(self):
+		from erpnext.vi_tri_kho.vitri.lay_hang import danh_sach_phieu_giao
+
+		ten = "lay-hang-khong-quyen@mo-phong.local"
+		if not frappe.db.exists("User", ten):
+			frappe.get_doc(
+				{"doctype": "User", "email": ten, "first_name": "Lay", "send_welcome_email": 0, "roles": []}
+			).insert(ignore_permissions=True)
+		frappe.set_user(ten)
+		with self.assertRaises(frappe.PermissionError):
+			danh_sach_phieu_giao(KHO)
