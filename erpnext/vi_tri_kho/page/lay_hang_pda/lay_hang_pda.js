@@ -140,6 +140,18 @@
 				if (d.loai === "lo") return this.nhan_lo(d);
 				if (d.loai === "lo_khac") return this.hoi_doi_lo(d);
 				if (d.loai === "o") return this.nhan_o(d);
+				if (d.loai === "can_quet_lo") {
+					// Chỉ hiện câu nhắc — KHÔNG đổi `this.cho`/gọi `ve()` lại: giữ nguyên
+					// trạng thái đang chờ (nếu có) của lượt trước, cùng khuôn
+					// `xep_hang_pda.js`.
+					rung([80, 60, 80]);
+					return this.bao(
+						__("{0} có quản lý lô — quét tem LÔ trên thùng, không quét mã hàng.", [
+							e(d.ten_hang || d.vat_tu),
+						]),
+						"cam"
+					);
+				}
 				rung([80, 60, 80]);
 				this.bao(__("Không nhận ra mã <b>{0}</b>, hoặc lô này không nằm trong phiếu.", [e(ma)]), "xam");
 			});
@@ -164,7 +176,17 @@
 			}
 			rung([40]);
 			// Quét lô mới khi đang chờ ô cho lô cũ: THAY lô cũ — chưa có gì được ghi.
-			this.cho = { dong_hang: d.dong_hang, so_lo: d.so_lo, so_luong: con_can, lo_khac: null };
+			// `so_lo` có thể là `null` (mặt hàng không quản lý lô, xem `quet_de_lay`)
+			// — giữ `vat_tu`/`ten_hang` để `html_lo_dang_cho`/gợi ý dưới ô quét có gì
+			// để hiện thay cho một mã lô không tồn tại.
+			this.cho = {
+				dong_hang: d.dong_hang,
+				so_lo: d.so_lo,
+				vat_tu: d.vat_tu,
+				ten_hang: dong.ten_hang,
+				so_luong: con_can,
+				lo_khac: null,
+			};
 			this.bao();
 			this.ve();
 		}
@@ -207,9 +229,13 @@
 		}
 
 		nhan_o(o) {
-			if (!this.cho || !this.cho.so_lo) {
+			// Không dùng `!this.cho.so_lo` để kiểm "đã quét lô chưa": mặt hàng KHÔNG
+			// quản lý lô hợp lệ mang `so_lo = null` ngay cả khi đã sẵn sàng nhận ô
+			// (xem `nhan_lo`) — trạng thái CHƯA sẵn sàng đúng là `!this.cho` (chưa
+			// quét gì) hoặc `this.cho.lo_khac` (đang chờ quét lại để xác nhận đổi lô).
+			if (!this.cho || this.cho.lo_khac) {
 				rung([80, 60, 80]);
-				this.bao(__("Quét tem LÔ trước, rồi mới quét tem ô."), "cam");
+				this.bao(__("Quét tem LÔ (hoặc mã hàng, nếu mặt hàng không quản lý lô) trước, rồi mới quét tem ô."), "cam");
 				return;
 			}
 			const c = this.cho;
@@ -230,7 +256,11 @@
 					this.phieu = p;
 					this.cho = null;
 					this.bao(
-						__("Đã lấy <b>{0}</b> {1} ở <b>{2}</b>", [so(c.so_luong), e(c.so_lo), e(o.ma_in_nhan || o.ma_o)]),
+						__("Đã lấy <b>{0}</b> {1} ở <b>{2}</b>", [
+							so(c.so_luong),
+							e(c.so_lo || c.ten_hang || c.vat_tu || ""),
+							e(o.ma_in_nhan || o.ma_o),
+						]),
 						"xanh"
 					);
 					this.ve();
@@ -340,9 +370,14 @@
 			} else if (this.cho && this.cho.lo_khac) {
 				this.o_quet.dat_goi_y(__("Quét LẠI tem {0} để đổi lô", [this.cho.lo_khac.so_lo]), "nhan-manh");
 			} else if (this.cho) {
-				this.o_quet.dat_goi_y(__("② Quét tem Ô cho lô {0}", [this.cho.so_lo]), "nhan-manh");
+				// `so_lo` có thể là `null` (mặt hàng không quản lý lô) — khi đó nhắc
+				// theo tên hàng thay vì in ra "lô null".
+				const nhan = this.cho.so_lo
+					? __("② Quét tem Ô cho lô {0}", [this.cho.so_lo])
+					: __("② Quét tem Ô cho {0}", [this.cho.ten_hang || this.cho.vat_tu || ""]);
+				this.o_quet.dat_goi_y(nhan, "nhan-manh");
 			} else {
-				this.o_quet.dat_goi_y(__("① Quét tem LÔ"));
+				this.o_quet.dat_goi_y(__("① Quét tem LÔ (hoặc mã hàng, nếu mặt hàng không quản lý lô)"));
 			}
 		}
 
@@ -446,11 +481,19 @@
 						<button type="button" class="lh-xac-nhan-lo-khac">${__("Đổi sang lô {0}", [e(lk.so_lo)])}</button>
 					</div>`;
 			}
+			// `so_lo` là `null` cho mặt hàng không quản lý lô (xem `quet_de_lay`/
+			// `nhan_lo`) — hiện tên hàng thay cho một mã lô không tồn tại, KHÔNG
+			// dùng phông đều `.lh-ma-to` cho chữ thường (quy tắc chỉ dành phông đều
+			// cho mã ô/mã lô).
 			return `
 				<div class="lh-the">
 					<div class="lh-the-dau">
-						<span class="lh-nhan-loai">${__("Đang lấy lô")}</span>
-						<div class="lh-ma-to">${e(c.so_lo)}</div>
+						<span class="lh-nhan-loai">${c.so_lo ? __("Đang lấy lô") : __("Đang lấy hàng (không lô)")}</span>
+						${
+							c.so_lo
+								? `<div class="lh-ma-to">${e(c.so_lo)}</div>`
+								: `<div class="lh-ten-hang">${e(c.ten_hang || c.vat_tu)}</div>`
+						}
 					</div>
 					<div class="lh-muc">
 						<div class="lh-tieu-de-muc">${__("Số lượng lấy")}</div>

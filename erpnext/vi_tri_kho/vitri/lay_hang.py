@@ -578,14 +578,33 @@ def _chon_dong_ung_vien(ung_vien: list, da_lay: dict, dong_hang: str | None):
 def quet_de_lay(phieu: str, ma: str, dong_hang: str | None = None) -> dict:
 	"""Nhận diện một mã quét trên trang lấy hàng.
 
-	`loai`: `"lo"` (lô ĐANG có trên phiếu) · `"lo_khac"` (lô khác nhưng cùng một
-	mặt hàng của phiếu — kèm `han_xa_hon` để màn hình cảnh báo) · `"o"` · `None`.
-	Quét nhầm không bao giờ nổ — cùng lời hứa `quet.py`.
+	`loai`: `"lo"` (lô ĐANG có trên phiếu, HOẶC mã của một mặt hàng KHÔNG quản lý
+	lô — xem điểm điều phối bên dưới) · `"lo_khac"` (lô khác nhưng cùng một mặt
+	hàng của phiếu — kèm `han_xa_hon` để màn hình cảnh báo) · `"can_quet_lo"`
+	(mã của một mặt hàng CÓ quản lý lô — không biết lô nào, không đoán) · `"o"` ·
+	`None`. Quét nhầm không bao giờ nổ — cùng lời hứa `quet.py`.
 
 	`dong_hang` (Important 3): phiếu có nhiều dòng cùng mặt hàng thì không thể
 	tự đoán ĐÚNG dòng chỉ từ mã quét — xem `_chon_dong_ung_vien`. `nhieu_dong`
 	trong kết quả báo cho màn hình biết có từ hai dòng ứng viên trở lên, để
 	hỏi lại người dùng khi cần.
+
+	QUYẾT ĐỊNH ĐIỀU PHỐI (sau review Task 7 — trước bản vá này, spec §6.2 bị
+	thủng): `mo_phieu_giao` trả dòng của mặt hàng KHÔNG quản lý lô với
+	`so_lo = None`, `can_quet = True` (đúng thiết kế — kho có quản lý vị trí thì
+	dòng đó vẫn phải lấy theo ô), nhưng hàm này TRƯỚC bản vá chỉ nhận diện được
+	mã quét qua `scan_barcode(...).get("batch_no")` — quét mã của một mặt hàng
+	không lô luôn rơi vào `{"loai": None}` ("không nhận ra mã"). Hậu quả: dòng đó
+	không bao giờ bắt đầu lấy được, và `hoan_tat` (đòi MỌI dòng thuộc kho quản lý
+	vị trí phải lấy đủ) khoá cứng phiếu vĩnh viễn. Vá bằng cách thêm nhánh nhận
+	diện MẶT HÀNG, theo đúng khuôn `xep.quet_de_xep` (đã có sẵn hai đường: mã vạch
+	trên bao bì qua `scan_barcode` → `item_code`, hoặc mã quét trùng thẳng tên một
+	`Item`) — không phải nghĩ lại, chỉ mở rộng cho đúng thiết kế đã có ở trang chị
+	em. Mặt hàng CÓ quản lý lô thì KHÔNG được đoán lô: trả `can_quet_lo` để trang
+	nhắc quét đúng tem lô trên thùng, cùng lời hứa "không đoán" của `_chon_dong_ung_vien`.
+	Mã trùng một `Item` nhưng mặt hàng đó không có dòng nào trên phiếu thì GIỮ
+	NGUYÊN hành vi cũ (không nhận bừa) — nhận diện được một `Item` bất kỳ không có
+	nghĩa nó thuộc phiếu đang lấy.
 	"""
 	from erpnext.stock.utils import scan_barcode
 	from erpnext.vi_tri_kho.vitri.quet import _tim_o
@@ -644,6 +663,32 @@ def quet_de_lay(phieu: str, ma: str, dong_hang: str | None = None) -> dict:
 					"nhieu_dong": len(cung_hang) > 1,
 				}
 			return {"loai": None}
+
+		vat_tu = kq.get("item_code")
+		if not vat_tu and not kq.get("warehouse") and frappe.db.exists("Item", ma):
+			vat_tu = ma
+		if vat_tu:
+			ung_vien_hang = [d for d in doc.items if d.item_code == vat_tu]
+			if ung_vien_hang:
+				if frappe.db.get_value("Item", vat_tu, "has_batch_no"):
+					return {
+						"loai": "can_quet_lo",
+						"vat_tu": vat_tu,
+						"ten_hang": frappe.db.get_value("Item", vat_tu, "item_name"),
+					}
+				d = _chon_dong_ung_vien(ung_vien_hang, da, dong_hang)
+				if not d:
+					return {"loai": None}
+				return {
+					"loai": "lo",
+					"so_lo": None,
+					"dong_hang": d.name,
+					"vat_tu": vat_tu,
+					"nhieu_dong": len(ung_vien_hang) > 1,
+				}
+			# Mặt hàng có thật nhưng không có dòng nào trên phiếu này — không nhận
+			# bừa (cùng nguyên tắc "quét nhầm không bao giờ nổ, nhưng cũng không
+			# bao giờ NHẬN NHẦM" đã áp cho nhánh lô ở trên).
 
 		ma_o = _tim_o(ma)
 		if ma_o:

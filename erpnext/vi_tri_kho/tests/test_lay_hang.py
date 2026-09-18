@@ -147,6 +147,61 @@ def _chuyen_vao_o_lo(so_lo, cap):
 	return pxep
 
 
+ITEM_KHONG_LO = "9L-VT-LAY-HANG-KHONG-LO"
+
+
+def _vat_tu_khong_lo():
+	"""Mặt hàng KHÔNG quản lý lô — cần cho vòng sửa sau review Task 7 (spec §6.2:
+	trang phải quét được MỌI dòng của phiếu, kể cả dòng không lô)."""
+	if not frappe.db.exists("Item", ITEM_KHONG_LO):
+		frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": ITEM_KHONG_LO,
+				"item_name": "Hàng thử lấy hàng PDA không lô",
+				"item_group": "All Item Groups",
+				"stock_uom": "Nos",
+				"is_stock_item": 1,
+				"has_batch_no": 0,
+			}
+		).insert(ignore_permissions=True)
+	return ITEM_KHONG_LO
+
+
+def _nhap_kho_khong_lo(so_luong):
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Material Receipt",
+			"company": CTY,
+			"items": [{"item_code": ITEM_KHONG_LO, "qty": so_luong, "t_warehouse": KHO, "basic_rate": 1000}],
+		}
+	)
+	se.insert(ignore_permissions=True)
+	se.submit()
+	return se
+
+
+def _chuyen_vao_o_khong_lo(cap):
+	"""`_chuyen_vao_o`/`_chuyen_vao_o_lo` khoá cứng vào `ITEM` — bản này cho
+	mặt hàng KHÔNG quản lý lô (`so_lo=None` trên cả nguồn lẫn đích)."""
+	chua_xep = frappe.db.get_value("Storage Location", {"kho": KHO, "la_o_chua_xep": 1})
+	pxep = frappe.get_doc(
+		{
+			"doctype": "Location Transfer",
+			"kho": KHO,
+			"ngay": nowdate(),
+			"items": [
+				{"vat_tu": ITEM_KHONG_LO, "so_lo": None, "tu_o": chua_xep, "den_o": o, "so_luong": sl}
+				for o, sl in cap
+			],
+		}
+	)
+	pxep.insert(ignore_permissions=True)
+	pxep.submit()
+	return pxep
+
+
 def _phieu_giao(so_luong, phan_bo=None):
 	"""Phiếu giao NHÁP cho `so_luong`, kèm phân bổ nếu có. `phan_bo` = [(ô, số lượng), ...]."""
 	dn = frappe.get_doc(
@@ -1651,3 +1706,158 @@ class TestGhiChoTrang(FrappeTestCase):
 
 		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 12.0)
 		self.assertEqual(so.ton_o(O_XA, ITEM, lo2), 6.0)
+
+
+class TestQuetMaHangKhongLo(FrappeTestCase):
+	"""Vòng sửa sau review chất lượng Task 7 (điều phối, 18/09/2026): mặt hàng
+	KHÔNG quản lý lô, thuộc kho CÓ quản lý vị trí, trước bản vá này KHÔNG quét
+	được để bắt đầu lấy. `mo_phieu_giao` đã luôn trả dòng đó với `so_lo=None`,
+	`can_quet=True` (đúng thiết kế), nhưng `quet_de_lay` chỉ nhận diện mã quét
+	qua `scan_barcode(...).get("batch_no")` — quét mã hàng rơi thẳng vào
+	`{"loai": None}`, và `hoan_tat` (đòi MỌI dòng thuộc kho quản lý vị trí phải
+	lấy đủ) khoá cứng phiếu vĩnh viễn. Thủng đúng spec §6.2 ("trang phải quét
+	được mọi dòng của phiếu").
+	"""
+
+	BARCODE_KHONG_LO = "9L-BARCODE-KHONG-LO-001"
+	BARCODE_CO_LO = "9L-BARCODE-CO-LO-001"
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+		frappe.db.savepoint(DIEM_TEST)
+		for ma in (ITEM, ITEM_KHONG_LO, O_GAN, self.BARCODE_KHONG_LO, self.BARCODE_CO_LO):
+			frappe.cache().delete_value(f"erpnext:barcode_scan:{ma}")
+		_vat_tu()
+		_lo()
+		_vat_tu_khong_lo()
+		_o(O_GAN)
+		_nhap_kho_khong_lo(10)
+		_chuyen_vao_o_khong_lo([(O_GAN, 10)])
+		self._gan_barcode(ITEM_KHONG_LO, self.BARCODE_KHONG_LO)
+		self._gan_barcode(ITEM, self.BARCODE_CO_LO)
+
+		self.dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [{"item_code": ITEM_KHONG_LO, "qty": 6, "rate": 5000, "warehouse": KHO}],
+			}
+		)
+		self.dn.insert(ignore_permissions=True)
+		self.dong = self.dn.items[0].name
+
+	def _gan_barcode(self, item_code, barcode):
+		"""Mã vạch THẬT trên bao bì (`Item Barcode`) — đường thật của súng quét
+		PDA, khác với `frappe.db.exists("Item", ma)` (mã quét trùng thẳng TÊN
+		item, chỉ xảy ra khi gõ tay hoặc mã hàng không có mã vạch riêng). Cả hai
+		đường phải nhận diện được cùng một cách, theo đúng mandate review."""
+		doc = frappe.get_doc("Item", item_code)
+		if not any(b.barcode == barcode for b in doc.barcodes):
+			doc.append("barcodes", {"barcode": barcode})
+			doc.save(ignore_permissions=True)
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback(save_point=DIEM_TEST)
+
+	def test_quet_ma_hang_khong_lo_ra_loai_lo_voi_so_lo_none(self):
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		kq = quet_de_lay(self.dn.name, ITEM_KHONG_LO)
+		self.assertEqual(kq["loai"], "lo")
+		self.assertIsNone(kq["so_lo"])
+		self.assertEqual(kq["dong_hang"], self.dong)
+		self.assertEqual(kq["vat_tu"], ITEM_KHONG_LO)
+		self.assertFalse(kq["nhieu_dong"])
+
+	def test_ghi_da_lay_va_hoan_tat_tron_ven_cho_hang_khong_lo(self):
+		"""Bài chịu lực: trước bản vá, không có đường nào tới được `ghi_da_lay`
+		từ giao diện quét (dòng "không nhận ra mã"), nên phiếu không bao giờ
+		`hoan_tat` được. Khẳng định cả sổ vị trí trừ ĐÚNG ô (không phải chỉ
+		docstatus đổi)."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay, hoan_tat
+
+		p = ghi_da_lay(self.dn.name, self.dong, None, O_GAN, 6)
+		self.assertEqual(p["dong"][0]["da_lay"], 6.0)
+
+		kq = hoan_tat(self.dn.name)
+		self.assertEqual(kq["name"], self.dn.name)
+		self.assertEqual(frappe.db.get_value("Delivery Note", self.dn.name, "docstatus"), 1)
+		self.assertEqual(so.ton_o(O_GAN, ITEM_KHONG_LO, None), 4.0)
+
+	def test_quet_ma_mat_hang_co_lo_bao_can_quet_lo_khong_gia_vo_la_lo(self):
+		"""Mặt hàng CÓ quản lý lô mà quét mã hàng (không phải tem lô) thì không
+		biết lô nào — không đoán, cùng nguyên tắc `_chon_dong_ung_vien`."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		self.dn.append(
+			"items",
+			{
+				"item_code": ITEM,
+				"qty": 3,
+				"rate": 5000,
+				"warehouse": KHO,
+				"batch_no": LO,
+				"use_serial_batch_fields": 1,
+			},
+		)
+		self.dn.save(ignore_permissions=True)
+
+		kq = quet_de_lay(self.dn.name, ITEM)
+		self.assertEqual(kq["loai"], "can_quet_lo")
+		self.assertEqual(kq["vat_tu"], ITEM)
+
+	def test_quet_ma_mat_hang_khong_thuoc_phieu_khong_nhan_bua(self):
+		"""`ITEM` có thật (`_vat_tu()`) nhưng phiếu của bài này chỉ có dòng
+		`ITEM_KHONG_LO` — nhận diện được MỘT `Item` bất kỳ không có nghĩa nó
+		thuộc phiếu đang lấy.
+
+		Đã đọc `_tim_o` (`quet.py`) trước khi viết bài này: nó chỉ khớp đúng
+		`name`/`barcode`/`ma_in_nhan` của `Storage Location` — `ITEM`
+		("9L-VT-LAY-HANG") không khớp bất kỳ ô nào dựng trong bài này, nên
+		`{"loai": None}` là do KHÔNG nhận diện được gì (đúng nhánh đang khoá),
+		không phải một trùng hợp tình cờ qua nhánh `_tim_o`."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		self.assertEqual(quet_de_lay(self.dn.name, ITEM)["loai"], None)
+
+	def test_quet_ma_vach_hang_khong_lo_qua_scan_barcode_ra_loai_lo(self):
+		"""Đường THẬT của súng quét PDA: mã vạch trên bao bì (`Item Barcode`,
+		`scan_barcode(...).get("item_code")`) — khác với đường
+		`frappe.db.exists("Item", ma)` mà ba bài trên đi qua (mã quét trùng
+		thẳng TÊN item, coi như gõ tay). Coordinator mandate nêu rõ HAI đường,
+		phải khoá cả hai."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		kq = quet_de_lay(self.dn.name, self.BARCODE_KHONG_LO)
+		self.assertEqual(kq["loai"], "lo")
+		self.assertIsNone(kq["so_lo"])
+		self.assertEqual(kq["dong_hang"], self.dong)
+		self.assertEqual(kq["vat_tu"], ITEM_KHONG_LO)
+
+	def test_quet_ma_vach_hang_co_lo_qua_scan_barcode_ra_can_quet_lo(self):
+		"""Cùng đường mã vạch thật, cho mặt hàng CÓ quản lý lô: `scan_barcode`
+		tự điền `has_batch_no` vào kết quả (`_update_item_info`), nhưng
+		`quet_de_lay` đọc lại bằng `frappe.db.get_value` độc lập với `kq` —
+		bài này khoá rằng kết quả cuối vẫn đúng `can_quet_lo`, không đoán lô,
+		dù `ITEM` không có dòng trên `self.dn` (phiếu chỉ có `ITEM_KHONG_LO`)."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		self.dn.append(
+			"items",
+			{
+				"item_code": ITEM,
+				"qty": 3,
+				"rate": 5000,
+				"warehouse": KHO,
+				"batch_no": LO,
+				"use_serial_batch_fields": 1,
+			},
+		)
+		self.dn.save(ignore_permissions=True)
+
+		kq = quet_de_lay(self.dn.name, self.BARCODE_CO_LO)
+		self.assertEqual(kq["loai"], "can_quet_lo")
+		self.assertEqual(kq["vat_tu"], ITEM)
