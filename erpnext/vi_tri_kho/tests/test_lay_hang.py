@@ -9,7 +9,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import nowdate
 
-from erpnext.vi_tri_kho.vitri import so
+from erpnext.vi_tri_kho.vitri import hook_sle, so
 
 KHO = "Kho Miyano - MYN"
 CTY = "Miyano Việt Nam"
@@ -193,13 +193,22 @@ class TestGhiSoTheoPhanBo(FrappeTestCase):
 		SAU TASK 3: lớp kiểm sớm (`kiem_phan_bo_khi_luu`, gắn `validate`) đã tự
 		mình đọc đúng cùng dữ liệu này và chặn ngay lúc LƯU — trước khi `submit()`
 		có cơ hội chạy tới `hook_sle._phan_bo_da_khai`/"không dòng nào khớp" ở
-		Task 2. Vì `validate` luôn chạy trước `on_submit` trong CÙNG một lệnh
-		`submit()`, nhánh "không dòng nào khớp" của hook ghi sổ không còn đường
-		nào chạm tới qua API tài liệu bình thường nữa — chỉ còn tới nếu có ai gọi
-		thẳng `ghi_so_vi_tri`/`_phan_bo_da_khai` mà bỏ qua `validate` (không xảy
-		ra trong luồng thật). Giữ bài test này lại để khẳng định KẾT QUẢ cuối
-		(chặn, không ghi sổ, không rơi về FEFO) không đổi — chỉ đổi câu thông báo
-		và điểm chặn, từ Task 2 sang Task 3.
+		Task 2.
+
+		SỬA (vòng sửa 1, Important — review điều phối): docstring bản trước ở
+		đây khẳng định QUÁ RỘNG rằng nhánh "không dòng nào khớp" của hook ghi sổ
+		"không còn đường nào chạm tới qua API tài liệu bình thường nữa" — SAI.
+		Điều đó chỉ đúng cho ĐÚNG kịch bản của bài này: một `dong_hang` không
+		khớp tên bất kỳ dòng nào trên CHÍNH document (kể cả ca "amend đổi tên
+		dòng hàng" — lớp sớm tự dọn/tự chặn, xem `test_amend_don_sach_phan_bo_cu`).
+		Nhánh đó VẪN SỐNG qua API thường cho hai ca khác mà lớp sớm không có
+		cách nào thấy — dòng Product Bundle (`voucher_detail_no` là tên dòng
+		Packed Item, không nằm trong `custom_phan_bo_vi_tri`) và đường mất chiều
+		lô của `tach_theo_lo` lúc huỷ (SLE đảo dấu mang `so_lo=None`) — xem
+		docstring `hook_sle._phan_bo_da_khai` (đoạn "TASK 3"). Hai ca đó CHƯA có
+		bài test tích hợp trực tiếp. Giữ bài NÀY lại để khẳng định KẾT QUẢ cuối
+		cho kịch bản CỦA NÓ (chặn, không ghi sổ, không rơi về FEFO) không đổi —
+		chỉ đổi câu thông báo và điểm chặn, từ Task 2 sang Task 3.
 		"""
 		dn = frappe.get_doc(
 			{
@@ -245,12 +254,18 @@ class TestGhiSoTheoPhanBo(FrappeTestCase):
 		(`ton_o`, cùng nguồn dữ liệu `hook_sle._chan_ton_am_phan_bo` sẽ đọc lại ở
 		bước ghi sổ) nên luôn thấy thiếu tồn TRƯỚC KHI `submit()` kịp chạy tới
 		nhánh ghi sổ có khoá dòng InnoDB của Task 2. Nhánh "không đủ hàng" của
-		Task 2 giờ chỉ còn bắt được một kịch bản hẹp hơn nhiều: tồn bị rút mất
-		GIỮA lúc lớp sớm kiểm tra và lúc dòng sổ thật sự được ghi trong CÙNG một
-		lệnh submit — tức một giao dịch khác commit xen vào giữa hai bước đó,
-		việc test tuần tự một luồng không dựng lại được. Giữ bài test này để
-		khẳng định KẾT QUẢ cuối không đổi, đổi điểm chặn và câu thông báo sang
-		Task 3.
+		Task 2 giờ chỉ còn bắt được một kịch bản hẹp hơn nhiều qua API tài liệu
+		THƯỜNG: tồn bị rút mất GIỮA lúc lớp sớm kiểm tra và lúc dòng sổ thật sự
+		được ghi trong CÙNG một lệnh submit — tức một giao dịch khác commit xen
+		vào giữa hai bước đó, việc test tuần tự một luồng không dựng lại được
+		qua `.submit()`. Bài này giữ lại để khẳng định KẾT QUẢ cuối cho kịch bản
+		CỦA NÓ (chặn ngay lúc lưu) không đổi.
+
+		Cơ chế ghi-rồi-đọc-lại-rồi-rollback (`_chan_ton_am_phan_bo`) mà bài này
+		từng là bài DUY NHẤT phủ tới thì KHÔNG mất — được khoá lại riêng, bằng
+		cách gọi thẳng hàm nội bộ bỏ qua `validate`, ở
+		`TestKiemSom.test_ghi_roi_rollback_khi_phan_bo_vuot_ton_thuc` (vòng sửa
+		1, Critical).
 		"""
 		# Rút hợp lệ 5 khỏi O_XA trước, còn lại đúng 5.
 		dn1 = _phieu_giao(5, phan_bo=[(O_XA, 5)])
@@ -269,9 +284,15 @@ class TestGhiSoTheoPhanBo(FrappeTestCase):
 
 		SAU TASK 3: lớp kiểm sớm có phép `so_luong <= 0` RIÊNG (không phải phép
 		so tổng), nên nó chặn ngay lúc LƯU, trước khi `submit()` kịp chạy tới
-		phép so tổng "không hợp lệ" của Task 2 — nhánh đó với input cụ thể này
-		cũng thành không tới lượt qua API tài liệu bình thường, cùng lý do hai
-		bài trên. Giữ bài test để khẳng định KẾT QUẢ cuối không đổi.
+		phép so tổng "không hợp lệ" của Task 2. Khác với bài
+		`test_phan_bo_khong_khop_dong_hang_thi_chan`, ở ĐÂY điều kiện chỉ phụ
+		thuộc giá trị `so_luong` của chính dòng phân bổ — không có ca nào lách
+		được lớp sớm qua API tài liệu thường (không có "Product Bundle" hay
+		"mất chiều lô" tương đương). Nhánh "không hợp lệ" của Task 2 vì vậy trở
+		thành lưới an toàn thuần tuý cho đường ghi thẳng vào bảng, bỏ qua
+		`validate` (xem docstring `hook_sle._phan_bo_da_khai`, đoạn "TASK 3" thứ
+		hai) — CHƯA có bài test gọi trực tiếp hàm nội bộ để khoá riêng ca đó.
+		Giữ bài NÀY để khẳng định KẾT QUẢ cuối cho đường API thường không đổi.
 		"""
 		with self.assertRaisesRegex(frappe.ValidationError, "phải lớn hơn 0"):
 			_phieu_giao(10, phan_bo=[(O_GAN, 15), (O_XA, -5)])
@@ -404,3 +425,116 @@ class TestKiemSom(FrappeTestCase):
 		amended.reload()
 
 		self.assertEqual(len(amended.custom_phan_bo_vi_tri), 1)
+
+	def test_hai_dong_hang_cung_o_vuot_ton_bi_chan(self):
+		"""Important (vòng sửa 1, review điều phối): `ton_o(o, vat_tu, so_lo)`
+		tính tồn theo (Ô, vật tư, lô) — KHÔNG theo dòng hàng. Hai DÒNG HÀNG khác
+		nhau nhưng cùng vật tư/lô (khác đơn giá, khác đơn bán gốc — chuyện
+		thường) cùng phân bổ vào MỘT ô phải bị chặn khi TỔNG của cả hai vượt
+		tồn ô, dù mỗi dòng riêng lẻ không vượt số lượng của chính nó (15 và 15,
+		ô chỉ có 20). Bản sửa trước gộp nhầm theo (dòng hàng, lô, ô) nên mỗi
+		dòng hàng tự so với tồn ĐẦY ĐỦ của ô, bỏ lọt over-draw chung — xem chú
+		thích tại `theo_o` trong `lay_hang.kiem_phan_bo_khi_luu`.
+		"""
+		dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 15,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": LO,
+						"use_serial_batch_fields": 1,
+					},
+					{
+						"item_code": ITEM,
+						"qty": 15,
+						"rate": 6000,
+						"warehouse": KHO,
+						"batch_no": LO,
+						"use_serial_batch_fields": 1,
+					},
+				],
+			}
+		)
+		dn.insert(ignore_permissions=True)
+		dn.append(
+			"custom_phan_bo_vi_tri",
+			{"dong_hang": dn.items[0].name, "vat_tu": ITEM, "so_lo": LO, "o": O_GAN, "so_luong": 15},
+		)
+		dn.append(
+			"custom_phan_bo_vi_tri",
+			{"dong_hang": dn.items[1].name, "vat_tu": ITEM, "so_lo": LO, "o": O_GAN, "so_luong": 15},
+		)
+		with self.assertRaisesRegex(frappe.ValidationError, f"{O_GAN}.*chỉ còn"):
+			dn.save(ignore_permissions=True)
+
+	def test_ghi_roi_rollback_khi_phan_bo_vuot_ton_thuc(self):
+		"""Critical (vòng sửa 1, review điều phối): khoá lại cơ chế
+		ghi-rồi-đọc-lại-rồi-rollback của `hook_sle._chan_ton_am_phan_bo`
+		(Important 3, Task 2) — cơ chế chống race hai người cùng rút một ô.
+
+		`test_phan_bo_vuot_ton_o_thi_chan_va_khong_ghi_dong_so_nao` (Task 2)
+		từng là bài DUY NHẤT chạm tới cơ chế này, qua `.submit()`. Sau Task 3,
+		lớp kiểm sớm đọc CÙNG một `ton_o` TRƯỚC khi ghi, và `validate` chạy lại
+		ở MỌI lần save — kể cả lần bên trong `.submit()` — nên bất kỳ dữ liệu
+		nào dựng qua `.save()`/`.submit()` bình thường mà đủ điều kiện chặn ở
+		đây cũng đã bị lớp sớm chặn TRƯỚC đó rồi. Đã THỬ dựng lại theo hướng
+		"lưu phiếu hợp lệ trước, rút tồn ở ô đó bằng phiếu khác, rồi mới
+		submit": không cứu được — `validate` chạy lại ngay đầu `.submit()` và
+		thấy tồn mới đã bị rút, chặn sớm với "chỉ còn" chứ không rơi được
+		xuống `_chan_ton_am_phan_bo`. Bài này vì vậy gọi THẲNG
+		`hook_sle._ghi_mot_phan` — bỏ qua `validate` hoàn toàn — mô phỏng đúng
+		ca một giao dịch KHÁC (ở đây: một phiếu chuyển vị trí) rút mất hàng ở ô
+		đó SAU KHI lớp sớm của phiếu giao đã kiểm xong, ngay trước lúc dòng sổ
+		thật sự được ghi.
+		"""
+		dn = _phieu_giao(5, phan_bo=[(O_XA, 5)])  # O_XA đang có 10 — validate xanh lúc lưu.
+
+		# "Ai đó" rút bớt O_XA giữa lúc lưu nháp và lúc duyệt — một phiếu
+		# chuyển vị trí THẬT, không đụng gì tới `dn` hay `validate` của nó.
+		chuyen = frappe.get_doc(
+			{
+				"doctype": "Location Transfer",
+				"kho": KHO,
+				"ngay": nowdate(),
+				"items": [{"vat_tu": ITEM, "so_lo": LO, "tu_o": O_XA, "den_o": O_GAN, "so_luong": 8}],
+			}
+		)
+		chuyen.insert(ignore_permissions=True)
+		chuyen.submit()
+		self.assertEqual(so.ton_o(O_XA, ITEM, LO), 2.0)
+
+		# Stock Ledger Entry dựng tay: `sle.name` phải trỏ một bản ghi CÓ THẬT
+		# (Location Ledger Entry.sle là Link nghiêm ngặt, không ignore_links) —
+		# mượn tên SLE thật của `_nhap_kho` trong setUp, các field còn lại tự
+		# khai để trỏ đúng dòng hàng/phân bổ của `dn`.
+		sle_that = frappe.get_all(
+			"Stock Ledger Entry", {"item_code": ITEM, "warehouse": KHO}, ["name"], limit=1
+		)[0]
+		sle_gia = frappe._dict(
+			name=sle_that.name,
+			warehouse=KHO,
+			item_code=ITEM,
+			voucher_type="Delivery Note",
+			voucher_no=dn.name,
+			voucher_detail_no=dn.items[0].name,
+			posting_date=nowdate(),
+			posting_time="00:00:00",
+			company=CTY,
+		)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "không đủ hàng"):
+			hook_sle._ghi_mot_phan(sle_gia, LO, -5)
+
+		self.assertEqual(
+			frappe.get_all("Location Ledger Entry", {"chung_tu": dn.name}),
+			[],
+			"rollback rồi thì không dòng sổ nào của dn được sống sót",
+		)
+		self.assertEqual(so.ton_o(O_XA, ITEM, LO), 2.0, "tồn O_XA không đổi sau rollback")

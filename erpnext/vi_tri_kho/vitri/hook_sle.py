@@ -239,6 +239,20 @@ def _chan_ton_am_phan_bo(sle, so_lo, phan_bo):
 	cùng đọc thấy "còn đủ" rồi cùng ghi âm); xem docstring `_ghi` ở đó. Chỉ
 	gọi cho nhánh phân bổ (`_ghi_mot_phan`) — đường FEFO tự chặn từ đầu vì
 	`chon_o_xuat` chỉ chọn trong số ô đang có đủ hàng.
+
+	TASK 3 (vòng sửa 1, review điều phối): lớp kiểm sớm
+	(`lay_hang.kiem_phan_bo_khi_luu`, gắn `Delivery Note.validate`) đọc CÙNG
+	`ton_o` này TRƯỚC khi ghi, nên qua API tài liệu thường (`.save()`/
+	`.submit()`) nó luôn bắt trước — `validate` chạy lại ở MỌI lần lưu, kể cả
+	lần bên trong `.submit()`, nên không có cách dựng dữ liệu qua đường đó mà
+	còn lọt xuống được đây. Cơ chế ghi-rồi-đọc-lại-rồi-rollback ở đây vẫn
+	SỐNG và vẫn CẦN GIỮ: nó là lớp chặn cho ca lớp sớm không thấy được — một
+	giao dịch KHÁC rút mất hàng ở ô đó SAU KHI lớp sớm của CHÍNH giao dịch
+	này đã kiểm xong (race hai người cùng rút một ô, đúng mục đích ban đầu
+	của Important 3). `TestKiemSom.test_ghi_roi_rollback_khi_phan_bo_vuot_ton_thuc`
+	(test_lay_hang.py) khoá lại bằng cách gọi thẳng `_ghi_mot_phan`, bỏ qua
+	`validate` — xem docstring bài đó vì sao không còn cách dựng ca này qua
+	`.submit()` bình thường nữa.
 	"""
 	for p in phan_bo:
 		con = flt(ton_o(p["o"], sle.item_code, so_lo or None))
@@ -277,10 +291,41 @@ def _phan_bo_da_khai(sle, so_lo, can_xuat) -> list[dict] | None:
 	(đường cũ); CÓ dòng nhưng không dòng nào khớp (dòng hàng, lô) đang ghi →
 	CHẶN.
 
+	TASK 3 (vòng sửa 1, review điều phối — ĐỪNG xoá nhánh trên vì tưởng là
+	code chết): `lay_hang.kiem_phan_bo_khi_luu` (gắn `Delivery Note.validate`)
+	thêm một lớp so `dong_hang` SỚM HƠN, nhưng nó chỉ biết tên các dòng
+	`Delivery Note Item` HIỆN CÓ trên document đang lưu, không biết gì về
+	`Stock Ledger Entry.voucher_detail_no` lúc ghi sổ. Hệ quả khác nhau cho
+	từng ca liệt kê ở trên:
+	- Ca "phiếu giao AMEND (tên dòng hàng đổi)": nay CHẾT qua API tài liệu
+	  thường — lớp sớm tự dọn sạch bảng phân bổ ở lần insert đầu của bản
+	  amend, và dù có sót lại, "dòng hàng lạ" cũng bị chính lớp sớm chặn ở mọi
+	  lần lưu/duyệt sau đó (nó so CHÍNH XÁC cùng điều kiện `dong_hang` có nằm
+	  trong `doc.items` hay không). Bài `test_lay_hang.TestKiemSom.
+	  test_phan_bo_khong_khop_dong_hang_thi_chan` khoá lại hành vi mới.
+	- Ca "dòng Product Bundle" và ca "mất chiều lô của `tach_theo_lo`" VẪN
+	  SỐNG — lớp sớm không có cách nào thấy: Packed Item không nằm trong
+	  `custom_phan_bo_vi_tri`, và đường mất-lô chỉ lộ ra trong CHÍNH SLE đảo
+	  dấu lúc huỷ, không phải trên document `Delivery Note` mà `validate`
+	  nhìn thấy. Hai ca này KHÔNG có bài test tích hợp trực tiếp (dựng thật
+	  một Product Bundle/một chứng từ huỷ mất chiều lô rồi submit) — CHƯA đo,
+	  ghi lại để không ai tưởng nhầm nhánh này thừa rồi xoá.
+
 	Important 4 (vòng sửa 1): chặn từng dòng `so_luong <= 0` TRƯỚC khi so
 	tổng — cặp (+15, -5) cho dòng cần xuất 10 lọt qua phép so tổng (vẫn ra
 	10 vừa khớp) rồi `ghi_dong_so` ghi một dòng DƯƠNG (nhập) trên một chứng
 	từ XUẤT nếu không chặn riêng.
+
+	TASK 3: khác với hai ca "vẫn sống" ở trên, nhánh `so_luong <= 0` này thì
+	lớp sớm (`kiem_phan_bo_khi_luu`) chặn ĐỦ MỌI trường hợp qua API tài liệu
+	thường — điều kiện chỉ phụ thuộc giá trị `so_luong` của chính dòng phân
+	bổ, không phụ thuộc `voucher_detail_no` hay đường huỷ nào cả, nên không
+	có cách lách. Nhánh này từ đây là LƯỚI AN TOÀN THUẦN TUÝ cho đường ghi
+	thẳng vào bảng `Location Allocation` mà bỏ qua `validate` (patch/console/
+	API nội bộ) — CHƯA có bài test gọi trực tiếp hàm nội bộ để khoá riêng ca
+	này (khác với nhánh "không đủ hàng" ngay dưới, đã có
+	`TestKiemSom.test_ghi_roi_rollback_khi_phan_bo_vuot_ton_thuc` gọi thẳng
+	`_ghi_mot_phan`).
 
 	Tổng lệch thì CHẶN, không tự chữa: phân bổ dở dang nghĩa là mới quét được
 	một phần, và im lặng chạy FEFO cho phần còn lại sẽ trừ những ô chưa ai

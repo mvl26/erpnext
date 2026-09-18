@@ -107,6 +107,20 @@ def kiem_phan_bo_khi_luu(doc, method=None):
 	Lấy hàng — nếu dọn theo `docstatus` thì MỌI lần lưu nháp sau đó cũng bị dọn
 	sạch, xoá luôn phân bổ vừa quét. `is_new()` chỉ đúng cho đúng một lần lưu:
 	lần insert của chính bản amend.
+
+	PHẠM VI (vòng sửa 1, Important 3): hàm này chỉ so `p.dong_hang` với tên
+	các dòng `Delivery Note Item` hiện có trên CHÍNH document đang lưu — nó
+	không biết gì về `Stock Ledger Entry.voucher_detail_no` lúc ghi sổ. Hai ca
+	sau vẫn đi lọt qua đây (validate xanh) và CHỈ bị `hook_sle._phan_bo_da_khai`
+	chặn lúc ghi sổ, không phải code chết: (1) dòng Product Bundle, nơi SLE
+	của từng dòng con mang `voucher_detail_no` là tên dòng `Packed Item` —
+	một dòng KHÔNG nằm trong bảng `custom_phan_bo_vi_tri` nên không có gì để
+	so ở đây; (2) đường mất chiều lô của `tach_theo_lo` khi huỷ chứng từ hàng
+	có lô (SLE đảo dấu mang `so_lo=None`, xem docstring module `hook_sle.py`)
+	— hàm này chạy lúc LƯU/DUYỆT/HUỶ chính document, không chạy lại theo từng
+	SLE mà cơ chế huỷ sinh ra. Nhánh `so_luong <= 0` ở `_phan_bo_da_khai` thì
+	NGƯỢC LẠI: hàm này đã chặn đủ mọi trường hợp qua API tài liệu thường, xem
+	chú thích tại đó.
 	"""
 	if doc.amended_from and doc.is_new():
 		doc.set(TEN_BANG_PHAN_BO, [])
@@ -119,9 +133,19 @@ def kiem_phan_bo_khi_luu(doc, method=None):
 	# Hai sổ cộng dồn RIÊNG cho hai câu hỏi khác nhau — gộp chung một dict (như
 	# bản nháp đầu) làm một dòng hàng chia cho NHIỀU ô báo nhầm "ô X không đủ"
 	# dù ô X vẫn còn thừa, vì lúc đó lại so tổng CẢ DÒNG HÀNG với tồn của một
-	# ô riêng lẻ. `theo_o` gộp theo (dòng hàng, lô, Ô) cho câu "ô này đủ không";
-	# `theo_dong` gộp theo (dòng hàng, lô) cho câu "tổng phân bổ có vượt số
-	# lượng dòng hàng không" ở vòng lặp thứ hai bên dưới.
+	# ô riêng lẻ. `theo_dong` gộp theo (dòng hàng, lô) cho câu "tổng phân bổ có
+	# vượt số lượng dòng hàng không" ở vòng lặp thứ hai bên dưới.
+	#
+	# `theo_o` gộp theo (Ô, vật tư, lô) — KHÔNG theo dòng hàng (vòng sửa 1,
+	# Important — review điều phối): `ton_o(o, vat_tu, so_lo)` tính tồn theo
+	# đúng ba khoá đó, không biết gì về "dòng hàng". Từng gộp nhầm theo
+	# (dòng hàng, lô, ô) — hai DÒNG HÀNG khác nhau nhưng cùng vật tư/lô (khác
+	# đơn giá, khác đơn bán gốc — chuyện thường) cùng phân bổ vào MỘT ô thì
+	# mỗi dòng hàng có sổ cộng dồn RIÊNG, mỗi sổ tự so với tồn ĐẦY ĐỦ của ô đó
+	# — ô còn 20, dòng A xin 15 qua ải, dòng B xin 15 cũng qua ải (mỗi dòng tự
+	# so với 20), trong khi tổng rút thật là 30 > 20. Gộp theo (o, vat_tu,
+	# so_lo) thì cả hai dòng cùng cộng dồn vào MỘT sổ, khớp đúng cái mà
+	# `ton_o` đo. Xem `test_hai_dong_hang_cung_o_vuot_ton_bi_chan`.
 	theo_o: dict[tuple, float] = {}
 	theo_dong: dict[tuple, float] = {}
 
@@ -171,16 +195,24 @@ def kiem_phan_bo_khi_luu(doc, method=None):
 		khoa_dong = (p.dong_hang, p.so_lo or "")
 		theo_dong[khoa_dong] = theo_dong.get(khoa_dong, 0.0) + flt(p.so_luong)
 
-		khoa_o = (p.dong_hang, p.so_lo or "", p.o)
+		khoa_o = (p.o, p.vat_tu, p.so_lo or "")
 		theo_o[khoa_o] = theo_o.get(khoa_o, 0.0) + flt(p.so_luong)
 
 		# Tồn của ô đọc từ bộ đệm — đủ cho lớp sớm; phép chặn tồn âm THẬT vẫn nằm
 		# ở đường ghi sổ, nơi có khoá dòng của InnoDB (xem `location_transfer.py`).
 		con = flt(ton_o(p.o, p.vat_tu, p.so_lo or None))
 		if theo_o[khoa_o] > con + _SAI_SO:
+			# Minor (vòng sửa 1): nêu rõ số ĐANG XIN CẤP (cộng dồn của mọi dòng
+			# phân bổ trỏ vào CÙNG (ô, vật tư, lô) này trên phiếu) — không bắt
+			# người đọc tự lấy tổng số lượng trừ số "chỉ còn" mới ra được số dư.
 			frappe.throw(
-				_("Phân bổ vị trí dòng {0}: ô {1} chỉ còn {2} của {3}{4}.").format(
-					p.idx, p.o, flt(con, 3), p.vat_tu, _(", lô {0}").format(p.so_lo) if p.so_lo else ""
+				_("Phân bổ vị trí dòng {0}: ô {1} chỉ còn {2} của {3}{4}, đang xin cấp {5}.").format(
+					p.idx,
+					p.o,
+					flt(con, 3),
+					p.vat_tu,
+					_(", lô {0}").format(p.so_lo) if p.so_lo else "",
+					flt(theo_o[khoa_o], 3),
 				)
 			)
 
