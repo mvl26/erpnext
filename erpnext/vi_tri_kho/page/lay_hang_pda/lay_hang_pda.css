@@ -125,6 +125,12 @@
 	background: var(--bg-gray);
 	color: var(--text-on-gray);
 }
+/* VÒNG SỬA CUỐI (review toàn nhánh): khung ĐỎ cho cảnh báo CHẶN cứng (lô hết
+   hạn) — khác hẳn `muc-cam` (cảnh báo nhẹ, vẫn cho thao tác tiếp). */
+.lh-bao.muc-do {
+	background: var(--bg-red);
+	color: var(--text-on-red);
+}
 
 /* -------------------------------------------------------- danh sách phiếu */
 

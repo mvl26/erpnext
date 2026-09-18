@@ -7,7 +7,7 @@ và cứ chạy FEFO vẫn xanh, vì cả hai đường đều cho ra tổng đ�
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import flt, nowdate
+from frappe.utils import add_days, flt, nowdate
 
 from erpnext.vi_tri_kho.vitri import hook_sle, so
 
@@ -202,6 +202,51 @@ def _chuyen_vao_o_khong_lo(cap):
 	return pxep
 
 
+ITEM_DICH_VU = "9L-VT-LAY-HANG-DICH-VU"
+ITEM_DA_DON_VI = "9L-VT-LAY-HANG-DA-DON-VI"
+UOM_HOP = "9L-Hop"
+
+
+def _vat_tu_dich_vu():
+	"""Mặt hàng KHÔNG quản lý tồn kho (`is_stock_item=0`) — ERPNext vẫn gán
+	`warehouse` cho dòng loại này trên Delivery Note (phí vận chuyển/dịch vụ/
+	hàng đặt ngoài/dòng cha Product Bundle đều thuộc nhóm này). Vòng sửa cuối
+	(review toàn nhánh, Critical 1)."""
+	if not frappe.db.exists("Item", ITEM_DICH_VU):
+		frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": ITEM_DICH_VU,
+				"item_name": "Dịch vụ thử lấy hàng PDA",
+				"item_group": "All Item Groups",
+				"stock_uom": "Nos",
+				"is_stock_item": 0,
+			}
+		).insert(ignore_permissions=True)
+	return ITEM_DICH_VU
+
+
+def _vat_tu_da_don_vi():
+	"""Mặt hàng bán theo đơn vị KHÁC đơn vị tồn kho (1 `UOM_HOP` = 10 Nos) —
+	vòng sửa cuối (review toàn nhánh, Important 2)."""
+	if not frappe.db.exists("UOM", UOM_HOP):
+		frappe.get_doc({"doctype": "UOM", "uom_name": UOM_HOP}).insert(ignore_permissions=True)
+	if not frappe.db.exists("Item", ITEM_DA_DON_VI):
+		frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": ITEM_DA_DON_VI,
+				"item_name": "Hàng thử lấy hàng PDA đa đơn vị",
+				"item_group": "All Item Groups",
+				"stock_uom": "Nos",
+				"is_stock_item": 1,
+				"has_batch_no": 0,
+				"uoms": [{"uom": UOM_HOP, "conversion_factor": 10}],
+			}
+		).insert(ignore_permissions=True)
+	return ITEM_DA_DON_VI
+
+
 def _phieu_giao(so_luong, phan_bo=None):
 	"""Phiếu giao NHÁP cho `so_luong`, kèm phân bổ nếu có. `phan_bo` = [(ô, số lượng), ...]."""
 	dn = frappe.get_doc(
@@ -271,6 +316,37 @@ class TestGhiSoTheoPhanBo(FrappeTestCase):
 
 		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 10.0, "FEFO phải lấy ở ô thu_tu_lay_hang nhỏ hơn")
 		self.assertEqual(so.ton_o(O_XA, ITEM, LO), 10.0)
+
+	def test_stock_entry_khong_phai_delivery_note_van_di_fefo(self):
+		"""VÒNG SỬA CUỐI (review toàn nhánh, bài 4): khoá hằng `CHUNG_TU_CO_PHAN_BO
+		= ("Delivery Note",)` — Stock Entry KHÔNG nằm trong đó nên phải luôn đi
+		FEFO như cũ và không bao giờ đọc bảng phân bổ. Trước bài này chỉ có hồi
+		quy 35 module phủ gián tiếp; một lần dọn hằng số vô ý gộp Stock Entry
+		vào sẽ không bị bắt ở đâu cả nếu không có bài test đặt tên riêng này."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import phan_bo_cua_dong
+
+		se = frappe.get_doc(
+			{
+				"doctype": "Stock Entry",
+				"stock_entry_type": "Material Issue",
+				"company": CTY,
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 10,
+						"s_warehouse": KHO,
+						"batch_no": LO,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
+		se.insert(ignore_permissions=True)
+		se.submit()
+
+		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 10.0, "FEFO phải rút ở O_GAN (thu_tu nhỏ hơn) trước")
+		self.assertEqual(so.ton_o(O_XA, ITEM, LO), 10.0)
+		self.assertEqual(phan_bo_cua_dong("Stock Entry", se.name, se.items[0].name, LO), [])
 
 	def test_tong_phan_bo_lech_thi_chan_va_khong_ghi_dong_so_nao(self):
 		dn = _phieu_giao(10, phan_bo=[(O_XA, 4)])
@@ -887,6 +963,102 @@ class TestDocChoTrang(FrappeTestCase):
 		self.assertIsNone(kq["hsd"])
 		self.assertTrue(kq["han_xa_hon"], "lô không hạn phải coi là xa hơn lô 2029 có hạn")
 
+	def test_quet_lo_khac_het_han_bao_het_han(self):
+		"""Bài test bắt buộc (VÒNG SỬA CUỐI, review toàn nhánh, Critical 3): lô
+		hết hạn có HSD GẦN HƠN lô đang chốt trên phiếu lại là con đường ÍT MA
+		SÁT NHẤT trước bản vá này (`han_xa_hon=False`, trang chỉ cảnh báo nhẹ,
+		không chặn). `het_han` phải báo đúng — ĐỘC LẬP với `han_xa_hon`."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		lo_het_han = "9L-LO-LAY-HET-HAN-01"
+		han_da_qua = add_days(nowdate(), -3)
+		if not frappe.db.exists("Batch", lo_het_han):
+			frappe.get_doc(
+				{"doctype": "Batch", "batch_id": lo_het_han, "item": ITEM, "expiry_date": han_da_qua}
+			).insert(ignore_permissions=True)
+		frappe.cache().delete_value(f"erpnext:barcode_scan:{lo_het_han}")
+
+		kq = quet_de_lay(self.dn.name, lo_het_han)
+		self.assertEqual(kq["loai"], "lo_khac")
+		self.assertTrue(kq["het_han"])
+		self.assertFalse(kq["han_xa_hon"], "lô hết hạn có HSD gần hơn lô 2029-01-31 đang chốt")
+
+	def test_quet_lo_dang_chot_da_het_han_bao_het_han(self):
+		"""VÒNG SỬA CUỐI (Critical 3): lô ĐANG CHỐT ngay trên chính dòng phiếu
+		có thể hết hạn TRONG LÚC phiếu nằm nháp chờ lấy — `posting_date` cố
+		định từ lúc tạo phiếu nên lớp kiểm cốt lõi
+		(`StockController.validate_serialized_batch`, so `expiry_date` với
+		`posting_date`) không bắt được. `quet_de_lay` phải tự so với HÔM NAY
+		thật (`nowdate()`), không phải `posting_date` của phiếu."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		lo_het_han = "9L-LO-LAY-HET-HAN-02"
+		han_da_qua = add_days(nowdate(), -3)
+		# `set_posting_time=1` bên dưới BẮT BUỘC: không có nó, controller tự ghi
+		# đè `posting_date` thành HÔM NAY lúc `validate()` — phá đúng kịch bản
+		# "posting_date cũ hơn ngày hết hạn" mà bài này cần dựng.
+		ngay_dang_phieu = add_days(nowdate(), -14)
+		if not frappe.db.exists("Batch", lo_het_han):
+			frappe.get_doc(
+				{"doctype": "Batch", "batch_id": lo_het_han, "item": ITEM, "expiry_date": han_da_qua}
+			).insert(ignore_permissions=True)
+		frappe.cache().delete_value(f"erpnext:barcode_scan:{lo_het_han}")
+
+		dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": ngay_dang_phieu,
+				"set_posting_time": 1,
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 5,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": lo_het_han,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
+		dn.insert(ignore_permissions=True)
+
+		kq = quet_de_lay(dn.name, lo_het_han)
+		self.assertEqual(kq["loai"], "lo")
+		self.assertTrue(kq["het_han"])
+
+	def test_phieu_tra_hang_khong_hien_trong_danh_sach(self):
+		"""VÒNG SỬA CUỐI (review toàn nhánh, Minor 6a): phiếu trả (`is_return=1`)
+		có `qty` ÂM — mở ra quét chỉ nhận câu báo khó hiểu, `danh_sach_phieu_giao`
+		phải lọc bỏ ngay trong SQL."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import danh_sach_phieu_giao
+
+		tra = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"is_return": 1,
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": -1,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": LO,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
+		tra.insert(ignore_permissions=True)
+
+		ten_phieu = {d["name"] for d in danh_sach_phieu_giao(KHO)["phieu"]}
+		self.assertNotIn(tra.name, ten_phieu)
+
 
 class TestGhiChoTrang(FrappeTestCase):
 	def setUp(self):
@@ -930,6 +1102,64 @@ class TestGhiChoTrang(FrappeTestCase):
 		p = ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 3)
 		self.assertEqual(len(p["dong"][0]["da_lay_o"]), 1)
 		self.assertEqual(p["dong"][0]["da_lay"], 8.0)
+
+	def test_ghi_da_lay_lo_het_han_bi_chan(self):
+		"""VÒNG SỬA CUỐI (review toàn nhánh, Critical 3): CHẶN ngay ở tầng máy
+		chủ, không chỉ ở trang — `ghi_da_lay` là endpoint gọi thẳng được, đường
+		API không được phép là lối thoát cho một lô đã hết hạn. Dùng đúng ca
+		"lô ĐANG CHỐT trên phiếu hết hạn giữa lúc phiếu nằm nháp" (posting_date
+		cố định trước khi lô hết hạn) — cùng kịch bản của
+		`TestDocChoTrang.test_quet_lo_dang_chot_da_het_han_bao_het_han`."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay
+
+		lo_het_han = "9L-LO-LAY-HET-HAN-03"
+		han_da_qua = add_days(nowdate(), -3)
+		ngay_dang_phieu = add_days(nowdate(), -14)
+		if not frappe.db.exists("Batch", lo_het_han):
+			frappe.get_doc(
+				{"doctype": "Batch", "batch_id": lo_het_han, "item": ITEM, "expiry_date": han_da_qua}
+			).insert(ignore_permissions=True)
+
+		dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": ngay_dang_phieu,
+				"set_posting_time": 1,
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 5,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": lo_het_han,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
+		dn.insert(ignore_permissions=True)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "hết hạn"):
+			ghi_da_lay(dn.name, dn.items[0].name, lo_het_han, O_GAN, 5)
+		self.assertEqual(
+			frappe.get_all("Location Allocation", {"parent": dn.name}),
+			[],
+			"chặn rồi thì không ghi lượt nào cả",
+		)
+
+	def test_ghi_da_lay_chan_dong_dung_serial_and_batch_bundle(self):
+		"""VÒNG SỬA CUỐI (review toàn nhánh, Minor 6b): `ghi_da_lay` là hàm ghi
+		DUY NHẤT của module chưa gọi `_chan_bundle_serial_batch` — thêm cho
+		đồng bộ với `doi_lo`/`tach_dong_theo_lo`/`chot_thieu`/`hoan_tat`."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay
+
+		frappe.db.set_value(
+			"Delivery Note Item", self.dong, "serial_and_batch_bundle", "9L-BUNDLE-GIA-LAP"
+		)
+		with self.assertRaisesRegex(frappe.ValidationError, "Serial & Batch Bundle"):
+			ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 5)
 
 	def test_bo_dong_da_lay(self):
 		from erpnext.vi_tri_kho.vitri.lay_hang import bo_dong_da_lay, ghi_da_lay
@@ -1547,12 +1777,17 @@ class TestGhiChoTrang(FrappeTestCase):
 		self.assertFalse(mo_phieu_giao(self.dn.name)["dong"][0]["da_chot_thieu"])
 
 	def test_khoa_chot_thieu_doi_ten_co_hau_to_phien_ban(self):
-		"""Important (vòng sửa 2/5): khoá Redis đổi tên có hậu tố `:v2:` — dữ
-		liệu LIST cũ (nếu còn sống ở khoá KHÔNG có `:v2:`) không bao giờ bị
-		đọc nhầm định dạng, không cần chờ TTL cũ hết hay dọn tay."""
+		"""Important (vòng sửa 2/5): khoá Redis đổi tên — dữ liệu LIST cũ (nếu
+		còn sống ở khoá CŨ) không bao giờ bị đọc nhầm định dạng, không cần chờ
+		TTL cũ hết hay dọn tay.
+
+		VÒNG SỬA CUỐI (review toàn nhánh, Minor 5): bỏ `assertIn(":v2:", ...)`
+		— đó là khẳng định vào CHI TIẾT CÀI ĐẶT (hậu tố phiên bản cụ thể), không
+		phải HÀNH VI. Lần đổi tiếp sang `:v3:` (hoặc bỏ hẳn hậu tố, đổi cách
+		đặt tên khác) sẽ làm bài này đỏ dù không có hành vi nào sai. Giữ đúng
+		vế còn có ý nghĩa: khoá MỚI phải khác khoá CŨ."""
 		from erpnext.vi_tri_kho.vitri.lay_hang import _khoa_chot_thieu
 
-		self.assertIn(":v2:", _khoa_chot_thieu(self.dn.name))
 		khoa_cu = f"vi_tri_kho:lay_hang:chot_thieu:{self.dn.name}"
 		self.assertNotEqual(_khoa_chot_thieu(self.dn.name), khoa_cu)
 
@@ -1706,6 +1941,138 @@ class TestGhiChoTrang(FrappeTestCase):
 
 		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 12.0)
 		self.assertEqual(so.ton_o(O_XA, ITEM, lo2), 6.0)
+
+
+class TestDongKhongPhaiHangTonKho(FrappeTestCase):
+	"""VÒNG SỬA CUỐI (review toàn nhánh, Critical 1): dòng phí vận chuyển/dịch
+	vụ/hàng đặt ngoài/dòng cha Product Bundle — ERPNext vẫn gán `warehouse` cho
+	chúng dù không phải hàng tồn kho. TRƯỚC bản vá này, `can_quet` chỉ hỏi
+	`kho_co_quan_ly_vi_tri(d.warehouse)`: dòng loại này vẫn hiện lên đòi quét,
+	nhưng `ton_o` của chúng luôn 0 nên quét gì cũng bị chặn "ô chỉ còn 0",
+	trong khi `hoan_tat` lại đòi đúng dòng đó "đã lấy đủ" — phiếu kẹt cứng cả
+	hai chiều, lối thoát duy nhất trước đây là gỡ từng lượt quét rồi về máy
+	tính duyệt tay.
+	"""
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+		frappe.db.savepoint(DIEM_TEST)
+		_vat_tu()
+		_lo()
+		_vat_tu_dich_vu()
+		_o(O_GAN)
+		_nhap_kho(30)
+		_chuyen_vao_o([(O_GAN, 30)])
+
+		self.dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 5,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": LO,
+						"use_serial_batch_fields": 1,
+					},
+					{"item_code": ITEM_DICH_VU, "qty": 1, "rate": 200000, "warehouse": KHO},
+				],
+			}
+		)
+		self.dn.insert(ignore_permissions=True)
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback(save_point=DIEM_TEST)
+
+	def test_dong_dich_vu_khong_can_quet_va_khong_khoa_hoan_tat(self):
+		"""Bài chịu lực: quét và hoàn tất dòng hàng THẬT, `hoan_tat` phải duyệt
+		được, `so_dong` không đếm dòng dịch vụ, và `mo_phieu_giao` phải trả
+		`can_quet=False` kèm lý do cho dòng dịch vụ."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay, hoan_tat, mo_phieu_giao
+
+		p = mo_phieu_giao(self.dn.name)
+		dong_dv = next(d for d in p["dong"] if d["vat_tu"] == ITEM_DICH_VU)
+		self.assertFalse(dong_dv["can_quet"])
+		self.assertIn("không quản lý tồn kho", dong_dv["ly_do_khong_quet"])
+
+		dong_hang_that = next(d for d in p["dong"] if d["vat_tu"] == ITEM)["dong_hang"]
+		ghi_da_lay(self.dn.name, dong_hang_that, LO, O_GAN, 5)
+		kq = hoan_tat(self.dn.name)
+
+		self.assertEqual(frappe.db.get_value("Delivery Note", self.dn.name, "docstatus"), 1)
+		self.assertEqual(kq["so_dong"], 1, "so_dong không được đếm dòng dịch vụ")
+
+
+class TestDongDaDonVi(FrappeTestCase):
+	"""VÒNG SỬA CUỐI (review toàn nhánh, Important 2): dòng bán theo đơn vị
+	KHÁC đơn vị tồn kho (`conversion_factor != 1`) không bao giờ quét lấy
+	được — bảng phân bổ đo bằng đơn vị TỒN KHO trong khi lớp kiểm sớm và
+	`mo_phieu_giao` nói chuyện bằng đơn vị GIAO DỊCH. Quyết định: CHẶN có chữ,
+	không quy đổi toàn hệ (việc đó rộng, cần bộ test đa đơn vị riêng)."""
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+		frappe.db.savepoint(DIEM_TEST)
+		_vat_tu_da_don_vi()
+		_o(O_GAN)
+		# Tồn CORE (Bin) đủ để `hoan_tat` submit được — dòng đa đơn vị bị
+		# `_can_quet_dong` chặn khỏi sổ vị trí, nhưng ERPNext lõi vẫn đòi đủ
+		# tồn kho THẬT của kho để duyệt phiếu giao, bất kể ô nào.
+		se = frappe.get_doc(
+			{
+				"doctype": "Stock Entry",
+				"stock_entry_type": "Material Receipt",
+				"company": CTY,
+				"items": [{"item_code": ITEM_DA_DON_VI, "qty": 30, "t_warehouse": KHO, "basic_rate": 5000}],
+			}
+		)
+		se.insert(ignore_permissions=True)
+		se.submit()
+
+		self.dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM_DA_DON_VI,
+						"qty": 2,
+						"uom": UOM_HOP,
+						"conversion_factor": 10,
+						"rate": 50000,
+						"warehouse": KHO,
+					}
+				],
+			}
+		)
+		self.dn.insert(ignore_permissions=True)
+		self.dong = self.dn.items[0].name
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback(save_point=DIEM_TEST)
+
+	def test_dong_da_don_vi_khong_can_quet_va_bi_hoan_tat_bo_qua(self):
+		"""Bài test bắt buộc: `can_quet=False`, có `ly_do_khong_quet`, và
+		`hoan_tat` bỏ qua đúng dòng đó (không đòi quét, vẫn duyệt được)."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import hoan_tat, mo_phieu_giao
+
+		p = mo_phieu_giao(self.dn.name)
+		dong = p["dong"][0]
+		self.assertFalse(dong["can_quet"])
+		self.assertIsNotNone(dong["ly_do_khong_quet"])
+		self.assertIn(UOM_HOP, dong["ly_do_khong_quet"])
+
+		kq = hoan_tat(self.dn.name)
+		self.assertEqual(frappe.db.get_value("Delivery Note", self.dn.name, "docstatus"), 1)
+		self.assertEqual(kq["so_dong"], 0, "hoan_tat phải bỏ qua đúng dòng đa đơn vị")
 
 
 class TestQuetMaHangKhongLo(FrappeTestCase):

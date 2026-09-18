@@ -137,6 +137,10 @@
 			}
 			frappe.xcall(API + "quet_de_lay", { phieu: this.phieu.name, ma: ma }).then((d) => {
 				d = d || { loai: null };
+				// VÒNG SỬA CUỐI (review toàn nhánh, Critical): lô hết hạn — CHẶN hẳn,
+				// không chuyển `this.cho` sang dòng đó. Không phải "quét lại để xác
+				// nhận" như `lo_khac` thường lệ — quét lại tem đó vẫn phải bị chặn.
+				if ((d.loai === "lo" || d.loai === "lo_khac") && d.het_han) return this.bao_lo_het_han(d);
 				if (d.loai === "lo") return this.nhan_lo(d);
 				if (d.loai === "lo_khac") return this.hoi_doi_lo(d);
 				if (d.loai === "o") return this.nhan_o(d);
@@ -155,6 +159,24 @@
 				rung([80, 60, 80]);
 				this.bao(__("Không nhận ra mã <b>{0}</b>, hoặc lô này không nằm trong phiếu.", [e(ma)]), "xam");
 			});
+		}
+
+		// VÒNG SỬA CUỐI (review toàn nhánh, Critical): lô hết hạn — thao tác nguy
+		// hiểm nhất (giao lô hết hạn) trước bản vá lại DỄ nhất (`han_xa_hon` chỉ
+		// cảnh báo nhẹ khi lô mới gần hạn hơn). CHẶN hẳn ở đây, không phải một
+		// bước "quét lại để xác nhận": không đổi `this.cho`, không gọi `ve()` để
+		// mở lối sang dòng đó.
+		bao_lo_het_han(d) {
+			rung([120, 80, 120]);
+			const hsd = d.hsd ? frappe.datetime.str_to_user(d.hsd) : "—";
+			this.bao(
+				__(
+					"CHẶN: lô <b>{0}</b> đã hết hạn ngày {1} — không lấy được trên PDA. Muốn xuất lô " +
+						"hết hạn thì thao tác trên form Phiếu giao hàng (máy tính).",
+					[e(d.so_lo), e(hsd)]
+				),
+				"do"
+			);
 		}
 
 		nhan_lo(d) {
@@ -523,7 +545,14 @@
 							<div class="lh-dong-sl">${so(d.da_lay)}/${so(d.can_lay)}<small>${e(d.don_vi || "")}</small></div>
 						</div>
 						<div class="lh-mo">${e(d.vat_tu)}${d.so_lo ? " · lô " + e(d.so_lo) : ""}</div>
-						<div class="lh-mo">${__("Kho không quản lý vị trí — lấy tay, không cần quét.")}</div>
+						<div class="lh-mo">${e(
+							// VÒNG SỬA CUỐI (review toàn nhánh): `ly_do_khong_quet` phân biệt
+							// BA lý do (kho không quản lý vị trí, mặt hàng không tồn kho, dòng
+							// đa đơn vị) — trước bản vá chỉ có đúng một câu chung chung, sai
+							// be bét cho hai lý do còn lại. Vẫn giữ câu cũ làm dự phòng cho
+							// bản ghi cũ (máy chủ chưa nâng cấp) không mang khoá này.
+							d.ly_do_khong_quet || __("Kho không quản lý vị trí — lấy tay, không cần quét.")
+						)}</div>
 					</div>`;
 			}
 

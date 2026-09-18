@@ -12,7 +12,7 @@ chỗ cho từ giai đoạn 1 — file này dựng tiếp đúng thiết kế đ
 
 import frappe
 from frappe import _
-from frappe.utils import flt, now, now_datetime, time_diff_in_seconds
+from frappe.utils import flt, formatdate, getdate, now, now_datetime, nowdate, time_diff_in_seconds
 
 from erpnext.vi_tri_kho.vitri.fefo import chon_o_xuat
 from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri
@@ -339,6 +339,50 @@ def _da_lay_theo_dong(doc) -> dict:
 	return tong
 
 
+def _ly_do_khong_quet_dong(d) -> str | None:
+	"""Vì sao dòng `d` (một `Delivery Note Item`) KHÔNG quét được trên trang Lấy
+	hàng — `None` nếu quét được. NGUỒN SỰ THẬT DUY NHẤT cho câu hỏi này, dùng
+	chung bởi `_can_quet_dong` (bool), `mo_phieu_giao` (câu chữ hiện ở dòng mờ)
+	và gián tiếp bởi `hoan_tat` (dòng nào phải xét).
+
+	VÒNG SỬA CUỐI (review toàn nhánh, Critical): TRƯỚC bản vá này, `can_quet`
+	chỉ hỏi `kho_co_quan_ly_vi_tri(d.warehouse)` — dòng phí vận chuyển/dịch vụ/
+	hàng đặt ngoài/dòng cha Product Bundle (ERPNext vẫn gán `warehouse` cho
+	chúng dù không phải hàng tồn kho) vẫn hiện lên đòi quét, nhưng `ton_o` của
+	chúng luôn 0 nên quét gì cũng bị chặn "ô chỉ còn 0" — phiếu kẹt cứng cả hai
+	chiều (quét lẫn duyệt tay). Thêm điều kiện `is_stock_item`.
+
+	VÒNG SỬA CUỐI (Important): dòng bán theo đơn vị KHÁC đơn vị tồn kho
+	(`conversion_factor != 1`, vd bán theo Hộp trong khi tồn tính theo Cái) bị
+	CHẶN có chữ thay vì cho quét rồi vỡ ở hook ghi sổ — bảng phân bổ
+	(`custom_phan_bo_vi_tri`) đo bằng ĐƠN VỊ TỒN KHO (hook so tổng phân bổ với
+	`stock_qty`), trong khi `mo_phieu_giao`/trang PDA nói chuyện bằng đơn vị
+	GIAO DỊCH (`d.qty`, `d.stock_uom` bị gán nhầm nhãn cho `d.uom`) — hai bên
+	lệch hệ đơn vị thì "phân bổ 2 nhưng xuất 20" (Hộp vs Cái) là câu báo thủ
+	kho không thể tự sửa. Quy đổi đúng spec §3.1 là việc RỘNG (cần bộ test đa
+	đơn vị riêng, ngoài phạm vi vòng sửa cuối này) — chặn có chữ trước, quy đổi
+	sau.
+	"""
+	if not kho_co_quan_ly_vi_tri(d.warehouse):
+		return _("Kho không quản lý vị trí — lấy tay, không cần quét.")
+	if not frappe.get_cached_value("Item", d.item_code, "is_stock_item"):
+		return _("Mặt hàng không quản lý tồn kho — lấy tay, không cần quét.")
+	if flt(d.conversion_factor) not in (0, 1):
+		return _("Dòng bán theo {0}, lấy tay trên form.").format(d.uom or d.stock_uom or "—")
+	return None
+
+
+def _can_quet_dong(d) -> bool:
+	"""Dòng `d` có quét được trên trang Lấy hàng không — xem `_ly_do_khong_quet_dong`
+	cho từng lý do. Dùng CHUNG cho `mo_phieu_giao` (khoá `can_quet`) LẪN
+	`hoan_tat` (dòng nào phải xét "đã lấy đủ") — lệch nhau giữa hai nơi này
+	(trước bản vá: `mo_phieu_giao` hỏi kho, `hoan_tat` cũng chỉ hỏi kho, nhưng
+	không hàm nào hỏi mặt hàng có phải hàng tồn kho không) là đúng bug khiến
+	phiếu có dòng dịch vụ/Product Bundle kẹt cứng cả hai chiều.
+	"""
+	return _ly_do_khong_quet_dong(d) is None
+
+
 def _kho_quan_ly_vi_tri() -> list[str]:
 	"""Các kho đang bật quản lý vị trí.
 
@@ -375,6 +419,12 @@ def danh_sach_phieu_giao(kho: str | None = None) -> dict:
 	còn được kiểm `has_permission("read")` trước khi đưa vào danh sách — bản
 	thân danh sách (tên phiếu, khách hàng, số lượng) đã là rò rỉ nếu hiện ra
 	một phiếu mà `mo_phieu_giao`/`quet_de_lay` sau đó sẽ từ chối mở.
+
+	LỌC PHIẾU TRẢ HÀNG (VÒNG SỬA CUỐI, review toàn nhánh): loại bỏ
+	`dn.is_return = 1` ngay trong câu SQL. Phiếu trả có `qty` ÂM — mở nó ra
+	trên trang Lấy hàng (nghĩ cho hàng XUẤT) chỉ tổ nhận những câu báo khó
+	hiểu (số lượng cần lấy âm, "ô chỉ còn X" so với một số âm) mà trang này
+	chưa nghĩ cho luồng nhận hàng trả về.
 	"""
 	_kiem_tra_quyen()
 	kho_ds = _kho_quan_ly_vi_tri()
@@ -401,7 +451,7 @@ def danh_sach_phieu_giao(kho: str | None = None) -> dict:
 				select distinct dn.name, dn.modified
 				from `tabDelivery Note` dn
 				join `tabDelivery Note Item` dni on dni.parent = dn.name
-				where dn.docstatus = 0 and dni.warehouse = %(kho)s
+				where dn.docstatus = 0 and dn.is_return = 0 and dni.warehouse = %(kho)s
 				order by dn.modified desc
 				limit 50
 				""",
@@ -453,8 +503,16 @@ def mo_phieu_giao(phieu: str) -> dict:
 	`kho_co_quan_ly_vi_tri`), nên trang phải biết để hiện mờ/không đòi quét,
 	KHÔNG lọc bỏ hẳn dòng khỏi danh sách: thủ kho vẫn phải lấy tay những dòng
 	đó (giao thường, không qua sổ vị trí) — giấu dòng đi là giấu việc còn
-	phải làm. Cũng bỏ qua gọi `chon_o_xuat` cho các dòng này: kho không quản
-	lý vị trí không có `Storage Location` nào để gợi ý, gọi vẫn nuốt được lỗi
+	phải làm.
+
+	VÒNG SỬA CUỐI (review toàn nhánh): `can_quet`/`ly_do_khong_quet` giờ đi
+	qua `_can_quet_dong`/`_ly_do_khong_quet_dong` — dùng CHUNG với `hoan_tat`,
+	không hỏi lại `kho_co_quan_ly_vi_tri` một mình nữa (xem docstring hai hàm
+	đó cho ba lý do phân biệt: kho không quản lý vị trí, mặt hàng không tồn
+	kho, dòng đa đơn vị). `ly_do_khong_quet` cho trang hiện đúng câu thay vì
+	một câu chung chung duy nhất. Cũng bỏ gọi `chon_o_xuat` cho MỌI dòng không
+	quét được (không chỉ dòng kho không quản lý vị trí như trước): dòng dịch
+	vụ/đa đơn vị cũng không có gợi ý ô nào có nghĩa, gọi vẫn nuốt được lỗi
 	nhưng chỉ tổ ghi rác vào Error Log ở MỌI lần mở phiếu.
 
 	`da_chot_thieu`/`chot_thieu_boi`/`chot_thieu_luc` (VÒNG SỬA 1/5, Critical,
@@ -481,7 +539,8 @@ def mo_phieu_giao(phieu: str) -> dict:
 	da_chot = _doc_chot_thieu(phieu)
 	dong = []
 	for d in doc.items:
-		can_quet = kho_co_quan_ly_vi_tri(d.warehouse)
+		ly_do_khong_quet = _ly_do_khong_quet_dong(d)
+		can_quet = ly_do_khong_quet is None
 		con_can = flt(d.qty) - da.get(d.name, 0.0)
 		goi_y = []
 		if can_quet and con_can > 0:
@@ -502,6 +561,7 @@ def mo_phieu_giao(phieu: str) -> dict:
 				"can_lay": flt(d.qty),
 				"da_lay": da.get(d.name, 0.0),
 				"can_quet": can_quet,
+				"ly_do_khong_quet": ly_do_khong_quet,
 				"da_chot_thieu": bool(co_chot),
 				"chot_thieu_boi": co_chot.get("boi") if co_chot else None,
 				"chot_thieu_luc": co_chot.get("luc") if co_chot else None,
@@ -526,6 +586,25 @@ def mo_phieu_giao(phieu: str) -> dict:
 		"khach_hang": doc.customer_name or doc.customer,
 		"dong": dong,
 	}
+
+
+def _da_het_han(hsd) -> bool:
+	"""Lô có hạn dùng `hsd` đã hết hạn tính tới HÔM NAY THẬT hay chưa —
+	NGUỒN SỰ THẬT DUY NHẤT cho câu hỏi này, dùng chung bởi `quet_de_lay` (cả
+	nhánh `lo` lẫn `lo_khac`) và `_chan_lo_het_han` (`ghi_da_lay`).
+
+	BẪY ĐÃ ĐO (vòng sửa cuối, khi viết bài test): `frappe.db.get_value(...,
+	"expiry_date")` trả về `datetime.date`, còn `nowdate()` trả về CHUỖI
+	(`"YYYY-MM-DD"`) — so trực tiếp `date < str` ném `TypeError`, và vì
+	`quet_de_lay` bọc toàn bộ nhánh nhận diện trong một `except Exception`
+	("quét nhầm không bao giờ nổ"), lỗi kiểu này bị NUỐT ÂM THẦM thành
+	`{"loai": None}` — biến một bug thật thành "không nhận ra mã", im lặng
+	đúng kiểu module này phải tránh. `getdate()` chuẩn hoá cả hai vế về cùng
+	kiểu `date` trước khi so.
+	"""
+	if not hsd:
+		return False
+	return getdate(hsd) < getdate(nowdate())
 
 
 def _han_xa_hon(hsd_moi, hsd_cu) -> bool:
@@ -584,6 +663,14 @@ def quet_de_lay(phieu: str, ma: str, dong_hang: str | None = None) -> dict:
 	(mã của một mặt hàng CÓ quản lý lô — không biết lô nào, không đoán) · `"o"` ·
 	`None`. Quét nhầm không bao giờ nổ — cùng lời hứa `quet.py`.
 
+	`het_han` (VÒNG SỬA CUỐI, review toàn nhánh, Critical) — cả nhánh `"lo"` lẫn
+	`"lo_khac"` đều mang khoá này: `True` khi lô VỪA QUÉT đã hết hạn so với HÔM
+	NAY THẬT (`nowdate()`), không phải so với `posting_date` của phiếu (lớp
+	kiểm cốt lõi `StockController.validate_serialized_batch` chỉ so với
+	`posting_date`, không bắt được lô hết hạn TRONG LÚC phiếu nằm nháp chờ
+	lấy). Trang PHẢI chặn hẳn, không cho chuyển sang dòng đó khi thấy cờ này —
+	đây là công ty vật tư y tế, giao một lô hết hạn là sự cố có hồ sơ.
+
 	`dong_hang` (Important 3): phiếu có nhiều dòng cùng mặt hàng thì không thể
 	tự đoán ĐÚNG dòng chỉ từ mã quét — xem `_chon_dong_ung_vien`. `nhieu_dong`
 	trong kết quả báo cho màn hình biết có từ hai dòng ứng viên trở lên, để
@@ -636,12 +723,21 @@ def quet_de_lay(phieu: str, ma: str, dong_hang: str | None = None) -> dict:
 				d = _chon_dong_ung_vien(ung_vien_lo, da, dong_hang)
 				if not d:
 					return {"loai": None}
+				# VÒNG SỬA CUỐI (review toàn nhánh, Critical): lô ĐANG CHỐT trên
+				# dòng có thể đã hết hạn TỪ LÚC nào đó trong khi phiếu vẫn nháp —
+				# `posting_date` của phiếu không đổi nên lớp kiểm cốt lõi
+				# (`StockController.validate_serialized_batch`, so `expiry_date` với
+				# `posting_date`) không bắt được. Kiểm với HÔM NAY thật
+				# (`nowdate()`), không phải `posting_date`.
+				hsd = frappe.db.get_value("Batch", so_lo, "expiry_date")
 				return {
 					"loai": "lo",
 					"so_lo": so_lo,
 					"dong_hang": d.name,
 					"vat_tu": d.item_code,
 					"nhieu_dong": len(ung_vien_lo) > 1,
+					"hsd": hsd,
+					"het_han": _da_het_han(hsd),
 				}
 			vat_tu = frappe.db.get_value("Batch", so_lo, "item")
 			cung_hang = [d for d in doc.items if d.item_code == vat_tu]
@@ -661,6 +757,12 @@ def quet_de_lay(phieu: str, ma: str, dong_hang: str | None = None) -> dict:
 					"so_lo_dang_chot": d.batch_no,
 					"han_xa_hon": _han_xa_hon(hsd_moi, hsd_cu),
 					"nhieu_dong": len(cung_hang) > 1,
+					# VÒNG SỬA CUỐI (review toàn nhánh, Critical): lô hết hạn có HSD
+					# GẦN HƠN lô đang chốt thì `han_xa_hon = False` — trang trước bản
+					# vá nhận ngay, chỉ cảnh báo nhẹ. Thao tác nguy hiểm nhất (giao lô
+					# hết hạn) lại dễ nhất. Kiểm ĐỘC LẬP với `han_xa_hon`, so lô MỚI
+					# quét với HÔM NAY thật, không phải với lô đang chốt.
+					"het_han": _da_het_han(hsd_moi),
 				}
 			return {"loai": None}
 
@@ -685,6 +787,9 @@ def quet_de_lay(phieu: str, ma: str, dong_hang: str | None = None) -> dict:
 					"dong_hang": d.name,
 					"vat_tu": vat_tu,
 					"nhieu_dong": len(ung_vien_hang) > 1,
+					# Mặt hàng không quản lý lô — không có hạn dùng để hết.
+					"hsd": None,
+					"het_han": False,
 				}
 			# Mặt hàng có thật nhưng không có dòng nào trên phiếu này — không nhận
 			# bừa (cùng nguyên tắc "quét nhầm không bao giờ nổ, nhưng cũng không
@@ -786,6 +891,32 @@ def _luu_hoac_bao_xung_dot(doc):
 		)
 
 
+def _chan_lo_het_han(so_lo: str | None) -> None:
+	"""CHẶN ghi nhận một lượt lấy cho lô ĐÃ HẾT HẠN — quyết định vòng review
+	toàn nhánh: chặn ngay ở TẦNG MÁY CHỦ, không chỉ ở trang. `quet_de_lay`
+	(đọc) đã trả `het_han` để trang chặn hẳn không cho chuyển sang dòng đó,
+	nhưng `ghi_da_lay` là endpoint whitelisted gọi thẳng được — một trang JS
+	cũ (chưa vá) hoặc một script gọi API trực tiếp vẫn có thể lách qua lớp
+	chặn ở trang nếu tầng máy chủ không tự mình kiểm lại. Đây là công ty vật
+	tư y tế: giao một lô hết hạn là sự cố có hồ sơ, không phải lỗi vặt UI —
+	đường API không được phép là lối thoát.
+
+	So với HÔM NAY THẬT (`nowdate()`), không phải `posting_date` của phiếu —
+	cùng lý do đã nêu ở `quet_de_lay`: lô có thể hết hạn TRONG LÚC phiếu nằm
+	nháp chờ lấy, sau khi `posting_date` đã cố định.
+	"""
+	if not so_lo:
+		return
+	hsd = frappe.get_cached_value("Batch", so_lo, "expiry_date")
+	if _da_het_han(hsd):
+		frappe.throw(
+			_(
+				"Lô {0} đã hết hạn ngày {1} — không ghi nhận lấy hàng qua trang này. Muốn xuất "
+				"lô hết hạn thì thao tác trực tiếp trên form Phiếu giao hàng (máy tính)."
+			).format(so_lo, formatdate(hsd))
+		)
+
+
 @frappe.whitelist()
 def ghi_da_lay(phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong) -> dict:
 	"""Ghi một lần quét (lô, ô, số lượng) vào bảng phân bổ và LƯU NGAY.
@@ -794,14 +925,20 @@ def ghi_da_lay(phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong) 
 	lượt quét mà thủ kho đã đi lấy thật ngoài kệ — cùng lẽ với trang xếp hàng.
 
 	Cùng (dòng hàng, lô, ô) thì CỘNG DỒN vào dòng phân bổ sẵn có, không đẻ dòng mới.
+
+	VÒNG SỬA CUỐI (review toàn nhánh, Important): gọi `_chan_bundle_serial_batch`
+	— hàm ghi DUY NHẤT của module này trước đó CHƯA gọi nó (`doi_lo`,
+	`tach_dong_theo_lo`, `chot_thieu` đều gọi), lệch một nguồn sự thật.
 	"""
 	so_lo = so_lo or None
 	so_luong = flt(so_luong)
 	if so_luong <= 0:
 		frappe.throw(_("Số lượng lấy phải lớn hơn 0."))
+	_chan_lo_het_han(so_lo)
 
 	doc = _mo_de_ghi(phieu)
 	d = _dong_cua(doc, dong_hang)
+	_chan_bundle_serial_batch(d)
 	if (d.batch_no or None) != so_lo:
 		frappe.throw(
 			_("Dòng hàng đang chốt lô {0}, không phải {1}. Đổi lô trước khi ghi.").format(
@@ -1109,9 +1246,18 @@ def hoan_tat(phieu: str) -> dict:
 	CHẶN nếu chứng từ có bảng phân bổ mà dòng đang ghi không khớp) — nếu
 	`hoan_tat` chỉ xét một phần dòng, phiếu được duyệt (docstatus ghi xuống
 	CSDL) rồi CHẾT ngay trong `on_submit` với một câu báo khó hiểu, và phải
-	cậy tới savepoint bên dưới để dọn. Dòng thuộc kho KHÔNG bật quản lý vị trí
-	thì BỎ QUA — hook ghi sổ không đụng tới chúng (`kho_co_quan_ly_vi_tri`),
-	không có ý nghĩa gì để đòi chúng "đã lấy đủ".
+	cậy tới savepoint bên dưới để dọn. Dòng KHÔNG quét được (`_can_quet_dong`
+	— kho không quản lý vị trí, mặt hàng không phải hàng tồn kho, hoặc dòng
+	đa đơn vị) thì BỎ QUA — hook ghi sổ không đụng tới chúng, không có ý
+	nghĩa gì để đòi chúng "đã lấy đủ".
+
+	VÒNG SỬA CUỐI (review toàn nhánh, Critical): điều kiện bỏ qua TRƯỚC ĐÂY
+	chỉ hỏi `kho_co_quan_ly_vi_tri(d.warehouse)` một mình, lệch với chính
+	`mo_phieu_giao` — dòng phí vận chuyển/dịch vụ/Product Bundle (kho CÓ quản
+	lý vị trí nhưng KHÔNG phải hàng tồn kho, ERPNext vẫn gán `warehouse` cho
+	chúng) trước đây vẫn bị hàm này đòi "đã lấy đủ" trong khi `ton_o` của
+	chúng luôn 0, khoá cứng phiếu ở cả hai chiều (quét lẫn duyệt). Đổi sang
+	`_can_quet_dong` — nguồn sự thật DUY NHẤT, dùng chung với `mo_phieu_giao`.
 
 	Savepoint riêng bọc quanh CẢ việc lưu số lượng/ghi chú lẫn `submit()`, đặt
 	TRƯỚC lần `save()` đầu tiên: `Document.submit()` ghi `docstatus = 1` xuống
@@ -1139,7 +1285,7 @@ def hoan_tat(phieu: str) -> dict:
 	so_dong_quan_ly = 0
 
 	for d in doc.items:
-		if not kho_co_quan_ly_vi_tri(d.warehouse):
+		if not _can_quet_dong(d):
 			continue
 		so_dong_quan_ly += 1
 		lay = flt(da.get(d.name, 0.0))
