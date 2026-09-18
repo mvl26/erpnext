@@ -489,6 +489,7 @@ doc_events = {
 	# hủy phiếu giao khi còn bất kỳ chứng từ nào trỏ tới — kể cả bản nháp. Hook này
 	# chỉ chặn khi hóa đơn đã thật sự tiêu số, và nói rõ vì sao.
 	"Delivery Note": {
+		"validate": "erpnext.vi_tri_kho.vitri.lay_hang.kiem_phan_bo_khi_luu",
 		"before_cancel": "erpnext.einvoice.builder.before_delivery_note_cancel",
 		"on_cancel": "erpnext.einvoice.builder.on_delivery_note_cancel",
 	},
