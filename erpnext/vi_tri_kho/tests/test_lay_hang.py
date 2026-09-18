@@ -175,7 +175,8 @@ class TestGhiSoTheoPhanBo(FrappeTestCase):
 
 	def test_tong_phan_bo_lech_thi_chan_va_khong_ghi_dong_so_nao(self):
 		dn = _phieu_giao(10, phan_bo=[(O_XA, 4)])
-		with self.assertRaisesRegex(frappe.ValidationError, "phân bổ"):
+		# Minor 5 (vòng sửa 1): câu throw phải nêu rõ TÊN Ô, không chỉ số lượng.
+		with self.assertRaisesRegex(frappe.ValidationError, f"phân bổ.*{O_XA}"):
 			dn.submit()
 
 		self.assertEqual(
@@ -183,6 +184,83 @@ class TestGhiSoTheoPhanBo(FrappeTestCase):
 			[],
 			"chặn rồi thì không dòng sổ nào được sống sót",
 		)
+
+	def test_phan_bo_khong_khop_dong_hang_thi_chan(self):
+		"""Critical 2 (vòng sửa 1): chứng từ CÓ bảng phân bổ nhưng không dòng nào
+		khớp ĐÚNG dòng hàng đang ghi (amend đổi tên dòng, dòng Packed Item, ...)
+		— phải CHẶN, không được âm thầm rơi về FEFO."""
+		dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 10,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": LO,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
+		dn.insert(ignore_permissions=True)
+		dn.append(
+			"custom_phan_bo_vi_tri",
+			{"dong_hang": "khong-ton-tai", "vat_tu": ITEM, "so_lo": LO, "o": O_XA, "so_luong": 10},
+		)
+		dn.save(ignore_permissions=True)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "không dòng nào khớp"):
+			dn.submit()
+
+		self.assertEqual(
+			frappe.get_all("Location Ledger Entry", {"chung_tu": dn.name}),
+			[],
+			"chặn rồi thì không dòng sổ nào được sống sót",
+		)
+		# FEFO KHÔNG được âm thầm chạy thay: cả hai ô đứng yên.
+		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 20.0)
+		self.assertEqual(so.ton_o(O_XA, ITEM, LO), 10.0)
+
+	def test_phan_bo_vuot_ton_o_thi_chan_va_khong_ghi_dong_so_nao(self):
+		"""Important 3 (vòng sửa 1): phân bổ nhiều hơn tồn THẬT của ô (ai đó lấy
+		mất hàng giữa lúc quét và lúc duyệt) — phải CHẶN sau khi ghi, và
+		KHÔNG dòng sổ nào của phiếu bị chặn được sống sót (savepoint)."""
+		# Rút hợp lệ 5 khỏi O_XA trước, còn lại đúng 5.
+		dn1 = _phieu_giao(5, phan_bo=[(O_XA, 5)])
+		dn1.submit()
+		self.assertEqual(so.ton_o(O_XA, ITEM, LO), 5.0)
+
+		# Phân bổ tiếp 10 vào O_XA dù chỉ còn 5 — phải chặn.
+		dn2 = _phieu_giao(10, phan_bo=[(O_XA, 10)])
+		with self.assertRaisesRegex(frappe.ValidationError, "không đủ hàng"):
+			dn2.submit()
+
+		self.assertEqual(
+			frappe.get_all("Location Ledger Entry", {"chung_tu": dn2.name}),
+			[],
+			"chặn rồi thì không dòng sổ nào của dn2 được sống sót",
+		)
+		self.assertEqual(so.ton_o(O_XA, ITEM, LO), 5.0, "tồn O_XA không đổi sau khi dn2 bị chặn")
+
+	def test_phan_bo_co_dong_khong_duong_thi_chan(self):
+		"""Important 4 (vòng sửa 1): tổng ĐÚNG nhưng có dòng phân bổ <= 0 vẫn
+		phải chặn — cặp (+15, -5) cho dòng cần 10 lọt qua phép so tổng."""
+		dn = _phieu_giao(10, phan_bo=[(O_GAN, 15), (O_XA, -5)])
+		with self.assertRaisesRegex(frappe.ValidationError, "không hợp lệ"):
+			dn.submit()
+
+		self.assertEqual(
+			frappe.get_all("Location Ledger Entry", {"chung_tu": dn.name}),
+			[],
+			"chặn rồi thì không dòng sổ nào được sống sót",
+		)
+		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 20.0)
+		self.assertEqual(so.ton_o(O_XA, ITEM, LO), 10.0)
 
 	def test_phan_bo_nhieu_o_cho_mot_dong(self):
 		dn = _phieu_giao(25, phan_bo=[(O_XA, 10), (O_GAN, 15)])

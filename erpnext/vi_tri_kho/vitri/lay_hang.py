@@ -53,3 +53,25 @@ def phan_bo_cua_dong(chung_tu_type: str, chung_tu: str, dong_hang: str, so_lo: s
 
 def tong_phan_bo(dong: list[dict]) -> float:
 	return flt(sum(flt(d["so_luong"]) for d in dong))
+
+
+def chung_tu_co_phan_bo(chung_tu_type: str, chung_tu: str) -> bool:
+	"""Chứng từ này có ÍT NHẤT MỘT dòng phân bổ hay không — KHÔNG lọc theo
+	(dòng hàng, lô), khác với `phan_bo_cua_dong`.
+
+	VÒNG SỬA 1 (Critical 2, review điều phối): dùng để phân biệt hai ca mà
+	`phan_bo_cua_dong` trả `[]` như nhau nhưng Ý NGHĨA khác hẳn — "chứng từ
+	chưa từng qua trang Lấy hàng" (đi FEFO như cũ) khỏi "chứng từ CÓ bảng
+	phân bổ nhưng không dòng nào khớp đúng (dòng hàng, lô) đang ghi" (phiếu
+	amend đổi tên dòng hàng, đường mất chiều lô của `tach_theo_lo`, hoặc dòng
+	Packed Item của Product Bundle) — ca sau phải CHẶN theo spec §5, không
+	được âm thầm rơi về FEFO. Xem `hook_sle._phan_bo_da_khai`.
+	"""
+	if chung_tu_type not in CHUNG_TU_CO_PHAN_BO:
+		return False
+	return bool(
+		frappe.db.exists(
+			"Location Allocation",
+			{"parenttype": chung_tu_type, "parent": chung_tu, "parentfield": TEN_BANG_PHAN_BO},
+		)
+	)

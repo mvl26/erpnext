@@ -112,10 +112,10 @@ from frappe.utils import flt
 from erpnext.vi_tri_kho.vitri.delta import tinh_delta
 from erpnext.vi_tri_kho.vitri.fefo import chon_o_xuat
 from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri, o_chua_xep
-from erpnext.vi_tri_kho.vitri.lay_hang import phan_bo_cua_dong, tong_phan_bo
+from erpnext.vi_tri_kho.vitri.lay_hang import chung_tu_co_phan_bo, phan_bo_cua_dong, tong_phan_bo
 from erpnext.vi_tri_kho.vitri.lo import tach_theo_lo
 from erpnext.vi_tri_kho.vitri.nhat_ky_loi import cat_tieu_de
-from erpnext.vi_tri_kho.vitri.so import ghi_dong_so
+from erpnext.vi_tri_kho.vitri.so import ghi_dong_so, ton_o
 
 # Độ chính xác/ngưỡng dùng khi scale phần trả về ô cũ — cùng quy ước với
 # vitri/lo.py::_DO_CHINH_XAC_SO_LUONG (6 chữ số thập phân).
@@ -173,17 +173,47 @@ def _ghi_mot_phan(sle, so_lo, so_luong):
 
 	Xuất (số âm): ưu tiên BẢNG PHÂN BỔ (thủ kho đã quét ngoài kệ, 18/09/2026);
 	không có phân bổ thì chọn ô theo FEFO như cũ.
+
+	Important 3 (vòng sửa 1, review điều phối): nhánh phân bổ bỏ qua
+	`chon_o_xuat` nên không ai tự chặn tồn âm (ai đó đã lấy mất hàng ở ô đó
+	giữa lúc quét và lúc duyệt) — ghi xong rồi mới `_chan_ton_am_phan_bo` đọc
+	lại kết quả ròng, đúng khuôn `LocationTransfer._chan_ton_am`. SAVEPOINT
+	quanh cặp ghi+kiểm CHỈ cho nhánh này: `throw` chỉ ném ngoại lệ, rollback
+	giao dịch thật là bộ xử lý request của Frappe — gọi từ script/test không
+	có lớp đó dọn hộ, nên tự rollback về savepoint trước khi raise lại để giữ
+	đúng lời hứa "chặn thì không dòng sổ nào sống sót" (spec §5) ngay cả
+	ngoài request thật (cùng lý do đã ghi ở `LocationTransfer._ghi`). Đường
+	FEFO/nhập không đụng tới — FEFO tự chặn qua `chon_o_xuat` từ đầu.
 	"""
 	if so_luong > 0:
 		phan_bo = _tra_lai_o_da_dao(sle, so_lo, so_luong)
+		tu_phan_bo = False
 	else:
 		phan_bo = _phan_bo_da_khai(sle, so_lo, -so_luong)
+		tu_phan_bo = phan_bo is not None
 		if phan_bo is None:
 			phan_bo = [
 				{"o": p["o"], "so_luong": -p["so_luong"]}
 				for p in chon_o_xuat(sle.warehouse, sle.item_code, so_lo, -so_luong)
 			]
 
+	if not tu_phan_bo:
+		_ghi_cac_dong_so(sle, so_lo, phan_bo)
+		return
+
+	diem = "vi_tri_kho_lay_hang_pda"
+	frappe.db.savepoint(diem)
+	try:
+		_ghi_cac_dong_so(sle, so_lo, phan_bo)
+		_chan_ton_am_phan_bo(sle, so_lo, phan_bo)
+	except Exception:
+		frappe.db.rollback(save_point=diem)
+		raise
+
+
+def _ghi_cac_dong_so(sle, so_lo, phan_bo):
+	"""Ghi từng dòng của `phan_bo` (danh sách `{"o":..., "so_luong":...}`) — dùng chung cho
+	cả ba đường (trả về ô đã đảo, phân bổ, FEFO)."""
 	for p in phan_bo:
 		ghi_dong_so(
 			o=p["o"],
@@ -201,38 +231,130 @@ def _ghi_mot_phan(sle, so_lo, so_luong):
 		)
 
 
+def _chan_ton_am_phan_bo(sle, so_lo, phan_bo):
+	"""Important 3 (vòng sửa 1): đọc lại TỒN RÒNG của mỗi ô mà nhánh phân bổ
+	VỪA GHI — cùng khuôn `LocationTransfer._chan_ton_am`
+	(`doctype/location_transfer/location_transfer.py`): kiểm SAU khi ghi,
+	không TRƯỚC — kiểm trước không chặn được hai người cùng rút một ô (cả hai
+	cùng đọc thấy "còn đủ" rồi cùng ghi âm); xem docstring `_ghi` ở đó. Chỉ
+	gọi cho nhánh phân bổ (`_ghi_mot_phan`) — đường FEFO tự chặn từ đầu vì
+	`chon_o_xuat` chỉ chọn trong số ô đang có đủ hàng.
+	"""
+	for p in phan_bo:
+		con = flt(ton_o(p["o"], sle.item_code, so_lo or None))
+		if con < 0:
+			frappe.throw(
+				_(
+					"Ô {0} không đủ hàng: mặt hàng {1}{2} sẽ còn {3} sau phiếu {4}. Có thể "
+					"hàng đã bị lấy đi nơi khác giữa lúc quét và lúc duyệt — mở lại trang Lấy "
+					"hàng để quét lại."
+				).format(
+					p["o"],
+					sle.item_code,
+					_(", lô {0}").format(so_lo) if so_lo else "",
+					con,
+					sle.voucher_no,
+				)
+			)
+
+
 def _phan_bo_da_khai(sle, so_lo, can_xuat) -> list[dict] | None:
-	"""Phân bổ ô mà người lấy hàng đã quét, hoặc `None` nếu chứng từ không có.
+	"""Phân bổ ô mà người lấy hàng đã quét, hoặc `None` nếu CHỨNG TỪ KHÔNG CÓ
+	một dòng phân bổ nào — tín hiệu duy nhất để "đi tiếp FEFO".
 
-	`None` (không phải danh sách rỗng) là tín hiệu "đi tiếp FEFO" — phân biệt rõ
-	với "có phân bổ nhưng bằng 0", vốn là dữ liệu hỏng chứ không phải đường cũ.
+	VÒNG SỬA 1 (Critical 2, review điều phối): trước đây `dong` rỗng (không
+	dòng nào khớp ĐÚNG dòng hàng/lô đang ghi) bị coi LÀ MỘT với "chứng từ
+	không có phân bổ" và rơi thẳng về FEFO — sai cho ba đường thật đều có
+	BẢNG PHÂN BỔ THẬT (người dùng đã quét) nhưng dòng đang ghi không khớp:
+	phiếu giao AMEND (tên dòng hàng đổi), đường mất chiều lô của
+	`tach_theo_lo` (trả `so_lo=None` trong khi phân bổ có lô — xem docstring
+	module ở đầu file), và dòng Product Bundle (`voucher_detail_no` là tên
+	dòng `Packed Item`, không phải dòng `Delivery Note Item` mà trang Lấy
+	hàng ghi vào `dong_hang`). Cả ba đều là ca "duyệt thẳng từ form với phân
+	bổ dở dang/hỏng" mà spec §5 yêu cầu CHẶN, không tự chữa bằng FEFO. Phân
+	biệt bằng `chung_tu_co_phan_bo` (đếm theo parent/parenttype/parentfield,
+	KHÔNG lọc dong_hang): chứng từ CHƯA TỪNG có dòng phân bổ nào → `None`
+	(đường cũ); CÓ dòng nhưng không dòng nào khớp (dòng hàng, lô) đang ghi →
+	CHẶN.
 
-	Tổng lệch thì CHẶN, không tự chữa: phân bổ dở dang nghĩa là mới quét được một
-	phần, và im lặng chạy FEFO cho phần còn lại sẽ trừ những ô chưa ai tới lấy —
-	sai lệch mà đối soát theo tổng không bao giờ bắt được (spec lấy hàng §5).
+	Important 4 (vòng sửa 1): chặn từng dòng `so_luong <= 0` TRƯỚC khi so
+	tổng — cặp (+15, -5) cho dòng cần xuất 10 lọt qua phép so tổng (vẫn ra
+	10 vừa khớp) rồi `ghi_dong_so` ghi một dòng DƯƠNG (nhập) trên một chứng
+	từ XUẤT nếu không chặn riêng.
+
+	Tổng lệch thì CHẶN, không tự chữa: phân bổ dở dang nghĩa là mới quét được
+	một phần, và im lặng chạy FEFO cho phần còn lại sẽ trừ những ô chưa ai
+	tới lấy — sai lệch mà đối soát theo tổng không bao giờ bắt được (spec lấy
+	hàng §5).
+
+	Critical 1 (vòng sửa 1): `frappe.log_error(...)` ở đây LUÔN đi ngay trước
+	một `frappe.throw` — `frappe/utils/error.py::log_error` insert Error Log
+	TRONG transaction hiện tại, còn `frappe/app.py` rollback CẢ transaction
+	khi có exception ném ra từ request. Không `defer_insert=True` thì đúng
+	bản ghi log sinh ra để phục vụ ca lỗi này lại bị cuốn theo rollback —
+	người vận hành chỉ thấy câu throw, không truy được `sle`/`dong_hang` nào
+	đã gây lỗi. `defer_insert=True` đẩy bản ghi qua Redis (xem
+	`Document.deferred_insert`/`frappe.deferred_insert`), NGOÀI transaction
+	hiện tại, nên sống sót qua rollback — đúng cách `log_error_snapshot` của
+	Frappe tự dùng.
 	"""
 	dong = phan_bo_cua_dong(sle.voucher_type, sle.voucher_no, sle.voucher_detail_no, so_lo)
 	if not dong:
-		return None
+		if not chung_tu_co_phan_bo(sle.voucher_type, sle.voucher_no):
+			return None
+		frappe.log_error(
+			title=cat_tieu_de(f"vi_tri_kho: phan bo khong khop dong/lo ({sle.voucher_no})"),
+			message=(
+				f"sle={sle.name} chung_tu={sle.voucher_type} {sle.voucher_no} "
+				f"dong_hang={sle.voucher_detail_no} vat_tu={sle.item_code} so_lo={so_lo} — "
+				"chứng từ có bảng phân bổ vị trí nhưng không dòng nào khớp đúng dòng hàng/lô "
+				"đang ghi (amend đổi tên dòng, mất chiều lô, hoặc dòng Packed Item)."
+			),
+			defer_insert=True,
+		)
+		frappe.throw(
+			_(
+				"Phiếu giao {0}: dòng {1}{2} có bảng phân bổ vị trí nhưng không dòng nào khớp "
+				"đúng dòng hàng/lô đang ghi. Mở lại trang Lấy hàng để quét lại, hoặc xoá phân bổ "
+				"của dòng này để hệ tự chọn ô theo hạn dùng."
+			).format(
+				sle.voucher_no,
+				sle.item_code,
+				_(", lô {0}").format(so_lo) if so_lo else "",
+			)
+		)
+
+	for d in dong:
+		if flt(d["so_luong"]) <= 0:
+			frappe.throw(
+				_(
+					"Phiếu giao {0}: dòng phân bổ tại ô {1} có số lượng {2} không hợp lệ — "
+					"phải lớn hơn 0. Sửa hoặc xoá dòng phân bổ này ở trang Lấy hàng."
+				).format(sle.voucher_no, d["o"], flt(d["so_luong"], 3))
+			)
 
 	tong = tong_phan_bo(dong)
 	if abs(tong - flt(can_xuat)) > _SAI_SO_CHO_PHEP:
+		cac_o = ", ".join(d["o"] for d in dong)
 		frappe.log_error(
 			title=cat_tieu_de(f"vi_tri_kho: phan bo lech ({sle.voucher_no})"),
 			message=(
 				f"sle={sle.name} dong_hang={sle.voucher_detail_no} vat_tu={sle.item_code} "
-				f"so_lo={so_lo} phan_bo={tong} can_xuat={can_xuat}"
+				f"so_lo={so_lo} o={cac_o} phan_bo={tong} can_xuat={can_xuat}"
 			),
+			defer_insert=True,
 		)
 		frappe.throw(
 			_(
-				"Phiếu giao {0}: dòng {1}{2} phân bổ {3} nhưng xuất {4}. Mở lại trang Lấy hàng "
-				"để quét tiếp, hoặc xoá phân bổ của dòng này để hệ tự chọn ô theo hạn dùng."
+				"Phiếu giao {0}: dòng {1}{2} phân bổ {3} (ô {4}) nhưng xuất {5}. Mở lại trang "
+				"Lấy hàng để quét tiếp, hoặc xoá phân bổ của dòng này để hệ tự chọn ô theo hạn "
+				"dùng."
 			).format(
 				sle.voucher_no,
 				sle.item_code,
 				_(", lô {0}").format(so_lo) if so_lo else "",
 				flt(tong, 3),
+				cac_o,
 				flt(can_xuat, 3),
 			)
 		)
