@@ -664,6 +664,47 @@ class TestDocChoTrang(FrappeTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			quet_de_lay(self.dn.name, LO)
 
+	def test_danh_sach_loc_theo_quyen_khong_hien_phieu_cong_ty_khac(self):
+		"""Bổ sung vòng sửa 1 (review điều phối, sau Important 1): bản thân
+		DANH SÁCH đã là rò rỉ nếu hiện tên phiếu/khách hàng/số lượng của một
+		phiếu mà `mo_phieu_giao`/`quet_de_lay` sau đó sẽ từ chối mở — còn
+		khiến thủ kho chạm vào rồi ăn lỗi quyền không hiểu vì sao.
+
+		Dùng lại đúng ca User Permission theo Company đã dựng ở
+		`test_user_permission_cong_ty_khac_chan_mo_phieu_va_quet` (đã đo bằng
+		console rằng `check_permission`/`has_permission` phân biệt đúng theo
+		Company trên site này) — không cần đường vòng "user không vai trò".
+		"""
+		from erpnext.vi_tri_kho.vitri.lay_hang import danh_sach_phieu_giao
+
+		ten = "lay-hang-cong-ty-khac@mo-phong.local"
+		cong_ty_khac = "Miyano"
+		if not frappe.db.exists("User", ten):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": ten,
+					"first_name": "Lay Cong Ty Khac",
+					"send_welcome_email": 0,
+					"roles": [{"role": "Stock User"}],
+				}
+			).insert(ignore_permissions=True)
+		if not frappe.db.exists(
+			"User Permission", {"user": ten, "allow": "Company", "for_value": cong_ty_khac}
+		):
+			frappe.get_doc(
+				{"doctype": "User Permission", "user": ten, "allow": "Company", "for_value": cong_ty_khac}
+			).insert(ignore_permissions=True)
+
+		# Administrator vẫn thấy phiếu bình thường trước khi đổi user — chốt
+		# rằng phiếu THẬT SỰ nằm trong kết quả khi không bị giới hạn quyền.
+		ten_phieu = {d["name"] for d in danh_sach_phieu_giao(KHO)["phieu"]}
+		self.assertIn(self.dn.name, ten_phieu)
+
+		frappe.set_user(ten)
+		ten_phieu_bi_gioi_han = {d["name"] for d in danh_sach_phieu_giao(KHO)["phieu"]}
+		self.assertNotIn(self.dn.name, ten_phieu_bi_gioi_han)
+
 	def test_quet_lo_khac_nhieu_dong_cung_mat_hang_chon_theo_quy_tac(self):
 		"""Important 3 (vòng sửa 1, review điều phối): `cung_hang[0]` từng chọn
 		tuỳ tiện khi phiếu có nhiều dòng cùng mặt hàng khác lô. Không truyền

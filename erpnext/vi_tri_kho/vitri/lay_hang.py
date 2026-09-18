@@ -283,6 +283,11 @@ def danh_sach_phieu_giao(kho: str | None = None) -> dict:
 	trang PDA không có nguồn nào khác để biết kho nào, và site có thể bật
 	quản lý vị trí ở nhiều kho cùng lúc. Không truyền `kho`: có đúng một kho
 	quản lý vị trí thì chọn luôn; nhiều kho thì để `None` cho trang hỏi.
+
+	LỌC QUYỀN TỪNG PHIẾU (bổ sung vòng sửa 1, review điều phối): mỗi phiếu
+	còn được kiểm `has_permission("read")` trước khi đưa vào danh sách — bản
+	thân danh sách (tên phiếu, khách hàng, số lượng) đã là rò rỉ nếu hiện ra
+	một phiếu mà `mo_phieu_giao`/`quet_de_lay` sau đó sẽ từ chối mở.
 	"""
 	_kiem_tra_quyen()
 	kho_ds = _kho_quan_ly_vi_tri()
@@ -319,6 +324,15 @@ def danh_sach_phieu_giao(kho: str | None = None) -> dict:
 		]
 		for t in ten:
 			doc = frappe.get_doc("Delivery Note", t)
+			# Bổ sung vòng sửa 1 (review điều phối, sau khi Important 1 đã xong):
+			# danh sách TỰ NÓ đã là rò rỉ nếu hiện tên phiếu/khách hàng/số lượng
+			# của một phiếu mà chính `mo_phieu_giao`/`quet_de_lay` sau đó sẽ từ
+			# chối mở — còn khiến thủ kho chạm vào rồi ăn lỗi quyền không hiểu vì
+			# sao. Dùng `has_permission` (trả True/False), KHÔNG `check_permission`
+			# (ném lỗi) — một phiếu bị chặn không được phép giết cả danh sách của
+			# những phiếu còn lại.
+			if not doc.has_permission("read"):
+				continue
 			dong_kho_nay = [d for d in doc.items if d.warehouse == kho]
 			if not dong_kho_nay:
 				continue
