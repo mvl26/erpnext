@@ -12,7 +12,7 @@ chỗ cho từ giai đoạn 1 — file này dựng tiếp đúng thiết kế đ
 
 import frappe
 from frappe import _
-from frappe.utils import flt, now
+from frappe.utils import flt, now, now_datetime, time_diff_in_seconds
 
 from erpnext.vi_tri_kho.vitri.fefo import chon_o_xuat
 from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri
@@ -48,8 +48,62 @@ def _khoa_chot_thieu(phieu: str) -> str:
 	(không còn cạnh `chot_thieu`) vì từ vòng sửa này cả phần ĐỌC
 	(`mo_phieu_giao`) lẫn phần GHI (`chot_thieu`, `bo_chot_thieu`, `hoan_tat`)
 	cùng dùng chung khoá này.
+
+	VÒNG SỬA 2/5 (Important, re-review model mạnh): hậu tố `:v2:` — TRƯỚC
+	vòng sửa 1, khoá này (không có `:v2:`) lưu một LIST tên dòng hàng, TTL
+	24h. Vòng sửa 1 đổi giá trị sang DICT nhưng đọc thẳng, không kiểm kiểu:
+	site đang chạy nâng code lên giữa lúc một khoá LIST cũ còn sống (TTL 24h
+	cũ chưa hết) sẽ làm `mo_phieu_giao` nổ `'list' object has no attribute
+	'get'` — và `mo_phieu_giao` là hàm MỌI hàm ghi đều gọi ở câu return, nên
+	đúng nhóm phiếu đang lấy dở (nhóm mà bản vá sinh ra để bảo vệ) sẽ nổ 500
+	không tự phục hồi tới khi TTL cũ hết hạn. Đổi tên khoá là lớp chặn RẺ và
+	TUYỆT ĐỐI: dữ liệu cũ nằm ở một khoá KHÁC, không bao giờ bị đọc nhầm định
+	dạng nữa — không cần chờ TTL, không cần dọn tay. Giữ NGUYÊN cách đặt tên
+	`chot_thieu:v2:<phieu>` (hậu tố version TRƯỚC tên phiếu, không phải sau)
+	để một ngày cần liệt kê "mọi khoá chốt thiếu đang sống" bằng
+	`get_keys("vi_tri_kho:lay_hang:chot_thieu:v2:*")` vẫn vét đúng, không lẫn
+	phiếu có tên chứa `:`.
 	"""
-	return f"vi_tri_kho:lay_hang:chot_thieu:{phieu}"
+	return f"vi_tri_kho:lay_hang:chot_thieu:v2:{phieu}"
+
+
+def _doc_chot_thieu(phieu: str) -> dict:
+	"""Đọc cờ "chốt thiếu" của một phiếu — điểm đọc DUY NHẤT, dùng chung cho
+	`mo_phieu_giao`, `chot_thieu`, `bo_chot_thieu`, `hoan_tat`.
+
+	VÒNG SỬA 2/5 (Important): guard KIỂU — không phải `dict` thì coi như
+	rỗng, KHÔNG ném lỗi. Đổi tên khoá (`_khoa_chot_thieu`, hậu tố `:v2:`) đã
+	là lớp chặn chính cho ĐÚNG bẫy "list cũ dưới TTL 24h" đã đo được; guard
+	này là lớp THỨ HAI, rẻ, phòng lần đổi định dạng SAU (nếu có) lặp lại đúng
+	bẫy vừa vá — không dựa hoàn toàn vào việc "nhớ đổi tên khoá" mỗi lần.
+
+	VÒNG SỬA 2/5 (Minor): lọc bỏ NGAY TẠI ĐÂY các dòng đã chốt quá
+	`_TTL_CHOT_THIEU` giây, tính TỪ CHÍNH THỜI ĐIỂM (`luc`) dòng đó được chốt
+	— không dựa vào TTL của CẢ KHOÁ Redis. `chot_thieu` phải `set_value(...,
+	expires_in_sec=_TTL_CHOT_THIEU)` lại MỖI LẦN gọi (để dòng MỚI chốt không
+	bị xoá theo TTL của lần set_value trước) — hệ quả phụ nếu không lọc ở
+	đây: dòng A chốt lúc 8:00, dòng B (cùng phiếu) chốt lúc 15:00 sẽ "reset
+	đồng hồ" của khoá, kéo dài cờ của dòng A tới tận 23:00 thay vì hết hạn
+	đúng 16:00 (8:00 + 8 giờ) như Ý ĐỊNH "8 giờ kể từ lúc DÒNG ĐÓ được chốt".
+	TTL của khoá Redis từ đây chỉ còn là TRẦN dọn rác an toàn (dữ liệu không
+	bao giờ sống vĩnh viễn dù có lỗi ở đây), không phải cơ chế hết hạn chính.
+	"""
+	gia_tri = frappe.cache().get_value(_khoa_chot_thieu(phieu), expires=True)
+	if not isinstance(gia_tri, dict):
+		return {}
+	bay_gio = now_datetime()
+	con_hieu_luc = {}
+	for dong_hang, thong_tin in gia_tri.items():
+		luc = thong_tin.get("luc") if isinstance(thong_tin, dict) else None
+		if luc:
+			try:
+				qua_han = time_diff_in_seconds(bay_gio, luc) > _TTL_CHOT_THIEU
+			except Exception:
+				qua_han = False
+			if qua_han:
+				continue
+		con_hieu_luc[dong_hang] = thong_tin
+	return con_hieu_luc
 
 
 def phan_bo_cua_dong(chung_tu_type: str, chung_tu: str, dong_hang: str, so_lo: str | None) -> list[dict]:
@@ -424,8 +478,7 @@ def mo_phieu_giao(phieu: str) -> dict:
 	# về CHỨNG TỪ cụ thể này.
 	doc.check_permission("read")
 	da = _da_lay_theo_dong(doc)
-	# `expires=True` bắt buộc — cùng lý do đã ghi ở docstring `chot_thieu`.
-	da_chot: dict = frappe.cache().get_value(_khoa_chot_thieu(phieu), expires=True) or {}
+	da_chot = _doc_chot_thieu(phieu)
 	dong = []
 	for d in doc.items:
 		can_quet = kho_co_quan_ly_vi_tri(d.warehouse)
@@ -843,6 +896,10 @@ def chot_thieu(phieu: str, dong_hang: str) -> dict:
 	thuộc kho KHÔNG bật quản lý vị trí (Minor): `hoan_tat` bỏ qua đúng những
 	dòng đó nên "chốt thiếu" trên chúng là một cờ không bao giờ được đọc lại
 	— no-op câm, dễ khiến thủ kho tưởng đã xử lý xong.
+
+	VÒNG SỬA 2/5: đọc/ghi qua `_doc_chot_thieu`/`_khoa_chot_thieu` — xem
+	docstring hai hàm đó cho guard kiểu (dữ liệu LIST cũ trước vòng sửa 1) và
+	cách khoá được đặt tên có phiên bản.
 	"""
 	doc = _mo_de_ghi(phieu)
 	d = _dong_cua(doc, dong_hang)
@@ -854,10 +911,9 @@ def chot_thieu(phieu: str, dong_hang: str) -> dict:
 				"chốt thiếu trên trang này."
 			).format(d.idx, d.item_code)
 		)
-	khoa = _khoa_chot_thieu(phieu)
-	danh_dau = frappe.cache().get_value(khoa, expires=True) or {}
+	danh_dau = _doc_chot_thieu(phieu)
 	danh_dau[dong_hang] = {"boi": frappe.session.user, "luc": now()}
-	frappe.cache().set_value(khoa, danh_dau, expires_in_sec=_TTL_CHOT_THIEU)
+	frappe.cache().set_value(_khoa_chot_thieu(phieu), danh_dau, expires_in_sec=_TTL_CHOT_THIEU)
 	return mo_phieu_giao(phieu)
 
 
@@ -875,7 +931,7 @@ def bo_chot_thieu(phieu: str, dong_hang: str) -> dict:
 	doc = _mo_de_ghi(phieu)
 	_dong_cua(doc, dong_hang)
 	khoa = _khoa_chot_thieu(phieu)
-	danh_dau = frappe.cache().get_value(khoa, expires=True) or {}
+	danh_dau = _doc_chot_thieu(phieu)
 	if dong_hang not in danh_dau:
 		frappe.throw(
 			_("Dòng {0} chưa được chốt thiếu — không có gì để gỡ.").format(dong_hang)
@@ -919,11 +975,12 @@ def hoan_tat(phieu: str) -> dict:
 	"""
 	doc = _mo_de_ghi(phieu)
 	da = _da_lay_theo_dong(doc)
-	# `expires=True` bắt buộc — cùng lý do đã ghi ở docstring `chot_thieu`.
 	# VÒNG SỬA 1/5: giá trị là DICT `{dong_hang: {"boi":..., "luc":...}}` từ
 	# đây trở đi (không còn là list tên dòng) — `in` trên dict vẫn so đúng
 	# theo KHOÁ nên không cần đổi gì thêm ở các dòng dùng `thieu` bên dưới.
-	thieu = frappe.cache().get_value(_khoa_chot_thieu(phieu), expires=True) or {}
+	# VÒNG SỬA 2/5: đọc qua `_doc_chot_thieu` (guard kiểu + lọc quá hạn từng
+	# dòng) thay vì gọi thẳng `frappe.cache().get_value`.
+	thieu = _doc_chot_thieu(phieu)
 	lay_thieu = []
 	so_dong_quan_ly = 0
 

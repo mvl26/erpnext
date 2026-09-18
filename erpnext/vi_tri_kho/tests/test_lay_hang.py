@@ -1406,3 +1406,80 @@ class TestGhiChoTrang(FrappeTestCase):
 		with patch.object(lay_hang_mod, "_dong_cua", side_effect=_dong_cua_roi_nguoi_khac_sua):
 			with self.assertRaisesRegex(frappe.ValidationError, "vừa được người khác sửa"):
 				lay_hang_mod.ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 5)
+
+	# ------------------------------------------------------------------
+	# VÒNG SỬA 2/5 (18/09/2026, re-review model mạnh): hỏng MỚI do chính
+	# vòng sửa 1 gây ra — đổi định dạng cờ LIST -> DICT mà không kiểm kiểu,
+	# nổ `mo_phieu_giao`/`chot_thieu`/`bo_chot_thieu` cho phiếu nào đang mang
+	# cờ kiểu cũ (còn sống theo TTL 24h cũ). Xem `lay_hang.py` cho chi tiết.
+	# ------------------------------------------------------------------
+
+	def test_du_lieu_cu_dang_list_trong_redis_khong_lam_no_ham_nao(self):
+		"""Important (vòng sửa 2/5), bài bắt buộc: ghi thẳng một giá trị LIST
+		vào ĐÚNG khoá cache (định dạng trước vòng sửa 1) rồi gọi lần lượt
+		`mo_phieu_giao`, `chot_thieu`, `bo_chot_thieu` — cả ba phải chạy bình
+		thường, không ném lỗi kiểu (`'list' object has no attribute 'get'`,
+		`list indices must be integers`). Đây đúng là nhóm phiếu mà bản vá
+		sinh ra để bảo vệ (đang lấy dở, mang cờ chốt thiếu của phiên bản
+		trước) — không được để nó tự nổ 500 ngay sau khi nâng code."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import (
+			_khoa_chot_thieu,
+			bo_chot_thieu,
+			chot_thieu,
+			mo_phieu_giao,
+		)
+
+		frappe.cache().set_value(_khoa_chot_thieu(self.dn.name), [self.dong], expires_in_sec=86400)
+
+		# mo_phieu_giao không được ném lỗi kiểu; dữ liệu cũ coi như rỗng chứ
+		# không phải "cờ thật" (guard chỉ chấp nhận dict).
+		p = mo_phieu_giao(self.dn.name)
+		self.assertFalse(p["dong"][0]["da_chot_thieu"])
+
+		# chot_thieu không được ném lỗi kiểu — tự thay bằng dict mới, đúng
+		# định dạng, ghi đè lên giá trị list cũ.
+		chot_thieu(self.dn.name, self.dong)
+		sau = mo_phieu_giao(self.dn.name)["dong"][0]
+		self.assertTrue(sau["da_chot_thieu"])
+		self.assertEqual(sau["chot_thieu_boi"], frappe.session.user)
+
+		# bo_chot_thieu không được ném lỗi kiểu — gỡ đúng dòng vừa chốt lại.
+		bo_chot_thieu(self.dn.name, self.dong)
+		self.assertFalse(mo_phieu_giao(self.dn.name)["dong"][0]["da_chot_thieu"])
+
+	def test_khoa_chot_thieu_doi_ten_co_hau_to_phien_ban(self):
+		"""Important (vòng sửa 2/5): khoá Redis đổi tên có hậu tố `:v2:` — dữ
+		liệu LIST cũ (nếu còn sống ở khoá KHÔNG có `:v2:`) không bao giờ bị
+		đọc nhầm định dạng, không cần chờ TTL cũ hết hay dọn tay."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import _khoa_chot_thieu
+
+		self.assertIn(":v2:", _khoa_chot_thieu(self.dn.name))
+		khoa_cu = f"vi_tri_kho:lay_hang:chot_thieu:{self.dn.name}"
+		self.assertNotEqual(_khoa_chot_thieu(self.dn.name), khoa_cu)
+
+	def test_chot_thieu_som_khong_bi_keo_dai_boi_lan_chot_muon_hon(self):
+		"""Minor (vòng sửa 2/5): `chot_thieu` phải `set_value(...,
+		expires_in_sec=_TTL_CHOT_THIEU)` lại cho CẢ khoá mỗi lần gọi (để dòng
+		MỚI chốt không bị xoá theo TTL của lần set trước) — hệ quả phụ nếu
+		không lọc theo `luc` từng dòng khi ĐỌC: dòng chốt SỚM bị "kéo dài"
+		theo TTL của dòng chốt SAU. Ở đây khẳng định trực tiếp cơ chế lọc:
+		một dòng có `luc` giả lập QUÁ 8 giờ trước phải bị `_doc_chot_thieu`
+		coi là hết hạn dù khoá Redis (TTL riêng) vẫn còn sống."""
+		from frappe.utils import add_to_date, now
+
+		from erpnext.vi_tri_kho.vitri.lay_hang import _doc_chot_thieu, _khoa_chot_thieu
+
+		luc_qua_han = add_to_date(now(), hours=-9)
+		luc_con_han = add_to_date(now(), hours=-1)
+		frappe.cache().set_value(
+			_khoa_chot_thieu(self.dn.name),
+			{
+				"dong-qua-han": {"boi": "a@vidu.local", "luc": luc_qua_han},
+				"dong-con-han": {"boi": "b@vidu.local", "luc": luc_con_han},
+			},
+			expires_in_sec=86400,  # TTL khoá còn dài — lọc phải tự đứng riêng.
+		)
+
+		con_hieu_luc = _doc_chot_thieu(self.dn.name)
+		self.assertNotIn("dong-qua-han", con_hieu_luc)
+		self.assertIn("dong-con-han", con_hieu_luc)
