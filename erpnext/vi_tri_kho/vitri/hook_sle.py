@@ -7,7 +7,10 @@ qua make_entry() rồi gọi sle.submit() (erpnext stock_ledger.py:221-227).
 Móc ở đây bắt trọn cả tám, kể cả doctype ERPNext thêm về sau. Móc vào từng
 doctype thì sót một cái là lệch âm thầm.
 
-Nhánh đọc bảng phân bổ Location Allocation thuộc GĐ 2, chưa có ở đây.
+TASK 2 GĐ "Lấy hàng trên PDA" (2026-09-18, xem `_phan_bo_da_khai`): nhánh XUẤT
+giờ đọc bảng phân bổ `Location Allocation` trước, chỉ rơi về FEFO khi chứng từ
+không có phân bổ (đường cũ, hành vi không đổi cho Purchase Receipt/Stock
+Entry/... — chỉ Delivery Note mới có giao diện phân bổ, xem `lay_hang.py`).
 
 Thứ tự bên trong `ghi_so_vi_tri` là CỐ Ý và BẮT BUỘC: `tinh_delta(doc)` phải
 chạy TRƯỚC mọi lời gọi `ghi_dong_so` cho CÙNG dòng SLE này. Nhánh kiểm kê
@@ -109,7 +112,9 @@ from frappe.utils import flt
 from erpnext.vi_tri_kho.vitri.delta import tinh_delta
 from erpnext.vi_tri_kho.vitri.fefo import chon_o_xuat
 from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri, o_chua_xep
+from erpnext.vi_tri_kho.vitri.lay_hang import phan_bo_cua_dong, tong_phan_bo
 from erpnext.vi_tri_kho.vitri.lo import tach_theo_lo
+from erpnext.vi_tri_kho.vitri.nhat_ky_loi import cat_tieu_de
 from erpnext.vi_tri_kho.vitri.so import ghi_dong_so
 
 # Độ chính xác/ngưỡng dùng khi scale phần trả về ô cũ — cùng quy ước với
@@ -165,15 +170,19 @@ def _ghi_mot_phan(sle, so_lo, so_luong):
 	từng bị MỘT bút toán đảo khác (`dao_theo_o_goc`) rút hàng ra khỏi ô nào
 	chưa — có thì trả hàng về ĐÚNG (các) ô đó, không dồn CHUA-XEP. Không có
 	dấu vết đảo nào → dồn vào CHUA-XEP như cũ.
-	Xuất (số âm) mà không khai vị trí → chọn ô theo FEFO.
+
+	Xuất (số âm): ưu tiên BẢNG PHÂN BỔ (thủ kho đã quét ngoài kệ, 18/09/2026);
+	không có phân bổ thì chọn ô theo FEFO như cũ.
 	"""
 	if so_luong > 0:
 		phan_bo = _tra_lai_o_da_dao(sle, so_lo, so_luong)
 	else:
-		phan_bo = [
-			{"o": p["o"], "so_luong": -p["so_luong"]}
-			for p in chon_o_xuat(sle.warehouse, sle.item_code, so_lo, -so_luong)
-		]
+		phan_bo = _phan_bo_da_khai(sle, so_lo, -so_luong)
+		if phan_bo is None:
+			phan_bo = [
+				{"o": p["o"], "so_luong": -p["so_luong"]}
+				for p in chon_o_xuat(sle.warehouse, sle.item_code, so_lo, -so_luong)
+			]
 
 	for p in phan_bo:
 		ghi_dong_so(
@@ -190,6 +199,45 @@ def _ghi_mot_phan(sle, so_lo, so_luong):
 			thoi_diem=sle.get("posting_datetime") or f"{sle.posting_date} {sle.posting_time}",
 			company=sle.company,
 		)
+
+
+def _phan_bo_da_khai(sle, so_lo, can_xuat) -> list[dict] | None:
+	"""Phân bổ ô mà người lấy hàng đã quét, hoặc `None` nếu chứng từ không có.
+
+	`None` (không phải danh sách rỗng) là tín hiệu "đi tiếp FEFO" — phân biệt rõ
+	với "có phân bổ nhưng bằng 0", vốn là dữ liệu hỏng chứ không phải đường cũ.
+
+	Tổng lệch thì CHẶN, không tự chữa: phân bổ dở dang nghĩa là mới quét được một
+	phần, và im lặng chạy FEFO cho phần còn lại sẽ trừ những ô chưa ai tới lấy —
+	sai lệch mà đối soát theo tổng không bao giờ bắt được (spec lấy hàng §5).
+	"""
+	dong = phan_bo_cua_dong(sle.voucher_type, sle.voucher_no, sle.voucher_detail_no, so_lo)
+	if not dong:
+		return None
+
+	tong = tong_phan_bo(dong)
+	if abs(tong - flt(can_xuat)) > _SAI_SO_CHO_PHEP:
+		frappe.log_error(
+			title=cat_tieu_de(f"vi_tri_kho: phan bo lech ({sle.voucher_no})"),
+			message=(
+				f"sle={sle.name} dong_hang={sle.voucher_detail_no} vat_tu={sle.item_code} "
+				f"so_lo={so_lo} phan_bo={tong} can_xuat={can_xuat}"
+			),
+		)
+		frappe.throw(
+			_(
+				"Phiếu giao {0}: dòng {1}{2} phân bổ {3} nhưng xuất {4}. Mở lại trang Lấy hàng "
+				"để quét tiếp, hoặc xoá phân bổ của dòng này để hệ tự chọn ô theo hạn dùng."
+			).format(
+				sle.voucher_no,
+				sle.item_code,
+				_(", lô {0}").format(so_lo) if so_lo else "",
+				flt(tong, 3),
+				flt(can_xuat, 3),
+			)
+		)
+
+	return [{"o": d["o"], "so_luong": -flt(d["so_luong"])} for d in dong]
 
 
 def _bat_buoc_o_chua_xep(kho):
