@@ -1013,6 +1013,130 @@ bấm **Xếp hàng vào ô** đầu trang **Vị trí kho**.
 
 ---
 
+## 14. Lấy hàng (trên PDA)
+
+Trang để **cầm PDA đi lấy hàng giao khách**: mở đúng phiếu giao, quét tem lô trên thùng, quét tem
+ô nơi lấy — hệ ghi lại **đúng ô đã lấy**, không tự đoán theo hạn dùng như trước. Vào từ ô bấm
+**Lấy hàng** đầu trang **Vị trí kho**.
+
+> Trước đây phiếu giao **tự trừ theo ô lúc duyệt** (hệ tự chọn ô theo hạn dùng gần nhất — mục
+> 6.2), thủ kho không biết trước sẽ trừ ở đâu. Từ nay: **thủ kho quét, hệ ghi đúng ô đã quét.**
+
+### 14.1 Chọn phiếu
+
+1. Mở trang. Kho tự chọn nếu chỉ có một kho quản lý vị trí; nhiều kho thì chạm chọn kho trước.
+2. Danh sách **Phiếu đang chờ lấy** hiện các phiếu giao **nháp** có dòng hàng thuộc kho đó, kèm
+   tiến độ `đã lấy/cần lấy` và tên khách hàng. Phiếu đang có người khác thao tác thì hiện thêm
+   dòng *"X đang lấy"*.
+3. Chạm một phiếu để mở.
+
+![Danh sách phiếu đang chờ lấy, kèm tiến độ](anh-luong/lay-hang-00-danh-sach-phieu.png)
+
+### 14.2 Một lượt lấy: ① quét lô, ② quét ô
+
+1. **① Quét tem LÔ** trên thùng (mặt hàng không quản lý lô thì quét **mã hàng**). Thẻ hiện ra:
+   tên hàng, hạn dùng, **số lượng lấy** điền sẵn bằng phần còn thiếu của dòng đó — chỉnh bằng nút
+   − / + hoặc chạm vào số để gõ tay.
+   - Dòng hàng **nên lấy ở ô nào** hiện ngay dưới tên hàng trong danh sách *Các dòng hàng* (theo
+     hạn dùng gần nhất, cùng luật FEFO ở mục 6.2) — đây chỉ là **gợi ý**, quét ô khác vẫn được ghi
+     nếu ô đó còn đủ hàng của đúng lô đang lấy.
+2. **② Quét tem Ô** nơi thật sự lấy thùng đó xuống. Đúng lô, đủ tồn ở ô đó → lượt lấy được ghi
+   ngay, tiến độ tăng, PDA rung, quay về bước ①.
+   - Ô **không có** lô đang lấy (hết ở ô đó, hoặc quét nhầm ô) → hệ báo lý do, **không ghi gì**,
+     lô vẫn chờ để quét ô khác.
+   - Ô **nhóm** (cấp Khu/Dãy/Khoang/Tầng), ô kho khác, dãy đang ngừng dùng → hệ báo lý do tương tự
+     mục 13.1.
+3. Lặp lại cho tới khi đủ, hoặc chuyển dòng khác bằng cách quét lô/mã hàng của dòng đó.
+
+![Đang chờ quét ô cho lô vừa quét, có ô gợi ý](anh-luong/lay-hang-01-cho-quet-o.png)
+
+**Mỗi lượt được lưu ngay lên chính phiếu giao đó** (bảng phân bổ vị trí), không nằm trong trình
+duyệt — rớt mạng, hết pin hay lỡ đóng trang: mở lại đúng phiếu là thấy lại đủ mọi lượt đã quét.
+
+### 14.3 Đổi lô — kể cả khi lô hết giữa chừng phải tách dòng
+
+Thủ kho cầm nhầm thùng, hoặc lô trên phiếu đã hết ở ngoài kệ, cần chuyển sang lô khác của
+**cùng mặt hàng**:
+
+1. Quét tem lô **khác** với lô dòng đang chốt. Hệ hiện khung cam: lô mới, hạn dùng mới, so với lô
+   đang chốt — có dòng cảnh báo riêng nếu lô mới hạn dùng **xa hơn** (lấy lô hạn xa trước lô hạn
+   gần là ngược FEFO, cần kiểm tra kỹ trước khi đổi).
+2. Quét **LẠI** đúng tem lô mới đó để xác nhận (hoặc chạm nút **Đổi sang lô …** trên khung cam).
+   Quét ô gợi ý thì KHÔNG xác nhận đổi — đổi lô luôn cần quét lại đúng tem, không suy đoán.
+3. Hệ xử lý theo dòng đó **đã lấy được gì chưa**:
+   - **Chưa lấy gì** → **đổi lô thẳng**: dòng phiếu giao đổi sang lô mới, số lượng giữ nguyên.
+   - **Đã lấy một phần** (lô cũ hết giữa chừng, ca hay gặp nhất) → **tách dòng**: dòng cũ chốt lại
+     đúng số đã lấy (coi như đủ), một dòng **mới** sinh ra cho phần còn thiếu, mang lô mới. Quét
+     tiếp tem lô mới rồi quét ô để lấy nốt dòng mới đó.
+
+![Lô khác lô đang chốt, hạn dùng xa hơn — khung cam chờ quét lại](anh-luong/lay-hang-02-doi-lo-han-xa-hon.png)
+
+> Vì sao lại tách dòng thay vì sửa lô ngay trên dòng cũ: hệ đang chạy với
+> `Stock Settings → Use Serial / Batch Fields` bật, nên **một dòng phiếu giao chỉ mang được một
+> lô** — số đã lấy của lô cũ phải nằm ở một dòng riêng thì duyệt phiếu mới ghi sổ đúng cho cả hai
+> lô. Đây cũng là quy tắc ở mục "Bước 9" của tài liệu *Luồng từ A đến Z* — trang này tự làm thay,
+> không cần thủ kho tách dòng tay trên form.
+
+### 14.4 Lấy thiếu — chốt và bỏ chốt
+
+Kho thật thiếu hàng so với sổ (mất mát, ô trống sớm hơn sổ ghi) thì lấy được bao nhiêu chốt bấy
+nhiêu, không cố quét cho đủ số không có:
+
+1. Ở dòng đã lấy được **một phần**, chạm **Chốt thiếu** → hộp hỏi xác nhận số đã lấy/cần lấy →
+   chạm **Chốt thiếu** để xác nhận (hộp này **chỉ nhận chạm tay**, cùng lý do mục 14.7 dưới đây).
+2. Dòng hiện rõ **ai chốt, lúc nào** ngay trên phiếu — thủ kho ca sau mở lại phiếu thấy ngay, không
+   phải đoán ý ca trước.
+3. Chốt nhầm thì chạm **Bỏ chốt thiếu** để gỡ, quét lấy tiếp hoặc chốt lại khi cần.
+4. Cờ chốt thiếu chỉ sống trong **một ca làm việc** (8 giờ) — quá giờ đó mà chưa Hoàn tất thì phải
+   chốt lại, tránh một cờ "coi như đủ" của ca trước âm thầm định đoạt kết quả kiểm hàng của ca sau.
+
+![Dòng đã chốt thiếu: hiện rõ ai chốt, lúc nào, có nút Bỏ chốt thiếu](anh-luong/lay-hang-03-chot-thieu.png)
+
+### 14.5 Hoàn tất
+
+1. Còn ít nhất một lượt đã lấy thì nút **Hoàn tất phiếu** hiện ở cuối trang. Chạm để mở hộp xác
+   nhận.
+2. Hộp hỏi **chỉ nhận chạm tay** (mục 14.7). Chạm **Duyệt phiếu** để xác nhận thật.
+3. Hệ duyệt phiếu giao; dòng nào có chốt thiếu thì hạ số lượng xuống đúng số đã lấy trước khi
+   duyệt, và ghi một dòng nhật ký trên phiếu (mục *Lấy thiếu … — ô trống sớm hơn sổ, cần kiểm
+   kê*) để biết sau này cần kiểm kê ở đâu.
+4. Dòng **chưa lấy đủ và chưa chốt thiếu** thì chặn Hoàn tất — hệ báo rõ dòng nào, thiếu bao nhiêu.
+
+![Hộp xác nhận Hoàn tất — chỉ nhận chạm tay](anh-luong/lay-hang-04-xac-nhan-hoan-tat.png)
+
+> ### Chưa bấm Hoàn tất thì kho CHƯA trừ
+> Quét bao nhiêu lượt cũng chỉ ghi vào bảng phân bổ của phiếu — **sổ vị trí (`Location Ledger
+> Entry`) chỉ trừ khi bấm Hoàn tất và phiếu được duyệt thật.** Đóng trang giữa chừng, để phiếu
+> nháp qua ngày: kho vẫn còn nguyên trên sổ, đúng như hàng chưa rời kệ.
+
+![Đã duyệt — sổ vị trí đã trừ đúng các ô vừa quét](anh-luong/lay-hang-05-da-duyet.png)
+
+### 14.6 Phiếu có phân bổ dở dang mà duyệt thẳng trên máy tính
+
+Một phiếu đang quét dở (có bảng phân bổ nhưng chưa đủ số lượng dòng) mà bấm **Submit** thẳng trên
+form Phiếu giao hàng ở máy tính — **KHÔNG qua trang Lấy hàng** — sẽ **bị chặn lúc ghi sổ**, phiếu
+tự trở lại nháp (không kẹt ở trạng thái nửa vời). Bảng phân bổ hiện **chỉ đọc** trên form (không
+tự xoá dòng ở đó được), nên đường thoát là quay lại trang **Lấy hàng**: bỏ bớt lượt bằng nút **×**
+cạnh mỗi lượt đã lấy nếu cần sửa, hoặc quét cho đủ / bấm **Chốt thiếu** cho dòng còn thiếu rồi bấm
+**Hoàn tất phiếu** đúng cách — đừng Submit thẳng trên form.
+
+### 14.7 Những điều cần biết
+
+- **Không phải ô hệ tự chọn theo FEFO** — hệ ghi đúng **ô thủ kho đã quét**. Muốn xem hệ SẼ chọn ô
+  nào nếu không ai quét thì nhìn dòng *"Nên lấy"* dưới mỗi dòng hàng; đó chỉ là gợi ý.
+- Hỏi **"Duyệt phiếu?"** và **"Chốt thiếu?"** chỉ nhận thao tác **chạm** — bóp cò quét lúc hộp
+  đang mở **không bấm được nút nào**, kể cả gửi Enter. Cố ý: súng quét gửi phím Enter sau mỗi lần
+  quét, và một hộp xác nhận bắt Enter toàn trang từng làm DUYỆT NHẦM một phiếu thật (17/09/2026) —
+  trang Lấy hàng dùng loại hộp KHÔNG bắt Enter.
+- Phiếu đang có **người khác** thao tác (đã quét lượt nào đó) vẫn mở được — danh sách phiếu hiện
+  tên người đang lấy để tránh hai người cùng lấy một phiếu mà không biết nhau.
+- Dòng thuộc **kho không quản lý vị trí** thì không cần quét — hiện mờ với ghi chú "lấy tay,
+  không cần quét", và không tính vào điều kiện Hoàn tất.
+- Mặt hàng **không quản lý lô** thì quét **mã hàng** thay cho tem lô ở bước ①; các bước còn lại
+  giống hệt.
+
+---
+
 ## Phụ lục A. Một lần chạy thật, từ mua hàng tới tồn theo ô
 
 Chạy ngày 13/09/2026 trên `erptest.local`, mặt hàng `MYN-IMP-NEP-8` (Nẹp khoá 8 lỗ titan,

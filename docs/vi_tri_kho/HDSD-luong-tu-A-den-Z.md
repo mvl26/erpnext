@@ -6,10 +6,11 @@ Một vòng đầy đủ, đúng thứ tự phải làm: **tạo mặt hàng →
 Tài liệu này đi theo *việc*. Muốn tra theo *chủ đề* (mã ô đọc thế nào, cây vị trí, bốn báo cáo,
 tắt/bật kho…) thì xem `HDSD-quan-ly-vi-tri-kho.md`; các mục dưới đây có trỏ sang đúng chỗ.
 
-> **Mọi ảnh và số liệu dưới đây là của một lần chạy thật trên site thử `erptest`, ngày
-> 18/09/2026**, bằng mặt hàng `DEMO-LUONG-GANG-TAY`. Chứng từ của lần chạy đó **đã được huỷ sau
-> khi chụp ảnh** nên mở lại sẽ thấy trạng thái "Đã huỷ"; số liệu giữ nguyên ở đây để đối chiếu
-> từng bước.
+> **Mọi ảnh và số liệu ở Bước 1–8 và 10 dưới đây là của một lần chạy thật trên site thử
+> `erptest`, ngày 18/09/2026**, bằng mặt hàng `DEMO-LUONG-GANG-TAY`. Chứng từ của lần chạy đó
+> **đã được huỷ sau khi chụp ảnh** nên mở lại sẽ thấy trạng thái "Đã huỷ"; số liệu giữ nguyên ở
+> đây để đối chiếu từng bước. Ảnh minh hoạ trang **Lấy hàng** ở Bước 9 là của một lần chạy riêng
+> (mặt hàng `T21-LH-DEMO`, phiếu `MAT-DN-2026-00060`, cùng ngày) — cũng đã huỷ sau khi chụp.
 
 | Bước | Ai làm | Màn hình |
 |---|---|---|
@@ -21,7 +22,7 @@ tắt/bật kho…) thì xem `HDSD-quan-ly-vi-tri-kho.md`; các mục dưới đ
 | 6. Duyệt phiếu nhập | Thủ kho | Purchase Receipt |
 | 7. Xếp hàng vào ô | Thủ kho (PDA) | **Xếp hàng vào ô** |
 | 8. Đơn bán | Kinh doanh | Sales Order |
-| 9. Phiếu giao — lấy hàng | Kinh doanh + thủ kho | Delivery Note |
+| 9. Phiếu giao — lấy hàng | Kinh doanh + thủ kho (PDA) | Delivery Note → **Lấy hàng** |
 | 10. Hoá đơn bán | Kế toán | Sales Invoice |
 
 ---
@@ -188,19 +189,32 @@ Từ đơn bán → **Create → Delivery Note**.
    gần nhất)?
 2. **Một dòng chỉ mang được một lô.** Số lượng vượt quá lô đó thì **tách dòng**: mỗi lô một dòng,
    sửa số lượng cho khớp. Không tách thì lúc duyệt hệ báo *"Batch No … has negative stock"* —
-   đúng lỗi gặp trong lần chạy thật khi để nguyên một dòng 50 Hộp.
-3. Duyệt phiếu giao. Lúc này hệ mới **tự trừ theo ô**.
+   đúng lỗi gặp trong lần chạy thật khi để nguyên một dòng 50 Hộp. Từ trang **Lấy hàng** (bên
+   dưới), việc tách dòng này KHÔNG cần làm tay nữa — xem mục "Lấy hàng trên PDA".
+3. Không thao tác qua trang Lấy hàng thì mới cần tách dòng tay rồi **Submit thẳng trên form** —
+   hệ vẫn tự trừ theo ô lúc đó (theo FEFO, mục 6.2 tài liệu *HDSD quản lý vị trí kho*).
 
 *Lần chạy thật `MAT-DN-2026-00055`: tách dòng 1 = 20 Hộp lô `GT-M-2601-B` (hạn 31/12/2026, đi
 trước), dòng 2 = 30 Hộp lô `GT-M-2606-A`. Sổ vị trí ghi −20 và −30 ở ô `1A01020201`; còn lại 10
 Hộp lô A ở đúng ô đó.*
 
-> ### Chưa có màn hình "lấy hàng / xác nhận lấy hàng"
-> Hiện **không có** danh sách "đi ô nào, lấy lô nào" in ra cho thủ kho, và **không có** bước quét
-> xác nhận đã lấy đúng ô. Hệ **tự trừ theo ô lúc duyệt phiếu giao**. Muốn biết đã trừ ở ô nào thì
-> xem **Sổ vị trí** (`Location Ledger Entry`, lọc theo số chứng từ) hoặc báo cáo **Tồn kho theo vị
-> trí**. Nếu cần màn hình lấy hàng trên PDA (quét lô + quét ô để xác nhận rồi mới sinh phiếu
-> giao), đó là việc phải làm thêm — báo để lên kế hoạch.
+### Lấy hàng trên PDA (đường khuyến khích, từ 18/09/2026)
+
+Thay vì lập phiếu giao rồi duyệt thẳng, thủ kho mở trang **Lấy hàng** (ô bấm cùng tên đầu
+trang **Vị trí kho**), chọn đúng phiếu giao vừa lập, rồi quét xác nhận từng thùng đã lấy:
+
+1. **① Quét tem lô** trên thùng — hệ nhận đúng dòng cần lấy của lô đó.
+2. **② Quét tem ô** nơi thật sự lấy thùng xuống — lượt lấy được ghi ngay lên phiếu, tiến độ tăng.
+3. Lô hết giữa chừng cần đổi sang lô khác: quét lại tem lô mới. **Trang tự tách dòng** (chốt dòng
+   cũ ở số đã lấy, sinh dòng mới cho phần còn lại) — không cần tách tay như mục "Việc phải làm"
+   ở trên.
+4. Đủ hàng thì bấm **Hoàn tất phiếu** → xác nhận → hệ duyệt phiếu, sổ vị trí trừ **đúng các ô đã
+   quét** (không phải ô hệ tự chọn theo FEFO nữa).
+
+Chi tiết từng bước, kể cả chốt thiếu và cách gỡ phân bổ khi cần duyệt thẳng trên form: xem mục
+**14 "Lấy hàng (trên PDA)"** của tài liệu `HDSD-quan-ly-vi-tri-kho.md`.
+
+![Hộp xác nhận Hoàn tất trên trang Lấy hàng](anh-luong/lay-hang-04-xac-nhan-hoan-tat.png)
 
 ---
 
@@ -259,14 +273,15 @@ từ chứng từ cuối cùng ngược lên.
 
 ## Những chỗ còn thiếu, cần quyết
 
-1. **Màn hình lấy hàng trên PDA** — chưa có (xem khung cảnh báo ở bước 9).
-2. **`Stock Settings` → "Pick Serial / Batch Based On" đang để `FIFO`**, tức giữa hai lô **còn
+1. **`Stock Settings` → "Pick Serial / Batch Based On" đang để `FIFO`**, tức giữa hai lô **còn
    hạn**, hệ ưu tiên lô **tạo trước**, không phải lô **sắp hết hạn**. Với vật tư y tế, đây là
    quyết định của công ty: đổi sang `Expiry` thì cả hai tầng đều theo hạn dùng. Xem mục 6.2 tài
    liệu tra cứu để biết bằng chứng đo được.
-3. **Ngưỡng "cận date" 90 ngày** (màu cam trên trang quét mã) là do bên thi công đặt tạm, chưa hỏi
+2. **Ngưỡng "cận date" 90 ngày** (màu cam trên trang quét mã) là do bên thi công đặt tạm, chưa hỏi
    kho.
-4. **Chưa in thử nhãn trên máy Zebra ZD421 thật** và chưa quét thử bằng máy quét của kho.
+3. **Chưa in thử nhãn trên máy Zebra ZD421 thật** và chưa quét thử bằng máy quét của kho.
+4. **Mở phân bổ ngay lúc nhập hàng** (chọn ô cho phiếu nhập thay vì bước xếp riêng) và
+   **`Location Count`** (kiểm kê theo ô) — chưa làm, xem báo cáo bàn giao Task 8.
 
 ---
 
