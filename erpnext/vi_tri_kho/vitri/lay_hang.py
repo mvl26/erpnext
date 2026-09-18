@@ -286,6 +286,15 @@ def danh_sach_phieu_giao(kho: str | None = None) -> dict:
 	"""
 	_kiem_tra_quyen()
 	kho_ds = _kho_quan_ly_vi_tri()
+	if kho and kho not in kho_ds:
+		# Important 2 (vòng sửa 1, review điều phối): endpoint whitelisted gọi
+		# thẳng được, không chỉ qua giao diện — `kho` tuỳ ý nào cũng lọt qua
+		# nếu không kiểm ở đây, lộ khách hàng/số lượng/số lô của kho đó dù
+		# kho chưa từng bật quản lý vị trí (không có ý nghĩa nghiệp vụ để
+		# thủ kho "lấy theo vị trí" ở một kho không quản lý vị trí).
+		frappe.throw(
+			_("Kho {0} chưa bật quản lý vị trí — không dùng được cho trang lấy hàng.").format(kho)
+		)
 	if not kho:
 		kho = kho_ds[0] if len(kho_ds) == 1 else None
 
@@ -339,12 +348,21 @@ def mo_phieu_giao(phieu: str) -> dict:
 	"""
 	_kiem_tra_quyen()
 	doc = frappe.get_doc("Delivery Note", phieu)
+	# Important 1 (vòng sửa 1, review điều phối): `frappe.get_doc` KHÔNG tự
+	# chạy `has_permission` — site thật có nhiều Company, User Permission theo
+	# Company sẽ bị xuyên thủng nếu không kiểm tay ở đây (đã đo trên bench
+	# này). `_kiem_tra_quyen()` ở trên chỉ kiểm vai trò TOÀN CỤC, không biết gì
+	# về CHỨNG TỪ cụ thể này.
+	doc.check_permission("read")
 	da = _da_lay_theo_dong(doc)
 	dong = []
 	for d in doc.items:
 		con_can = flt(d.qty) - da.get(d.name, 0.0)
 		try:
-			goi_y = chon_o_xuat(d.warehouse, d.item_code, d.batch_no or None, max(con_can, 0)) if con_can > 0 else []
+			if con_can > 0:
+				goi_y = chon_o_xuat(d.warehouse, d.item_code, d.batch_no or None, max(con_can, 0))
+			else:
+				goi_y = []
 		except Exception:
 			frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: mo_phieu_giao goi y loi ({phieu})"))
 			goi_y = []
@@ -381,13 +399,64 @@ def mo_phieu_giao(phieu: str) -> dict:
 	}
 
 
+def _han_xa_hon(hsd_moi, hsd_cu) -> bool:
+	"""Lô MỚI quét có "xa hạn hơn" lô ĐANG CHỐT trên dòng hay không.
+
+	Important 4 (vòng sửa 1, review điều phối): lô KHÔNG có hạn dùng (`None`)
+	coi như "không bao giờ hết hạn" — XA HƠN MỌI lô có hạn, đối xứng với
+	`fefo.py` (`ifnull(han, '9999-12-31')`, lô không hạn xếp SAU CÙNG trong
+	FEFO vì FEFO ưu tiên hạn gần trước, tức "xa hạn nhất" đứng cuối). Bản cũ
+	`bool(hsd_moi and hsd_cu and hsd_moi > hsd_cu)` trả `False` ngay khi MỘT
+	trong hai vế `None` — sai nghĩa cho đúng ca hay gặp nhất: lô mới không hạn
+	trong khi lô đang chốt có hạn, đáng lẽ phải cảnh báo "xa hơn" thì lại im.
+	"""
+	if hsd_moi is None and hsd_cu is None:
+		return False
+	if hsd_moi is None:
+		return True
+	if hsd_cu is None:
+		return False
+	return hsd_moi > hsd_cu
+
+
+def _chon_dong_ung_vien(ung_vien: list, da_lay: dict, dong_hang: str | None):
+	"""Chọn MỘT dòng trong các dòng `ung_vien` (cùng mặt hàng/lô quét trúng).
+
+	Important 3 (vòng sửa 1, review điều phối): phiếu có NHIỀU dòng cùng mặt
+	hàng (khác lô, hoặc chia dòng vì khác giá/đơn bán gốc) thì lấy phần tử
+	ĐẦU của danh sách (`ung_vien[0]`) là tuỳ tiện — `dong_hang`/`hsd_dang_chot`/
+	`han_xa_hon` có thể tính theo dòng SAI, cảnh báo sai hướng cho thủ kho.
+
+	Truyền `dong_hang`: CHỈ xét đúng dòng đó (trang đã hỏi lại người dùng),
+	không đoán — không khớp dòng nào trong `ung_vien` thì trả `None` (không
+	âm thầm rơi về một dòng khác).
+
+	Không truyền: ưu tiên dòng CHƯA lấy đủ (số đã phân bổ < số lượng dòng),
+	nhỏ `idx` nhất trong số đó — dòng đã lấy đủ hàng rồi không còn lý do để
+	được gán thêm. Mọi dòng đều đã lấy đủ (hiếm, nhưng có thể xảy ra khi thủ
+	kho quét lại) thì rơi về dòng đầu tiên theo `idx`, giữ hành vi cũ cho ca
+	không còn lựa chọn nào tốt hơn.
+	"""
+	if dong_hang:
+		return next((d for d in ung_vien if d.name == dong_hang), None)
+	if not ung_vien:
+		return None
+	chua_du = [d for d in ung_vien if flt(d.qty) - da_lay.get(d.name, 0.0) > _SAI_SO]
+	return (chua_du or ung_vien)[0]
+
+
 @frappe.whitelist()
-def quet_de_lay(phieu: str, ma: str) -> dict:
+def quet_de_lay(phieu: str, ma: str, dong_hang: str | None = None) -> dict:
 	"""Nhận diện một mã quét trên trang lấy hàng.
 
 	`loai`: `"lo"` (lô ĐANG có trên phiếu) · `"lo_khac"` (lô khác nhưng cùng một
 	mặt hàng của phiếu — kèm `han_xa_hon` để màn hình cảnh báo) · `"o"` · `None`.
 	Quét nhầm không bao giờ nổ — cùng lời hứa `quet.py`.
+
+	`dong_hang` (Important 3): phiếu có nhiều dòng cùng mặt hàng thì không thể
+	tự đoán ĐÚNG dòng chỉ từ mã quét — xem `_chon_dong_ung_vien`. `nhieu_dong`
+	trong kết quả báo cho màn hình biết có từ hai dòng ứng viên trở lên, để
+	hỏi lại người dùng khi cần.
 	"""
 	from erpnext.stock.utils import scan_barcode
 	from erpnext.vi_tri_kho.vitri.quet import _tim_o
@@ -396,28 +465,54 @@ def quet_de_lay(phieu: str, ma: str) -> dict:
 	ma = (ma or "").strip()
 	if not ma:
 		return {"loai": None}
-	doc = frappe.get_doc("Delivery Note", phieu)
+	try:
+		doc = frappe.get_doc("Delivery Note", phieu)
+	except frappe.DoesNotExistError:
+		# Critical (vòng sửa 1, review điều phối): phiếu bị huỷ/xoá giữa lúc
+		# thủ kho đang mở phiên quét (điều phối huỷ đơn giữa ca) — quét nhầm
+		# không bao giờ được nổ ra màn hình, cùng lời hứa của `quet.py`.
+		return {"loai": None}
+	# Important 1 (vòng sửa 1, review điều phối): `frappe.get_doc` KHÔNG tự
+	# chạy `has_permission` — xem chú thích tại `mo_phieu_giao`. `PermissionError`
+	# ở đây phải văng ra NGUYÊN VẸN, không được lẫn vào khối `except Exception`
+	# "quét nhầm" bên dưới — vì vậy đặt TRƯỚC khối `try` đó.
+	doc.check_permission("read")
+
+	da = _da_lay_theo_dong(doc)
 	try:
 		kq = scan_barcode(ma) or {}
 		so_lo = kq.get("batch_no")
 		if so_lo:
-			dong = [d for d in doc.items if (d.batch_no or None) == so_lo]
-			if dong:
-				return {"loai": "lo", "so_lo": so_lo, "dong_hang": dong[0].name, "vat_tu": dong[0].item_code}
+			ung_vien_lo = [d for d in doc.items if (d.batch_no or None) == so_lo]
+			if ung_vien_lo:
+				d = _chon_dong_ung_vien(ung_vien_lo, da, dong_hang)
+				if not d:
+					return {"loai": None}
+				return {
+					"loai": "lo",
+					"so_lo": so_lo,
+					"dong_hang": d.name,
+					"vat_tu": d.item_code,
+					"nhieu_dong": len(ung_vien_lo) > 1,
+				}
 			vat_tu = frappe.db.get_value("Batch", so_lo, "item")
 			cung_hang = [d for d in doc.items if d.item_code == vat_tu]
 			if cung_hang:
+				d = _chon_dong_ung_vien(cung_hang, da, dong_hang)
+				if not d:
+					return {"loai": None}
 				hsd_moi = frappe.db.get_value("Batch", so_lo, "expiry_date")
-				hsd_cu = frappe.db.get_value("Batch", cung_hang[0].batch_no, "expiry_date")
+				hsd_cu = frappe.db.get_value("Batch", d.batch_no, "expiry_date")
 				return {
 					"loai": "lo_khac",
 					"so_lo": so_lo,
-					"dong_hang": cung_hang[0].name,
+					"dong_hang": d.name,
 					"vat_tu": vat_tu,
 					"hsd": hsd_moi,
 					"hsd_dang_chot": hsd_cu,
-					"so_lo_dang_chot": cung_hang[0].batch_no,
-					"han_xa_hon": bool(hsd_moi and hsd_cu and hsd_moi > hsd_cu),
+					"so_lo_dang_chot": d.batch_no,
+					"han_xa_hon": _han_xa_hon(hsd_moi, hsd_cu),
+					"nhieu_dong": len(cung_hang) > 1,
 				}
 			return {"loai": None}
 

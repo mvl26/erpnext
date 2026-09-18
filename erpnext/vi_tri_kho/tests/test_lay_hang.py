@@ -538,6 +538,8 @@ class TestKiemSom(FrappeTestCase):
 			"rollback rồi thì không dòng sổ nào của dn được sống sót",
 		)
 		self.assertEqual(so.ton_o(O_XA, ITEM, LO), 2.0, "tồn O_XA không đổi sau rollback")
+
+
 class TestDocChoTrang(FrappeTestCase):
 	def setUp(self):
 		frappe.set_user("Administrator")
@@ -609,3 +611,138 @@ class TestDocChoTrang(FrappeTestCase):
 		frappe.set_user(ten)
 		with self.assertRaises(frappe.PermissionError):
 			danh_sach_phieu_giao(KHO)
+
+	def test_quet_phieu_khong_ton_tai_khong_nem_loi(self):
+		"""Critical (vòng sửa 1, review điều phối): `get_doc` từng nằm NGOÀI
+		try — phiếu bị huỷ/xoá giữa lúc thủ kho đang quét thì `DoesNotExistError`
+		văng thẳng ra màn hình, phá lời hứa "quét nhầm không bao giờ nổ"."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		self.assertEqual(quet_de_lay("KHONG-TON-TAI-PHIEU-GIAO-9999", LO), {"loai": None})
+
+	def test_kho_khong_bat_vi_tri_bi_chan(self):
+		"""Important 2 (vòng sửa 1, review điều phối): endpoint whitelisted gọi
+		thẳng được — `kho` tuỳ ý (chưa bật quản lý vị trí) không được lọt qua."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import danh_sach_phieu_giao
+
+		kho_khac = "Hàng trả về - MYN"
+		self.assertFalse(frappe.db.get_value("Warehouse", kho_khac, "custom_quan_ly_vi_tri"))
+		with self.assertRaisesRegex(frappe.ValidationError, "chưa bật quản lý vị trí"):
+			danh_sach_phieu_giao(kho_khac)
+
+	def test_user_permission_cong_ty_khac_chan_mo_phieu_va_quet(self):
+		"""Important 1 (vòng sửa 1, review điều phối): `frappe.get_doc` KHÔNG
+		tự chạy `has_permission` — site thật có nhiều Company, User Permission
+		theo Company bị xuyên thủng nếu không gọi `doc.check_permission("read")`
+		tay. Dựng đúng ca User Permission (đã đo: `check_permission("read")`
+		ném `PermissionError` khi user bị giới hạn sang Company khác — xem
+		task-4-report.md), không dùng đường vòng "user không vai trò"."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import mo_phieu_giao, quet_de_lay
+
+		ten = "lay-hang-cong-ty-khac@mo-phong.local"
+		cong_ty_khac = "Miyano"
+		if not frappe.db.exists("User", ten):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": ten,
+					"first_name": "Lay Cong Ty Khac",
+					"send_welcome_email": 0,
+					"roles": [{"role": "Stock User"}],
+				}
+			).insert(ignore_permissions=True)
+		if not frappe.db.exists(
+			"User Permission", {"user": ten, "allow": "Company", "for_value": cong_ty_khac}
+		):
+			frappe.get_doc(
+				{"doctype": "User Permission", "user": ten, "allow": "Company", "for_value": cong_ty_khac}
+			).insert(ignore_permissions=True)
+
+		frappe.set_user(ten)
+		with self.assertRaises(frappe.PermissionError):
+			mo_phieu_giao(self.dn.name)
+		with self.assertRaises(frappe.PermissionError):
+			quet_de_lay(self.dn.name, LO)
+
+	def test_quet_lo_khac_nhieu_dong_cung_mat_hang_chon_theo_quy_tac(self):
+		"""Important 3 (vòng sửa 1, review điều phối): `cung_hang[0]` từng chọn
+		tuỳ tiện khi phiếu có nhiều dòng cùng mặt hàng khác lô. Không truyền
+		`dong_hang`: phải chọn dòng CHƯA lấy đủ (không phải dòng[0], vốn đã lấy
+		đủ trong bài này). Truyền `dong_hang`: ép đúng dòng chỉ định."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		lo2 = "9L-LO-LAY-03"
+		lo3 = "9L-LO-LAY-04"
+		for lo, han in ((lo2, "2029-06-30"), (lo3, "2030-12-31")):
+			if not frappe.db.exists("Batch", lo):
+				frappe.get_doc(
+					{"doctype": "Batch", "batch_id": lo, "item": ITEM, "expiry_date": han}
+				).insert(ignore_permissions=True)
+			frappe.cache().delete_value(f"erpnext:barcode_scan:{lo}")
+
+		dn2 = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 5,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": LO,
+						"use_serial_batch_fields": 1,
+					},
+					{
+						"item_code": ITEM,
+						"qty": 3,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": lo2,
+						"use_serial_batch_fields": 1,
+					},
+				],
+			}
+		)
+		dn2.insert(ignore_permissions=True)
+		# Dòng đầu (LO) đã lấy ĐỦ — không còn là ứng viên hợp lệ khi không chỉ
+		# định dong_hang.
+		dn2.append(
+			"custom_phan_bo_vi_tri",
+			{"dong_hang": dn2.items[0].name, "vat_tu": ITEM, "so_lo": LO, "o": O_GAN, "so_luong": 5},
+		)
+		dn2.save(ignore_permissions=True)
+
+		# Không truyền dong_hang: chọn dòng CHƯA lấy đủ (dòng lô2), không phải
+		# dòng[0] (đúng bug Important 3).
+		kq = quet_de_lay(dn2.name, lo3)
+		self.assertEqual(kq["loai"], "lo_khac")
+		self.assertEqual(kq["dong_hang"], dn2.items[1].name)
+		self.assertEqual(kq["so_lo_dang_chot"], lo2)
+		self.assertTrue(kq["nhieu_dong"])
+		self.assertTrue(kq["han_xa_hon"], "lô 2030 xa hơn lô 2029-06-30")
+
+		# Truyền dong_hang: ép đúng dòng đã chỉ định, kể cả dòng đã lấy đủ.
+		kq2 = quet_de_lay(dn2.name, lo3, dong_hang=dn2.items[0].name)
+		self.assertEqual(kq2["dong_hang"], dn2.items[0].name)
+		self.assertEqual(kq2["so_lo_dang_chot"], LO)
+
+	def test_han_xa_hon_lo_khong_han_dung_luon_xa_hon(self):
+		"""Important 4 (vòng sửa 1, review điều phối): `bool(a and b and a > b)`
+		trả `False` sai nghĩa khi một vế `None` — lô KHÔNG hạn phải bị coi là
+		"xa hơn" MỌI lô có hạn."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+
+		lo_khong_han = "9L-LO-LAY-05"
+		if not frappe.db.exists("Batch", lo_khong_han):
+			frappe.get_doc({"doctype": "Batch", "batch_id": lo_khong_han, "item": ITEM}).insert(
+				ignore_permissions=True
+			)
+		frappe.cache().delete_value(f"erpnext:barcode_scan:{lo_khong_han}")
+
+		kq = quet_de_lay(self.dn.name, lo_khong_han)
+		self.assertEqual(kq["loai"], "lo_khac")
+		self.assertIsNone(kq["hsd"])
+		self.assertTrue(kq["han_xa_hon"], "lô không hạn phải coi là xa hơn lô 2029 có hạn")
