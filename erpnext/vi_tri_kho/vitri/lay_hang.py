@@ -852,6 +852,86 @@ def doi_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 
 
 @frappe.whitelist()
+def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
+	"""Lô cũ hết giữa chừng: chốt dòng cũ ở số ĐÃ LẤY, đẻ dòng mới cho phần còn lại.
+
+	`Stock Settings.use_serial_batch_fields = 1` trên site này (đo 18/09/2026) nên
+	MỘT DÒNG phiếu giao chỉ mang MỘT lô — không tách thì không có chỗ nào ghi lô
+	thứ hai, và duyệt sẽ nổ "Batch No … has negative stock".
+
+	Chỉ tách khi dòng cũ ĐÃ lấy được một phần: chưa lấy gì thì đó là ĐỔI LÔ
+	(`doi_lo`), và tách ra một dòng 0 là để lại rác trên chứng từ bán hàng.
+
+	Dòng mới KHÔNG mang theo `serial_and_batch_bundle` của dòng cũ — trang Lấy
+	hàng chưa hỗ trợ luồng bundle (xem `_chan_bundle_serial_batch`), và bundle cũ
+	dù sao cũng chỉ khớp số lượng/lô CŨ, không khớp phần tách ra.
+	"""
+	doc = _mo_de_ghi(phieu)
+	d = _dong_cua(doc, dong_hang)
+	_chan_bundle_serial_batch(d)
+	da = flt(_da_lay_theo_dong(doc).get(dong_hang, 0.0))
+	con_lai = flt(d.qty) - da
+
+	if da <= _SAI_SO:
+		frappe.throw(
+			_(
+				"Dòng {0} ({1}) chưa lấy được gì của lô {2} — dùng 'Đổi lô' thay vì tách dòng."
+			).format(d.idx, d.item_code, d.batch_no or "—")
+		)
+	if con_lai <= _SAI_SO:
+		frappe.throw(
+			_("Dòng {0} ({1}) đã lấy đủ {2}, không còn gì để tách.").format(
+				d.idx, d.item_code, flt(d.qty, 3)
+			)
+		)
+
+	if not frappe.db.exists("Batch", so_lo_moi):
+		frappe.throw(_("Lô {0} không tồn tại.").format(so_lo_moi))
+	chu = frappe.db.get_value("Batch", so_lo_moi, "item")
+	if chu != d.item_code:
+		frappe.throw(
+			_("Lô {0} là lô của mặt hàng {1}, không phải {2}.").format(so_lo_moi, chu, d.item_code)
+		)
+
+	moi = {
+		k: v
+		for k, v in d.as_dict().items()
+		if k
+		not in (
+			"name",
+			"idx",
+			"creation",
+			"modified",
+			"modified_by",
+			"owner",
+			"parent",
+			"parentfield",
+			"parenttype",
+			"doctype",
+			"serial_and_batch_bundle",
+			# Suất tính lại theo `qty` mới (recompute ở `validate`/tổng tiền) —
+			# giữ nguyên số của dòng CŨ (qty=12) thì dòng mới ghi sổ nhầm số
+			# lượng (`stock_qty`) dù `qty` hiển thị đã sửa đúng.
+			"stock_qty",
+			"amount",
+			"base_amount",
+			"net_amount",
+			"base_net_amount",
+			"amount_before_discount",
+			"base_amount_before_discount",
+			"tax_exclusive_amount",
+			"base_tax_exclusive_amount",
+		)
+	}
+	moi["qty"] = con_lai
+	moi["batch_no"] = so_lo_moi
+	d.qty = da
+	doc.append("items", moi)
+	_luu_hoac_bao_xung_dot(doc)
+	return mo_phieu_giao(phieu)
+
+
+@frappe.whitelist()
 def chot_thieu(phieu: str, dong_hang: str) -> dict:
 	"""Đánh dấu dòng này lấy được bao nhiêu thì tính bấy nhiêu.
 

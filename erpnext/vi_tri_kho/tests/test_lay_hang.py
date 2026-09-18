@@ -103,6 +103,50 @@ def _chuyen_vao_o(cap):
 	return pxep
 
 
+def _nhap_kho_lo(so_lo, so_luong):
+	"""Nhập kho cho MỘT LÔ tuỳ ý — `_nhap_kho` khoá cứng vào `LO`, cần bản này
+	cho các bài dựng lô THỨ HAI (vd `test_tach_dong_khi_lay_tu_hai_lo`)."""
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Material Receipt",
+			"company": CTY,
+			"items": [
+				{
+					"item_code": ITEM,
+					"qty": so_luong,
+					"t_warehouse": KHO,
+					"basic_rate": 1000,
+					"batch_no": so_lo,
+					"use_serial_batch_fields": 1,
+				}
+			],
+		}
+	)
+	se.insert(ignore_permissions=True)
+	se.submit()
+	return se
+
+
+def _chuyen_vao_o_lo(so_lo, cap):
+	"""`_chuyen_vao_o` khoá cứng vào `LO` — bản này xếp một lô tuỳ ý vào ô."""
+	chua_xep = frappe.db.get_value("Storage Location", {"kho": KHO, "la_o_chua_xep": 1})
+	pxep = frappe.get_doc(
+		{
+			"doctype": "Location Transfer",
+			"kho": KHO,
+			"ngay": nowdate(),
+			"items": [
+				{"vat_tu": ITEM, "so_lo": so_lo, "tu_o": chua_xep, "den_o": o, "so_luong": sl}
+				for o, sl in cap
+			],
+		}
+	)
+	pxep.insert(ignore_permissions=True)
+	pxep.submit()
+	return pxep
+
+
 def _phieu_giao(so_luong, phan_bo=None):
 	"""Phiếu giao NHÁP cho `so_luong`, kèm phân bổ nếu có. `phan_bo` = [(ô, số lượng), ...]."""
 	dn = frappe.get_doc(
@@ -1483,3 +1527,41 @@ class TestGhiChoTrang(FrappeTestCase):
 		con_hieu_luc = _doc_chot_thieu(self.dn.name)
 		self.assertNotIn("dong-qua-han", con_hieu_luc)
 		self.assertIn("dong-con-han", con_hieu_luc)
+
+	# ------------------------------------------------------------------
+	# Task 6 (18/09/2026): tách dòng phiếu giao khi một dòng lấy từ hai lô.
+	# ------------------------------------------------------------------
+
+	def test_tach_dong_khi_lay_tu_hai_lo(self):
+		"""Lô cũ chỉ còn 8/12 → tách: dòng cũ 8 lô cũ, dòng mới 4 lô mới."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay, hoan_tat, tach_dong_theo_lo
+
+		lo2 = "9L-LO-LAY-04"
+		if not frappe.db.exists("Batch", lo2):
+			frappe.get_doc(
+				{"doctype": "Batch", "batch_id": lo2, "item": ITEM, "expiry_date": "2027-07-31"}
+			).insert(ignore_permissions=True)
+		_nhap_kho_lo(lo2, 10)
+		_chuyen_vao_o_lo(lo2, [(O_XA, 10)])
+
+		ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 8)
+		p = tach_dong_theo_lo(self.dn.name, self.dong, lo2)
+
+		self.assertEqual(len(p["dong"]), 2)
+		cu = next(d for d in p["dong"] if d["dong_hang"] == self.dong)
+		moi = next(d for d in p["dong"] if d["dong_hang"] != self.dong)
+		self.assertEqual((cu["so_lo"], cu["can_lay"], cu["da_lay"]), (LO, 8.0, 8.0))
+		self.assertEqual((moi["so_lo"], moi["can_lay"], moi["da_lay"]), (lo2, 4.0, 0.0))
+
+		ghi_da_lay(self.dn.name, moi["dong_hang"], lo2, O_XA, 4)
+		hoan_tat(self.dn.name)
+
+		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 12.0)
+		self.assertEqual(so.ton_o(O_XA, ITEM, lo2), 6.0)
+
+	def test_tach_dong_khi_chua_lay_gi_thi_bi_chan(self):
+		"""Chưa lấy được gì của lô cũ thì đó là ĐỔI LÔ, không phải tách."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import tach_dong_theo_lo
+
+		with self.assertRaisesRegex(frappe.ValidationError, "chưa lấy được gì"):
+			tach_dong_theo_lo(self.dn.name, self.dong, LO)
