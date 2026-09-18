@@ -436,3 +436,17 @@ class TestTrangXepHangPda(TestTrangQuetMa):
 		from erpnext.vi_tri_kho.vitri.xep import VAI_TRO_DUOC_XEP
 
 		return VAI_TRO_DUOC_XEP
+
+
+class TestTrangLayHang(TestTrangQuetMa):
+	"""Trang lấy hàng trên PDA (spec 2026-09-18). Cùng bốn kiểu hỏng im lặng với
+	hai trang PDA trước: thiếu roles thì Stock User mở ra "Not permitted"; thiếu
+	khối trong `content` thì workspace không vẽ ô bấm."""
+
+	TRANG = "lay-hang-pda"
+	THU_MUC = "lay_hang_pda"
+
+	def _vai_tro_may_chu(self):
+		from erpnext.vi_tri_kho.vitri.lay_hang import VAI_TRO_DUOC_LAY
+
+		return VAI_TRO_DUOC_LAY
