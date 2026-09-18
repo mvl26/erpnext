@@ -1565,3 +1565,89 @@ class TestGhiChoTrang(FrappeTestCase):
 
 		with self.assertRaisesRegex(frappe.ValidationError, "chưa lấy được gì"):
 			tach_dong_theo_lo(self.dn.name, self.dong, LO)
+
+	def test_tach_dong_khi_da_lay_du_thi_bi_chan(self):
+		"""Important 2 (vòng sửa 1/5, review điều phối): điều kiện biên còn lại
+		của `tach_dong_theo_lo` — dòng đã lấy ĐỦ, không còn phần dư để tách.
+		Viết đúng ngay từ Step 3 nhưng chưa từng có bài đỏ/xanh riêng cho nó."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay, tach_dong_theo_lo
+
+		ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 12)
+		with self.assertRaisesRegex(frappe.ValidationError, "đã lấy đủ"):
+			tach_dong_theo_lo(self.dn.name, self.dong, "9L-LO-KHONG-CAN-TON-TAI")
+
+	def test_tach_dong_tren_phieu_giao_tu_don_ban_khong_dem_hai_lan(self):
+		"""Important 1 (vòng sửa 1/5, review điều phối): nhánh spec §8 "dễ sai
+		nhất" — tách dòng trên một phiếu giao SINH TỪ ĐƠN BÁN. Cả hai dòng sau
+		tách cùng trỏ một `Sales Order Item` (`so_detail` chép nguyên từ
+		`d.as_dict()`) — khẳng định rollup `delivered_qty`/`per_delivered`
+		CỘNG ĐÚNG tổng hai dòng (không đếm hai lần), không chỉ "gọi không nổ",
+		và tồn theo Ô của CẢ HAI lô đúng sau khi duyệt."""
+		from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay, hoan_tat, tach_dong_theo_lo
+
+		lo2 = "9L-LO-LAY-04"
+		if not frappe.db.exists("Batch", lo2):
+			frappe.get_doc(
+				{"doctype": "Batch", "batch_id": lo2, "item": ITEM, "expiry_date": "2027-07-31"}
+			).insert(ignore_permissions=True)
+		_nhap_kho_lo(lo2, 10)
+		_chuyen_vao_o_lo(lo2, [(O_XA, 10)])
+
+		don_ban = frappe.get_doc(
+			{
+				"doctype": "Sales Order",
+				"company": CTY,
+				"customer": KHACH,
+				"delivery_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 12,
+						"rate": 5000,
+						"warehouse": KHO,
+						"delivery_date": nowdate(),
+					}
+				],
+			}
+		)
+		don_ban.insert(ignore_permissions=True)
+		don_ban.submit()
+
+		dn2 = make_delivery_note(don_ban.name)
+		dn2.items[0].batch_no = LO
+		dn2.items[0].use_serial_batch_fields = 1
+		# Minor 2 (vòng sửa 1/5, review điều phối): đặt weight_per_unit > 0 để
+		# bài này CHỨNG MINH được phép tính lại `total_weight`/`total_net_weight`
+		# theo qty MỚI — vật tư chung của module (`ITEM`) không có
+		# weight_per_unit nên các bài khác chỉ đi qua nhánh "không có thì 0",
+		# không tự nó khoá được công thức nhân.
+		dn2.items[0].weight_per_unit = 2.5
+		dn2.insert(ignore_permissions=True)
+		dong2 = dn2.items[0].name
+
+		ghi_da_lay(dn2.name, dong2, LO, O_GAN, 8)
+		p = tach_dong_theo_lo(dn2.name, dong2, lo2)
+		moi = next(d for d in p["dong"] if d["dong_hang"] != dong2)
+		self.assertEqual((moi["so_lo"], moi["can_lay"]), (lo2, 4.0))
+
+		# Minor 2: dòng cũ (8 x 2.5) + dòng mới (4 x 2.5) = tổng phiếu (12 x 2.5)
+		# — không dòng nào còn mang trọng lượng tính theo qty=12 CŨ.
+		self.assertEqual(flt(frappe.db.get_value("Delivery Note Item", dong2, "total_weight")), 20.0)
+		self.assertEqual(
+			flt(frappe.db.get_value("Delivery Note Item", moi["dong_hang"], "total_weight")), 10.0
+		)
+		self.assertEqual(flt(frappe.db.get_value("Delivery Note", dn2.name, "total_net_weight")), 30.0)
+
+		ghi_da_lay(dn2.name, moi["dong_hang"], lo2, O_XA, 4)
+		kq = hoan_tat(dn2.name)
+
+		self.assertEqual(kq["so_dong"], 2)
+		self.assertEqual(frappe.db.get_value("Delivery Note", dn2.name, "docstatus"), 1)
+
+		don_ban.reload()
+		self.assertEqual(flt(don_ban.items[0].delivered_qty), 12.0, "không đếm hai lần")
+		self.assertEqual(flt(don_ban.per_delivered), 100.0)
+
+		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 12.0)
+		self.assertEqual(so.ton_o(O_XA, ITEM, lo2), 6.0)

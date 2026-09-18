@@ -865,6 +865,14 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 	Dòng mới KHÔNG mang theo `serial_and_batch_bundle` của dòng cũ — trang Lấy
 	hàng chưa hỗ trợ luồng bundle (xem `_chan_bundle_serial_batch`), và bundle cũ
 	dù sao cũng chỉ khớp số lượng/lô CŨ, không khớp phần tách ra.
+
+	VÒNG SỬA 1/5 Task 6 (review điều phối), Important 3 — LỐI THOÁT nếu dòng CŨ
+	sau khi tách lại bị `bo_dong_da_lay` bỏ hết phân bổ (quét nhầm rồi bỏ): dòng
+	đó còn `qty > 0` nhưng `đã lấy = 0`, và `hoan_tat` sẽ chặn nó — trang PDA
+	KHÔNG có hàm xoá dòng `Delivery Note Item` nào, nên lối thoát THẬT là quét
+	lấy lại cho đúng dòng đó, `doi_lo` (vẫn dùng được vì dòng không còn phân bổ
+	nào), hoặc bỏ dòng thẳng trên form Phiếu giao hàng ở máy tính — KHÔNG phải
+	kẹt cứng, xem câu báo tại `hoan_tat`.
 	"""
 	doc = _mo_de_ghi(phieu)
 	d = _dong_cua(doc, dong_hang)
@@ -909,6 +917,12 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 			"parenttype",
 			"doctype",
 			"serial_and_batch_bundle",
+			# Minor 1 (vòng sửa 1/5 Task 6, review điều phối): mặt hàng vừa quản
+			# lý lô vừa quản lý serial thì `serial_no` là danh sách text khớp
+			# đúng `qty` CŨ — chép nguyên sang dòng mới (`qty` MỚI khác) để lại
+			# một danh sách serial sai số lượng, cùng loại bẫy với
+			# `serial_and_batch_bundle` ở trên.
+			"serial_no",
 			# Suất tính lại theo `qty` mới (recompute ở `validate`/tổng tiền) —
 			# giữ nguyên số của dòng CŨ (qty=12) thì dòng mới ghi sổ nhầm số
 			# lượng (`stock_qty`) dù `qty` hiển thị đã sửa đúng.
@@ -925,6 +939,21 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 	}
 	moi["qty"] = con_lai
 	moi["batch_no"] = so_lo_moi
+
+	# Minor 2 (vòng sửa 1/5 Task 6, review điều phối): `total_weight`/
+	# `total_net_weight` chỉ được TÍNH LẠI Ở CLIENT (`transaction.js`,
+	# `item.total_weight = stock_qty * weight_per_unit`) — server-side
+	# `calculate_total_net_weight` (`taxes_and_totals.py`) chỉ CỘNG LẠI
+	# `total_weight` có sẵn của từng dòng, không tự tính nó theo `qty` mới.
+	# Chép nguyên `d.as_dict()` để lại `total_weight` của dòng CŨ (qty=12) trên
+	# CẢ hai dòng sau tách — tổng trọng lượng phiếu gần gấp đôi, in sai lên vận
+	# đơn. Tính tay theo đúng công thức client, không suy đoán: không có
+	# `weight_per_unit` thì 0.
+	conv = flt(d.conversion_factor) or 1.0
+	wpu = flt(d.weight_per_unit)
+	d.total_weight = flt(wpu * da * conv) if wpu else 0.0
+	moi["total_weight"] = flt(wpu * con_lai * conv) if wpu else 0.0
+
 	d.qty = da
 	doc.append("items", moi)
 	_luu_hoac_bao_xung_dot(doc)
@@ -1079,10 +1108,18 @@ def hoan_tat(phieu: str) -> dict:
 				).format(d.idx, d.item_code, flt(d.qty, 3), flt(lay, 3))
 			)
 		if lay <= 0:
+			# Important 3 (vòng sửa 1/5 Task 6, review điều phối): câu báo TRƯỚC
+			# đây khuyên "bỏ dòng khỏi phiếu giao" — trang PDA không có hàm nào
+			# xoá dòng `Delivery Note Item`, nên đó là lời khuyên trỏ tới một
+			# hành động không làm được ở đây (ca thật: `tach_dong_theo_lo` rồi
+			# `bo_dong_da_lay` hết phân bổ của dòng cũ). Nêu đúng ba lối thoát
+			# THẬT: quét lấy tiếp, đổi lô (`doi_lo`, vẫn dùng được vì dòng không
+			# còn phân bổ), hoặc bỏ dòng trên form ở máy tính (không phải PDA).
 			frappe.throw(
 				_(
-					"Dòng {0} ({1}) chưa lấy được gì — bỏ dòng khỏi phiếu giao thay vì chốt "
-					"thiếu 0."
+					"Dòng {0} ({1}) chưa lấy được gì — quét lấy cho dòng này, đổi lô nếu lấy "
+					"nhầm lô, hoặc bỏ dòng trên form Phiếu giao hàng (máy tính). Không chốt "
+					"thiếu 0 được."
 				).format(d.idx, d.item_code)
 			)
 		# Important 2 (vòng sửa 1/5): CHỈ chặn ở đây, không chặn TOÀN BỘ hàm
