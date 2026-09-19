@@ -293,18 +293,43 @@
 				.then((p) => {
 					rung([40, 40, 40]);
 					this.phieu = p;
-					this.cho = null;
 					const da_ghi = p.so_luong_da_ghi != null ? flt(p.so_luong_da_ghi) : yeu_cau;
-					if (theo_ton_o && da_ghi < yeu_cau - 1e-9) {
+					const bi_cat = theo_ton_o && da_ghi < yeu_cau - 1e-9;
+					// Đọc lại phần CÒN THIẾU của dòng từ CHÍNH payload máy chủ vừa trả
+					// (không tự trừ tay `yeu_cau - da_ghi`): server là nguồn sự thật duy
+					// nhất, và một lượt ghi khác (tab/thiết bị khác) có thể đã đổi
+					// `da_lay` của dòng ngay giữa lúc này.
+					const dong_moi = (p.dong || []).find((x) => x.dong_hang === c.dong_hang);
+					const con_lai_dong = dong_moi ? flt(dong_moi.can_lay) - flt(dong_moi.da_lay) : 0;
+					if (bi_cat && con_lai_dong > 1e-9) {
+						// VÒNG SỬA (review độc lập, model mạnh): TRƯỚC bản vá này,
+						// `this.cho = null` ở đây bắt thủ kho quét LẠI tem lô trước khi
+						// quét ô kế tiếp — trái với chính câu HDSD đã viết ("hệ TỰ lấy
+						// đúng số ô còn ... Không cần sửa số tay"), và bước ② biến mất
+						// khỏi màn hình đúng lúc thủ kho cần nó nhất. GIỮ nguyên lô/dòng
+						// đang chờ (`dong_hang`/`so_lo` không đổi), chỉ cập nhật số lượng
+						// = phần còn thiếu MỚI của dòng, và hạ `da_sua_so_luong` về
+						// `false` — số này lại là MẶC ĐỊNH, cho phép ô kế tiếp tiếp tục
+						// tự cắt theo tồn nếu cần. Gợi ý dưới ô quét (`ve()`) tự đọc
+						// `this.cho` và hiện lại đúng bước ② (không phải bước ①).
+						this.cho = {
+							dong_hang: c.dong_hang,
+							so_lo: c.so_lo,
+							vat_tu: c.vat_tu,
+							ten_hang: c.ten_hang,
+							so_luong: con_lai_dong,
+							lo_khac: null,
+							da_sua_so_luong: false,
+						};
 						this.bao(
-							__("Ô <b>{0}</b> chỉ còn <b>{1}</b> — đã lấy {2}, quét ô khác cho phần còn lại.", [
+							__("Ô <b>{0}</b> chỉ còn <b>{1}</b> — đã lấy {1}, quét ô khác cho phần còn lại.", [
 								e(o.ma_in_nhan || o.ma_o),
-								so(da_ghi),
 								so(da_ghi),
 							]),
 							"cam"
 						);
 					} else {
+						this.cho = null;
 						this.bao(
 							__("Đã lấy <b>{0}</b> {1} ở <b>{2}</b>", [
 								so(da_ghi),

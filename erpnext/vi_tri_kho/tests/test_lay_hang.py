@@ -997,6 +997,119 @@ class TestDocChoTrang(FrappeTestCase):
 			"gợi ý không được trắng chỉ vì tổng CẢ KHO có phần kẹt ở ô ngừng dùng",
 		)
 
+	def test_thieu_trong_lo_khong_cong_nham_phan_bo_o_kho_khac(self):
+		"""Bài test BẮT BUỘC (review độc lập, model mạnh, điểm 3):
+		`_da_phan_bo_o_theo_mat_hang_lo` (gộp phần đã lên phiếu để trừ khỏi gợi
+		ý) TRƯỚC bản vá này không lọc theo KHO — một phiếu có HAI dòng cùng
+		(mặt hàng, lô) nhưng ở HAI KHO khác nhau (hiếm nhưng có thể: giao từ
+		hai kho cho cùng một khách) sẽ cộng nhầm phần đã phân bổ của dòng KHO
+		KHÁC vào phép trừ của dòng đang tính, khiến `thieu_trong_lo` báo thiếu
+		nhiều hơn tồn THẬT của ĐÚNG kho đang xét.
+
+		Dòng A (KHO, `Kho Miyano - MYN`) cần ĐÚNG 30 — khớp tổng tồn LO ở KHO
+		(20 + 10, xem setUp) — nên PHẢI đủ, `thieu_trong_lo` phải là 0. Dòng B
+		ở kho khác (`Stores - MYN`) đã ghi lấy HẾT 5 của CÙNG (mặt hàng, lô) đó
+		ở một ô của KHO ĐÓ; nếu hàm gộp không lọc kho, 5 này bị trừ NHẦM vào
+		tồn khả dụng của dòng A, biến 30/30 đủ thành báo thiếu 5.
+		"""
+		from erpnext.vi_tri_kho.vitri import kho as vk
+		from erpnext.vi_tri_kho.vitri.bat_kho import tao_o_chua_xep
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay, mo_phieu_giao
+
+		kho_b = "Stores - MYN"
+		o_b = "8B01010101"
+		co_cu = frappe.db.get_value("Warehouse", kho_b, "custom_quan_ly_vi_tri")
+		frappe.db.set_value("Warehouse", kho_b, "custom_quan_ly_vi_tri", 1)
+		vk.xoa_cache_kho(kho_b)
+
+		def _don():
+			frappe.db.set_value("Warehouse", kho_b, "custom_quan_ly_vi_tri", co_cu)
+			vk.xoa_cache_kho(kho_b)
+
+		self.addCleanup(_don)
+
+		# `tao_o_chua_xep` — CÁCH DUY NHẤT được phép tạo ô hệ thống, kể cả
+		# trong test (xem docstring hàm đó): hook ghi sổ (`hook_sle.py`) đòi
+		# một kho ĐÃ bật quản lý vị trí phải có sẵn ô "Chưa xếp vị trí" đúng
+		# dạng trước khi nhận bất kỳ dòng sổ nào, kể cả Material Receipt.
+		tao_o_chua_xep(kho_b)
+		if not frappe.db.exists("Storage Location", o_b):
+			frappe.get_doc({"doctype": "Storage Location", "ma_o": o_b, "kho": kho_b}).insert(
+				ignore_permissions=True
+			)
+
+		se = frappe.get_doc(
+			{
+				"doctype": "Stock Entry",
+				"stock_entry_type": "Material Receipt",
+				"company": CTY,
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 5,
+						"t_warehouse": kho_b,
+						"basic_rate": 1000,
+						"batch_no": LO,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
+		se.insert(ignore_permissions=True)
+		se.submit()
+
+		# Material Receipt đổ thẳng vào ô "Chưa xếp" của kho B — chuyển sang ô
+		# lá `o_b` trước khi ghi phân bổ (`ghi_da_lay` đòi phân bổ vào đúng ô
+		# đang GIỮ hàng, không phải ô chưa xếp).
+		chua_xep_b = frappe.db.get_value("Storage Location", {"kho": kho_b, "la_o_chua_xep": 1})
+		lt = frappe.get_doc(
+			{
+				"doctype": "Location Transfer",
+				"kho": kho_b,
+				"ngay": nowdate(),
+				"items": [{"vat_tu": ITEM, "so_lo": LO, "tu_o": chua_xep_b, "den_o": o_b, "so_luong": 5}],
+			}
+		)
+		lt.insert(ignore_permissions=True)
+		lt.submit()
+
+		dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 30,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": LO,
+						"use_serial_batch_fields": 1,
+					},
+					{
+						"item_code": ITEM,
+						"qty": 5,
+						"rate": 5000,
+						"warehouse": kho_b,
+						"batch_no": LO,
+						"use_serial_batch_fields": 1,
+					},
+				],
+			}
+		)
+		dn.insert(ignore_permissions=True)
+
+		ghi_da_lay(dn.name, dn.items[1].name, LO, o_b, 5)
+
+		p = mo_phieu_giao(dn.name)
+		dong_a = next(x for x in p["dong"] if x["dong_hang"] == dn.items[0].name)
+		self.assertEqual(
+			dong_a["thieu_trong_lo"], 0.0, "kho A đủ hàng, không được báo thiếu vì phân bổ ở kho B"
+		)
+		self.assertEqual(sum(o["so_luong"] for o in dong_a["o_nen_lay"]), 30.0)
+
 	def test_quet_lo_cua_phieu_va_quet_o(self):
 		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
 

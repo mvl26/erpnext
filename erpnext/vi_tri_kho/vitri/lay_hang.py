@@ -339,12 +339,23 @@ def _da_lay_theo_dong(doc) -> dict:
 	return tong
 
 
-def _da_phan_bo_o_theo_mat_hang_lo(doc, vat_tu: str, so_lo: str | None) -> dict:
-	"""{ô: tổng đã phân bổ} cho ĐÚNG (vat_tu, so_lo) trên TOÀN BỘ phiếu `doc`.
+def _da_phan_bo_o_theo_mat_hang_lo(doc, kho: str, vat_tu: str, so_lo: str | None) -> dict:
+	"""{ô: tổng đã phân bổ} cho ĐÚNG (kho, vat_tu, so_lo) trên TOÀN BỘ phiếu `doc`.
 
 	Gộp qua MỌI dòng hàng, không chỉ dòng đang xét — hai dòng hàng khác nhau
 	nhưng cùng (mặt hàng, lô) vẫn cùng giữ hàng ở NHỮNG Ô ĐÓ (đúng cách
 	`kiem_phan_bo_khi_luu` gộp `theo_o` để so với `ton_o` lúc validate).
+
+	VÒNG SỬA (review độc lập, model mạnh): thêm tham số `kho`, lọc theo kho
+	của TỪNG dòng hàng góp vào (không phải kho của dòng đang xét — một phiếu
+	giao hiếm khi nhưng CÓ THỂ có hai dòng cùng mặt hàng/lô ở hai KHO khác
+	nhau, ví dụ giao từ hai kho cho cùng khách). Thiếu bộ lọc này thì
+	`thieu_trong_lo` của một dòng sẽ cộng nhầm phần đã phân bổ của dòng kia ở
+	kho KHÁC — báo "thiếu" nhiều hơn tồn CỦA ĐÚNG KHO đang xét thật sự thiếu.
+	Tra kho theo `Delivery Note Item.warehouse` của CHÍNH dòng hàng sở hữu mỗi
+	dòng phân bổ (`p.dong_hang`), không tra theo `p.o` (Storage Location của
+	một ô luôn cố định một kho, tra qua đó cũng đúng, nhưng tra qua dòng hàng
+	sẵn có trên `doc.items` không cần truy vấn CSDL thêm).
 
 	Dùng để TRỪ khỏi gợi ý `o_nen_lay` của `mo_phieu_giao` (sửa lỗi đo trên
 	tài liệu ảnh `22b`): ô đã bị CHÍNH phiếu này lấy hết trên giấy (chưa
@@ -352,9 +363,12 @@ def _da_phan_bo_o_theo_mat_hang_lo(doc, vat_tu: str, so_lo: str | None) -> dict:
 	đó còn nguyên) không còn lý do được gợi ý lại — thủ kho đi tới sẽ thấy ô
 	vừa lấy trống, đúng cảnh lộ trên ảnh trước bản vá này.
 	"""
+	kho_theo_dong = {x.name: x.warehouse for x in doc.items}
 	theo_o: dict[str, float] = {}
 	for p in doc.get(TEN_BANG_PHAN_BO) or []:
 		if p.vat_tu != vat_tu or (p.so_lo or None) != (so_lo or None):
+			continue
+		if kho_theo_dong.get(p.dong_hang) != kho:
 			continue
 		theo_o[p.o] = theo_o.get(p.o, 0.0) + flt(p.so_luong)
 	return theo_o
@@ -655,7 +669,9 @@ def mo_phieu_giao(phieu: str) -> dict:
 				# thì một ô vừa bị CHÍNH phiếu này lấy hết vẫn được gợi ý lại nguyên
 				# vẹn, vì `Location Balance` (nguồn của `chon_o_xuat`) chỉ đổi lúc
 				# DUYỆT phiếu, không đổi lúc ghi bảng phân bổ nháp.
-				da_phan_bo_o = _da_phan_bo_o_theo_mat_hang_lo(doc, d.item_code, d.batch_no or None)
+				da_phan_bo_o = _da_phan_bo_o_theo_mat_hang_lo(
+					doc, d.warehouse, d.item_code, d.batch_no or None
+				)
 				tong_da_phan_bo = flt(sum(da_phan_bo_o.values()))
 				tong_kha_dung = flt(max(tong_con - tong_da_phan_bo, 0.0))
 				thieu_trong_lo = flt(max(con_can - tong_kha_dung, 0.0))
@@ -1151,7 +1167,12 @@ def ghi_da_lay(
 	so_that_ghi = so_luong
 	if cint(lay_toi_da_theo_o):
 		con_lai = _ton_o_con_lai_tren_phieu(doc, o, d.item_code, so_lo)
-		if con_lai > 0:
+		# VÒNG SỬA (review độc lập, model mạnh): `> 0` (không có ngưỡng) cho một
+		# ô LẺ chút xíu (nhiễu dấu phẩy động, vd `con_lai = 0.0000000003`) ghi
+		# một lượt gần-như-0 kèm câu báo "Ô X chỉ còn 0" — đúng thứ hỏng module
+		# này phải tránh (`_SAI_SO` đã dùng CHUNG cho mọi so sánh `<=0`/`>0` số
+		# lượng khác trong file, xem `kiem_phan_bo_khi_luu`).
+		if con_lai > _SAI_SO:
 			so_that_ghi = min(so_luong, con_lai)
 
 	trung = next(
