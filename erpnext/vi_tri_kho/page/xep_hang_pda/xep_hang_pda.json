@@ -1,0 +1,30 @@
+{
+ "content": null,
+ "creation": "2026-09-17 00:00:00",
+ "docstatus": 0,
+ "doctype": "Page",
+ "icon": "move",
+ "idx": 0,
+ "modified": "2026-09-17 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Vi Tri Kho",
+ "name": "xep-hang-pda",
+ "owner": "Administrator",
+ "page_name": "xep-hang-pda",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Stock Manager"
+  },
+  {
+   "role": "Stock User"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Xếp hàng vào ô"
+}
