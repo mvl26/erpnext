@@ -200,8 +200,10 @@ Hộp lô A ở đúng ô đó.*
 
 ### Lấy hàng trên PDA (đường khuyến khích, từ 18/09/2026)
 
-Thay vì lập phiếu giao rồi duyệt thẳng, thủ kho mở trang **Lấy hàng** (ô bấm cùng tên đầu
-trang **Vị trí kho**), chọn đúng phiếu giao vừa lập, rồi quét xác nhận từng thùng đã lấy:
+Thay vì lập phiếu giao rồi duyệt thẳng, **lưu phiếu giao (nháp) rồi bấm nút "Lấy hàng trên PDA"**
+ở đầu form — trang **Lấy hàng** mở thẳng đúng phiếu này, không phải dò trong danh sách (vẫn vào
+được theo lối cũ: ô bấm **Lấy hàng** ở trang **Vị trí kho**, rồi chọn phiếu). Trên trang, quét
+xác nhận từng thùng đã lấy:
 
 1. **① Quét tem lô** trên thùng — hệ nhận đúng dòng cần lấy của lô đó.
 2. **② Quét tem ô** nơi thật sự lấy thùng xuống — lượt lấy được ghi ngay lên phiếu, tiến độ tăng.
@@ -210,6 +212,15 @@ trang **Vị trí kho**), chọn đúng phiếu giao vừa lập, rồi quét x�
    ở trên.
 4. Đủ hàng thì bấm **Hoàn tất phiếu** → xác nhận → hệ duyệt phiếu, sổ vị trí trừ **đúng các ô đã
    quét** (không phải ô hệ tự chọn theo FEFO nữa).
+
+**Theo dõi ngay trên form phiếu giao (từ 19/09/2026):**
+
+| Chỗ xem | Nói gì |
+|---|---|
+| Thanh **Lấy hàng** trên đầu form | Phiếu nháp: đã lấy xong bao nhiêu/bao nhiêu dòng, dòng chốt thiếu, dòng lấy tay (dịch vụ, bán theo đơn vị khác), ai đang lấy. Đã duyệt: trừ sổ theo ô thủ kho quét hay theo ô hệ tự chọn (FEFO). |
+| Cột **Vị trí lấy** trên từng dòng hàng | Ô đã lấy × số lượng, ví dụ `1A0101-0101 ×5; 1A0101-0102 ×3` (mã in trên tem ô). Cập nhật ngay mỗi lượt quét; lúc duyệt ghi lại theo **sổ vị trí thật** — phiếu không quét trên PDA cũng có cột này (ô FEFO đã trừ). Cột **in ra được** trên phiếu giao. Huỷ phiếu thì cột giữ nguyên để tra lại; bản sửa (amend) thì cột trống, chờ lấy lại. |
+| Bảng **Phân bổ vị trí** dưới bảng hàng | Từng lượt quét: ô, lô, số lượng, người lấy, lúc lấy. |
+| Tab **Connections → Vị trí kho → Sổ vị trí** | Sau khi duyệt: các dòng sổ vị trí của phiếu (ô nào bị trừ bao nhiêu, lô nào). |
 
 Chi tiết từng bước, kể cả chốt thiếu và cách gỡ phân bổ khi cần duyệt thẳng trên form: xem mục
 **14 "Lấy hàng (trên PDA)"** của tài liệu `HDSD-quan-ly-vi-tri-kho.md`.

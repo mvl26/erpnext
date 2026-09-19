@@ -437,3 +437,4 @@ erpnext.patches.v15_0.dung_lai_cay_vi_tri
 erpnext.vi_tri_kho.patches.v1_0.them_so_goi_va_o_in_tem
 erpnext.vi_tri_kho.patches.v1_0.them_thong_so_tem_cho_item
 erpnext.vi_tri_kho.patches.v1_0.them_phan_bo_vi_tri
+erpnext.vi_tri_kho.patches.v1_0.them_cot_vi_tri_lay

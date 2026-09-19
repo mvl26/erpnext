@@ -23,8 +23,9 @@
 
 	frappe.pages["lay-hang-pda"].on_page_show = function (wrapper) {
 		// Quay lại trang (vd. vừa mở phiếu trên form rồi bấm Back): nạp lại — có
-		// thể đã bị sửa hay duyệt ở nơi khác.
-		if (wrapper.lay_hang) wrapper.lay_hang.nap_lai();
+		// thể đã bị sửa hay duyệt ở nơi khác. Tới từ nút "Lấy hàng trên PDA" của
+		// một phiếu KHÁC (`/app/lay-hang-pda/<phiếu>`) thì mở thẳng phiếu đó.
+		if (wrapper.lay_hang) wrapper.lay_hang.theo_duong_dan();
 	};
 
 	class LayHangPda {
@@ -38,8 +39,55 @@
 			// { dong_hang, so_lo, so_luong, lo_khac } — `lo_khac` khác null khi đang
 			// chờ QUÉT LẠI để xác nhận đổi/tách lô (xem `hoi_doi_lo`).
 			this.cho = null;
+			// Phiếu đã mở theo đường dẫn lần gần nhất — để Back từ form về cùng đường
+			// dẫn thì chỉ nạp lại, không kéo thủ kho khỏi phiếu/danh sách đang xem.
+			this.phieu_theo_duong_dan = null;
 			this.dung();
-			this.nap_lai();
+			this.theo_duong_dan();
+		}
+
+		// Nút "Lấy hàng trên PDA" trên form Phiếu giao đưa tới `/app/lay-hang-pda/<phiếu>`
+		// (`public/js/vi_tri_kho/delivery_note.js`): mở thẳng phiếu đó, chọn luôn kho.
+		theo_duong_dan() {
+			const ten = frappe.get_route()[1];
+			if (!ten || ten === this.phieu_theo_duong_dan) return this.nap_lai();
+			this.phieu_theo_duong_dan = ten;
+			this.cho = null;
+			return frappe
+				.xcall(API + "mo_phieu_giao", { phieu: ten })
+				.then((p) => {
+					if (p.docstatus !== 0) {
+						this.phieu = null;
+						this.bao(
+							__("Phiếu {0} đã {1} — không lấy hàng được nữa.", [
+								e(ten),
+								p.docstatus === 1 ? __("duyệt") : __("huỷ"),
+							]),
+							"cam"
+						);
+						return this.nap_lai();
+					}
+					this.phieu = p;
+					if (p.kho) this.kho = p.kho;
+					this.bao();
+					// Danh sách kho cần cho nút "← Danh sách"/"Đổi" — nạp một lần ở
+					// nền, không chặn việc vẽ phiếu.
+					if (!this.kho_ds.length) {
+						// Không truyền `kho`: kho của phiếu có thể không bật quản lý vị
+						// trí (máy chủ sẽ từ chối), danh sách chỉ cần để biết các kho.
+						frappe.xcall(API + "danh_sach_phieu_giao", {}).then((r) => {
+							this.kho_ds = r.kho_ds || [];
+							this.ve();
+						});
+					}
+					this.ve();
+					this.o_quet.giu_focus();
+				})
+				.catch(() => {
+					// Máy chủ đã hiện câu báo (không có quyền, phiếu không tồn tại…).
+					this.phieu = null;
+					return this.nap_lai();
+				});
 		}
 
 		dung() {
@@ -66,7 +114,11 @@
 			this.$goc.on("click", ".lh-ve-danh-sach", () => {
 				this.phieu = null;
 				this.cho = null;
-				this.nap_lai();
+				// Bỏ tên phiếu khỏi đường dẫn — nếu không, F5 hay Back sẽ mở lại
+				// đúng phiếu vừa rời. Đổi đường dẫn tự gọi `on_page_show` → nạp lại.
+				this.phieu_theo_duong_dan = null;
+				if (frappe.get_route()[1]) frappe.set_route("lay-hang-pda");
+				else this.nap_lai();
 			});
 			this.$goc.on("click", ".lh-bo-luot", (ev) => this.bo_luot($(ev.currentTarget).attr("data-luot")));
 			this.$goc.on("click", ".lh-chot-thieu", (ev) => this.chot_thieu($(ev.currentTarget).attr("data-dong")));

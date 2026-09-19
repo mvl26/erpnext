@@ -157,6 +157,90 @@ def chung_tu_co_phan_bo(chung_tu_type: str, chung_tu: str) -> bool:
 	)
 
 
+# ---------------------------------------------------------------------------
+# Cột "Vị trí lấy" trên từng dòng hàng (19/09/2026 — chủ đầu tư muốn thấy ô ngay
+# trên dòng hàng, và phiếu in ra phải có). Cột CHỈ LÀ BẢN HIỂN THỊ: lúc nháp nó
+# tóm bảng phân bổ, lúc duyệt nó tóm sổ vị trí thật. Không ai đọc cột này để ra
+# quyết định — đừng đọc nó ở code khác, đọc nguồn.
+# ---------------------------------------------------------------------------
+
+COT_VI_TRI_LAY = "custom_vi_tri_lay"
+
+
+def _chuoi_vi_tri(cap) -> str:
+	"""[(ô, số lượng), ...] → "1A0101-0101 ×5; 1A0101-0102 ×3".
+
+	Gộp theo ô, giữ thứ tự ô xuất hiện lần đầu (thứ tự quét / thứ tự FEFO trừ).
+	Hiện `ma_in_nhan` — đúng chữ in trên tem ô ngoài kệ, thứ người đọc phiếu sẽ đi
+	tìm — rơi về tên ô nếu ô chưa có mã in.
+	"""
+	tong: dict[str, float] = {}
+	for o, sl in cap:
+		tong[o] = tong.get(o, 0.0) + abs(flt(sl))
+	return "; ".join(
+		f"{frappe.get_cached_value('Storage Location', o, 'ma_in_nhan') or o} ×{flt(sl, 3):g}"
+		for o, sl in tong.items()
+		if sl > _SAI_SO
+	)
+
+
+def _dat_cot(d, gia_tri: str, ghi_db: bool = False) -> None:
+	gia_tri = gia_tri or ""
+	if (d.get(COT_VI_TRI_LAY) or "") == gia_tri:
+		return
+	if ghi_db:
+		d.db_set(COT_VI_TRI_LAY, gia_tri, update_modified=False)
+	else:
+		d.set(COT_VI_TRI_LAY, gia_tri)
+
+
+def dien_cot_vi_tri_tu_phan_bo(doc) -> None:
+	"""Tính lại cột từ bảng phân bổ — gọi ở `kiem_phan_bo_khi_luu` (validate).
+
+	Mọi thao tác của trang PDA (quét, bỏ lượt, đổi lô, tách dòng) đều kết thúc
+	bằng `doc.save()`, nên đặt ở validate là MỘT chỗ duy nhất, không phải nhớ gọi
+	lại ở từng hàm ghi. Bảng trống (chưa quét, hoặc bản amend vừa được dọn) thì
+	cột trống.
+	"""
+	if not doc.meta.get_field(TEN_BANG_PHAN_BO) or not frappe.get_meta(
+		"Delivery Note Item"
+	).has_field(COT_VI_TRI_LAY):
+		return
+	theo_dong: dict[str, list] = {}
+	for p in doc.get(TEN_BANG_PHAN_BO) or []:
+		theo_dong.setdefault(p.dong_hang, []).append((p.o, p.so_luong))
+	for d in doc.items:
+		_dat_cot(d, _chuoi_vi_tri(theo_dong.get(d.name, [])))
+
+
+def ghi_cot_vi_tri_khi_duyet(doc, method=None) -> None:
+	"""`doc_events` on_submit của Delivery Note: viết cột từ SỔ VỊ TRÍ THẬT.
+
+	Chạy SAU `on_submit` của controller — lúc đó các SLE đã được ghi và hook
+	`hook_sle.ghi_so_vi_tri` đã sinh `Location Ledger Entry` đồng bộ. Đọc sổ chứ
+	không đọc bảng phân bổ: phiếu không ai quét thì bảng trống nhưng FEFO vẫn
+	trừ một ô cụ thể — phiếu in ra phải nói đúng ô đó (chủ đầu tư chọn "tự điền
+	theo ô FEFO"). Phiếu có quét thì sổ trùng bảng, nên một đường đọc cho cả hai.
+
+	Dòng không có dòng sổ nào (dịch vụ, kho không quản lý vị trí) → cột trống.
+	Dòng Product Bundle: sổ mang tên dòng `Packed Item`, không khớp dòng hàng nào
+	→ cột dòng cha trống (hàng bundle vẫn không lấy qua PDA được, xem spec).
+	"""
+	if not frappe.get_meta("Delivery Note Item").has_field(COT_VI_TRI_LAY):
+		return
+	so = frappe.get_all(
+		"Location Ledger Entry",
+		filters={"chung_tu_type": doc.doctype, "chung_tu": doc.name},
+		fields=["chung_tu_row", "o", "so_luong"],
+		order_by="creation asc, name asc",
+	)
+	theo_dong: dict[str, list] = {}
+	for r in so:
+		theo_dong.setdefault(r.chung_tu_row, []).append((r.o, r.so_luong))
+	for d in doc.items:
+		_dat_cot(d, _chuoi_vi_tri(theo_dong.get(d.name, [])), ghi_db=True)
+
+
 def kiem_phan_bo_khi_luu(doc, method=None):
 	"""Lớp kiểm SỚM cho phân bổ trên chứng từ (spec §5). Gắn `doc_events` validate.
 
@@ -200,6 +284,8 @@ def kiem_phan_bo_khi_luu(doc, method=None):
 	"""
 	if doc.amended_from and doc.is_new():
 		doc.set(TEN_BANG_PHAN_BO, [])
+
+	dien_cot_vi_tri_tu_phan_bo(doc)
 
 	bang = doc.get(TEN_BANG_PHAN_BO) or []
 	if not bang:
@@ -766,6 +852,7 @@ def mo_phieu_giao(phieu: str) -> dict:
 		)
 	return {
 		"name": doc.name,
+		"docstatus": doc.docstatus,
 		"kho": doc.set_warehouse or (doc.items[0].warehouse if doc.items else None),
 		"khach_hang": doc.customer_name or doc.customer,
 		"dong": dong,
@@ -1602,3 +1689,69 @@ def hoan_tat(phieu: str) -> dict:
 		raise
 	frappe.cache().delete_value(_khoa_chot_thieu(phieu))
 	return {"name": doc.name, "so_dong": so_dong_quan_ly, "lay_thieu": lay_thieu}
+
+
+@frappe.whitelist()
+def tien_do_lay_hang(phieu: str) -> dict:
+	"""Tiến độ lấy hàng cho dòng tóm tắt trên FORM Phiếu giao (19/09/2026).
+
+	Nhẹ hơn `mo_phieu_giao`: không gọi FEFO, chỉ đếm từ bảng phân bổ và cờ chốt
+	thiếu — form gọi hàm này MỖI lần mở phiếu. Đếm bằng đúng các luật mà trang
+	PDA và `hoan_tat` dùng (`_can_quet_dong`, `_da_lay_theo_dong`,
+	`_doc_chot_thieu`), nên con số trên form không bao giờ nói khác trang PDA.
+
+	Chỉ cần quyền ĐỌC phiếu — kế toán/kinh doanh mở form cũng phải thấy tiến
+	độ. `lay_duoc` cho biết người đang xem có nên thấy nút "Lấy hàng trên PDA"
+	(phiếu nháp + có vai trò kho + có dòng quét được).
+
+	`trang_thai`:
+	- `khong_ap_dung`: phiếu trả hàng, hoặc không dòng nào quét được.
+	- `chua_lay` / `dang_lay` / `du`: phiếu nháp. `du` = mọi dòng quét được
+	  đã lấy đủ HOẶC đã chốt thiếu (đúng điều kiện `hoan_tat` cho qua).
+	- `da_duyet_quet` / `da_duyet_fefo`: đã duyệt; sổ trừ theo ô đã quét hay
+	  theo ô FEFO tự chọn.
+	- `da_huy`.
+	"""
+	doc = frappe.get_doc("Delivery Note", phieu)
+	doc.check_permission("read")
+
+	dong_quet = [d for d in doc.items if _can_quet_dong(d)] if not doc.is_return else []
+	bang = doc.get(TEN_BANG_PHAN_BO) or []
+	da = _da_lay_theo_dong(doc)
+	chot = _doc_chot_thieu(phieu) if doc.docstatus == 0 else {}
+
+	so_du = 0
+	so_chot = 0
+	for d in dong_quet:
+		if abs(flt(da.get(d.name, 0.0)) - flt(d.qty)) <= _SAI_SO:
+			so_du += 1
+		elif d.name in chot:
+			so_chot += 1
+
+	if not dong_quet:
+		trang_thai = "khong_ap_dung"
+	elif doc.docstatus == 2:
+		trang_thai = "da_huy"
+	elif doc.docstatus == 1:
+		trang_thai = "da_duyet_quet" if bang else "da_duyet_fefo"
+	elif not bang:
+		trang_thai = "chua_lay"
+	elif so_du + so_chot == len(dong_quet):
+		trang_thai = "du"
+	else:
+		trang_thai = "dang_lay"
+
+	return {
+		"trang_thai": trang_thai,
+		"so_dong_quet": len(dong_quet),
+		"so_dong_du": so_du,
+		"so_dong_chot_thieu": so_chot,
+		"so_dong_khong_quet": len(doc.items) - len(dong_quet),
+		# Theo đơn vị giao dịch của dòng — cùng thước đo `can_lay`/`da_lay` trên trang PDA.
+		"tong_can": flt(sum(flt(d.qty) for d in dong_quet)),
+		"tong_da_lay": flt(sum(flt(da.get(d.name, 0.0)) for d in dong_quet)),
+		"nguoi_lay": sorted({p.nguoi_lay for p in bang if p.nguoi_lay}),
+		"lay_duoc": bool(
+			doc.docstatus == 0 and dong_quet and VAI_TRO_DUOC_LAY & set(frappe.get_roles())
+		),
+	}

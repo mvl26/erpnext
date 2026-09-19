@@ -31,7 +31,7 @@ email_css = "email_erpnext.bundle.css"
 
 doctype_js = {
 	"Address": "public/js/address.js",
-	"Delivery Note": "public/js/einvoice/delivery_note.js",
+	"Delivery Note": ["public/js/einvoice/delivery_note.js", "public/js/vi_tri_kho/delivery_note.js"],
 	"Communication": "public/js/communication.js",
 	"Event": "public/js/event.js",
 	"Newsletter": "public/js/newsletter.js",
@@ -490,6 +490,7 @@ doc_events = {
 	# chỉ chặn khi hóa đơn đã thật sự tiêu số, và nói rõ vì sao.
 	"Delivery Note": {
 		"validate": "erpnext.vi_tri_kho.vitri.lay_hang.kiem_phan_bo_khi_luu",
+		"on_submit": "erpnext.vi_tri_kho.vitri.lay_hang.ghi_cot_vi_tri_khi_duyet",
 		"before_cancel": "erpnext.einvoice.builder.before_delivery_note_cancel",
 		"on_cancel": "erpnext.einvoice.builder.on_delivery_note_cancel",
 	},
