@@ -752,6 +752,250 @@ class TestDocChoTrang(FrappeTestCase):
 		self.assertEqual((d["vat_tu"], d["so_lo"], d["can_lay"]), (ITEM, LO, 12.0))
 		# 12 lấy hết ô đứng trước (20) → chỉ một ô được gợi ý.
 		self.assertEqual([o["o"] for o in d["o_nen_lay"]], [O_GAN])
+		self.assertEqual(d["thieu_trong_lo"], 0.0, "đủ hàng thì không thiếu gì")
+
+	def test_mo_phieu_thieu_hang_khong_nem_loi_va_goi_y_dung_ton_lo(self):
+		"""Bài test BẮT BUỘC (sửa lỗi "mở phiếu bật hộp lỗi"): dòng cần NHIỀU
+		HƠN tồn của (mặt hàng, lô) đang chốt — ca hay gặp nhất của trang (lô
+		trên dòng không đủ cả dòng, phải tách sang lô thứ hai). TRƯỚC bản vá,
+		`mo_phieu_giao` gọi thẳng `chon_o_xuat(..., con_can)`, hàm đó
+		`frappe.throw` khi không đủ — bị bắt (không nổ) nhưng câu báo đã kịp
+		đẩy vào `frappe.local.message_log` TRƯỚC KHI ném, nên trình duyệt (đọc
+		thẳng message_log của response) vẫn bật hộp lỗi ngay khi MỞ PHIẾU.
+
+		Khoá bằng CHÍNH kết quả `mo_phieu_giao` (không phải qua whitelisted
+		full-stack, nhưng cùng hàm mà trang gọi): gợi ý phải KHỚP đúng các ô có
+		hàng thật của lô (tổng bằng tồn lô, không hơn không kém),
+		`thieu_trong_lo` đúng phần còn thiếu, và KHÔNG một câu báo nào bị đẩy
+		vào `message_log` trong lúc mở phiếu.
+		"""
+		from erpnext.vi_tri_kho.vitri.lay_hang import mo_phieu_giao
+
+		# LO chỉ có tổng 30 (O_GAN=20 + O_XA=10, xem setUp) — dòng cần 40.
+		dn = _phieu_giao(40)
+		do_dai_truoc = len(frappe.local.message_log)
+
+		p = mo_phieu_giao(dn.name)
+
+		self.assertEqual(
+			len(frappe.local.message_log), do_dai_truoc, "mở phiếu không được bật hộp lỗi nào"
+		)
+		d = p["dong"][0]
+		self.assertEqual(d["thieu_trong_lo"], 10.0)
+		self.assertEqual({o["o"]: o["so_luong"] for o in d["o_nen_lay"]}, {O_GAN: 20.0, O_XA: 10.0})
+		self.assertEqual(sum(o["so_luong"] for o in d["o_nen_lay"]), 30.0, "gợi ý phải khớp đúng tồn lô")
+
+	def test_mo_phieu_dong_chua_chot_lo_van_goi_y_cheo_lo_theo_fefo(self):
+		"""Bài test BẮT BUỘC (review sau bản vá lỗi 1, phát hiện qua `advisor`):
+		`tong_ton_vi_tri(kho, vat_tu, None)` và `chon_o_xuat(kho, vat_tu, None,
+		...)` KHÔNG cùng nghĩa cho `so_lo=None` — hàm đầu chỉ cộng các dòng
+		KHÔNG LÔ (gần như luôn 0 cho một mặt hàng CÓ quản lý lô), hàm sau hiểu
+		`so_lo=None` là "mọi lô, chọn theo FEFO". Dòng của một mặt hàng CÓ quản
+		lý lô nhưng CHƯA chốt lô nào (`batch_no` rỗng — ca thường của phiếu tạo
+		từ đơn bán, trước khi thủ kho quét tem lô đầu tiên) mà lấy CẬN TRÊN từ
+		hàm đầu để giới hạn hàm sau thì sẽ cap về 0 — biến gợi ý cross-lô hợp
+		lệ (30 tồn, đủ cho dòng cần 15) thành "cả dòng đều thiếu". Bài này khoá
+		lại: dòng như vậy phải vẫn nhận gợi ý ĐẦY ĐỦ (không cap sai), và không
+		đẩy câu báo nào vào `message_log`.
+		"""
+		from erpnext.vi_tri_kho.vitri.lay_hang import mo_phieu_giao
+
+		dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 15,
+						"rate": 5000,
+						"warehouse": KHO,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
+		dn.insert(ignore_permissions=True)
+		# `insert()` tự chọn lô khi kho chỉ có ĐÚNG một lô còn tồn (site test này
+		# chỉ có `LO`) — không phải kịch bản bài test cần (dòng CHƯA chốt lô nào).
+		# Ép về rỗng THẲNG trên CSDL (bỏ qua `validate`, giống cách các bài test
+		# khác của module này dựng ca "mất chiều lô") rồi đọc lại — `mo_phieu_giao`
+		# tự `frappe.get_doc` lại từ CSDL nên thấy đúng trạng thái đã ép.
+		frappe.db.set_value("Delivery Note Item", dn.items[0].name, "batch_no", None)
+		dn.reload()
+		self.assertFalse(dn.items[0].batch_no, "dòng phải CHƯA chốt lô nào cho đúng kịch bản bài test")
+		do_dai_truoc = len(frappe.local.message_log)
+
+		p = mo_phieu_giao(dn.name)
+
+		self.assertEqual(
+			len(frappe.local.message_log), do_dai_truoc, "mở phiếu không được bật hộp lỗi nào"
+		)
+		d = p["dong"][0]
+		self.assertEqual(d["thieu_trong_lo"], 0.0, "chưa chốt lô thì không có 'lô đang chốt' nào để thiếu")
+		self.assertEqual(
+			sum(o["so_luong"] for o in d["o_nen_lay"]), 15.0, "gợi ý cross-lô phải đủ, không bị cap sai về 0"
+		)
+
+	def test_mo_phieu_goi_y_tru_phan_da_len_phieu_nhap_khong_con_o_da_lay_het(self):
+		"""Bài test BẮT BUỘC (sửa lỗi đo trên tài liệu ảnh `22b`): lô nằm ở hai
+		ô (12 + 8) — ghi lấy HẾT ô A (12) trên CHÍNH phiếu (nháp, chưa submit)
+		rồi mở lại phiếu. `Location Balance` (nguồn của `chon_o_xuat`) chỉ đổi
+		lúc DUYỆT, không đổi lúc ghi bảng phân bổ nháp — nếu không TRỪ phần đã
+		lên phiếu, gợi ý "Nên lấy" sẽ vẫn quay lại ô A (thủ kho đi tới sẽ thấy
+		ô trống, đúng cảnh lộ trên ảnh `22b` trước bản vá). Gợi ý ĐÚNG phải
+		chuyển hẳn sang ô B, không còn ô A."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay, mo_phieu_giao
+
+		o_a, o_b = "9L01020101", "9L01020102"
+		lo2 = "9L-LO-LAY-22A"
+		_o(o_a, thu_tu=1)
+		_o(o_b, thu_tu=2)
+		if not frappe.db.exists("Batch", lo2):
+			frappe.get_doc(
+				{"doctype": "Batch", "batch_id": lo2, "item": ITEM, "expiry_date": "2029-06-30"}
+			).insert(ignore_permissions=True)
+		_nhap_kho_lo(lo2, 20)
+		_chuyen_vao_o_lo(lo2, [(o_a, 12), (o_b, 8)])
+
+		dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 20,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": lo2,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
+		dn.insert(ignore_permissions=True)
+
+		p1 = ghi_da_lay(dn.name, dn.items[0].name, lo2, o_a, 12)
+		self.assertEqual(p1["dong"][0]["da_lay"], 12.0)
+
+		p2 = mo_phieu_giao(dn.name)
+		d = p2["dong"][0]
+		self.assertEqual(
+			[(g["o"], g["so_luong"]) for g in d["o_nen_lay"]],
+			[(o_b, 8.0)],
+			"gợi ý phải chuyển hẳn sang ô B, không còn gợi ý lại ô A vừa lấy hết",
+		)
+		self.assertEqual(d["thieu_trong_lo"], 0.0)
+
+	def test_mo_phieu_chua_lay_gi_thi_goi_y_du_ca_hai_o_nhu_truoc_khi_sua(self):
+		"""Chốt ÂM cho bản vá "trừ phần đã lên phiếu": phiếu CHƯA có lượt ghi
+		nào thì không có gì để trừ — gợi ý phải đủ CẢ HAI ô, y hệt hành vi
+		trước bản vá này."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import mo_phieu_giao
+
+		o_a, o_b = "9L01020101", "9L01020102"
+		lo2 = "9L-LO-LAY-22B"
+		_o(o_a, thu_tu=1)
+		_o(o_b, thu_tu=2)
+		if not frappe.db.exists("Batch", lo2):
+			frappe.get_doc(
+				{"doctype": "Batch", "batch_id": lo2, "item": ITEM, "expiry_date": "2029-06-30"}
+			).insert(ignore_permissions=True)
+		_nhap_kho_lo(lo2, 20)
+		_chuyen_vao_o_lo(lo2, [(o_a, 12), (o_b, 8)])
+
+		dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 20,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": lo2,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
+		dn.insert(ignore_permissions=True)
+
+		p = mo_phieu_giao(dn.name)
+		d = p["dong"][0]
+		self.assertEqual(
+			[(g["o"], g["so_luong"]) for g in d["o_nen_lay"]],
+			[(o_a, 12.0), (o_b, 8.0)],
+			"chưa lấy gì thì gợi ý phải đủ cả hai ô theo đúng thứ tự FEFO",
+		)
+		self.assertEqual(d["thieu_trong_lo"], 0.0)
+
+	def test_mo_phieu_goi_y_van_ra_khi_mot_phan_lo_ket_o_ngung_dung(self):
+		"""Bài test BẮT BUỘC (review sau bản vá "trừ phần đã lên phiếu",
+		phát hiện qua `advisor`): xin ĐỦ `tong_ton_vi_tri` (cộng CẢ ô ngừng
+		dùng) để lấy số dư THẬT của từng ô — nhưng `chon_o_xuat` (chỉ xét ô
+		ĐANG DÙNG) có thể ném nếu đúng phần đó đang kẹt ở một ô ngừng dùng,
+		một thao tác vận hành BÌNH THƯỜNG (xem docstring `fefo.py`). Không có
+		lượt thử lại với số nhỏ hơn thì gợi ý sẽ TRẮNG hoàn toàn dù dòng vẫn
+		lấy đủ được từ các ô đang dùng. Khoá lại: dòng cần 12, 12 nằm ở ô A
+		(đang dùng), 8 nằm ở ô C đã Ngừng dùng (tổng CẢ kho là 20, vượt hẳn
+		12 đang dùng) — gợi ý vẫn phải ra đúng ô A, không trắng, và không đẩy
+		câu báo nào vào `message_log`.
+		"""
+		from erpnext.vi_tri_kho.vitri.lay_hang import mo_phieu_giao
+
+		o_a, o_c = "9L01020101", "9L01020103"
+		lo2 = "9L-LO-LAY-22C"
+		_o(o_a, thu_tu=1)
+		_o(o_c, thu_tu=2)
+		if not frappe.db.exists("Batch", lo2):
+			frappe.get_doc(
+				{"doctype": "Batch", "batch_id": lo2, "item": ITEM, "expiry_date": "2029-06-30"}
+			).insert(ignore_permissions=True)
+		_nhap_kho_lo(lo2, 20)
+		_chuyen_vao_o_lo(lo2, [(o_a, 12), (o_c, 8)])
+		frappe.db.set_value("Storage Location", o_c, "disabled", 1)
+
+		dn = frappe.get_doc(
+			{
+				"doctype": "Delivery Note",
+				"company": CTY,
+				"customer": KHACH,
+				"posting_date": nowdate(),
+				"items": [
+					{
+						"item_code": ITEM,
+						"qty": 12,
+						"rate": 5000,
+						"warehouse": KHO,
+						"batch_no": lo2,
+						"use_serial_batch_fields": 1,
+					}
+				],
+			}
+		)
+		dn.insert(ignore_permissions=True)
+		do_dai_truoc = len(frappe.local.message_log)
+
+		p = mo_phieu_giao(dn.name)
+
+		self.assertEqual(
+			len(frappe.local.message_log), do_dai_truoc, "mở phiếu không được bật hộp lỗi nào"
+		)
+		d = p["dong"][0]
+		self.assertEqual(
+			[(g["o"], g["so_luong"]) for g in d["o_nen_lay"]],
+			[(o_a, 12.0)],
+			"gợi ý không được trắng chỉ vì tổng CẢ KHO có phần kẹt ở ô ngừng dùng",
+		)
 
 	def test_quet_lo_cua_phieu_va_quet_o(self):
 		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
@@ -1102,6 +1346,49 @@ class TestGhiChoTrang(FrappeTestCase):
 		p = ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 3)
 		self.assertEqual(len(p["dong"][0]["da_lay_o"]), 1)
 		self.assertEqual(p["dong"][0]["da_lay"], 8.0)
+
+	def test_ghi_da_lay_toi_da_theo_o_cat_theo_ton_khi_bat_co(self):
+		"""Bài test BẮT BUỘC (sửa lỗi "số lượng mặc định không tự cắt theo tồn
+		của ô"): trang đặt số lượng mặc định = toàn bộ phần còn thiếu của dòng
+		(12, xem `setUp`) — quét một ô chỉ có ÍT hơn (O_XA = 10) với cờ
+		`lay_toi_da_theo_o` bật phải ghi đúng TỒN CỦA Ô (10), không ném, và trả
+		đúng số THẬT đã ghi để trang báo."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay
+
+		p = ghi_da_lay(self.dn.name, self.dong, LO, O_XA, 12, lay_toi_da_theo_o=1)
+		self.assertEqual(p["so_luong_da_ghi"], 10.0)
+		self.assertEqual(p["dong"][0]["da_lay"], 10.0)
+		self.assertEqual(len(p["dong"][0]["da_lay_o"]), 1)
+		self.assertEqual(p["dong"][0]["da_lay_o"][0]["so_luong"], 10.0)
+
+	def test_ghi_da_lay_khong_bat_co_van_chan_chot_am(self):
+		"""Chốt ÂM cho hành vi CŨ: không truyền `lay_toi_da_theo_o` (mặc định
+		0) thì phải vẫn bị chặn như trước bản vá — không được âm thầm đổi hành
+		vi cho lời gọi không mang cờ."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay
+
+		with self.assertRaisesRegex(frappe.ValidationError, "chỉ còn"):
+			ghi_da_lay(self.dn.name, self.dong, LO, O_XA, 12)
+		self.assertEqual(
+			frappe.get_all("Location Allocation", {"parent": self.dn.name}),
+			[],
+			"chặn rồi thì không ghi lượt nào cả",
+		)
+
+	def test_ghi_da_lay_toi_da_theo_o_khi_da_het_sach_o_van_chan_nhu_cu(self):
+		"""Tồn còn lại của ô `<= 0` (ĐÃ lấy hết sạch ô đó qua các lượt trước
+		trên CHÍNH phiếu này) thì KHÔNG được cắt số về 0 hay số âm — để nguyên
+		`so_luong` yêu cầu, cho lớp kiểm sớm chặn với câu báo "chỉ còn…" như
+		hiện nay (đúng hành vi cũ cho ca hết sạch ô)."""
+		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay
+
+		# Lấy hết sạch O_XA (10) trước — vẫn dùng cờ, không ảnh hưởng vì tồn
+		# ban đầu (10) đủ cho yêu cầu (10).
+		p = ghi_da_lay(self.dn.name, self.dong, LO, O_XA, 10, lay_toi_da_theo_o=1)
+		self.assertEqual(p["so_luong_da_ghi"], 10.0)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "chỉ còn"):
+			ghi_da_lay(self.dn.name, self.dong, LO, O_XA, 2, lay_toi_da_theo_o=1)
 
 	def test_ghi_da_lay_lo_het_han_bi_chan(self):
 		"""VÒNG SỬA CUỐI (review toàn nhánh, Critical 3): CHẶN ngay ở tầng máy

@@ -12,12 +12,12 @@ chỗ cho từ giai đoạn 1 — file này dựng tiếp đúng thiết kế đ
 
 import frappe
 from frappe import _
-from frappe.utils import flt, formatdate, getdate, now, now_datetime, nowdate, time_diff_in_seconds
+from frappe.utils import cint, flt, formatdate, getdate, now, now_datetime, nowdate, time_diff_in_seconds
 
 from erpnext.vi_tri_kho.vitri.fefo import chon_o_xuat
 from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri
 from erpnext.vi_tri_kho.vitri.nhat_ky_loi import cat_tieu_de
-from erpnext.vi_tri_kho.vitri.so import ton_o
+from erpnext.vi_tri_kho.vitri.so import ton_o, tong_ton_vi_tri
 
 _SAI_SO = 1e-9
 
@@ -339,6 +339,27 @@ def _da_lay_theo_dong(doc) -> dict:
 	return tong
 
 
+def _da_phan_bo_o_theo_mat_hang_lo(doc, vat_tu: str, so_lo: str | None) -> dict:
+	"""{ô: tổng đã phân bổ} cho ĐÚNG (vat_tu, so_lo) trên TOÀN BỘ phiếu `doc`.
+
+	Gộp qua MỌI dòng hàng, không chỉ dòng đang xét — hai dòng hàng khác nhau
+	nhưng cùng (mặt hàng, lô) vẫn cùng giữ hàng ở NHỮNG Ô ĐÓ (đúng cách
+	`kiem_phan_bo_khi_luu` gộp `theo_o` để so với `ton_o` lúc validate).
+
+	Dùng để TRỪ khỏi gợi ý `o_nen_lay` của `mo_phieu_giao` (sửa lỗi đo trên
+	tài liệu ảnh `22b`): ô đã bị CHÍNH phiếu này lấy hết trên giấy (chưa
+	submit nên `Location Balance` — nguồn của `fefo.chon_o_xuat` — vẫn coi ô
+	đó còn nguyên) không còn lý do được gợi ý lại — thủ kho đi tới sẽ thấy ô
+	vừa lấy trống, đúng cảnh lộ trên ảnh trước bản vá này.
+	"""
+	theo_o: dict[str, float] = {}
+	for p in doc.get(TEN_BANG_PHAN_BO) or []:
+		if p.vat_tu != vat_tu or (p.so_lo or None) != (so_lo or None):
+			continue
+		theo_o[p.o] = theo_o.get(p.o, 0.0) + flt(p.so_luong)
+	return theo_o
+
+
 def _ly_do_khong_quet_dong(d) -> str | None:
 	"""Vì sao dòng `d` (một `Delivery Note Item`) KHÔNG quét được trên trang Lấy
 	hàng — `None` nếu quét được. NGUỒN SỰ THẬT DUY NHẤT cho câu hỏi này, dùng
@@ -497,6 +518,65 @@ def mo_phieu_giao(phieu: str) -> dict:
 	Hết hàng thì `chon_o_xuat` ném lỗi; ở đây nuốt và trả danh sách rỗng, vì màn
 	hình phải mở được để thủ kho thấy vì sao (khuôn Ruling N ở `xep.hang_chua_xep`).
 
+	`thieu_trong_lo`/CHẶN XIN QUÁ TỒN TRƯỚC KHI GỌI (sửa lỗi "mở phiếu bật hộp
+	lỗi", đo trên site thử, ca A→Z): TRƯỚC bản vá này, dòng cần nhiều hơn tồn
+	của (mặt hàng, lô) — CA HAY GẶP NHẤT của trang (lô trên dòng không đủ cả
+	dòng, phải tách sang lô khác) — gọi thẳng `chon_o_xuat(..., con_can)`,
+	`chon_o_xuat` `frappe.throw` khi không đủ; ở đây bắt được ngoại lệ (không
+	nổ ra ngoài) NHƯNG `frappe.throw` đã đẩy câu báo vào
+	`frappe.local.message_log` TRƯỚC KHI ném — trình duyệt đọc thẳng
+	`message_log` của response nên vẫn bật hộp lỗi ngay màn MỞ PHIẾU, đúng thứ
+	spec §6.2 cấm. Sửa: hỏi TỔNG tồn còn lại của (mặt hàng, lô) trong CẢ KHO
+	(`tong_ton_vi_tri`, cộng mọi ô kể cả ô ngừng dùng — luôn là CẬN TRÊN an
+	toàn) TRƯỚC, rồi chỉ xin `chon_o_xuat` đúng `min(con_can, tong_con)` — số
+	xin không bao giờ vượt tồn nên hàm không còn lý do để ném ở đúng ca này.
+	`tong_con <= 0` thì trả gợi ý rỗng, KHÔNG gọi `chon_o_xuat` (không có gì để
+	xin). `thieu_trong_lo` = phần CÒN THIẾU sau khi lấy hết sạch (mặt hàng, lô)
+	đang chốt trên dòng (`con_can - tong_con`, không âm) — để trang hiện một
+	dòng chữ BÌNH THƯỜNG ("lô này chỉ còn…"), không phải một hộp lỗi.
+
+	`khop_nghia_so_lo_none` (đo lại sau review): cap theo `tong_con` CHỈ đúng
+	khi `tong_ton_vi_tri(..., d.batch_no or None)` và `chon_o_xuat(...,
+	d.batch_no or None, ...)` cùng hiểu `so_lo=None` theo MỘT nghĩa — đúng khi
+	dòng ĐÃ chốt lô (`d.batch_no` có giá trị), hoặc mặt hàng KHÔNG quản lý lô
+	(`has_batch_no=0`, chỉ có một "lô" duy nhất là `None`). Dòng của mặt hàng
+	CÓ quản lý lô nhưng CHƯA chốt lô nào (`d.batch_no` rỗng — ca thường của
+	phiếu tạo từ đơn bán, trước khi thủ kho quét tem lô đầu tiên, xem
+	`quet_de_lay` nhánh `can_quet_lo`) thì HAI hàm LỆCH nghĩa:
+	`tong_ton_vi_tri(..., None)` chỉ cộng các dòng KHÔNG LÔ trong bộ đệm (gần
+	như luôn ~0 cho một mặt hàng có lô), trong khi `chon_o_xuat` với
+	`so_lo=None` nghĩa là "mọi lô, chọn theo FEFO" và vẫn thấy đầy đủ tồn CHÉO
+	LÔ. Cap theo `tong_con` ở đúng ca này sẽ SAI — biến một gợi ý cross-lô hợp
+	lệ thành "cả dòng đều thiếu". Ca đó (`not khop_nghia_so_lo_none`) BỎ QUA
+	cap, giữ NGUYÊN hành vi gọi thẳng `chon_o_xuat(con_can)` như TRƯỚC bản vá
+	(lưới an toàn message_log bên dưới vẫn áp dụng y hệt, phòng ca hết hàng
+	thật).
+
+	Lưới an toàn: yêu cầu gửi cho `chon_o_xuat` đã bị chặn theo TỔNG tồn (gồm
+	cả ô ngừng dùng) nên `chon_o_xuat` (chỉ xét ô ĐANG DÙNG) vẫn có thể ném
+	nếu phần thiếu đang kẹt ở (các) ô ngừng dùng — hiếm, nhưng câu báo đó vẫn
+	không được lọt ra màn mở phiếu. Ghi nhớ độ dài `frappe.local.message_log`
+	TRƯỚC lần gọi, và trong `except` cắt hẳn về đúng độ dài đó — gỡ sạch các
+	câu vừa bị `frappe.throw` thêm vào ở lần gọi NÀY, không đụng câu báo có
+	từ trước (nếu có) — rồi vẫn `frappe.log_error` như cũ.
+
+	TRỪ PHẦN ĐÃ LÊN PHIẾU NHÁP (sửa lỗi đo trên tài liệu ảnh `22b`, sau khi
+	lỗi "mở phiếu bật hộp lỗi" ở trên đã sửa): thủ kho quét lấy hết một ô rồi
+	mở lại/nạp lại phiếu — trước bản vá này, gợi ý "Nên lấy" vẫn hiện NGUYÊN
+	ô đó, vì `Location Balance` (nguồn của `chon_o_xuat`/`tong_ton_vi_tri`)
+	chỉ đổi lúc DUYỆT phiếu, không đổi lúc ghi bảng phân bổ nháp. Nhánh
+	`khop_nghia_so_lo_none` giờ TRỪ khỏi mỗi ô đúng số đã phân bổ cho (mặt
+	hàng, lô) đó trên CHÍNH phiếu này (`_da_phan_bo_o_theo_mat_hang_lo`, gộp
+	qua MỌI dòng hàng cùng mặt hàng/lô — hai dòng hàng khác nhau cùng giữ
+	một ô vẫn phải trừ chung) TRƯỚC khi đưa vào gợi ý và trước khi tính
+	`thieu_trong_lo`. Để không cắt xén nhầm balance THẬT của một ô đang bị
+	giữ một phần (xem chú thích tại chỗ gọi `chon_o_xuat(..., tong_con)`),
+	luôn xin ĐỦ `tong_con` (không phải phần còn cần `con_can`) rồi TỰ gom đủ
+	`con_can` theo đúng thứ tự FEFO mà `chon_o_xuat` trả về, bỏ qua (không
+	đẩy vào gợi ý) mọi ô mà số dư sau khi trừ đã về `<= 0`. Chỉ áp dụng cho
+	nhánh `khop_nghia_so_lo_none` — dòng CHƯA chốt lô nào (nhánh còn lại)
+	không thể có phân bổ của CHÍNH nó để trừ (xem chú thích tại đó).
+
 	`can_quet` (bổ sung điều phối, cùng đợt với quyết định mở rộng `hoan_tat`
 	ở Task 5 — sửa bất đối xứng đọc/ghi): `False` khi kho của dòng đó KHÔNG
 	bật quản lý vị trí — `hoan_tat` đã BỎ QUA đúng những dòng này (xem
@@ -543,12 +623,99 @@ def mo_phieu_giao(phieu: str) -> dict:
 		can_quet = ly_do_khong_quet is None
 		con_can = flt(d.qty) - da.get(d.name, 0.0)
 		goi_y = []
+		thieu_trong_lo = 0.0
 		if can_quet and con_can > 0:
-			try:
-				goi_y = chon_o_xuat(d.warehouse, d.item_code, d.batch_no or None, max(con_can, 0))
-			except Exception:
-				frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: mo_phieu_giao goi y loi ({phieu})"))
-				goi_y = []
+			# Lưới AN TOÀN chỉ hợp lệ khi `tong_ton_vi_tri(..., d.batch_no or None)` và
+			# `chon_o_xuat(..., d.batch_no or None, ...)` CÙNG nghĩa với `so_lo=None`
+			# — đúng khi dòng ĐÃ chốt lô (`d.batch_no` có giá trị), hoặc mặt hàng
+			# KHÔNG quản lý lô (`has_batch_no=0`, chỉ có một "lô" duy nhất là None).
+			# Dòng của mặt hàng CÓ quản lý lô nhưng CHƯA chốt lô nào (`d.batch_no`
+			# rỗng — ca thường của phiếu tạo từ đơn bán, xem `quet_de_lay` nhánh
+			# `can_quet_lo`) thì hai hàm LỆCH nghĩa: `tong_ton_vi_tri(..., None)` chỉ
+			# cộng các dòng KHÔNG LÔ (luôn ~0 cho mặt hàng có lô), còn `chon_o_xuat`
+			# (`so_lo=None` = "mọi lô, theo FEFO") vẫn thấy đầy đủ tồn CHÉO LÔ — cap
+			# theo `tong_con` sẽ SAI, biến gợi ý cross-lô hợp lệ thành "thiếu cả dòng".
+			# Ca đó bỏ qua cap VÀ bỏ qua trừ phần đã lên phiếu (xem nhánh dưới) —
+			# giữ NGUYÊN hành vi gọi thẳng `chon_o_xuat(con_can)` như trước bản vá
+			# (lưới an toàn message_log vẫn áp dụng như cũ). Dòng kiểu này chưa từng
+			# có lượt ghi nào của CHÍNH nó (ghi_da_lay đòi lô quét khớp `d.batch_no`,
+			# nên `d.batch_no` rỗng thì không dòng phân bổ nào có thể thuộc về nó),
+			# nên không có gì của dòng NÀY để trừ; phần "dòng khác cùng mặt hàng đã
+			# chốt lô cụ thể giữ mất một ô" là một khe hẹp hơn, ngoài phạm vi bản vá
+			# này (ghi vào "điều còn lo").
+			khop_nghia_so_lo_none = bool(d.batch_no) or not frappe.get_cached_value(
+				"Item", d.item_code, "has_batch_no"
+			)
+			if khop_nghia_so_lo_none:
+				tong_con = flt(tong_ton_vi_tri(d.warehouse, d.item_code, d.batch_no or None))
+				# Sửa lỗi đo trên tài liệu ảnh `22b`: TRỪ phần đã lên phiếu NHÁP của
+				# CHÍNH (mặt hàng, lô) này — gộp qua MỌI dòng hàng cùng (mặt hàng,
+				# lô), không chỉ dòng đang xét (xem `_da_phan_bo_o_theo_mat_hang_lo`)
+				# — trước khi tính "còn thiếu" và trước khi đưa vào gợi ý. Không trừ
+				# thì một ô vừa bị CHÍNH phiếu này lấy hết vẫn được gợi ý lại nguyên
+				# vẹn, vì `Location Balance` (nguồn của `chon_o_xuat`) chỉ đổi lúc
+				# DUYỆT phiếu, không đổi lúc ghi bảng phân bổ nháp.
+				da_phan_bo_o = _da_phan_bo_o_theo_mat_hang_lo(doc, d.item_code, d.batch_no or None)
+				tong_da_phan_bo = flt(sum(da_phan_bo_o.values()))
+				tong_kha_dung = flt(max(tong_con - tong_da_phan_bo, 0.0))
+				thieu_trong_lo = flt(max(con_can - tong_kha_dung, 0.0))
+				if tong_con > 0:
+					# Xin ĐÚNG `tong_con` (không phải `min(con_can, tong_con)`): chỉ
+					# yêu cầu đủ để thoả `con_can` thì `chon_o_xuat` có thể CẮT XÉN
+					# balance thật của ô cuối cùng nó chạm tới giữa chừng — nếu đúng
+					# ô đó lại là ô CHÍNH phiếu này đã giữ một phần, phép trừ dưới đây
+					# sẽ trừ nhầm trên một con số đã bị cắt xén, không phải tồn THẬT
+					# của ô. Xin đủ TOÀN BỘ `tong_con` đảm bảo mọi ô trong danh sách
+					# trả về mang đúng SỐ DƯ THẬT của nó (không ô nào bị cắt giữa
+					# chừng), rồi TỰ gom đủ `con_can` (sau khi trừ phần đã lên phiếu)
+					# ở vòng lặp bên dưới — vẫn giữ nguyên thứ tự FEFO của
+					# `chon_o_xuat` vì duyệt đúng thứ tự danh sách nó trả về.
+					do_dai_truoc = len(frappe.local.message_log)
+					try:
+						ung_vien_tho = chon_o_xuat(d.warehouse, d.item_code, d.batch_no or None, tong_con)
+					except Exception:
+						del frappe.local.message_log[do_dai_truoc:]
+						# `tong_con` (từ `tong_ton_vi_tri`) cộng CẢ ô ngừng dùng, còn ứng
+						# viên của `chon_o_xuat` thì KHÔNG — hàng kẹt ở (các) ô ngừng dùng
+						# (thao tác vận hành bình thường, xem docstring `fefo.py`) làm xin
+						# đủ `tong_con` ném, dù xin đúng phần CẦN (`con_can + tong_da_phan_bo`,
+						# luôn `<= tong_con`) vẫn có thể đủ. Thử lại với số nhỏ hơn đó trước
+						# khi bỏ cuộc — thiếu đúng MỘT ô (ô cuối chạm ranh giới có thể bị
+						# cắt xén, số gợi ý ở đó hụt) vẫn hơn hẳn MẤT TRẮNG gợi ý.
+						do_dai_truoc = len(frappe.local.message_log)
+						try:
+							ung_vien_tho = chon_o_xuat(
+								d.warehouse,
+								d.item_code,
+								d.batch_no or None,
+								min(con_can + tong_da_phan_bo, tong_con),
+							)
+						except Exception:
+							del frappe.local.message_log[do_dai_truoc:]
+							frappe.log_error(
+								title=cat_tieu_de(f"vi_tri_kho: mo_phieu_giao goi y loi ({phieu})")
+							)
+							ung_vien_tho = []
+					can_thieu = con_can
+					for g in ung_vien_tho:
+						if can_thieu <= _SAI_SO:
+							break
+						con_o = flt(flt(g["so_luong"]) - da_phan_bo_o.get(g["o"], 0.0))
+						if con_o <= _SAI_SO:
+							continue
+						lay = min(con_o, can_thieu)
+						goi_y.append({"o": g["o"], "so_luong": lay})
+						can_thieu = flt(can_thieu - lay)
+			else:
+				can_xin = con_can
+				if can_xin > 0:
+					do_dai_truoc = len(frappe.local.message_log)
+					try:
+						goi_y = chon_o_xuat(d.warehouse, d.item_code, d.batch_no or None, can_xin)
+					except Exception:
+						del frappe.local.message_log[do_dai_truoc:]
+						frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: mo_phieu_giao goi y loi ({phieu})"))
+						goi_y = []
 		co_chot = da_chot.get(d.name)
 		dong.append(
 			{
@@ -562,6 +729,7 @@ def mo_phieu_giao(phieu: str) -> dict:
 				"da_lay": da.get(d.name, 0.0),
 				"can_quet": can_quet,
 				"ly_do_khong_quet": ly_do_khong_quet,
+				"thieu_trong_lo": thieu_trong_lo,
 				"da_chot_thieu": bool(co_chot),
 				"chot_thieu_boi": co_chot.get("boi") if co_chot else None,
 				"chot_thieu_luc": co_chot.get("luc") if co_chot else None,
@@ -917,8 +1085,28 @@ def _chan_lo_het_han(so_lo: str | None) -> None:
 		)
 
 
+def _ton_o_con_lai_tren_phieu(doc, o: str, vat_tu: str, so_lo: str | None) -> float:
+	"""Tồn CÒN LẠI của một (ô, vật tư, lô) sau khi trừ các lượt ĐÃ GHI trên
+	CHÍNH phiếu `doc` — gộp theo (o, vat_tu, so_lo), KHÔNG theo dòng hàng, đúng
+	cách `kiem_phan_bo_khi_luu` (`theo_o`) gộp để so với `ton_o` lúc validate:
+	hai DÒNG HÀNG khác nhau cùng vật tư/lô rút chung một ô vẫn phải cộng dồn
+	vào MỘT sổ duy nhất, không mỗi dòng tự so với tồn ĐẦY ĐỦ của ô.
+
+	Dùng cho `lay_toi_da_theo_o` của `ghi_da_lay`: số CÒN LẤY ĐƯỢC tiếp ở đúng
+	(ô, vật tư, lô) này trên phiếu đang quét dở, TRƯỚC khi cộng thêm lượt mới.
+	"""
+	da = sum(
+		flt(p.so_luong)
+		for p in doc.get(TEN_BANG_PHAN_BO) or []
+		if p.o == o and p.vat_tu == vat_tu and (p.so_lo or None) == (so_lo or None)
+	)
+	return flt(ton_o(o, vat_tu, so_lo) - da)
+
+
 @frappe.whitelist()
-def ghi_da_lay(phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong) -> dict:
+def ghi_da_lay(
+	phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong, lay_toi_da_theo_o: int = 0
+) -> dict:
 	"""Ghi một lần quét (lô, ô, số lượng) vào bảng phân bổ và LƯU NGAY.
 
 	Lưu ngay chứ không gom trong trình duyệt: PDA hết pin giữa ca là mất cả chục
@@ -929,6 +1117,20 @@ def ghi_da_lay(phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong) 
 	VÒNG SỬA CUỐI (review toàn nhánh, Important): gọi `_chan_bundle_serial_batch`
 	— hàm ghi DUY NHẤT của module này trước đó CHƯA gọi nó (`doi_lo`,
 	`tach_dong_theo_lo`, `chot_thieu` đều gọi), lệch một nguồn sự thật.
+
+	`lay_toi_da_theo_o` (sửa lỗi "số lượng mặc định không tự cắt theo tồn của
+	ô", đo trên site thử): trang đặt số lượng MẶC ĐỊNH = toàn bộ phần còn thiếu
+	của dòng, nhưng ô gợi ý (hoặc ô thủ kho tự quét) có thể có ÍT hơn — trước
+	bản vá, lớp kiểm sớm (`kiem_phan_bo_khi_luu`) luôn chặn với "chỉ còn…",
+	thủ kho phải TỰ sửa số rồi quét LẠI. `0` (mặc định) = hành vi CŨ, ghi đúng
+	`so_luong` yêu cầu, để nguyên cho lớp kiểm sớm chặn nếu vượt tồn — dùng khi
+	NGƯỜI DÙNG đã tự gõ số (cắt âm thầm số người dùng nhập là đổi ý định của
+	họ, không được làm). Khác `0`: cắt `so_luong` xuống
+	`min(so_luong, _ton_o_con_lai_tren_phieu(...))` — chỉ CẮT XUỐNG, không bao
+	giờ TĂNG LÊN; tồn còn lại `<= 0` thì GIỮ NGUYÊN `so_luong` yêu cầu (không
+	cắt về 0 hay số âm — để lớp kiểm sớm chặn với câu báo "chỉ còn…" như hiện
+	nay, đúng hành vi cũ cho ca hết sạch ô). Trả thêm `so_luong_da_ghi` (số
+	THẬT đã ghi, sau khi cắt nếu có) để trang báo đúng cho thủ kho.
 	"""
 	so_lo = so_lo or None
 	so_luong = flt(so_luong)
@@ -946,6 +1148,12 @@ def ghi_da_lay(phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong) 
 			)
 		)
 
+	so_that_ghi = so_luong
+	if cint(lay_toi_da_theo_o):
+		con_lai = _ton_o_con_lai_tren_phieu(doc, o, d.item_code, so_lo)
+		if con_lai > 0:
+			so_that_ghi = min(so_luong, con_lai)
+
 	trung = next(
 		(
 			p
@@ -955,7 +1163,7 @@ def ghi_da_lay(phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong) 
 		None,
 	)
 	if trung:
-		trung.so_luong = flt(trung.so_luong) + so_luong
+		trung.so_luong = flt(trung.so_luong) + so_that_ghi
 		trung.nguoi_lay = frappe.session.user
 		trung.luc_lay = now()
 	else:
@@ -966,13 +1174,15 @@ def ghi_da_lay(phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong) 
 				"vat_tu": d.item_code,
 				"so_lo": so_lo,
 				"o": o,
-				"so_luong": so_luong,
+				"so_luong": so_that_ghi,
 				"nguoi_lay": frappe.session.user,
 				"luc_lay": now(),
 			},
 		)
 	_luu_hoac_bao_xung_dot(doc)
-	return mo_phieu_giao(phieu)
+	ket_qua = mo_phieu_giao(phieu)
+	ket_qua["so_luong_da_ghi"] = so_that_ghi
+	return ket_qua
 
 
 @frappe.whitelist()

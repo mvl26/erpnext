@@ -75,7 +75,11 @@
 			this.$goc.on("click", ".lh-xac-nhan-lo-khac", () => this.nhan_lo_khac());
 			this.$goc.on("click", ".lh-cong-tru", (ev) => this.cong_tru(Number($(ev.currentTarget).attr("data-buoc"))));
 			this.$goc.on("input change", ".lh-so-luong", (ev) => {
-				if (this.cho) this.cho.so_luong = flt(ev.currentTarget.value);
+				if (!this.cho) return;
+				this.cho.so_luong = flt(ev.currentTarget.value);
+				// Người dùng đã TỰ sửa số — từ đây `nhan_o` không còn được âm thầm
+				// cắt số này theo tồn của ô (xem `cho.da_sua_so_luong` ở `nhan_o`).
+				this.cho.da_sua_so_luong = true;
 			});
 			// Enter trên ô số lượng: xong sửa số, trả focus cho súng quét.
 			this.$goc.on("keydown", ".lh-so-luong", (ev) => {
@@ -208,6 +212,12 @@
 				ten_hang: dong.ten_hang,
 				so_luong: con_can,
 				lo_khac: null,
+				// `false` = số lượng còn là số MẶC ĐỊNH (toàn bộ phần còn thiếu của
+				// dòng) — `nhan_o` được phép âm thầm cắt xuống theo tồn của ô quét
+				// được. Bật `true` ngay khi người dùng chạm vào ô số lượng (xem
+				// listener "input change"/`cong_tru`) — từ đó KHÔNG được tự ý cắt số
+				// người dùng đã tự gõ, đổi ý định của họ.
+				da_sua_so_luong: false,
 			};
 			this.bao();
 			this.ve();
@@ -265,6 +275,12 @@
 				this.bao(__("Số lượng phải lớn hơn 0."), "cam");
 				return;
 			}
+			// Số lượng còn là MẶC ĐỊNH (người dùng chưa tự sửa): cho máy chủ được
+			// cắt xuống theo tồn thật của ô vừa quét (`lay_toi_da_theo_o`) — đúng
+			// ca hay gặp nhất, ô gợi ý có ÍT hơn phần còn thiếu của cả dòng. Người
+			// dùng ĐÃ TỰ gõ số thì gọi như cũ — không được âm thầm đổi ý định họ.
+			const yeu_cau = flt(c.so_luong);
+			const theo_ton_o = !c.da_sua_so_luong;
 			frappe
 				.xcall(API + "ghi_da_lay", {
 					phieu: this.phieu.name,
@@ -272,19 +288,32 @@
 					so_lo: c.so_lo,
 					o: o.ma_o,
 					so_luong: c.so_luong,
+					lay_toi_da_theo_o: theo_ton_o ? 1 : 0,
 				})
 				.then((p) => {
 					rung([40, 40, 40]);
 					this.phieu = p;
 					this.cho = null;
-					this.bao(
-						__("Đã lấy <b>{0}</b> {1} ở <b>{2}</b>", [
-							so(c.so_luong),
-							e(c.so_lo || c.ten_hang || c.vat_tu || ""),
-							e(o.ma_in_nhan || o.ma_o),
-						]),
-						"xanh"
-					);
+					const da_ghi = p.so_luong_da_ghi != null ? flt(p.so_luong_da_ghi) : yeu_cau;
+					if (theo_ton_o && da_ghi < yeu_cau - 1e-9) {
+						this.bao(
+							__("Ô <b>{0}</b> chỉ còn <b>{1}</b> — đã lấy {2}, quét ô khác cho phần còn lại.", [
+								e(o.ma_in_nhan || o.ma_o),
+								so(da_ghi),
+								so(da_ghi),
+							]),
+							"cam"
+						);
+					} else {
+						this.bao(
+							__("Đã lấy <b>{0}</b> {1} ở <b>{2}</b>", [
+								so(da_ghi),
+								e(c.so_lo || c.ten_hang || c.vat_tu || ""),
+								e(o.ma_in_nhan || o.ma_o),
+							]),
+							"xanh"
+						);
+					}
 					this.ve();
 				})
 				.catch(() => rung([80, 60, 80]))
@@ -294,6 +323,7 @@
 		cong_tru(buoc) {
 			if (!this.cho) return;
 			this.cho.so_luong = Math.max(0, flt(this.cho.so_luong) + buoc);
+			this.cho.da_sua_so_luong = true;
 			this.$goc.find(".lh-so-luong").val(this.cho.so_luong);
 		}
 
@@ -581,6 +611,28 @@
 					</div>`
 				: "";
 
+			// Sửa lỗi "mở phiếu bật hộp lỗi": dòng cần nhiều hơn tồn của (mặt
+			// hàng, lô) đang chốt — máy chủ (`mo_phieu_giao`) đã tự cắt gợi ý về
+			// đúng phần LẤY ĐƯỢC (`o_nen_lay` ở trên) và trả riêng phần CÒN THIẾU
+			// (`thieu_trong_lo`) — hiện một DÒNG CHỮ BÌNH THƯỜNG cho phần đó,
+			// KHÔNG phải hộp lỗi (spec §6.2: màn mở phiếu phải mở được kể cả khi
+			// không đủ hàng).
+			const thieu_lo =
+				flt(d.thieu_trong_lo) > 1e-9
+					? `<div class="lh-thieu-lo">${
+							d.so_lo
+								? __("Lô {0} chỉ còn {1} — lấy hết rồi quét tem lô khác cho phần còn lại {2}.", [
+										e(d.so_lo),
+										so(flt(d.can_lay) - flt(d.da_lay) - flt(d.thieu_trong_lo)),
+										so(d.thieu_trong_lo),
+								  ])
+								: __("Kho chỉ còn {0} — lấy hết rồi báo thủ kho phần còn thiếu {1}.", [
+										so(flt(d.can_lay) - flt(d.da_lay) - flt(d.thieu_trong_lo)),
+										so(d.thieu_trong_lo),
+								  ])
+					  }</div>`
+					: "";
+
 			const da_lay_o = (d.da_lay_o || []).length
 				? `<div class="lh-da-lay-ds">
 						${d.da_lay_o
@@ -612,6 +664,7 @@
 			}</div>
 					${chot}
 					${goi_y}
+					${thieu_lo}
 					${da_lay_o}
 					${nut_chot_thieu}
 				</div>`;

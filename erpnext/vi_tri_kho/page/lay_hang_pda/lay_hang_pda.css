@@ -392,6 +392,14 @@
 	font-size: 13px;
 }
 
+.lh-thieu-lo {
+	margin-top: 8px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
 .lh-goi-y-ds {
 	margin-top: 10px;
 	display: flex;
