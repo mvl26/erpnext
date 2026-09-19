@@ -218,7 +218,7 @@ xác nhận từng thùng đã lấy:
 | Chỗ xem | Nói gì |
 |---|---|
 | Thanh **Lấy hàng** trên đầu form | Phiếu nháp: đã lấy xong bao nhiêu/bao nhiêu dòng, dòng chốt thiếu, dòng lấy tay (dịch vụ, bán theo đơn vị khác), ai đang lấy. Đã duyệt: trừ sổ theo ô thủ kho quét hay theo ô hệ tự chọn (FEFO). |
-| Cột **Vị trí lấy** trên từng dòng hàng | Ô đã lấy × số lượng, ví dụ `1A0101-0101 ×5; 1A0101-0102 ×3` (mã in trên tem ô). Cập nhật ngay mỗi lượt quét; lúc duyệt ghi lại theo **sổ vị trí thật** — phiếu không quét trên PDA cũng có cột này (ô FEFO đã trừ). Cột **in ra được** trên phiếu giao. Huỷ phiếu thì cột giữ nguyên để tra lại; bản sửa (amend) thì cột trống, chờ lấy lại. |
+| Cột **Vị trí lấy** trên từng dòng hàng | Ô đã lấy × số lượng, ví dụ `1A0101-0101 ×5; 1A0101-0102 ×3` (mã in trên tem ô). Cập nhật ngay mỗi lượt quét; lúc duyệt ghi lại theo **sổ vị trí thật** — phiếu không quét trên PDA cũng có cột này (ô FEFO đã trừ). **Chưa có trên bản in** — mẫu in mặc định *Miyano - Phiếu xuất kho (02-VT)* thuộc app `miyano_portal`, chưa thêm cột này. Huỷ phiếu thì cột giữ nguyên để tra lại; bản sửa (amend) thì cột trống, chờ lấy lại. |
 | Bảng **Phân bổ vị trí** dưới bảng hàng | Từng lượt quét: ô, lô, số lượng, người lấy, lúc lấy. |
 | Tab **Connections → Vị trí kho → Sổ vị trí** | Sau khi duyệt: các dòng sổ vị trí của phiếu (ô nào bị trừ bao nhiêu, lô nào). |
 
