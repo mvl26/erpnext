@@ -5,6 +5,8 @@ nó phân bổ vào ô mà FEFO KHÔNG chọn. Thiếu chốt đó thì một c�
 và cứ chạy FEFO vẫn xanh, vì cả hai đường đều cho ra tổng đúng.
 """
 
+from contextlib import contextmanager
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, flt, nowdate
@@ -19,6 +21,21 @@ LO = "9L-LO-LAY-01"
 O_GAN = "9L01010101"
 O_XA = "9L01010102"
 DIEM_TEST = "test_lay_hang"
+
+
+@contextmanager
+def bo_kiem_o_tem():
+	"""Dựng tồn ở NHIỀU ô cho một lô — thứ luật "xếp đúng ô trên tem"
+	(`vitri/o_tem.py`) cấm ở nghiệp vụ thật. Chỉ dùng để dựng dữ liệu cho các
+	bài KHÔNG nói về luật đó (FEFO, lấy hàng...)."""
+	from erpnext.vi_tri_kho.vitri.o_tem import CO_BO_KIEM_TEST
+
+	cu = frappe.flags.get(CO_BO_KIEM_TEST)
+	frappe.flags[CO_BO_KIEM_TEST] = True
+	try:
+		yield
+	finally:
+		frappe.flags[CO_BO_KIEM_TEST] = cu
 
 
 def _o(ma_o, thu_tu=None):
@@ -98,8 +115,9 @@ def _chuyen_vao_o(cap):
 			],
 		}
 	)
-	pxep.insert(ignore_permissions=True)
-	pxep.submit()
+	with bo_kiem_o_tem():
+		pxep.insert(ignore_permissions=True)
+		pxep.submit()
 	return pxep
 
 
@@ -142,8 +160,9 @@ def _chuyen_vao_o_lo(so_lo, cap):
 			],
 		}
 	)
-	pxep.insert(ignore_permissions=True)
-	pxep.submit()
+	with bo_kiem_o_tem():
+		pxep.insert(ignore_permissions=True)
+		pxep.submit()
 	return pxep
 
 
@@ -197,8 +216,9 @@ def _chuyen_vao_o_khong_lo(cap):
 			],
 		}
 	)
-	pxep.insert(ignore_permissions=True)
-	pxep.submit()
+	with bo_kiem_o_tem():
+		pxep.insert(ignore_permissions=True)
+		pxep.submit()
 	return pxep
 
 
@@ -681,8 +701,9 @@ class TestKiemSom(FrappeTestCase):
 				"items": [{"vat_tu": ITEM, "so_lo": LO, "tu_o": O_XA, "den_o": O_GAN, "so_luong": 8}],
 			}
 		)
-		chuyen.insert(ignore_permissions=True)
-		chuyen.submit()
+		with bo_kiem_o_tem():
+			chuyen.insert(ignore_permissions=True)
+			chuyen.submit()
 		self.assertEqual(so.ton_o(O_XA, ITEM, LO), 2.0)
 
 		# Stock Ledger Entry dựng tay: `sle.name` phải trỏ một bản ghi CÓ THẬT
@@ -1070,8 +1091,9 @@ class TestDocChoTrang(FrappeTestCase):
 				"items": [{"vat_tu": ITEM, "so_lo": LO, "tu_o": chua_xep_b, "den_o": o_b, "so_luong": 5}],
 			}
 		)
-		lt.insert(ignore_permissions=True)
-		lt.submit()
+		with bo_kiem_o_tem():
+			lt.insert(ignore_permissions=True)
+			lt.submit()
 
 		dn = frappe.get_doc(
 			{
@@ -1716,8 +1738,9 @@ class TestGhiChoTrang(FrappeTestCase):
 				],
 			}
 		)
-		_chuyen_vao_o_khac.insert(ignore_permissions=True)
-		_chuyen_vao_o_khac.submit()
+		with bo_kiem_o_tem():
+			_chuyen_vao_o_khac.insert(ignore_permissions=True)
+			_chuyen_vao_o_khac.submit()
 
 		with self.assertRaises(frappe.ValidationError):
 			hoan_tat(self.dn.name)
@@ -2074,8 +2097,9 @@ class TestGhiChoTrang(FrappeTestCase):
 				],
 			}
 		)
-		chuyen.insert(ignore_permissions=True)
-		chuyen.submit()
+		with bo_kiem_o_tem():
+			chuyen.insert(ignore_permissions=True)
+			chuyen.submit()
 		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 0.0)
 
 		# TRƯỚC sửa: chặn "ô 9L01010101 chỉ còn 0" vì dòng O_GAN (12) còn lại

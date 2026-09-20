@@ -1,0 +1,30 @@
+{
+ "content": null,
+ "creation": "2026-09-20 00:00:00",
+ "docstatus": 0,
+ "doctype": "Page",
+ "icon": "tag",
+ "idx": 0,
+ "modified": "2026-09-20 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Vi Tri Kho",
+ "name": "dat-o-hang-loat",
+ "owner": "Administrator",
+ "page_name": "dat-o-hang-loat",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Stock Manager"
+  },
+  {
+   "role": "Stock User"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Đặt ô trên tem hàng loạt"
+}

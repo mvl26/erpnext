@@ -22,6 +22,7 @@ from frappe.utils import flt, now, nowdate
 
 from erpnext.vi_tri_kho.vitri.cay import nhanh_bi_tat
 from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri
+from erpnext.vi_tri_kho.vitri.o_tem import chan_neu_sai_o
 from erpnext.vi_tri_kho.vitri.so import ghi_dong_so, ton_o
 
 
@@ -199,6 +200,12 @@ class LocationTransfer(Document):
 			)
 
 		self._kiem_lo(d, vi_tri)
+
+		# K11 (19/09/2026) — ô đích phải là ô in trên tem lô, sai là chặn, không
+		# ai được vượt. Luật nằm ở `vitri/o_tem.py`, dùng chung với trang PDA
+		# và ô quét trên form. Đặt SAU `_kiem_lo`: lô phải khớp mặt hàng trước
+		# thì mới nói chuyện tem của lô đó.
+		chan_neu_sai_o(d.vat_tu, d.so_lo, self.kho, d.den_o, tien_to=f"{vi_tri}: ")
 
 	def _kiem_lo(self, d, vi_tri):
 		"""K9 + K10 — sai CẢ HAI chiều đều làm lệch tồn theo ô mà tổng vẫn

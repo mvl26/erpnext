@@ -128,6 +128,13 @@
 	background: var(--bg-orange);
 	color: var(--text-on-orange);
 }
+/* Sai ô / lô chưa xếp được (luật "đúng ô trên tem", 19/09/2026) — phải khác
+   hẳn màu cam của nhắc việc thường: đây là "dừng tay". */
+.xh-bao.muc-do {
+	background: var(--bg-red);
+	color: var(--text-on-red);
+	font-weight: 600;
+}
 .xh-bao.muc-xam {
 	background: var(--bg-gray);
 	color: var(--text-on-gray);
@@ -310,28 +317,7 @@
 	font-size: 14px;
 }
 
-.xh-o-khac {
-	margin-top: 10px;
-	padding: 10px 12px;
-	border-radius: 10px;
-	background: var(--bg-orange);
-	color: var(--text-on-orange);
-	font-size: 14px;
-	line-height: 1.45;
-}
 
-.xh-xac-nhan-o-khac {
-	display: block;
-	width: 100%;
-	margin-top: 8px;
-	min-height: 44px;
-	border: 0;
-	border-radius: 10px;
-	background: var(--card-bg);
-	color: var(--text-color);
-	font-weight: 700;
-	font-size: 15px;
-}
 
 .xh-hoi {
 	font-size: 15px;
@@ -455,4 +441,19 @@
 	.xh {
 		margin: 0 -8px;
 	}
+}
+
+/* Nút nằm TRONG khung báo đỏ ("Đặt ô trên tem", 20/09/2026): ngón tay đeo găng
+   bấm được — cùng cỡ chạm tối thiểu 44px với các nút khác của trang. */
+.xh-nut-trong-bao {
+	display: block;
+	width: 100%;
+	margin-top: 10px;
+	min-height: 44px;
+	border: 0;
+	border-radius: 10px;
+	background: var(--card-bg);
+	color: var(--text-color);
+	font-size: 15px;
+	font-weight: 600;
 }

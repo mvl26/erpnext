@@ -145,9 +145,13 @@ Workspace **Vị trí kho** → **Xếp hàng vào ô**. Quét tem lô → quét
 
 ![Trang xếp hàng, đang chờ quét tem ô](anh-luong/b8-pda-cho-quet-o.png)
 
-1. **Quét tem LÔ** trên thùng: hiện tên hàng, lô, hạn, số đang chờ xếp, và **ô gợi ý** (theo vị
-   trí cố định ở bước 2, ưu tiên đúng ô đã in trên tem).
-2. **Quét tem Ô** nơi vừa đặt hàng. Khác ô gợi ý thì phải **quét lại tem đó lần nữa** để xác nhận.
+1. **Quét tem LÔ** trên thùng: hiện tên hàng, lô, hạn, số đang chờ xếp, và **ô in trên tem** —
+   ô **bắt buộc** phải xếp vào (từ 19/09/2026). Lô chưa có ô trên tem thì PDA báo đỏ kèm nút
+   **Đặt ô trên tem**: bấm rồi quét tem ô định để hàng là xếp tiếp được ngay (nhớ in lại tem trên
+   máy tính). Cả loạt lô thiếu ô thì dùng trang **Đặt ô trên tem hàng loạt** (mục 15 tài liệu
+   tra cứu).
+2. **Quét tem Ô** nơi vừa đặt hàng. **Sai ô là không xếp được** — PDA rung, báo đỏ *"SAI Ô… tem
+   ghi ô …"*. Không có lối vượt, kể cả trên máy tính.
 3. Lặp cho thùng tiếp theo — tất cả dồn vào **một** phiếu xếp.
 4. **Hoàn tất phiếu** → tồn theo ô đổi ngay.
 

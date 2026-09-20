@@ -18,6 +18,7 @@
 (function () {
 	const O_QUET = ["/assets/erpnext/js/vi_tri_kho/o_quet.js", "/assets/erpnext/js/vi_tri_kho/o_quet.css"];
 	const API = "erpnext.vi_tri_kho.vitri.xep.";
+	const API_O_TEM = "erpnext.vi_tri_kho.vitri.o_tem.";
 
 	frappe.pages["xep-hang-pda"].on_page_load = function (wrapper) {
 		const page = frappe.ui.make_app_page({
@@ -45,6 +46,9 @@
 			// Lô đang chờ quét tem ô. `null` = đang ở bước ① (chờ quét lô).
 			this.cho = null;
 			this.dang_gui = false;
+			// Lô vừa quét mà CHƯA có ô trên tem — chờ người dùng bấm "Đặt ô trên tem".
+			this.dat_o = null;
+			this.cho_quet_dat_o = false;
 			this.dung();
 			this.nap_lai();
 		}
@@ -72,7 +76,7 @@
 			this.$goc.on("click", ".xh-chon-kho", (ev) => this.chon_kho($(ev.currentTarget).attr("data-kho")));
 			this.$goc.on("click", ".xh-nguon", (ev) => this.chon_nguon($(ev.currentTarget).attr("data-o")));
 			this.$goc.on("click", ".xh-bo-lo", () => this.bo_lo());
-			this.$goc.on("click", ".xh-xac-nhan-o-khac", () => this.xac_nhan_o_khac());
+			this.$goc.on("click", ".xh-dat-o-tem", () => this.bat_dau_dat_o());
 			this.$goc.on("click", ".xh-xoa-dong", (ev) => this.xoa_dong($(ev.currentTarget).attr("data-dong")));
 			this.$goc.on("click", ".xh-hoan-tat", () => this.hoan_tat());
 			this.$goc.on("click", ".xh-cong-tru", (ev) => this.cong_tru(Number($(ev.currentTarget).attr("data-buoc"))));
@@ -149,6 +153,29 @@
 				);
 				return;
 			}
+			// Luật 19/09/2026: lô chỉ xếp vào đúng ô in trên tem. Lô chưa có ô / ô
+			// trên tem hỏng thì dừng NGAY ở đây — chờ tới lúc quét ô mới báo là để
+			// thủ kho ôm thùng đi tới kệ rồi mới biết phải quay về in tem.
+			const t = d.o_tem || {};
+			if (t.kiem && t.loi) {
+				rung([80, 60, 80, 60, 80]);
+				this.cho = null;
+				// Lô CHƯA có ô trên tem: thủ kho đặt được ngay tại kệ (chủ đầu tư
+				// 20/09/2026) — nút bên dưới chuyển sang chờ quét tem ô. Ô trên tem
+				// HỎNG thì KHÔNG có nút: đổi ô đã có là quyền trưởng kho, làm trên
+				// máy tính, có lý do (xem `o_tem.doi_o_tren_tem`).
+				this.dat_o = t.chua_co_o ? { vat_tu: d.vat_tu, so_lo: d.so_lo, ten_hang: d.ten_hang } : null;
+				this.cho_quet_dat_o = false;
+				const nut = t.chua_co_o
+					? `<button type="button" class="xh-nut-trong-bao xh-dat-o-tem">${__("Đặt ô trên tem")}</button>`
+					: "";
+				this.bao(e(t.loi) + nut, "do");
+				this.ve();
+				return;
+			}
+			if (t.kiem) {
+				d.goi_y = { den_o: t.o, ma_in_nhan: t.ma_in_nhan, theo_tem: true };
+			}
 			rung([40]);
 			// Quét lô mới khi đang chờ ô cho lô cũ: THAY lô cũ. Chưa có gì được ghi,
 			// và đó là điều người cầm súng quét muốn — họ vừa đổi ý cầm thùng khác.
@@ -159,6 +186,8 @@
 		}
 
 		nhan_o(o) {
+			// Đang chờ quét ô để ĐẶT lên tem lô (không phải để xếp).
+			if (this.cho_quet_dat_o && this.dat_o) return this.dat_o_tem(o);
 			if (!this.cho) {
 				rung([80, 60, 80]);
 				this.bao(
@@ -178,22 +207,23 @@
 				this.bao(__("Số lượng phải lớn hơn 0."), "cam");
 				return;
 			}
-			// Ô khác gợi ý: xác nhận bằng QUÉT LẠI đúng tem ô đó (hoặc chạm nút trên
-			// thẻ) — KHÔNG bằng hộp thoại. Xem `hoi()` ở cuối file: một hộp
-			// `frappe.confirm` đang mở thì phím Enter của lần quét kế tiếp bấm "Có".
-			const goi_y = this.cho.goi_y && this.cho.goi_y.den_o;
-			const da_xac_nhan = this.cho.o_khac && this.cho.o_khac.ma_o === o.ma_o;
-			if (goi_y && o.ma_o !== goi_y && !da_xac_nhan) {
-				rung([80]);
-				this.cho.o_khac = o;
-				this.ve();
+			// Luật 19/09/2026 (thay lối "quét lại lần hai để xếp ô khác" của 17/09):
+			// lô có tem thì CHỈ đúng ô trên tem. Máy chủ cũng chặn (`o_tem.py`) —
+			// chặn ở đây để báo ngay, không tốn một lượt gọi.
+			const g = this.cho.goi_y || {};
+			if (g.theo_tem && o.ma_o !== g.den_o) {
+				rung([80, 60, 80, 60, 80]);
+				this.bao(
+					__("SAI Ô. Ô {0} không phải ô in trên tem lô {1} — tem ghi ô <b>{2}</b>.", [
+						e(o.ma_in_nhan || o.ma_o),
+						e(this.cho.so_lo),
+						e(g.ma_in_nhan || g.den_o),
+					]),
+					"do"
+				);
 				return;
 			}
 			this.them_dong(o);
-		}
-
-		xac_nhan_o_khac() {
-			if (this.cho && this.cho.o_khac) this.them_dong(this.cho.o_khac);
 		}
 
 		them_dong(o) {
@@ -266,6 +296,59 @@
 			const toi_da = n ? flt(n.con_xep_duoc) : Infinity;
 			this.cho.so_luong = Math.min(toi_da, Math.max(0, flt(this.cho.so_luong) + buoc));
 			this.$goc.find(".xh-so-luong").val(this.cho.so_luong);
+		}
+
+		// Bấm "Đặt ô trên tem": chuyển sang chờ quét tem ô. KHÔNG dùng hộp thoại —
+		// súng quét gửi Enter sau mỗi lần quét (xem `hoi()` cuối file).
+		bat_dau_dat_o() {
+			if (!this.dat_o) return;
+			this.cho_quet_dat_o = true;
+			this.bao(
+				__("Quét tem Ô muốn đặt làm ô trên tem của lô <b>{0}</b>.", [e(this.dat_o.so_lo)]),
+				"cam"
+			);
+			this.ve();
+			this.o_quet.giu_focus();
+		}
+
+		dat_o_tem(o) {
+			const lo = this.dat_o;
+			this.dang_gui = true;
+			frappe
+				.xcall(API_O_TEM + "doi_o_tren_tem", { so_lo: lo.so_lo, o_moi: o.ma_o })
+				.then((kq) => {
+					rung([40, 40, 40]);
+					this.cho_quet_dat_o = false;
+					this.dat_o = null;
+					this.bao(
+						__(
+							"Ô trên tem lô <b>{0}</b> giờ là <b>{1}</b>. NHỚ IN LẠI TEM trên máy tính và dán lên thùng. Quét tem ô đó lần nữa để xếp hàng vào.",
+							[e(lo.so_lo), e(kq.ma_in_nhan || kq.o)]
+						),
+						"xanh"
+					);
+					// Nạp lại thẻ lô: giờ đã có ô trên tem nên xếp được.
+					return frappe.xcall(API + "quet_de_xep", { kho: this.kho, ma: lo.so_lo }).then((d) => {
+						if (d && d.loai === "lo") {
+							const t = d.o_tem || {};
+							if (t.kiem && !t.loi) {
+								d.goi_y = { den_o: t.o, ma_in_nhan: t.ma_in_nhan, theo_tem: true };
+							}
+							this.cho = { ...d, tu_o: d.tu_o_mac_dinh, so_luong: 0 };
+							this.dat_so_luong_theo_nguon();
+						}
+						this.ve();
+					});
+				})
+				.catch(() => {
+					// Máy chủ đã hiện câu báo (ô đang chứa hàng khác, ô ngừng dùng…).
+					rung([80, 60, 80]);
+					this.ve();
+				})
+				.finally(() => {
+					this.dang_gui = false;
+					this.o_quet.giu_focus();
+				});
 		}
 
 		xoa_dong(ten_dong) {
@@ -349,14 +432,14 @@
 			this.ve_chan_trang();
 			if (!this.kho) {
 				this.o_quet.dat_goi_y(__("Chọn kho để bắt đầu"));
-			} else if (this.cho && this.cho.o_khac) {
-				this.o_quet.dat_goi_y(
-					__("Quét LẠI tem {0} để xác nhận", [this.cho.o_khac.ma_in_nhan || this.cho.o_khac.ma_o]),
-					"nhan-manh"
-				);
+			} else if (this.cho_quet_dat_o && this.dat_o) {
+				this.o_quet.dat_goi_y(__("Quét tem Ô để đặt lên tem lô {0}", [this.dat_o.so_lo]), "nhan-manh");
 			} else if (this.cho) {
+				const g = this.cho.goi_y || {};
 				this.o_quet.dat_goi_y(
-					__("② Quét tem Ô trên kệ để xếp {0}", [this.cho.so_lo || this.cho.ten_hang]),
+					g.theo_tem
+						? __("② Quét tem ô {0} (ô trên tem lô)", [g.ma_in_nhan || g.den_o])
+						: __("② Quét tem Ô trên kệ để xếp {0}", [this.cho.so_lo || this.cho.ten_hang]),
 					"nhan-manh"
 				);
 			} else {
@@ -414,7 +497,7 @@
 			const g = c.goi_y || {};
 			const goi_y = g.den_o
 				? `<div class="xh-goi-y">
-						<div class="xh-nhan">${__("Ô gợi ý")}</div>
+						<div class="xh-nhan">${g.theo_tem ? __("Xếp vào ô trên tem — bắt buộc") : __("Ô gợi ý")}</div>
 						<div class="xh-goi-y-o">${e(g.ma_in_nhan || g.den_o)}</div>
 						${g.ly_do ? `<div class="xh-mo">${e(g.ly_do)}</div>` : ""}
 					</div>`
@@ -422,22 +505,6 @@
 						<div class="xh-nhan">${__("Chưa có ô gợi ý — quét tem ô định xếp")}</div>
 						${g.ly_do ? `<div class="xh-mo">${e(g.ly_do)}</div>` : ""}
 					</div>`;
-			const tem_hong = g.tem_hong
-				? `<div class="xh-bao muc-cam">${__(
-						"Ô in trên tem của lô này không còn xếp được — ĐỪNG theo tem cũ, dán đè tem mới."
-				  )}</div>`
-				: "";
-
-			const ok = c.o_khac;
-			const o_khac = ok
-				? `<div class="xh-o-khac">
-						<div>${__("Ô <b>{0}</b> KHÁC ô gợi ý. <b>Quét lại tem {0}</b> để xác nhận xếp vào đó, hoặc quét tem ô gợi ý.", [
-							e(ok.ma_in_nhan || ok.ma_o),
-						])}</div>
-						<button type="button" class="xh-xac-nhan-o-khac">${__("Xếp vào {0}", [e(ok.ma_in_nhan || ok.ma_o)])}</button>
-					</div>`
-				: "";
-
 			const n = this.nguon_dang_chon();
 			$c.html(`
 				<div class="xh-the">
@@ -471,7 +538,7 @@
 						</div>
 					</div>
 
-					<div class="xh-muc">${goi_y}${tem_hong}${o_khac}</div>
+					<div class="xh-muc">${goi_y}</div>
 				</div>`);
 		}
 

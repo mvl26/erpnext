@@ -12,7 +12,15 @@
 // dữ liệu kho đã đổi. Đó là điều kiện để nút này an toàn; không có bất biến đó
 // thì in lại là đẻ ra hai tờ tem nói hai chỗ khác nhau cho cùng một thùng hàng.
 
+//
+// NÚT "Đặt / Đổi ô trên tem" (19/09/2026): luật mới "chỉ xếp lô vào đúng ô in
+// trên tem" (`vitri/o_tem.py`) biến ô trên tem thành thứ quyết định hàng được
+// nằm ở đâu. Lô chưa có ô, ô trên tem hỏng, hay cần dời hàng sang chỗ khác —
+// đều đi qua nút này rồi IN LẠI TEM. Lô chưa có ô: thủ kho đặt được. Đổi ô đã
+// có: chỉ trưởng kho (máy chủ kiểm, nút chỉ ẩn/hiện cho đỡ bấm nhầm).
+
 const DUONG_IN_NHAN = "/assets/erpnext/js/vi_tri_kho/in_nhan_lo.js";
+const O_TEM_API = "erpnext.vi_tri_kho.vitri.o_tem.";
 
 frappe.ui.form.on("Batch", {
 	refresh(frm) {
@@ -28,6 +36,19 @@ frappe.ui.form.on("Batch", {
 		frappe.db.get_value("Item", frm.doc.item, "has_batch_no").then((r) => {
 			if (!r || !r.message || !r.message.has_batch_no) return;
 			frm.add_custom_button(__("In nhãn"), () => in_nhan(frm));
+			frappe.xcall(O_TEM_API + "thong_tin_o_tem", { so_lo: frm.doc.name }).then((t) => {
+				if (!t) return;
+				if (t.loi) frm.dashboard.set_headline_alert(frappe.utils.escape_html(t.loi), "red");
+				else if (!t.o)
+					frm.dashboard.set_headline_alert(
+						__("Lô chưa có ô trên tem — chưa xếp vào ô nào được. Bấm \"Đặt ô trên tem\"."),
+						"orange"
+					);
+				if (!t.duoc_doi) return;
+				frm.add_custom_button(t.o ? __("Đổi ô trên tem") : __("Đặt ô trên tem"), () =>
+					doi_o_tem(frm, t)
+				);
+			});
 		});
 	},
 });
@@ -39,4 +60,50 @@ function in_nhan(frm) {
 		// hai con tem khác nhau cho cùng một lô.
 		erpnext.vi_tri_kho.in_nhan.in_cho_cac_lo([frm.doc.name]);
 	});
+}
+
+function doi_o_tem(frm, t) {
+	const d = new frappe.ui.Dialog({
+		title: t.o ? __("Đổi ô trên tem lô {0}", [frm.doc.name]) : __("Đặt ô trên tem lô {0}", [frm.doc.name]),
+		fields: [
+			{
+				fieldtype: "HTML",
+				options: t.o
+					? `<p>${__("Ô hiện in trên tem")}: <b>${frappe.utils.escape_html(t.o)}</b>. ${__(
+							"Sau khi đổi, lô chỉ xếp được vào ô mới — in lại tem và dán đè tem cũ."
+					  )}</p>`
+					: `<p>${__("Lô chỉ xếp được vào ô chọn ở đây. Lưu xong in tem và dán lên thùng.")}</p>`,
+			},
+			{
+				fieldname: "o_moi",
+				fieldtype: "Link",
+				options: "Storage Location",
+				label: __("Ô mới"),
+				reqd: 1,
+				default: t.goi_y && t.goi_y !== t.o ? t.goi_y : null,
+				get_query: () => ({
+					filters: Object.assign(
+						{ is_group: 0, la_o_chua_xep: 0, disabled: 0 },
+						t.kho ? { kho: t.kho } : {}
+					),
+				}),
+			},
+			{ fieldname: "ly_do", fieldtype: "Small Text", label: __("Lý do"), reqd: t.o ? 1 : 0 },
+		],
+		primary_action_label: __("Lưu và in tem"),
+		primary_action(v) {
+			frappe
+				.xcall(O_TEM_API + "doi_o_tren_tem", { so_lo: frm.doc.name, o_moi: v.o_moi, ly_do: v.ly_do })
+				.then((kq) => {
+					d.hide();
+					frappe.show_alert({
+						message: __("Ô trên tem: {0}. Đang in tem mới.", [frappe.utils.escape_html(kq.ma_in_nhan)]),
+						indicator: "green",
+					});
+					frm.reload_doc();
+					in_nhan(frm);
+				});
+		},
+	});
+	d.show();
 }

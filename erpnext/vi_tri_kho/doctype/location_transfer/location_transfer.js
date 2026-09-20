@@ -1,15 +1,37 @@
-// Nút "Lấy hàng chưa xếp": đổ toàn bộ hàng đang ở ô "Chưa xếp vị trí" của kho
-// thành các dòng sẵn.
+// Phiếu xếp / chuyển vị trí trên máy tính.
 //
-// Ô ĐÍCH được GỢI Ý SẴN (`den_o`) từ máy chủ kể từ 15/09/2026 — mặt hàng có vị
-// trí cố định thì "xếp đâu" trả lời được. Đây vẫn chỉ là GỢI Ý: `den_o` là
-// trường `reqd` trên dòng, thủ kho đổi tay vẫn lưu bình thường, và mặt hàng
-// chưa gán thì máy chủ cố tình để trống — không đoán bừa.
+// LUẬT 19/09/2026 (chủ đầu tư): lô CHỈ được xếp vào đúng ô in trên tem lô — sai
+// là máy chủ chặn (`vitri/o_tem.py`, gọi từ `LocationTransfer.validate`), không
+// ai được vượt. Màn hình này chỉ báo SỚM, luật thật ở máy chủ.
+//
+// - Nút "Lấy hàng chưa xếp": đổ hàng ở ô "Chưa xếp vị trí" thành dòng, ô đến
+//   lấy theo tem. Lô chưa có ô / ô trên tem hỏng thì KHÔNG thêm dòng (lưu sẽ bị
+//   chặn) mà liệt kê ra để đi in lại tem.
+// - Ô "Quét tem": quét tem lô là tự thêm dòng (chủ đầu tư: "quét mã lô thì auto
+//   điền item, không phải chọn item xong chọn lô"); quét tem ô là xác nhận ô
+//   đến của dòng vừa thêm — sai ô báo đỏ ngay.
+// - Nút "Xếp trên PDA": mở trang `xep-hang-pda` (màn hình điện thoại).
+
+const XEP_API = "erpnext.vi_tri_kho.vitri.xep.";
 
 frappe.ui.form.on("Location Transfer", {
 	refresh(frm) {
-		if (frm.doc.docstatus !== 0 || !frm.doc.kho) return;
+		frm.__cho_o = null;
+		if (frm.doc.docstatus !== 0) return;
+		frm.add_custom_button(__("Xếp trên PDA"), () => frappe.set_route("xep-hang-pda"));
+		if (!frm.doc.kho) return;
 		frm.add_custom_button(__("Lấy hàng chưa xếp"), () => lay_hang_chua_xep(frm));
+	},
+
+	quet_tem(frm) {
+		const ma = (frm.doc.quet_tem || "").trim();
+		if (!ma) return;
+		frm.set_value("quet_tem", "");
+		if (!frm.doc.kho) {
+			frappe.show_alert({ message: __("Chọn kho trước khi quét."), indicator: "orange" });
+			return;
+		}
+		frappe.xcall(XEP_API + "quet_de_xep", { kho: frm.doc.kho, ma }).then((kq) => nhan_ma(frm, kq, ma));
 	},
 
 	kho(frm) {
@@ -29,7 +51,7 @@ function lay_hang_chua_xep(frm) {
 		method: "erpnext.vi_tri_kho.vitri.xep.hang_chua_xep",
 		args: { kho: frm.doc.kho },
 		callback(r) {
-			const dong = r.message || [];
+			let dong = r.message || [];
 			if (!dong.length) {
 				frappe.msgprint({
 					title: __("Không có hàng chưa xếp"),
@@ -38,6 +60,27 @@ function lay_hang_chua_xep(frm) {
 				});
 				return;
 			}
+			// Lô bị luật tem chặn: không đưa vào phiếu (lưu sẽ hỏng), liệt kê ra.
+			const bi_chan = dong.filter((d) => d.so_lo && !d.den_o);
+			dong = dong.filter((d) => !(d.so_lo && !d.den_o));
+			if (bi_chan.length) {
+				frappe.msgprint({
+					title: __("{0} lô chưa xếp được — cần in lại tem", [bi_chan.length]),
+					indicator: "red",
+					message:
+						"<ul>" +
+						bi_chan
+							.map(
+								(d) =>
+									`<li><b>${frappe.utils.escape_html(d.so_lo)}</b> (${frappe.utils.escape_html(
+										d.vat_tu
+									)}): ${frappe.utils.escape_html(d.ly_do_goi_y || "")}</li>`
+							)
+							.join("") +
+						"</ul>",
+				});
+			}
+			if (!dong.length) return;
 			frm.clear_table("items");
 			dong.forEach((d) => {
 				const r = frm.add_child("items");
@@ -45,66 +88,19 @@ function lay_hang_chua_xep(frm) {
 				r.so_lo = d.so_lo;
 				r.tu_o = d.tu_o;
 				r.so_luong = d.so_luong;
-				// den_o là gợi ý từ máy chủ (goi_y.goi_y_o qua xep.hang_chua_xep),
-				// không phải giá trị cố định — thủ kho vẫn sửa được trên lưới.
-				// Bỏ dòng này thì trường `reqd` của den_o buộc thủ kho gõ tay MỌI
-				// dòng dù máy chủ đã biết câu trả lời, và cả Task 6 vô hình trên
-				// màn hình dù xep.py đã trả đúng dữ liệu.
+				// Lô: ô in trên tem (bắt buộc). Hàng không lô: gợi ý theo gán vị trí.
 				r.den_o = d.den_o;
 			});
 			frm.refresh_field("items");
 			frappe.show_alert({
-				message: __("Đã lấy {0} dòng. Điền ô đích cho từng dòng.", [dong.length]),
+				message: __("Đã lấy {0} dòng — ô đến theo tem lô.", [dong.length]),
 				indicator: "blue",
 			});
 
-			// Tóm tắt SAU khi lưới đã có dòng: đếm bao nhiêu dòng máy chủ không
-			// gợi ý được, để thủ kho biết ngay những dòng nào phải tự tay chọn
-			// ô, không lặng lẽ để `reqd` chặn ở bước lưu rồi mới đi tìm lý do.
-			//
-			// Ruling O (vòng sửa 1, review điều phối): `ly_do_goi_y` của
-			// `goi_y_o()` có ÍT NHẤT BA nguyên nhân khác hẳn nhau — "chưa gán",
-			// "vùng đã đầy" (hết cả ô trống lẫn ô cùng hàng), và từ Ruling N,
-			// "lỗi dữ liệu vị trí". Mỗi nguyên nhân cần một HÀNH ĐỘNG khác nhau
-			// của thủ kho (đi gán / đi dọn hoặc mở rộng vùng / báo lỗi dữ liệu).
-			// Một câu cố định "chưa gán vị trí cố định" cho MỌI dòng rỗng từng
-			// khiến ca "đã gán nhưng hết chỗ" bị đọc nhầm thành "chưa gán" — đúng
-			// lớp lỗi "màn hình nói sai sự thật" đã dính hai lần trước đó trong
-			// dự án. Gộp theo `ly_do_goi_y` THẬT và hiện riêng từng nhóm thay vì
-			// đoán hoặc rút gọn về một câu chung.
-			//
-			// `ly_do_goi_y` không có trường trên `Location Transfer Item` (cố ý,
-			// ngoài phạm vi vòng sửa này) nên không hiện được theo TỪNG dòng
-			// trên lưới — chỉ hiện được ở đây, một lần, dạng tóm tắt, lấy từ
-			// `dong` (phản hồi RPC gốc), không phải từ các dòng con đã tạo.
-			//
-			// Task 4 (khối C §8): trước đây lọc CHỈ bắt dòng TRỐNG (`!d.den_o`)
-			// vì trước §8 một dòng CÓ gợi ý không mang gì thêm cần đọc — gợi ý
-			// chỉ có đúng một lý do khi có ("ô trống"/"dồn vào ô cùng hàng").
-			// Từ §8, `goi_y_o` có thể trả CẢ gợi ý LẪN một cảnh báo: tem của lô
-			// đã in một ô mà giờ không dùng được nữa, và `den_o` là ô THAY THẾ.
-			// Thủ kho đang cầm tờ tem cũ trên tay — không tách riêng ra thì tin
-			// đó chìm mất trong im lặng của "dòng đã có gợi ý", và họ đi dán
-			// hàng theo đúng ô đã in, sai với nơi hệ vừa xếp lại.
-			//
-			// Vòng sửa 2 (điều phối, sau Task 4): nhóm "tem cũ không dùng được"
-			// lọc theo TRƯỜNG `d.tem_hong` (bool, do `xep.py` đổ thẳng từ
-			// `goi_y_o()`), KHÔNG so khớp chuỗi `(d.ly_do_goi_y || "").includes
-			// ("tem")` như bản đầu. Bản đầu sai vì hai lẽ: (1) `ly_do_goi_y` đi
-			// qua `__()` — dịch được, một bản dịch tiếng Anh không còn chữ "tem"
-			// nào và bộ lọc âm thầm khớp 0 dòng; (2) ngay cả không dịch, câu
-			// "theo ô đã in trên tem của lô…" (tem ĐÚNG) cũng chứa chữ "tem" nên
-			// bị gộp nhầm vào cùng nhóm với câu "tem…không xếp được nữa" (tem
-			// HỎNG) — đúng lớp lỗi "màn hình nói sai sự thật". Hai nhóm dưới đây
-			// tách theo hai HÀNH ĐỘNG khác nhau của thủ kho, KHÔNG loại trừ nhau:
-			// một dòng có thể vừa `!den_o` vừa `tem_hong` (vd. tem hỏng và vùng
-			// đã đầy hẳn, không còn ô thay thế) — cứ để nó xuất hiện ở cả hai,
-			// vì cả hai việc đều cần làm. Nhóm "chưa có gợi ý" phải tự tay CHỌN
-			// ô; nhóm "tem cũ không dùng được" phải DÁN ĐÈ tem mới lên đúng
-			// `den_o` mà máy chủ vừa gợi ý (nếu `den_o` rỗng thì làm luôn việc
-			// của nhóm kia trước).
+			// Dòng còn trống ô đến (hàng KHÔNG lô chưa gán vị trí) — gộp theo lý do
+			// thật (Ruling O: "chưa gán" / "vùng đã đầy" / lỗi dữ liệu cần ba việc
+			// khác nhau). Lô thì không bao giờ tới đây trống ô: đã bị tách ra ở trên.
 			const chua_co_goi_y = dong.filter((d) => !d.den_o);
-			const tem_cu_khong_dung_duoc = dong.filter((d) => d.tem_hong);
 
 			const tom_tat_theo_ly_do = (ds) => {
 				const theo_ly_do = {};
@@ -126,19 +122,113 @@ function lay_hang_chua_xep(frm) {
 					indicator: "orange",
 				});
 			}
-			if (tem_cu_khong_dung_duoc.length) {
-				// Không khẳng định "đã gợi ý ô khác": `den_o` của dòng này có thể
-				// vẫn rỗng nếu tem hỏng RƠI TIẾP vào ca "vùng đã đầy" — dòng đó
-				// đã nằm trong `chua_co_goi_y` ở trên rồi, cảnh báo ở đây chỉ cần
-				// nói đúng một việc: tem cũ không còn tin được, đừng theo nó.
-				frappe.show_alert({
-					message: __("{0} dòng tem cũ không dùng được, đừng theo tem cũ: {1}.", [
-						tem_cu_khong_dung_duoc.length,
-						tom_tat_theo_ly_do(tem_cu_khong_dung_duoc),
-					]),
-					indicator: "orange",
-				});
-			}
 		},
 	});
+}
+
+// ------------------------------------------------------------- ô quét tem
+
+function nhan_ma(frm, kq, ma) {
+	const e = frappe.utils.escape_html;
+	if (!kq || !kq.loai) {
+		frappe.show_alert({ message: __("Không nhận ra mã {0}.", [e(ma)]), indicator: "red" });
+		return;
+	}
+	if (kq.loai === "can_quet_lo") {
+		frappe.show_alert({
+			message: __("{0} có quản lý lô — quét tem LÔ, không phải mã hàng.", [e(kq.vat_tu)]),
+			indicator: "orange",
+		});
+		return;
+	}
+	if (kq.loai === "o") return nhan_o(frm, kq);
+	return nhan_lo(frm, kq);
+}
+
+function nhan_lo(frm, kq) {
+	const e = frappe.utils.escape_html;
+	const t = kq.o_tem || {};
+	if (t.kiem && t.loi) {
+		frappe.msgprint({ title: __("Không xếp được lô {0}", [e(kq.so_lo)]), indicator: "red", message: e(t.loi) });
+		return;
+	}
+	if (!(kq.nguon || []).length) {
+		frappe.show_alert({
+			message: __("{0}{1}: không còn hàng nào để xếp ở kho này (hoặc đã lên hết phiếu xếp PDA của bạn).", [
+				e(kq.vat_tu),
+				kq.so_lo ? " · " + e(kq.so_lo) : "",
+			]),
+			indicator: "orange",
+		});
+		return;
+	}
+	const tu_o = kq.tu_o_mac_dinh;
+	const nguon = (kq.nguon || []).find((n) => n.o === tu_o);
+	// `con_xep_duoc` của máy chủ chỉ trừ phiếu PDA nháp của người dùng, không
+	// biết các dòng CHƯA LƯU trên form này — tự trừ tiếp ở đây.
+	const da_len = (frm.doc.items || [])
+		.filter((r) => r.vat_tu === kq.vat_tu && (r.so_lo || null) === (kq.so_lo || null) && r.tu_o === tu_o)
+		.reduce((a, r) => a + flt(r.so_luong), 0);
+	const con = nguon ? flt(nguon.con_xep_duoc) - da_len : 0;
+	if (tu_o && con <= 0) {
+		frappe.show_alert({
+			message: __("{0}{1} đã lên phiếu hết số đang có ở ô {2}.", [
+				e(kq.vat_tu),
+				kq.so_lo ? " · " + e(kq.so_lo) : "",
+				e(tu_o),
+			]),
+			indicator: "orange",
+		});
+		return;
+	}
+	const r = frm.add_child("items");
+	r.vat_tu = kq.vat_tu;
+	r.so_lo = kq.so_lo;
+	r.tu_o = tu_o || null;
+	r.so_luong = tu_o ? con : 0;
+	r.den_o = t.kiem ? t.o : (kq.goi_y && kq.goi_y.den_o) || null;
+	frm.refresh_field("items");
+	frm.dirty();
+	frm.__cho_o = { dong: r.name, den_o: r.den_o, ma_in_nhan: t.ma_in_nhan, kiem: !!t.kiem };
+	frappe.show_alert({
+		message: tu_o
+			? t.kiem
+				? __("Đã thêm {0} · lô {1}. Quét tem ô {2} để xác nhận.", [
+						e(kq.ten_hang),
+						e(kq.so_lo),
+						e(t.ma_in_nhan || t.o),
+				  ])
+				: __("Đã thêm {0}. Quét tem ô đến.", [e(kq.ten_hang)])
+			: __("Đã thêm {0} — lô đang ở nhiều ô, chọn 'Từ ô' và số lượng trên dòng.", [e(kq.ten_hang)]),
+		indicator: "blue",
+	});
+}
+
+function nhan_o(frm, kq) {
+	const e = frappe.utils.escape_html;
+	const cho = frm.__cho_o;
+	const r = cho && (frm.doc.items || []).find((x) => x.name === cho.dong);
+	if (!r) {
+		frappe.show_alert({ message: __("Quét tem LÔ trước, rồi mới quét tem ô."), indicator: "orange" });
+		return;
+	}
+	if (cho.kiem) {
+		if (kq.ma_o !== cho.den_o) {
+			frappe.msgprint({
+				title: __("Sai ô"),
+				indicator: "red",
+				message: __("Ô {0} không phải ô in trên tem lô {1}. Tem ghi ô <b>{2}</b> — xếp đúng ô đó.", [
+					e(kq.ma_in_nhan || kq.ma_o),
+					e(r.so_lo),
+					e(cho.ma_in_nhan || cho.den_o),
+				]),
+			});
+			return;
+		}
+		frappe.show_alert({ message: __("Đúng ô {0}.", [e(kq.ma_in_nhan || kq.ma_o)]), indicator: "green" });
+	} else {
+		frappe.model.set_value(r.doctype, r.name, "den_o", kq.ma_o);
+		frappe.show_alert({ message: __("Đến ô {0}.", [e(kq.ma_in_nhan || kq.ma_o)]), indicator: "green" });
+	}
+	frm.__cho_o = null;
 }

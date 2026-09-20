@@ -11,6 +11,7 @@ from frappe import _
 from frappe.utils import flt, nowdate
 
 from erpnext.vi_tri_kho.vitri.goi_y import goi_y_o
+from erpnext.vi_tri_kho.vitri.o_tem import kiem_o_tem
 from erpnext.vi_tri_kho.vitri.nhat_ky_loi import cat_tieu_de
 from erpnext.vi_tri_kho.vitri.so import ton_o
 
@@ -138,6 +139,13 @@ def hang_chua_xep(kho: str) -> list[dict]:
 					False,
 				)
 		d["den_o"], d["ly_do_goi_y"], d["tem_hong"] = bo_nho[khoa]
+		# Luật 19/09/2026: lô CHỈ được xếp vào đúng ô in trên tem. Gợi ý khác ô
+		# tem (tem hỏng, lô chưa có ô) chỉ dẫn thủ kho tới một dòng mà lúc lưu
+		# sẽ bị chặn — để trống và nói thẳng phải làm gì.
+		t = kiem_o_tem(d.vat_tu, d.so_lo, kho)
+		if t["kiem"]:
+			d["den_o"] = None if t["loi"] else t["o"]
+			d["ly_do_goi_y"] = t["loi"] or _("theo ô in trên tem lô {0}").format(d.so_lo)
 	return dong
 
 
@@ -319,6 +327,9 @@ def _mo_ta_lo(kho: str, vat_tu: str, so_lo: str | None) -> dict:
 		"hsd": frappe.db.get_value("Batch", so_lo, "expiry_date") if so_lo else None,
 		"nguon": nguon,
 		"tu_o_mac_dinh": tu_o,
+		# Ô BẮT BUỘC theo tem (luật 19/09/2026). Trang PDA chỉ cho xếp vào `o_tem.o`;
+		# `o_tem.loi` khác None thì lô này chưa xếp được (chưa có ô / ô hỏng).
+		"o_tem": kiem_o_tem(vat_tu, so_lo, kho),
 		"goi_y": {
 			"den_o": den_o,
 			"ma_in_nhan": frappe.db.get_value("Storage Location", den_o, "ma_in_nhan") if den_o else None,

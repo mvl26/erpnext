@@ -104,6 +104,9 @@ class TestXepTrenPda(FrappeTestCase):
 			).insert(ignore_permissions=True)
 		for o in (O_A, O_B, O_C):
 			_o(o)
+		# Tem lô in ô O_B — luật 19/09/2026: chỉ xếp lô này vào đúng O_B
+		# (`vitri/o_tem.py`). Hàng không lô không có tem lô, không bị kiểm.
+		frappe.db.set_value("Batch", LO, "custom_o_in_tem", O_B)
 
 		self.chua_xep = _o_chua_xep()
 		self.assertTrue(self.chua_xep, f"kho {KHO} phải có ô Chưa xếp vị trí")
@@ -213,7 +216,7 @@ class TestXepTrenPda(FrappeTestCase):
 		frappe.set_user(NGUOI_KHAC)
 
 		self.assertIsNone(phieu_xep_dang_lam(KHO)["phieu"])
-		p_khac = them_dong_xep(KHO, VAT_TU, LO, self.chua_xep, O_C, 2)
+		p_khac = them_dong_xep(KHO, VAT_TU, LO, self.chua_xep, O_B, 2)
 		self.assertNotEqual(p_khac["name"], p["name"])
 
 	# --------------------------------------------------------- xoá dòng

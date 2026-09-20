@@ -71,7 +71,28 @@ def _phieu(dong, kho=KHO, **kw):
 	return frappe.get_doc({"doctype": "Location Transfer", "kho": kho, "items": dong, **kw})
 
 
-class TestPhepKiemCoBan(FrappeTestCase):
+class _BoKiemOTem:
+	"""Các lớp dưới kiểm CƠ CHẾ chuyển ô (sổ hai chiều, huỷ, tồn âm, nhánh
+	tắt...) với ô tuỳ ý — không nói về luật "xếp đúng ô trên tem" (19/09/2026),
+	luật đó có bài riêng ở `test_o_tem.py`. Tắt luật cho CẢ LỚP."""
+
+	@classmethod
+	def setUpClass(cls):
+		from erpnext.vi_tri_kho.vitri.o_tem import CO_BO_KIEM_TEST
+
+		cls._co_cu = frappe.flags.get(CO_BO_KIEM_TEST)
+		frappe.flags[CO_BO_KIEM_TEST] = True
+		super().setUpClass()
+
+	@classmethod
+	def tearDownClass(cls):
+		from erpnext.vi_tri_kho.vitri.o_tem import CO_BO_KIEM_TEST
+
+		frappe.flags[CO_BO_KIEM_TEST] = cls._co_cu
+		super().tearDownClass()
+
+
+class TestPhepKiemCoBan(_BoKiemOTem, FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
@@ -207,7 +228,7 @@ def _nap(o, vat_tu, so_lo, sl):
 	)
 
 
-class TestGhiSo(FrappeTestCase):
+class TestGhiSo(_BoKiemOTem, FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
@@ -286,7 +307,7 @@ class TestGhiSo(FrappeTestCase):
 		self.assertEqual(p.docstatus, 1)
 
 
-class TestHuyPhieu(FrappeTestCase):
+class TestHuyPhieu(_BoKiemOTem, FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
@@ -344,7 +365,7 @@ class TestHuyPhieu(FrappeTestCase):
 		self.assertEqual(frappe.db.count("Location Ledger Entry"), truoc)
 
 
-class TestNhanhNgungDung(FrappeTestCase):
+class TestNhanhNgungDung(_BoKiemOTem, FrappeTestCase):
 	"""Hai chiều NGƯỢC NHAU, và cả hai đều cố ý.
 
 	Chiều VÀO bị chặn: vá đúng bất đối xứng ghi trong
@@ -455,7 +476,7 @@ class TestBayF8TrongNhanhBiTat(FrappeTestCase):
 		self.assertEqual(nhanh_bi_tat(la), "9X10")
 
 
-class TestLayHangChuaXep(FrappeTestCase):
+class TestLayHangChuaXep(_BoKiemOTem, FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
@@ -693,8 +714,8 @@ class TestLayHangChuaXep(FrappeTestCase):
 
 		Dựng HAI mặt hàng khác nhau trong CÙNG một lần gọi `hang_chua_xep`: một
 		mặt hàng có tem ĐÚNG (ô ghi trên tem còn dùng được) và một mặt hàng có
-		tem HỎNG (ô ghi trên tem đã bị mặt hàng khác chiếm, `goi_y_o` phải rơi
-		sang ô khác). Khẳng định `d["tem_hong"]` đúng cho TỪNG dòng.
+		tem HỎNG (ô ghi trên tem đã bị mặt hàng khác chiếm). Khẳng định
+		`d["tem_hong"]` đúng cho TỪNG dòng.
 
 		Đây là bài bắt đúng cả hai đột biến đã từng làm sai: (1) `tem_hong`
 		hằng `True`/`False` bất kể nhánh nào (thấy ngay ở CÙNG một lần gọi vì
@@ -711,7 +732,7 @@ class TestLayHangChuaXep(FrappeTestCase):
 
 		a = _o("9X13010101")  # ô tem ĐÚNG sẽ trỏ vào — còn trống
 		c = _o("9X13020101")  # ô tem HỎNG sẽ trỏ vào — sẽ bị v_khac chiếm
-		d = _o("9X13020102")  # ô goi_y_o phải rơi vào khi tem hỏng
+		_o("9X13020102")  # ô trống cùng nhánh — trước 19/09 gợi ý rơi vào đây
 
 		_gan(v_dung, "9X130101")
 		_gan(v_hong, "9X130201")  # nhánh riêng chứa cả c lẫn d
@@ -732,5 +753,9 @@ class TestLayHangChuaXep(FrappeTestCase):
 		self.assertEqual(dong[v_dung]["den_o"], a)
 		self.assertFalse(dong[v_dung]["tem_hong"], "tem đúng — KHÔNG được báo là tem hỏng")
 
-		self.assertEqual(dong[v_hong]["den_o"], d, "ô trên tem đã bị chiếm, phải rơi sang ô khác")
+		# Luật 19/09/2026: lô chỉ xếp vào đúng ô in trên tem. Tem hỏng thì KHÔNG
+		# còn rơi sang ô khác (ô `d` mà `goi_y_o` tính ra) — để trống và nói phải
+		# đổi ô trên tem, in lại tem. Cờ `tem_hong` vẫn đúng như trước.
+		self.assertIsNone(dong[v_hong]["den_o"], "tem hỏng: không được tự xếp sang ô khác ô trên tem")
+		self.assertIn("Đổi ô trên tem", dong[v_hong]["ly_do_goi_y"])
 		self.assertTrue(dong[v_hong]["tem_hong"], "tem của lô này đã không dùng được nữa")

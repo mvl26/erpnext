@@ -365,16 +365,18 @@ cuối kho:
 **Cách làm trên máy tính:**
 
 1. Mở **Phiếu xếp / chuyển vị trí** (`/app/location-transfer/new`), chọn **Kho**.
-2. Bấm **"Lấy hàng chưa xếp"** — hệ đổ toàn bộ hàng đang ở ô "Chưa xếp vị trí" thành các dòng
-   sẵn, cột *Từ ô* điền sẵn, và **cột *Đến ô* cũng điền sẵn** cho những mặt hàng đã được gán vị
-   trí cố định (xem mục 10).
-3. **Soát lại cột *Đến ô*.** Dòng nào hệ chưa điền thì tự chọn ô. Chia một lô ra nhiều ô thì
-   tách thành nhiều dòng và sửa số lượng.
+2. Hai cách đưa dòng vào phiếu:
+   - **Quét tem** vào ô *"Quét tem (lô / ô)"* trên đầu bảng: quét tem **lô** là tự thêm một dòng
+     đủ mặt hàng, lô, *Từ ô* (Chưa xếp), *Đến ô* (ô in trên tem) và số lượng — không phải chọn
+     mặt hàng rồi chọn lô. Quét tiếp tem **ô** để xác nhận: sai ô là báo đỏ ngay.
+   - Bấm **"Lấy hàng chưa xếp"** — hệ đổ toàn bộ hàng đang ở ô "Chưa xếp vị trí" thành các dòng,
+     *Đến ô* lấy đúng **ô in trên tem lô**. Lô chưa có ô trên tem (hoặc ô trên tem hỏng) thì
+     **không** được đưa vào phiếu — hệ liệt kê riêng để đi in lại tem.
+3. **Lô bắt buộc xếp đúng ô in trên tem** (luật từ 19/09/2026 — xem "Ô trên tem" ngay dưới). Sửa
+   *Đến ô* sang ô khác thì **không lưu được**. Hàng **không quản lý lô** không có tem lô nên chọn
+   ô tự do, như trước.
 
-   Hệ **không ép** — sửa đè lên ô hệ gợi ý lúc nào cũng được. Thủ kho đứng trước kệ biết những
-   thứ hệ không biết.
-
-   Sau khi bấm "Lấy hàng chưa xếp", nếu có dòng chưa được điền thì hệ hiện một dòng nhắc màu cam
+   Với hàng không lô, nếu có dòng chưa được điền ô thì hệ hiện một dòng nhắc màu cam
    nói **có bao nhiêu dòng và vì sao**, gộp theo từng lý do. Ba lý do có thể gặp:
 
    | Lý do hiện ra | Nghĩa là | Việc cần làm |
@@ -400,6 +402,42 @@ nói rõ vì sao.
 | Xếp vào ô **đang Ngừng dùng**, hoặc dưới nhánh đã tắt | hàng vào được mà không xuất ra được |
 | Rút quá tồn ô nguồn | sinh ô âm, mà "Đồng bộ lại" cố ý từ chối chữa ô âm |
 | Bỏ trống số lô cho hàng có lô, hoặc điền lô cho hàng không lô | lệch tồn theo ô mà tổng vẫn đúng — đối soát không bắt được |
+| **Xếp lô vào ô KHÁC ô in trên tem** (kể cả chuyển giữa hai ô thật) | tem trên thùng là thứ người lấy hàng đọc — sổ nói một ô, tem nói ô khác là mất hàng |
+| Lô **chưa có ô trên tem**, hoặc ô trên tem đã Ngừng dùng / đang chứa mặt hàng khác | phải đặt/đổi ô trên tem và in lại tem trước |
+
+#### Ô trên tem — đặt, đổi, và chuyển hàng sang chỗ khác
+
+Mỗi lô có **một** ô in trên tem, và lô **chỉ** được xếp vào ô đó. Không ai vượt được, kể cả
+trưởng kho, kể cả trên máy tính. Muốn hàng nằm chỗ khác thì đổi ô trên tem trước:
+
+**Ba lối đặt / đổi ô trên tem:**
+
+| Việc | Làm ở đâu | Ai |
+|---|---|---|
+| **Đặt** ô cho **một** lô, ngay tại kệ | Trang **Xếp hàng vào ô** (PDA): quét tem lô, bấm **Đặt ô trên tem**, rồi quét tem ô định để hàng | Thủ kho |
+| **Đặt** ô cho **nhiều** lô một lượt | Trang **Đặt ô trên tem hàng loạt** (máy tính, mục 15) | Thủ kho |
+| **Đổi** ô của lô đã có ô | Form **Lô** (`/app/batch/<số lô>`) | Trưởng kho |
+
+Cách làm trên form Lô:
+
+1. Mở lô (`/app/batch/<số lô>`) → bấm **Đặt ô trên tem** (lô chưa có ô) hoặc **Đổi ô trên tem**
+   (lô đã có ô).
+2. Chọn ô mới, ghi lý do (bắt buộc khi đổi) → **Lưu và in tem**. Hệ in ngay tem mới.
+3. **Dán tem mới đè lên tem cũ** trên mọi thùng của lô.
+4. Xếp / chuyển hàng vào ô mới như thường.
+
+| Ai | Được làm |
+|---|---|
+| Thủ kho (`Stock User`) | **Đặt** ô cho lô chưa có ô |
+| Trưởng kho (`Stock Manager`) | Đặt, và **đổi** ô đã có |
+
+Mỗi lần đặt/đổi ghi một dòng vào lịch sử của lô: ai, lúc nào, từ ô nào sang ô nào, vì sao.
+
+> **Một lô — một ô.** Lô lớn phải chia ra hai ô thì phần nằm ở ô không khớp tem sẽ không chuyển
+> tiếp được cho tới khi đổi ô trên tem. Lấy hàng (xuất bán) từ bất kỳ ô nào vẫn bình thường.
+>
+> **Quyền mở form Lô:** theo phân quyền gốc, form **Lô** chỉ vai trò `Item Manager` mở được.
+> Thủ kho / trưởng kho cần được cấp quyền đọc Lô (Role Permission Manager) thì mới thấy nút.
 
 > **Lấy hàng RA khỏi ô đang Ngừng dùng thì VẪN ĐƯỢC** — cố ý. Đó là đường duy nhất gỡ hàng khỏi
 > một dãy đang tháo kệ. Chỉ chiều xếp *vào* mới bị chặn.
@@ -985,12 +1023,18 @@ bấm **Xếp hàng vào ô** đầu trang **Vị trí kho**.
      hiện — chạm chọn để **chuyển ô**.
    - **Số lượng xếp**: điền sẵn **toàn bộ** số đang chờ ở ô nguồn. Chia lô ra nhiều ô thì giảm số
      (nút − / + hoặc chạm vào số để gõ), xếp xong phần đầu thì quét lại tem lô cho phần còn lại.
-   - **Ô gợi ý** (chữ to, nền xanh) — theo vị trí cố định của mặt hàng (mục 10).
+   - **Xếp vào ô trên tem — bắt buộc** (chữ to, nền xanh): ô in trên tem lô. Hàng không lô thì
+     là **ô gợi ý** theo vị trí cố định (mục 10), quét ô khác vẫn được.
 3. **② Quét tem Ô** trên kệ nơi vừa đặt thùng. Viền cam và dòng *"② Quét tem Ô…"* cho biết hệ
    đang chờ tem ô.
-   - Đúng ô gợi ý → dòng được ghi ngay lên phiếu, PDA rung, quay về bước ①.
-   - **Khác ô gợi ý** → hệ **chưa ghi**, hiện khung cam *"Quét LẠI tem … để xác nhận"*. Quét lại
-     đúng tem đó (hoặc chạm **Xếp vào …**) mới ghi. Đổi ý thì quét tem ô gợi ý.
+   - Đúng ô trên tem → dòng được ghi ngay lên phiếu, PDA rung, quay về bước ①.
+   - **Sai ô** → PDA rung dài, báo đỏ *"SAI Ô… tem ghi ô …"*, **không ghi**. Không có lối xác nhận
+     để xếp ô khác (bỏ từ 19/09/2026) — muốn đổi chỗ thì đổi ô trên tem (mục 6.3).
+   - Lô **chưa có ô trên tem** → báo đỏ ngay lúc quét tem lô, kèm nút **Đặt ô trên tem**: bấm rồi
+     **quét tem ô** định để hàng là đặt xong, xếp tiếp được ngay. Nhớ về máy tính **in lại tem**
+     và dán lên thùng — máy in tem không nối với PDA.
+   - Ô trên tem **hỏng** (ô bị tắt, hoặc đang chứa mặt hàng khác) → báo đỏ, **không** có nút: đổi
+     ô đã có là việc của trưởng kho, làm trên máy tính.
    - Ô không hợp lệ (ô nhóm, dãy đang ngừng dùng, ô kho khác, không đủ hàng) → hệ báo lý do, lô
      vẫn chờ để quét ô khác.
 4. Lặp lại cho thùng kế tiếp. Danh sách **Trên phiếu** nằm dưới; chạm **×** để bỏ một dòng.
@@ -1134,6 +1178,26 @@ cạnh mỗi lượt đã lấy nếu cần sửa, hoặc quét cho đủ / bấ
   không cần quét", và không tính vào điều kiện Hoàn tất.
 - Mặt hàng **không quản lý lô** thì quét **mã hàng** thay cho tem lô ở bước ①; các bước còn lại
   giống hệt.
+
+---
+
+## 15. Đặt ô trên tem hàng loạt (trên máy tính)
+
+Luật "chỉ xếp vào ô trên tem" khoá mọi lô **chưa có ô trên tem** — thường là lô nhập trước khi
+bật luật, hoặc lô của mặt hàng chưa gán vị trí cố định. Trang này đặt ô cho cả loạt, thay vì mở
+từng form Lô. Vào từ ô bấm **Đặt ô trên tem hàng loạt** đầu trang **Vị trí kho**.
+
+1. Chọn **Kho**. Bảng liệt kê mọi lô **đang có tồn** mà chưa có ô trên tem: số lô, hạn dùng, mặt
+   hàng, tồn, đang nằm ở ô nào, và **ô trên tem** điền sẵn theo gán vị trí cố định (mục 10).
+2. Soát lại cột **Ô trên tem**. Mặt hàng chưa gán vị trí thì ô để trống kèm lý do — tự chọn ô,
+   hoặc bỏ chọn dòng đó để làm sau. Dòng đã chọn mà chưa có ô thì nút Đặt bị khoá.
+3. Bấm **Đặt ô cho N dòng đã chọn**. Lô nào lỗi (ô vừa bị mặt hàng khác chiếm, ai đó vừa đặt ô
+   cho lô đó…) được liệt kê riêng; các lô còn lại vẫn đặt xong.
+4. Hệ hỏi **In tem cho các lô vừa đặt** — in và **dán đè tem cũ**. Tem cũ không có ô, thủ kho
+   cầm nó vẫn không biết xếp vào đâu.
+
+> Trang này **chỉ đặt cho lô chưa có ô**, không đổi ô đã có. Một màn hình đổi hàng loạt chính là
+> cửa sau mà luật này sinh ra để đóng — đổi ô là việc của trưởng kho, từng lô, có lý do.
 
 ---
 
