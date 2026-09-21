@@ -20,3 +20,6 @@ Bulk Transaction
 Subcontracting
 EDI
 Debt Reconciliation
+Einvoice
+TBYT
+Supply Notification

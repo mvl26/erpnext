@@ -70,9 +70,7 @@ class TestToKhaiThueGTGT(FrappeTestCase):
 		purchase.submit()
 
 	def _run(self):
-		result = execute(
-			frappe._dict(company=self.company, from_date="1900-01-01", to_date=nowdate())
-		)
+		result = execute(frappe._dict(company=self.company, from_date="1900-01-01", to_date=nowdate()))
 		return {r["chi_tieu_code"]: r["so_tien"] for r in result[1] if r.get("chi_tieu_code")}
 
 	def test_vat_return_totals(self):
@@ -88,7 +86,7 @@ class TestBangKeGTGT(FrappeTestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 		from erpnext.regional.vietnam.setup import _acct
-		from erpnext.regional.vietnam.test_setup import make_vn_company
+		from erpnext.regional.vietnam.tests.test_setup import make_vn_company
 
 		cls.company = make_vn_company("_Test VN Bang Ke", "TVBK")
 		cls.to_date = nowdate()
@@ -180,9 +178,7 @@ class TestBangKeGTGT(FrappeTestCase):
 		self.assertEqual(row["thue_suat"], 10)
 		self.assertEqual(row["tien_thue"], 1_000_000)
 
-		decl = execute(
-			frappe._dict(company=self.company, from_date="1900-01-01", to_date=self.to_date)
-		)[1]
+		decl = execute(frappe._dict(company=self.company, from_date="1900-01-01", to_date=self.to_date))[1]
 		output_vat = next(r["so_tien"] for r in decl if r.get("chi_tieu_code") == "33")
 		self.assertEqual(sum(r["tien_thue"] for r in rows), output_vat)
 
@@ -196,9 +192,7 @@ class TestBangKeGTGT(FrappeTestCase):
 		self.assertEqual(row["doanh_so"], 5_000_000)
 		self.assertEqual(row["tien_thue"], 500_000)
 
-		decl = execute(
-			frappe._dict(company=self.company, from_date="1900-01-01", to_date=self.to_date)
-		)[1]
+		decl = execute(frappe._dict(company=self.company, from_date="1900-01-01", to_date=self.to_date))[1]
 		input_vat = next(r["so_tien"] for r in decl if r.get("chi_tieu_code") == "25")
 		self.assertEqual(sum(r["tien_thue"] for r in rows), input_vat)
 
@@ -249,7 +243,7 @@ class TestBangKeMuaVaoTaiSanCoDinh(FrappeTestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 		from erpnext.regional.vietnam.setup import _acct
-		from erpnext.regional.vietnam.test_setup import make_vn_company
+		from erpnext.regional.vietnam.tests.test_setup import make_vn_company
 
 		cls.company = make_vn_company("_Test VN BK TSCD", "TVBT")
 		cls.to_date = nowdate()
@@ -313,9 +307,7 @@ class TestBangKeMuaVaoTaiSanCoDinh(FrappeTestCase):
 		self.assertEqual(by_invoice[self.pi_tscd.name]["doanh_so"], 8_000_000)
 		self.assertEqual(by_invoice[self.pi_tscd.name]["tien_thue"], 800_000)
 
-		decl = execute(
-			frappe._dict(company=self.company, from_date="1900-01-01", to_date=self.to_date)
-		)[1]
+		decl = execute(frappe._dict(company=self.company, from_date="1900-01-01", to_date=self.to_date))[1]
 		input_vat = next(r["so_tien"] for r in decl if r.get("chi_tieu_code") == "25")
 		self.assertEqual(input_vat, 1_300_000)
 		self.assertEqual(sum(r["tien_thue"] for r in rows), input_vat)

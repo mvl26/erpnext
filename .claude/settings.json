@@ -1,5 +1,19 @@
 {
   "enabledPlugins": {
     "agent-skills@addy-agent-skills": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && python3 -m scripts.file_structure --hook; c=$?; [ $c -eq 2 ] && exit 2; exit 0",
+            "statusMessage": "Kiem tra vi tri file"
+          }
+        ]
+      }
+    ]
   }
 }

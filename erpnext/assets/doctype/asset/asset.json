@@ -110,7 +110,8 @@
    "fetch_from": "item_code.item_name",
    "fieldname": "item_name",
    "fieldtype": "Read Only",
-   "label": "Item Name"
+   "label": "Item Name",
+   "length": 500
   },
   {
    "depends_on": "item_code",

@@ -12,6 +12,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
+from erpnext.einvoice.lookup import invoice_numbers_for
 from erpnext.regional.vietnam.constants import INPUT_VAT_PREFIX, OUTPUT_VAT_PREFIX
 from erpnext.regional.vietnam.utils import get_account_balances, sum_movement_by_prefix
 
@@ -115,10 +116,6 @@ def _bang_ke(company, from_date, to_date, kind):
 		return []
 
 	fields = ["name", "posting_date", partner_field, "tax_id", "base_net_total"]
-	meta = frappe.get_meta(doctype)
-	has_einvoice = meta.has_field("vn_einvoice_number")
-	if has_einvoice:
-		fields += ["vn_einvoice_number", "vn_einvoice_symbol"]
 
 	invoices = frappe.get_all(
 		doctype,
@@ -132,6 +129,13 @@ def _bang_ke(company, from_date, to_date, kind):
 	)
 	if not invoices:
 		return []
+
+	# Số hóa đơn điện tử: bán ra lấy từ chứng từ HĐĐT Fast (phát hành trên phiếu
+	# giao, không phải trên hóa đơn bán). Mua vào không có nguồn này — số hóa đơn
+	# của người bán do kế toán nhập tay.
+	einvoice_numbers = (
+		invoice_numbers_for([inv.name for inv in invoices]) if kind == "ban_ra" else {}
+	)
 
 	taxes = frappe.get_all(
 		tax_doctype,
@@ -151,10 +155,11 @@ def _bang_ke(company, from_date, to_date, kind):
 	rows = []
 	for inv in invoices:
 		tax = tax_by_invoice.get(inv.name, {"rate": 0.0, "amount": 0.0})
+		einvoice = einvoice_numbers.get(inv.name) or {}
 		rows.append(
 			{
-				"so_hoa_don": (has_einvoice and inv.get("vn_einvoice_number")) or inv.name,
-				"ky_hieu": (has_einvoice and inv.get("vn_einvoice_symbol")) or "",
+				"so_hoa_don": einvoice.get("number") or inv.name,
+				"ky_hieu": einvoice.get("symbol") or "",
 				"ngay": str(inv.posting_date),
 				"doi_tac": inv.get(partner_field),
 				"mst": inv.get("tax_id") or "",

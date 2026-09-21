@@ -1,0 +1,53 @@
+{
+ "actions": [],
+ "creation": "2026-08-21 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "device_class",
+  "level",
+  "condition"
+ ],
+ "fields": [
+  {
+   "columns": 1,
+   "fieldname": "device_class",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Phân loại",
+   "options": "A\nB\nC\nD",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "description": "BB = bắt buộc · BB* = bắt buộc có điều kiện · NC = nên có · TH = theo trường hợp · KHONG_AP_DUNG = không áp dụng.",
+   "fieldname": "level",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Mức",
+   "options": "BB\nBB*\nNC\nTH\nKHONG_AP_DUNG",
+   "reqd": 1
+  },
+  {
+   "columns": 6,
+   "description": "Chỉ dùng cho mức BB*. Biểu thức Python đánh giá trên bối cảnh số lưu hành, ví dụ: not miyano_la_chu_so_huu and hang_nhap_khau",
+   "fieldname": "condition",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Điều kiện"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-21 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "TBYT",
+ "name": "TBYT Document Rule",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

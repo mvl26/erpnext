@@ -86,6 +86,7 @@
    "fieldtype": "Data",
    "in_global_search": 1,
    "label": "Item Name",
+   "length": 500,
    "oldfieldname": "item_name",
    "oldfieldtype": "Data"
   },

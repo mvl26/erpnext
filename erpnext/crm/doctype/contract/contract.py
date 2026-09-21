@@ -15,6 +15,7 @@ class Contract(Document):
 		from frappe.types import DF
 
 		amended_from: DF.Link | None
+		blanket_order: DF.Link | None
 		contact_person: DF.Data | None
 		contract_manager: DF.Link | None
 		contract_manager_name: DF.Data | None
@@ -22,6 +23,7 @@ class Contract(Document):
 		contract_template: DF.Link | None
 		contract_terms: DF.TextEditor
 		contract_title: DF.Data | None
+		contract_type: DF.Literal["", "Mua v\u00e0o", "B\u00e1n ra"]
 		contract_value: DF.Float
 		custom_contract_type: DF.Literal["H\u1ee3p \u0111\u1ed3ng d\u1ecbch v\u1ee5", "H\u1ee3p \u0111\u1ed3ng mua b\u00e1n", "Ph\u1ee5 l\u1ee5c h\u1ee3p \u0111\u1ed3ng", "Bi\u00ean b\u1ea3n", "H\u1ee3p \u0111\u1ed3ng nguy\u00ean t\u1eafc", "Kh\u00e1c"]
 		custom_party_tax_code: DF.Data | None

@@ -52,7 +52,7 @@
    "in_list_view": 0, 
    "in_standard_filter": 0, 
    "label": "Item Name", 
-   "length": 0, 
+   "length": 500, 
    "no_copy": 0, 
    "options": "Workstation", 
    "permlevel": 0, 

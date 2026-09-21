@@ -1,0 +1,253 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:code",
+ "creation": "2026-09-08 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "code",
+  "title",
+  "column_break_head",
+  "enabled",
+  "reference_doctype",
+  "trigger_event",
+  "filter_note",
+  "channel_section",
+  "send_email",
+  "send_inapp",
+  "column_break_channel",
+  "notify_owner",
+  "notify_external",
+  "attach_pdf",
+  "print_format",
+  "recipient_section",
+  "departments",
+  "users",
+  "content_section",
+  "subject_template",
+  "intro_template",
+  "action_template",
+  "external_section",
+  "external_subject_template",
+  "external_intro_template",
+  "external_closing",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Mã điểm",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Tên điểm thông báo",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Đang bật"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Chứng từ nguồn",
+   "options": "DocType",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "trigger_event",
+   "fieldtype": "Select",
+   "label": "Cách kích hoạt",
+   "options": "Submit\nDue Reminder",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "description": "Điều kiện lọc thật nằm trong mã nguồn, dòng này chỉ để đọc hiểu.",
+   "fieldname": "filter_note",
+   "fieldtype": "Small Text",
+   "label": "Điều kiện bắn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "channel_section",
+   "fieldtype": "Section Break",
+   "label": "Kênh gửi"
+  },
+  {
+   "default": "1",
+   "fieldname": "send_email",
+   "fieldtype": "Check",
+   "label": "Gửi email nội bộ"
+  },
+  {
+   "default": "1",
+   "fieldname": "send_inapp",
+   "fieldtype": "Check",
+   "label": "Gửi thông báo in-app"
+  },
+  {
+   "fieldname": "column_break_channel",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Gửi thêm cho người lập chứng từ.",
+   "fieldname": "notify_owner",
+   "fieldtype": "Check",
+   "label": "Gửi cho người tạo"
+  },
+  {
+   "default": "0",
+   "description": "Gửi email cho nhà cung cấp hoặc khách hàng trên chứng từ.",
+   "fieldname": "notify_external",
+   "fieldtype": "Check",
+   "label": "Gửi ra ngoài (NCC/khách)"
+  },
+  {
+   "default": "0",
+   "depends_on": "notify_external",
+   "fieldname": "attach_pdf",
+   "fieldtype": "Check",
+   "label": "Đính PDF chứng từ"
+  },
+  {
+   "depends_on": "attach_pdf",
+   "fieldname": "print_format",
+   "fieldtype": "Link",
+   "label": "Mẫu in",
+   "options": "Print Format"
+  },
+  {
+   "fieldname": "recipient_section",
+   "fieldtype": "Section Break",
+   "label": "Người nhận nội bộ"
+  },
+  {
+   "description": "Mọi nhân viên đang làm việc thuộc các phòng ban này (kể cả phòng con) sẽ nhận.",
+   "fieldname": "departments",
+   "fieldtype": "Table",
+   "label": "Theo phòng ban",
+   "options": "Supply Notification Department"
+  },
+  {
+   "description": "Người nhận đích danh, cộng thêm vào danh sách theo phòng ban.",
+   "fieldname": "users",
+   "fieldtype": "Table",
+   "label": "Theo người cụ thể",
+   "options": "Supply Notification User"
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Nội dung email nội bộ"
+  },
+  {
+   "description": "Dùng được: doc, party_name, owner_name, amount, outstanding, date, due, days_left.",
+   "fieldname": "subject_template",
+   "fieldtype": "Data",
+   "label": "Tiêu đề",
+   "reqd": 1
+  },
+  {
+   "fieldname": "intro_template",
+   "fieldtype": "Small Text",
+   "label": "Câu nêu sự việc"
+  },
+  {
+   "fieldname": "action_template",
+   "fieldtype": "Small Text",
+   "label": "Việc cần làm tiếp"
+  },
+  {
+   "depends_on": "notify_external",
+   "fieldname": "external_section",
+   "fieldtype": "Section Break",
+   "label": "Nội dung email gửi NCC/khách"
+  },
+  {
+   "fieldname": "external_subject_template",
+   "fieldtype": "Data",
+   "label": "Tiêu đề (ngoài)"
+  },
+  {
+   "fieldname": "external_intro_template",
+   "fieldtype": "Small Text",
+   "label": "Nội dung (ngoài)"
+  },
+  {
+   "description": "Thông tin liên hệ Miyano, đặt ở cuối email gửi ra ngoài.",
+   "fieldname": "external_closing",
+   "fieldtype": "Small Text",
+   "label": "Chữ ký / liên hệ"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Ghi chú"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú nội bộ"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-08 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Supply Notification",
+ "name": "Supply Notification Point",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Quản trị thông báo",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "show_title_field_in_link": 1,
+ "sort_field": "code",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

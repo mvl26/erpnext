@@ -1,0 +1,62 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-07-16 09:49:24.697405",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "related_party",
+  "relationship",
+  "transaction_type",
+  "amount",
+  "note"
+ ],
+ "fields": [
+  {
+   "fieldname": "related_party",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "B\u00ean li\u00ean quan",
+   "reqd": 1
+  },
+  {
+   "fieldname": "relationship",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "M\u1ed1i quan h\u1ec7"
+  },
+  {
+   "fieldname": "transaction_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Lo\u1ea1i giao d\u1ecbch"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Gi\u00e1 tr\u1ecb giao d\u1ecbch"
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Ghi ch\u00fa"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-16 09:49:24.697405",
+ "modified_by": "anh.doan@medcons.vn",
+ "module": "Accounts",
+ "name": "FS Related Party Txn Item",
+ "owner": "anh.doan@medcons.vn",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

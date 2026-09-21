@@ -1,0 +1,183 @@
+{
+ "actions": [],
+ "autoname": "format:FEI-LOG-{YYYY}-{#######}",
+ "creation": "2026-08-07 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "fei_document",
+  "operation",
+  "action",
+  "method",
+  "column_break_head",
+  "purpose",
+  "status",
+  "success",
+  "duration_ms",
+  "actor_section",
+  "user",
+  "column_break_actor",
+  "timestamp",
+  "payload_section",
+  "request_json",
+  "response_raw",
+  "error_section",
+  "error_code",
+  "error_message"
+ ],
+ "fields": [
+  {
+   "fieldname": "fei_document",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Chứng từ HĐĐT",
+   "options": "Fast EInvoice Document",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "operation",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Lời gọi",
+   "options": "ExcuteCommand\nCheckKey\nGetKey\nEmail",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "action",
+   "fieldtype": "Int",
+   "label": "action",
+   "read_only": 1
+  },
+  {
+   "fieldname": "method",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "method",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "purpose",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Mục đích",
+   "read_only": 1
+  },
+  {
+   "default": "Đang gửi",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Trạng thái",
+   "options": "Đang gửi\nThành công\nLỗi\nTimeout",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "success",
+   "fieldtype": "Check",
+   "label": "Thành công",
+   "read_only": 1
+  },
+  {
+   "description": "Thời gian Fast phản hồi (ms).",
+   "fieldname": "duration_ms",
+   "fieldtype": "Int",
+   "label": "Thời gian phản hồi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "actor_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "Người thao tác",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_actor",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "timestamp",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payload_section",
+   "fieldtype": "Section Break",
+   "label": "Dữ liệu trao đổi"
+  },
+  {
+   "description": "JSON dạng đọc được, đã che mật khẩu và token.",
+   "fieldname": "request_json",
+   "fieldtype": "Long Text",
+   "label": "Request gửi đi",
+   "read_only": 1
+  },
+  {
+   "description": "Response thô của Fast. Nội dung PDF base64 chỉ ghi độ dài.",
+   "fieldname": "response_raw",
+   "fieldtype": "Long Text",
+   "label": "Response nhận về",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.error_code || doc.error_message",
+   "fieldname": "error_section",
+   "fieldtype": "Section Break",
+   "label": "Lỗi"
+  },
+  {
+   "fieldname": "error_code",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Mã lỗi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "Thông báo lỗi",
+   "read_only": 1
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-07 09:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Fast EInvoice Log",
+ "module": "Einvoice",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1
+  }
+ ],
+ "search_fields": "fei_document,purpose,status",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "purpose"
+}

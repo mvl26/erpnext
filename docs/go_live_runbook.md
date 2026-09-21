@@ -2,7 +2,7 @@
 
 > Hướng dẫn triển khai vận hành site `miyano` trên bộ ERP thương mại đầy đủ (Kế
 > toán + Kho + Bán hàng + Mua hàng + TSCĐ), **khởi tạo mới (greenfield)**, số dư đầu
-> kỳ tại **đầu năm tài chính**. Xem `SPEC.md` và `tasks/plan.md` cho bối cảnh.
+> kỳ tại **đầu năm tài chính**. Xem `SPEC.md` cho bối cảnh.
 
 **Nguyên tắc an toàn:** mọi bước ghi dữ liệu vào công ty **Miyano thật** chỉ thực
 hiện **sau khi đã sao lưu + xác minh** và **được người phụ trách xác nhận**. Chạy

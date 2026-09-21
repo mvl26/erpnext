@@ -50,7 +50,7 @@ GPLv3 chỉ phát sinh nghĩa vụ khi **phân phối** (convey). Hệ thống c
 
 ## Ghi nhận bên thứ ba khác
 
-Tài nguyên (icon, thư viện) được ghi nhận trong [attributions.md](attributions.md).
+Tài nguyên (icon, thư viện) được ghi nhận trong [attributions.md](docs/attributions.md).
 
 ## Thương hiệu
 

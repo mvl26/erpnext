@@ -31,6 +31,7 @@ email_css = "email_erpnext.bundle.css"
 
 doctype_js = {
 	"Address": "public/js/address.js",
+	"Delivery Note": "public/js/einvoice/delivery_note.js",
 	"Communication": "public/js/communication.js",
 	"Event": "public/js/event.js",
 	"Newsletter": "public/js/newsletter.js",
@@ -61,6 +62,13 @@ before_install = [
 	"erpnext.setup.install.check_frappe_version",
 ]
 after_install = "erpnext.setup.install.after_install"
+
+# Tích hợp HĐĐT Fast dựng lại cấu hình sau mỗi lần migrate. Hàm này chạy lại
+# được nhiều lần, và để ở đây thì thêm trường/mẫu email mới không cần patch mới.
+after_migrate = [
+	"erpnext.einvoice.setup.setup_einvoice",
+	"erpnext.supply_notification.setup.setup_supply_notification",
+]
 
 boot_session = "erpnext.startup.boot.boot_session"
 notification_config = "erpnext.startup.notifications.get_notification_config"
@@ -332,6 +340,12 @@ doc_events = {
 			"erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.check_for_running_deletion_job",
 		],
 	},
+	"Item": {
+		"validate": [
+			"erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
+			"erpnext.tbyt.item_hooks.warn_about_missing_documents",
+		],
+	},
 	tuple(period_closing_doctypes): {
 		"validate": "erpnext.accounts.doctype.accounting_period.accounting_period.validate_accounting_period_on_doc_save",
 	},
@@ -347,7 +361,11 @@ doc_events = {
 			"erpnext.portal.utils.set_default_role",
 		],
 	},
+	"Email Queue": {
+		"before_insert": "erpnext.utilities.email_guard.block_unsubscribed_recipients",
+	},
 	"Communication": {
+		"before_insert": "erpnext.utilities.email_guard.handle_bounce",
 		"on_update": [
 			"erpnext.support.doctype.service_level_agreement.service_level_agreement.on_communication_update",
 			"erpnext.support.doctype.issue.issue.set_first_response_time",
@@ -364,7 +382,6 @@ doc_events = {
 		"on_submit": [
 			"erpnext.regional.create_transaction_log",
 			"erpnext.regional.italy.utils.sales_invoice_on_submit",
-			"erpnext.regional.vietnam.e_invoice.on_si_submit",
 		],
 		"on_cancel": [
 			"erpnext.regional.italy.utils.sales_invoice_on_cancel",
@@ -375,11 +392,13 @@ doc_events = {
 		"validate": [
 			"erpnext.regional.united_arab_emirates.utils.update_grand_total_for_rcm",
 			"erpnext.regional.united_arab_emirates.utils.validate_returns",
-		]
+		],
+		"on_submit": "erpnext.supply_notification.events.on_submit",
 	},
 	"Payment Entry": {
 		"on_submit": [
 			"erpnext.regional.create_transaction_log",
+			"erpnext.supply_notification.events.on_submit",
 		],
 		"on_trash": "erpnext.regional.check_deletion_permission",
 	},
@@ -399,7 +418,33 @@ doc_events = {
 	"Integration Request": {
 		"validate": "erpnext.accounts.doctype.payment_request.payment_request.validate_payment"
 	},
+	# Chứng từ HĐĐT trỏ tới phiếu giao bằng một Link, nên mặc định Frappe từ chối
+	# hủy phiếu giao khi còn bất kỳ chứng từ nào trỏ tới — kể cả bản nháp. Hook này
+	# chỉ chặn khi hóa đơn đã thật sự tiêu số, và nói rõ vì sao.
+	"Delivery Note": {
+		"before_cancel": "erpnext.einvoice.builder.before_delivery_note_cancel",
+		"on_cancel": "erpnext.einvoice.builder.on_delivery_note_cancel",
+	},
+	# Thông báo chuỗi cung ứng: sáu chứng từ còn lại chưa có on_submit riêng.
+	# Purchase Invoice và Payment Entry đã được nối ở khối của chúng phía trên.
+	(
+		"Sales Order",
+		"Material Request",
+		"Purchase Order",
+		"Purchase Receipt",
+		"Delivery Note",
+		"Payment Request",
+	): {
+		"on_submit": "erpnext.supply_notification.events.on_submit",
+	},
 }
+
+# Nhật ký HĐĐT là vết kiểm toán, không phải quan hệ nghiệp vụ: nó không được
+# khóa việc xóa chính chứng từ mà nó ghi lại. Cùng loại với Version / Activity
+# Log / Comment trong danh sách mặc định của Frappe.
+ignore_links_on_delete = [
+	"Fast EInvoice Log",
+]
 
 # function should expect the variable and doc as arguments
 naming_series_variables = {
@@ -421,13 +466,22 @@ scheduler_events = {
 		"0/30 * * * *": [
 			"erpnext.utilities.doctype.video.video.update_youtube_data",
 		],
+		# Thông báo chuỗi cung ứng: nhắc hạn thanh toán và thu tiền (mục 10).
+		"0 8 * * *": [
+			"erpnext.supply_notification.reminders.send_due_reminders",
+			"erpnext.debt_reconciliation.tasks.send_due_reminders",
+		],
+		# HĐĐT: tự tải PDF chính thức khi Fast ký số xong (~1 phút sau phát hành, mục E5 nhánh 7a).
+		"* * * * *": [
+			"erpnext.einvoice.actions.download_pending_official_pdfs",
+		],
+		# HĐĐT: quét các hóa đơn còn chờ Cơ quan Thuế (mục E8).
+		"0/20 * * * *": [
+			"erpnext.einvoice.tax_status.poll_pending_tax_status",
+		],
 		# Hourly but offset by 30 minutes
 		"30 * * * *": [
 			"erpnext.accounts.doctype.gl_entry.gl_entry.rename_gle_sle_docs",
-		],
-		# Nhắc hạn đối chiếu công nợ lúc 08:00
-		"0 8 * * *": [
-			"erpnext.debt_reconciliation.tasks.send_due_reminders",
 		],
 		# Daily but offset by 45 minutes
 		"45 0 * * *": [
@@ -446,6 +500,8 @@ scheduler_events = {
 		"erpnext.utilities.bulk_transaction.retry",
 	],
 	"daily": [
+		"erpnext.einvoice.doctype.fast_einvoice_log.fast_einvoice_log.delete_old_logs",
+		"erpnext.supply_notification.reminders.clear_old_dispatch_logs",
 		"erpnext.support.doctype.issue.issue.auto_close_tickets",
 		"erpnext.crm.doctype.opportunity.opportunity.auto_close_opportunity",
 		"erpnext.controllers.accounts_controller.update_invoice_status",
@@ -469,6 +525,7 @@ scheduler_events = {
 		"erpnext.accounts.utils.auto_create_exchange_rate_revaluation_daily",
 		"erpnext.accounts.utils.run_ledger_health_checks",
 		"erpnext.assets.doctype.asset_maintenance_log.asset_maintenance_log.update_asset_maintenance_log_status",
+		"erpnext.tbyt.expiry.update_document_status",
 	],
 	"weekly": [
 		"erpnext.accounts.utils.auto_create_exchange_rate_revaluation_weekly",
