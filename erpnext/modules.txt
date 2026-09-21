@@ -22,4 +22,4 @@ EDI
 Einvoice
 TBYT
 Supply Notification
-Vi Tri Kho
+Warehouse Operations

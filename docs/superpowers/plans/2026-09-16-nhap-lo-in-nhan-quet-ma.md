@@ -27,13 +27,13 @@ Mọi task đều chịu các ràng buộc dưới. Đọc hết trước khi l�
 - **Bench:** chạy mọi lệnh `bench` từ `/home/hoangvietyeuem/frappe-bench-yhct`, site
   `erptest.local`. KHÔNG phải site `miyano` (CLAUDE.md nói `miyano` vì đó là prod; máy
   này là máy chơi).
-- **Chạy test:** `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.<tên>`,
+- **Chạy test:** `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.<tên>`,
   **tuần tự, từng module một**. KHÔNG dùng `--app erpnext` (chạy cả ERPNext, mất hàng giờ).
   Trước khi đóng task cuối phải chạy lại **toàn bộ** các module trong `vi_tri_kho/tests/`.
 - **Python style:** thụt bằng **TAB**, dài dòng tối đa 110, chuỗi nháy kép. Khớp file
   xung quanh.
 - **Chú thích tiếng Việt, giải thích VÌ SAO chứ không phải LÀM GÌ** — đúng giọng các file
-  sẵn có trong `erpnext/vi_tri_kho/`. Chú thích chép lại tên hàm là chú thích thừa.
+  sẵn có trong `erpnext/warehouse_operations/`. Chú thích chép lại tên hàm là chú thích thừa.
 - **Bẫy toạ độ rỗng:** không bao giờ viết `lft between %(lft)s and %(rgt)s` mà không chặn
   trước `lft = rgt = 0`. `between 0 and 0` khớp MỌI bản ghi chưa hội tụ toàn hệ. Dự án
   đã trả giá cho bẫy này ba lần.
@@ -76,54 +76,54 @@ Mọi task đều chịu các ràng buộc dưới. Đọc hết trước khi l�
 
 | File | Trách nhiệm |
 |---|---|
-| `erpnext/vi_tri_kho/patches/v1_0/them_so_goi_va_o_in_tem.py` | 2 custom field trên `Batch` |
-| `erpnext/vi_tri_kho/patches/v1_0/them_thong_so_tem_cho_item.py` | 1 custom field trên `Item` |
-| `erpnext/vi_tri_kho/vitri/lo_ncc.py` | Móc `before_insert` điền NCC cho lô sinh từ chứng từ mua |
-| `erpnext/vi_tri_kho/vitri/ma_vach.py` | Đếm module Code 128 — **một** định nghĩa cho cả `validate` lẫn nhãn |
-| `erpnext/vi_tri_kho/vitri/nhap_lo.py` | API máy chủ: nạp dòng từ phiếu nhập, dữ liệu vẽ nhãn, đặt ô in tem |
-| `erpnext/vi_tri_kho/vitri/quet.py` | `tra_cuu(ma)` — bọc ngoài `scan_barcode` |
-| `erpnext/vi_tri_kho/doctype/batch_entry_item/` | Bảng con |
-| `erpnext/vi_tri_kho/doctype/batch_entry/` | Phiếu nhập lô (submittable) |
-| `erpnext/public/js/vi_tri_kho/tem_lo.js` | Vẽ nhãn lô 50×30, hai bố cục |
-| `erpnext/public/js/vi_tri_kho/batch.js` | Nút "In nhãn" trên form `Batch` |
-| `erpnext/vi_tri_kho/tests/test_lo_ncc.py` | |
-| `erpnext/vi_tri_kho/tests/test_ma_vach.py` | |
-| `erpnext/vi_tri_kho/tests/test_nhap_lo.py` | |
-| `erpnext/vi_tri_kho/tests/test_quet.py` | |
+| `erpnext/warehouse_operations/patches/v1_0/them_so_goi_va_o_in_tem.py` | 2 custom field trên `Batch` |
+| `erpnext/warehouse_operations/patches/v1_0/them_thong_so_tem_cho_item.py` | 1 custom field trên `Item` |
+| `erpnext/warehouse_operations/vitri/lo_ncc.py` | Móc `before_insert` điền NCC cho lô sinh từ chứng từ mua |
+| `erpnext/warehouse_operations/vitri/ma_vach.py` | Đếm module Code 128 — **một** định nghĩa cho cả `validate` lẫn nhãn |
+| `erpnext/warehouse_operations/vitri/nhap_lo.py` | API máy chủ: nạp dòng từ phiếu nhập, dữ liệu vẽ nhãn, đặt ô in tem |
+| `erpnext/warehouse_operations/vitri/quet.py` | `tra_cuu(ma)` — bọc ngoài `scan_barcode` |
+| `erpnext/warehouse_operations/doctype/batch_entry_item/` | Bảng con |
+| `erpnext/warehouse_operations/doctype/batch_entry/` | Phiếu nhập lô (submittable) |
+| `erpnext/public/js/warehouse_operations/tem_lo.js` | Vẽ nhãn lô 50×30, hai bố cục |
+| `erpnext/public/js/warehouse_operations/batch.js` | Nút "In nhãn" trên form `Batch` |
+| `erpnext/warehouse_operations/tests/test_lo_ncc.py` | |
+| `erpnext/warehouse_operations/tests/test_ma_vach.py` | |
+| `erpnext/warehouse_operations/tests/test_nhap_lo.py` | |
+| `erpnext/warehouse_operations/tests/test_quet.py` | |
 
 **Sửa:**
 
 | File | Sửa gì |
 |---|---|
-| `erpnext/vi_tri_kho/vitri/goi_y.py` | `goi_y_o(vat_tu, kho, so_lo=None) -> (ô, lý do, tem_hong)` + nhánh "ô đã in tem" |
-| `erpnext/vi_tri_kho/vitri/xep.py` | Khoá đệm `(vat_tu, so_lo)`, cảnh báo ô in tem bị chiếm |
-| `erpnext/vi_tri_kho/tests/test_goi_y_o.py` | Bài cho nhánh mới |
-| `erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py` | Bài cho đệm theo lô |
+| `erpnext/warehouse_operations/vitri/goi_y.py` | `goi_y_o(vat_tu, kho, so_lo=None) -> (ô, lý do, tem_hong)` + nhánh "ô đã in tem" |
+| `erpnext/warehouse_operations/vitri/xep.py` | Khoá đệm `(vat_tu, so_lo)`, cảnh báo ô in tem bị chiếm |
+| `erpnext/warehouse_operations/tests/test_goi_y_o.py` | Bài cho nhánh mới |
+| `erpnext/warehouse_operations/tests/test_phieu_xep_vi_tri.py` | Bài cho đệm theo lô |
 | `erpnext/hooks.py` | `doc_events["Batch"]["before_insert"]`, `doctype_js["Batch"]` |
 | `erpnext/patches.txt` | 2 dòng |
-| `erpnext/vi_tri_kho/workspace/vị_trí_kho.json` | Lối vào `Batch Entry` |
-| `docs/vi_tri_kho/HDSD-quan-ly-vi-tri-kho.md` | Mục mới về nhập lô và in nhãn |
+| `erpnext/warehouse_operations/workspace/vị_trí_kho.json` | Lối vào `Batch Entry` |
+| `docs/warehouse_operations/HDSD-quan-ly-vi-tri-kho.md` | Mục mới về nhập lô và in nhãn |
 
 ---
 
 ### Task 1: Custom field và móc điền nhà cung cấp
 
 **Files:**
-- Create: `erpnext/vi_tri_kho/patches/v1_0/them_so_goi_va_o_in_tem.py`
-- Create: `erpnext/vi_tri_kho/patches/v1_0/them_thong_so_tem_cho_item.py`
-- Create: `erpnext/vi_tri_kho/vitri/lo_ncc.py`
-- Create: `erpnext/vi_tri_kho/tests/test_lo_ncc.py`
+- Create: `erpnext/warehouse_operations/patches/v1_0/them_so_goi_va_o_in_tem.py`
+- Create: `erpnext/warehouse_operations/patches/v1_0/them_thong_so_tem_cho_item.py`
+- Create: `erpnext/warehouse_operations/vitri/lo_ncc.py`
+- Create: `erpnext/warehouse_operations/tests/test_lo_ncc.py`
 - Modify: `erpnext/patches.txt` (cuối file)
 - Modify: `erpnext/hooks.py` (`doc_events`)
 
 **Interfaces:**
 - Consumes: không có (task đầu).
 - Produces: `Batch.custom_so_goi` (Data) · `Batch.custom_o_in_tem` (Link Storage Location) ·
-  `Item.custom_thong_so_tem` (Data 60) · `erpnext.vi_tri_kho.vitri.lo_ncc.dien_ncc_tu_chung_tu(doc, method=None)`.
+  `Item.custom_thong_so_tem` (Data 60) · `erpnext.warehouse_operations.vitri.lo_ncc.dien_ncc_tu_chung_tu(doc, method=None)`.
 
 - [ ] **Step 1: Viết bài test trước**
 
-`erpnext/vi_tri_kho/tests/test_lo_ncc.py`:
+`erpnext/warehouse_operations/tests/test_lo_ncc.py`:
 
 ```python
 """Móc điền NCC cho lô sinh từ chứng từ mua (spec khối C §4.3).
@@ -137,7 +137,7 @@ bất kể lô sinh bằng đường nào.
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from erpnext.vi_tri_kho.tests.test_hook_nhap import _tao_item
+from erpnext.warehouse_operations.tests.test_hook_nhap import _tao_item
 
 CONG_TY = "Miyano Việt Nam"
 
@@ -232,13 +232,13 @@ class TestCustomFieldDaCai(FrappeTestCase):
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lo_ncc
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lo_ncc
 ```
 Kỳ vọng: FAIL — `custom_so_goi` chưa có, và `lo.supplier` rỗng.
 
 - [ ] **Step 3: Viết hai patch**
 
-`erpnext/vi_tri_kho/patches/v1_0/them_so_goi_va_o_in_tem.py`:
+`erpnext/warehouse_operations/patches/v1_0/them_so_goi_va_o_in_tem.py`:
 
 ```python
 """Thêm `Batch.custom_so_goi` và `Batch.custom_o_in_tem` (spec khối C §4.2).
@@ -284,7 +284,7 @@ def execute():
 	)
 ```
 
-`erpnext/vi_tri_kho/patches/v1_0/them_thong_so_tem_cho_item.py`:
+`erpnext/warehouse_operations/patches/v1_0/them_thong_so_tem_cho_item.py`:
 
 ```python
 """Thêm `Item.custom_thong_so_tem` — ô F4 của nhãn lô (spec khối C §4.2).
@@ -320,13 +320,13 @@ def execute():
 Thêm vào **cuối** `erpnext/patches.txt`:
 
 ```
-erpnext.vi_tri_kho.patches.v1_0.them_so_goi_va_o_in_tem
-erpnext.vi_tri_kho.patches.v1_0.them_thong_so_tem_cho_item
+erpnext.warehouse_operations.patches.v1_0.them_so_goi_va_o_in_tem
+erpnext.warehouse_operations.patches.v1_0.them_thong_so_tem_cho_item
 ```
 
 - [ ] **Step 5: Viết móc điền NCC**
 
-`erpnext/vi_tri_kho/vitri/lo_ncc.py`:
+`erpnext/warehouse_operations/vitri/lo_ncc.py`:
 
 ```python
 """Điền nhà cung cấp cho lô sinh từ chứng từ mua (spec khối C §4.3).
@@ -373,7 +373,7 @@ Thêm vào `doc_events`:
 	# chọn vá dữ liệu thay vì chặn đường đó, vì `Batch` dùng chung với nhiều luồng
 	# kho khác. `vi_tri_kho/tests/test_lo_ncc.py` khoá việc này.
 	"Batch": {
-		"before_insert": "erpnext.vi_tri_kho.vitri.lo_ncc.dien_ncc_tu_chung_tu",
+		"before_insert": "erpnext.warehouse_operations.vitri.lo_ncc.dien_ncc_tu_chung_tu",
 	},
 ```
 
@@ -382,14 +382,14 @@ Thêm vào `doc_events`:
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
 bench --site erptest.local migrate
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lo_ncc
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lo_ncc
 ```
 Kỳ vọng: PASS toàn bộ.
 
 - [ ] **Step 8: Chạy bài khoá khởi động app**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_app_khoi_dong
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_app_khoi_dong
 ```
 Bài này khoá các móc trong `hooks.py` còn trỏ đúng. Kỳ vọng: PASS.
 
@@ -397,10 +397,10 @@ Bài này khoá các móc trong `hooks.py` còn trỏ đúng. Kỳ vọng: PASS.
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct/apps/erpnext
-git add erpnext/vi_tri_kho/patches/v1_0/them_so_goi_va_o_in_tem.py \
-        erpnext/vi_tri_kho/patches/v1_0/them_thong_so_tem_cho_item.py \
-        erpnext/vi_tri_kho/vitri/lo_ncc.py \
-        erpnext/vi_tri_kho/tests/test_lo_ncc.py \
+git add erpnext/warehouse_operations/patches/v1_0/them_so_goi_va_o_in_tem.py \
+        erpnext/warehouse_operations/patches/v1_0/them_thong_so_tem_cho_item.py \
+        erpnext/warehouse_operations/vitri/lo_ncc.py \
+        erpnext/warehouse_operations/tests/test_lo_ncc.py \
         erpnext/patches.txt erpnext/hooks.py
 git commit -m "feat(vi_tri_kho): custom field nhãn lô và móc điền NCC
 
@@ -412,8 +412,8 @@ git commit -m "feat(vi_tri_kho): custom field nhãn lô và móc điền NCC
 ### Task 2: Đếm module Code 128
 
 **Files:**
-- Create: `erpnext/vi_tri_kho/vitri/ma_vach.py`
-- Create: `erpnext/vi_tri_kho/tests/test_ma_vach.py`
+- Create: `erpnext/warehouse_operations/vitri/ma_vach.py`
+- Create: `erpnext/warehouse_operations/tests/test_ma_vach.py`
 
 **Interfaces:**
 - Consumes: không có.
@@ -425,7 +425,7 @@ git commit -m "feat(vi_tri_kho): custom field nhãn lô và móc điền NCC
 
 - [ ] **Step 1: Viết bài test trước**
 
-`erpnext/vi_tri_kho/tests/test_ma_vach.py`:
+`erpnext/warehouse_operations/tests/test_ma_vach.py`:
 
 ```python
 """Đếm module Code 128 (spec khối C §6.4).
@@ -442,7 +442,7 @@ Con số đã được xác nhận bằng tay: `25L4125` (7 ký tự có chữ) 
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from erpnext.vi_tri_kho.vitri.ma_vach import (
+from erpnext.warehouse_operations.vitri.ma_vach import (
 	MODULE_BO_CUC_A,
 	MODULE_BO_CUC_B,
 	kiem_tra_do_dai,
@@ -511,9 +511,9 @@ class TestKiemTraDoDai(FrappeTestCase):
 - [ ] **Step 2: Chạy để chắc chắn nó ĐỎ**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_ma_vach
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_ma_vach
 ```
-Kỳ vọng: FAIL — `ModuleNotFoundError: erpnext.vi_tri_kho.vitri.ma_vach`.
+Kỳ vọng: FAIL — `ModuleNotFoundError: erpnext.warehouse_operations.vitri.ma_vach`.
 
 - [ ] **Step 3: Viết `ma_vach.py`**
 
@@ -597,14 +597,14 @@ def kiem_tra_do_dai(s: str, nhan: str) -> None:
 - [ ] **Step 4: Chạy lại test**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_ma_vach
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_ma_vach
 ```
 Kỳ vọng: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/vitri/ma_vach.py erpnext/vi_tri_kho/tests/test_ma_vach.py
+git add erpnext/warehouse_operations/vitri/ma_vach.py erpnext/warehouse_operations/tests/test_ma_vach.py
 git commit -m "feat(vi_tri_kho): đếm module Code 128 cho nhãn lô
 
 ..."
@@ -615,8 +615,8 @@ git commit -m "feat(vi_tri_kho): đếm module Code 128 cho nhãn lô
 ### Task 3: `goi_y_o` ưu tiên ô đã in trên tem
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/vitri/goi_y.py`
-- Modify: `erpnext/vi_tri_kho/tests/test_goi_y_o.py`
+- Modify: `erpnext/warehouse_operations/vitri/goi_y.py`
+- Modify: `erpnext/warehouse_operations/tests/test_goi_y_o.py`
 
 **Interfaces:**
 - Consumes: `Batch.custom_o_in_tem` (Task 1).
@@ -625,7 +625,7 @@ git commit -m "feat(vi_tri_kho): đếm module Code 128 cho nhãn lô
 
 - [ ] **Step 1: Viết bài test trước**
 
-Thêm vào cuối `erpnext/vi_tri_kho/tests/test_goi_y_o.py` (đọc đầu file để dùng đúng
+Thêm vào cuối `erpnext/warehouse_operations/tests/test_goi_y_o.py` (đọc đầu file để dùng đúng
 các helper dựng cây sẵn có — **đừng dựng lại cây bằng tay**):
 
 ```python
@@ -774,7 +774,7 @@ lại, **đừng dựng cây mới**.
 - [ ] **Step 2: Chạy để chắc chắn nó ĐỎ**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_goi_y_o
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_goi_y_o
 ```
 Kỳ vọng: FAIL — `goi_y_o() takes 2 positional arguments but 3 were given`.
 
@@ -850,21 +850,21 @@ và dùng `_ly_do(...)` bọc cả ba câu lý do hiện có.
 - [ ] **Step 4: Chạy lại test**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_goi_y_o
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_goi_y_o
 ```
 Kỳ vọng: PASS, kể cả các bài CŨ trong file (chữ ký mở rộng tương thích ngược).
 
 - [ ] **Step 5: Chạy bài phiếu xếp để chắc không vỡ gì**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_phieu_xep_vi_tri
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_phieu_xep_vi_tri
 ```
 Kỳ vọng: PASS (Task 4 mới đổi `xep.py`; ở đây chỉ kiểm không vỡ).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/vitri/goi_y.py erpnext/vi_tri_kho/tests/test_goi_y_o.py
+git add erpnext/warehouse_operations/vitri/goi_y.py erpnext/warehouse_operations/tests/test_goi_y_o.py
 git commit -m "feat(vi_tri_kho): gợi ý ưu tiên ô đã in trên tem
 
 ..."
@@ -875,9 +875,9 @@ git commit -m "feat(vi_tri_kho): gợi ý ưu tiên ô đã in trên tem
 ### Task 4: Phiếu xếp gợi ý theo LÔ, không theo mặt hàng
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/vitri/xep.py`
-- Modify: `erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py`
-- Modify: `erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.js`
+- Modify: `erpnext/warehouse_operations/vitri/xep.py`
+- Modify: `erpnext/warehouse_operations/tests/test_phieu_xep_vi_tri.py`
+- Modify: `erpnext/warehouse_operations/doctype/location_transfer/location_transfer.js`
 
 **Interfaces:**
 - Consumes: `goi_y_o(vat_tu, kho, so_lo=None)` (Task 3).
@@ -886,7 +886,7 @@ git commit -m "feat(vi_tri_kho): gợi ý ưu tiên ô đã in trên tem
 
 - [ ] **Step 1: Viết bài test trước**
 
-Thêm vào `erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py`:
+Thêm vào `erpnext/warehouse_operations/tests/test_phieu_xep_vi_tri.py`:
 
 ```python
 	def test_hai_lo_cung_mat_hang_co_the_ra_hai_o_khac_nhau(self):
@@ -907,7 +907,7 @@ Thêm vào `erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py`:
 - [ ] **Step 2: Chạy để chắc chắn nó ĐỎ**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_phieu_xep_vi_tri
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_phieu_xep_vi_tri
 ```
 
 - [ ] **Step 3: Sửa `xep.py`**
@@ -963,16 +963,16 @@ và đổi câu tóm tắt cho hai nhóm ("chưa có gợi ý" và "tem cũ khô
 - [ ] **Step 5: Chạy lại test**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_phieu_xep_vi_tri
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_goi_y_o
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_phieu_xep_vi_tri
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_goi_y_o
 ```
 Kỳ vọng: PASS cả hai.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/vitri/xep.py erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py \
-        erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.js
+git add erpnext/warehouse_operations/vitri/xep.py erpnext/warehouse_operations/tests/test_phieu_xep_vi_tri.py \
+        erpnext/warehouse_operations/doctype/location_transfer/location_transfer.js
 git commit -m "feat(vi_tri_kho): phiếu xếp gợi ý theo lô thay vì theo mặt hàng
 
 ..."
@@ -986,13 +986,13 @@ Task này **chưa** làm submit. Chỉ lược đồ và các phép kiểm — �
 phần kiểm mà không phải đọc cả phần ghi dữ liệu.
 
 **Files:**
-- Create: `erpnext/vi_tri_kho/doctype/batch_entry_item/__init__.py`
-- Create: `erpnext/vi_tri_kho/doctype/batch_entry_item/batch_entry_item.json`
-- Create: `erpnext/vi_tri_kho/doctype/batch_entry_item/batch_entry_item.py`
-- Create: `erpnext/vi_tri_kho/doctype/batch_entry/__init__.py`
-- Create: `erpnext/vi_tri_kho/doctype/batch_entry/batch_entry.json`
-- Create: `erpnext/vi_tri_kho/doctype/batch_entry/batch_entry.py`
-- Create: `erpnext/vi_tri_kho/tests/test_nhap_lo.py`
+- Create: `erpnext/warehouse_operations/doctype/batch_entry_item/__init__.py`
+- Create: `erpnext/warehouse_operations/doctype/batch_entry_item/batch_entry_item.json`
+- Create: `erpnext/warehouse_operations/doctype/batch_entry_item/batch_entry_item.py`
+- Create: `erpnext/warehouse_operations/doctype/batch_entry/__init__.py`
+- Create: `erpnext/warehouse_operations/doctype/batch_entry/batch_entry.json`
+- Create: `erpnext/warehouse_operations/doctype/batch_entry/batch_entry.py`
+- Create: `erpnext/warehouse_operations/tests/test_nhap_lo.py`
 
 **Interfaces:**
 - Consumes: `ma_vach.kiem_tra_do_dai` (Task 2).
@@ -1001,7 +1001,7 @@ phần kiểm mà không phải đọc cả phần ghi dữ liệu.
 
 - [ ] **Step 1: Viết bài test trước**
 
-`erpnext/vi_tri_kho/tests/test_nhap_lo.py`:
+`erpnext/warehouse_operations/tests/test_nhap_lo.py`:
 
 ```python
 """Phiếu nhập lô — lược đồ và phép kiểm (spec khối C §5).
@@ -1015,8 +1015,8 @@ trước khi kiểm trùng số lô thì người gõ nhầm một số lô dài
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from erpnext.vi_tri_kho.tests.test_hook_nhap import _tao_item
-from erpnext.vi_tri_kho.tests.test_lo_ncc import _ncc_thu, _phieu_nhap_nhap
+from erpnext.warehouse_operations.tests.test_hook_nhap import _tao_item
+from erpnext.warehouse_operations.tests.test_lo_ncc import _ncc_thu, _phieu_nhap_nhap
 
 CONG_TY = "Miyano Việt Nam"
 
@@ -1121,15 +1121,15 @@ class TestValidate(FrappeTestCase):
 - [ ] **Step 2: Chạy để chắc chắn nó ĐỎ**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_nhap_lo
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_nhap_lo
 ```
 Kỳ vọng: FAIL — `DoesNotExistError: DocType Batch Entry not found`.
 
 - [ ] **Step 3: Tạo `Batch Entry Item`**
 
-`erpnext/vi_tri_kho/doctype/batch_entry_item/__init__.py`: file rỗng.
+`erpnext/warehouse_operations/doctype/batch_entry_item/__init__.py`: file rỗng.
 
-`erpnext/vi_tri_kho/doctype/batch_entry_item/batch_entry_item.json`:
+`erpnext/warehouse_operations/doctype/batch_entry_item/batch_entry_item.json`:
 
 ```json
 {
@@ -1167,7 +1167,7 @@ Kỳ vọng: FAIL — `DoesNotExistError: DocType Batch Entry not found`.
  "links": [],
  "modified": "2026-09-16 09:00:00.000000",
  "modified_by": "Administrator",
- "module": "Vi Tri Kho",
+ "module": "Warehouse Operations",
  "name": "Batch Entry Item",
  "owner": "Administrator",
  "permissions": [],
@@ -1196,7 +1196,7 @@ class BatchEntryItem(Document):
 
 - [ ] **Step 4: Tạo `Batch Entry`**
 
-`erpnext/vi_tri_kho/doctype/batch_entry/batch_entry.json`:
+`erpnext/warehouse_operations/doctype/batch_entry/batch_entry.json`:
 
 ```json
 {
@@ -1230,7 +1230,7 @@ class BatchEntryItem(Document):
  "links": [],
  "modified": "2026-09-16 09:00:00.000000",
  "modified_by": "Administrator",
- "module": "Vi Tri Kho",
+ "module": "Warehouse Operations",
  "name": "Batch Entry",
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
@@ -1258,7 +1258,7 @@ thủ kho, không phải thao tác thiết lập. `Stock User` không được `
 
 - [ ] **Step 5: Viết `validate`**
 
-`erpnext/vi_tri_kho/doctype/batch_entry/batch_entry.py`:
+`erpnext/warehouse_operations/doctype/batch_entry/batch_entry.py`:
 
 ```python
 """Phiếu nhập lô — khai số lô và HSD cho từng dòng phiếu nhập (spec khối C §5).
@@ -1297,7 +1297,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
-from erpnext.vi_tri_kho.vitri.ma_vach import kiem_tra_do_dai
+from erpnext.warehouse_operations.vitri.ma_vach import kiem_tra_do_dai
 
 
 class BatchEntry(Document):
@@ -1388,15 +1388,15 @@ class BatchEntry(Document):
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
 bench --site erptest.local migrate
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_nhap_lo
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_nhap_lo
 ```
 Kỳ vọng: PASS toàn bộ 9 bài của `TestValidate`.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/doctype/batch_entry_item/ erpnext/vi_tri_kho/doctype/batch_entry/ \
-        erpnext/vi_tri_kho/tests/test_nhap_lo.py
+git add erpnext/warehouse_operations/doctype/batch_entry_item/ erpnext/warehouse_operations/doctype/batch_entry/ \
+        erpnext/warehouse_operations/tests/test_nhap_lo.py
 git commit -m "feat(vi_tri_kho): doctype Batch Entry và các phép kiểm
 
 ..."
@@ -1407,8 +1407,8 @@ git commit -m "feat(vi_tri_kho): doctype Batch Entry và các phép kiểm
 ### Task 6: `Batch Entry` submit và cancel
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/doctype/batch_entry/batch_entry.py`
-- Modify: `erpnext/vi_tri_kho/tests/test_nhap_lo.py`
+- Modify: `erpnext/warehouse_operations/doctype/batch_entry/batch_entry.py`
+- Modify: `erpnext/warehouse_operations/tests/test_nhap_lo.py`
 
 **Interfaces:**
 - Consumes: `Batch.custom_so_goi` (Task 1), `BatchEntry.validate` (Task 5).
@@ -1486,7 +1486,7 @@ Viết đủ thân của bảy bài. Ba bài cuối là chốt âm, không đư�
 - [ ] **Step 2: Chạy để chắc chắn nó ĐỎ**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_nhap_lo
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_nhap_lo
 ```
 
 - [ ] **Step 3: Viết `on_submit` / `on_cancel`**
@@ -1583,16 +1583,16 @@ def _sinh_so_goi() -> str:
 - [ ] **Step 4: Chạy lại test**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_nhap_lo
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_nhap_lo
 ```
 Kỳ vọng: PASS.
 
 - [ ] **Step 5: Chạy các bài kho liên quan để chắc không vỡ luồng nhập**
 
 ```bash
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_hook_nhap
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_pr_dn_tich_hop
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_huy_chung_tu
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_hook_nhap
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_pr_dn_tich_hop
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_huy_chung_tu
 ```
 
 - [ ] **Step 6: Commit**
@@ -1602,8 +1602,8 @@ bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_huy_
 ### Task 7: API máy chủ cho màn hình và nhãn
 
 **Files:**
-- Create: `erpnext/vi_tri_kho/vitri/nhap_lo.py`
-- Modify: `erpnext/vi_tri_kho/tests/test_nhap_lo.py`
+- Create: `erpnext/warehouse_operations/vitri/nhap_lo.py`
+- Modify: `erpnext/warehouse_operations/tests/test_nhap_lo.py`
 
 **Interfaces:**
 - Consumes: `goi_y_o(vat_tu, kho, so_lo=None)` (Task 3), `Batch.custom_o_in_tem` (Task 1).
@@ -1684,14 +1684,14 @@ Yêu cầu bắt buộc với người thi công:
 ### Task 8: Nhãn lô 50×30 — `tem_lo.js`
 
 **Files:**
-- Create: `erpnext/public/js/vi_tri_kho/tem_lo.js`
-- Modify: `erpnext/public/js/vi_tri_kho/tem_vi_tri.js` (thêm `ve_tho()` vào
+- Create: `erpnext/public/js/warehouse_operations/tem_lo.js`
+- Modify: `erpnext/public/js/warehouse_operations/tem_vi_tri.js` (thêm `ve_tho()` vào
   `may_ve_ma_vach`, xem Step 2 — **thêm**, không đổi `ve()`)
 
 **Interfaces:**
-- Consumes: `erpnext.vi_tri_kho.tem.may_ve_ma_vach()` (đã export sẵn ở
+- Consumes: `erpnext.warehouse_operations.tem.may_ve_ma_vach()` (đã export sẵn ở
   `tem_vi_tri.js:136`, dòng cuối file), `nhap_lo.du_lieu_tem` (Task 7).
-- Produces: `erpnext.vi_tri_kho.tem_lo` = `{ KHO, X_MM, YEN_TINH_MM, TRAN_VE_DUOC, TRAN_YEN_TINH, so_module, ke_hoach_vach, ve_tem, css, ve_xem_truoc, in_xap }`.
+- Produces: `erpnext.warehouse_operations.tem_lo` = `{ KHO, X_MM, YEN_TINH_MM, TRAN_VE_DUOC, TRAN_YEN_TINH, so_module, ke_hoach_vach, ve_tem, css, ve_xem_truoc, in_xap }`.
   **ĐÍNH CHÍNH 16/09 (sau thi công Task 8): `chon_bo_cuc` KHÔNG tồn tại** — chủ đầu tư
   đã chốt bỏ hẳn bố cục A, nhãn chỉ còn MỘT bố cục. `css(cho_in)` một tham số,
   `ve_tem(o, hinh_vach)` hai tham số.
@@ -1795,13 +1795,13 @@ Chụp màn hình lưu vào `/tmp/claude-*/scratchpad/`, dẫn đường dẫn t
 ### Task 9: Màn hình — `batch_entry.js` và nút in trên form `Batch`
 
 **Files:**
-- Create: `erpnext/vi_tri_kho/doctype/batch_entry/batch_entry.js`
-- Create: `erpnext/public/js/vi_tri_kho/batch.js`
+- Create: `erpnext/warehouse_operations/doctype/batch_entry/batch_entry.js`
+- Create: `erpnext/public/js/warehouse_operations/batch.js`
 - Modify: `erpnext/hooks.py` (`doctype_js`)
 
 **Interfaces:**
 - Consumes: `nhap_lo.lay_dong_tu_phieu_nhap` · `nhap_lo.du_lieu_tem` ·
-  `nhap_lo.dat_o_in_tem` (Task 7); `erpnext.vi_tri_kho.tem_lo` (Task 8);
+  `nhap_lo.dat_o_in_tem` (Task 7); `erpnext.warehouse_operations.tem_lo` (Task 8);
   `quet.tra_cuu` (Task 10 — nút quét nối ở Task 10, không phải ở đây).
 - Produces: nút "Lấy dòng hàng từ phiếu nhập" (khi nháp), "In nhãn cả phiếu" (sau
   submit) trên `Batch Entry`; nút "In nhãn" trên `Batch`.
@@ -1813,7 +1813,7 @@ Chụp màn hình lưu vào `/tmp/claude-*/scratchpad/`, dẫn đường dẫn t
     `location_transfer.js:19-29`).
   - Tóm tắt các dòng không có `o_goi_y`, **gộp theo `ly_do_goi_y` thật** — Ruling O của
     khối B, chú thích đã ghi đầy đủ lý do ở `location_transfer.js`, chép cả lý do.
-  - `frappe.require("/assets/erpnext/js/vi_tri_kho/tem_lo.js")` trước khi in
+  - `frappe.require("/assets/erpnext/js/warehouse_operations/tem_lo.js")` trước khi in
     (tiền lệ `timesheet.js:3`) — **không** thêm vào `app_include_js` trong `hooks.py`:
     nhãn chỉ dùng ở hai màn hình, nạp cho mọi trang là bắt cả hệ trả giá.
 
@@ -1821,7 +1821,7 @@ Chụp màn hình lưu vào `/tmp/claude-*/scratchpad/`, dẫn đường dẫn t
   `frm.doc.item` có `has_batch_no`. Gọi `dat_o_in_tem` rồi `du_lieu_tem` rồi
   `tem_lo.in_xap`.
 
-- [ ] **Step 3: `hooks.py`** — thêm `"Batch": "public/js/vi_tri_kho/batch.js"` vào
+- [ ] **Step 3: `hooks.py`** — thêm `"Batch": "public/js/warehouse_operations/batch.js"` vào
   `doctype_js` (tiền lệ `"Warehouse"` ở dòng 44). **Kiểm khoá trùng trước khi thêm.**
 
 - [ ] **Step 4: `bench build --app erpnext` rồi kiểm trên trình duyệt**
@@ -1840,9 +1840,9 @@ tạo phiếu nhập nháp → tạo `Batch Entry` → "Lấy dòng" → gõ lô
 ### Task 10: Quét mã tra cứu
 
 **Files:**
-- Create: `erpnext/vi_tri_kho/vitri/quet.py`
-- Create: `erpnext/vi_tri_kho/tests/test_quet.py`
-- Modify: `erpnext/vi_tri_kho/doctype/batch_entry/batch_entry.js`
+- Create: `erpnext/warehouse_operations/vitri/quet.py`
+- Create: `erpnext/warehouse_operations/tests/test_quet.py`
+- Modify: `erpnext/warehouse_operations/doctype/batch_entry/batch_entry.js`
 
 **Interfaces:**
 - Consumes: `erpnext.stock.utils.scan_barcode` (KHÔNG sửa), `Item Location Preference`,
@@ -1894,8 +1894,8 @@ class TestTraCuu(FrappeTestCase):
 ### Task 11: Workspace, chạy toàn bộ test, và HDSD
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/workspace/vị_trí_kho.json`
-- Modify: `docs/vi_tri_kho/HDSD-quan-ly-vi-tri-kho.md`
+- Modify: `erpnext/warehouse_operations/workspace/vị_trí_kho.json`
+- Modify: `docs/warehouse_operations/HDSD-quan-ly-vi-tri-kho.md`
 
 - [ ] **Step 1: Thêm lối vào workspace**
 
@@ -1908,9 +1908,9 @@ và **thêm bài cho `Batch Entry`** vào đó.
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
-for m in $(ls apps/erpnext/erpnext/vi_tri_kho/tests/test_*.py | xargs -n1 basename | sed 's/\.py$//'); do
+for m in $(ls apps/erpnext/erpnext/warehouse_operations/tests/test_*.py | xargs -n1 basename | sed 's/\.py$//'); do
 	echo "=== $m ==="
-	bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.$m || echo "ĐỎ: $m"
+	bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.$m || echo "ĐỎ: $m"
 done
 ```
 
@@ -1934,7 +1934,7 @@ tìm ra bài nào rò **trước khi** dọn — dọn mà không biết nguồn
 
 - [ ] **Step 4: Viết HDSD**
 
-Thêm một mục mới vào `docs/vi_tri_kho/HDSD-quan-ly-vi-tri-kho.md`, viết cho **thủ kho**
+Thêm một mục mới vào `docs/warehouse_operations/HDSD-quan-ly-vi-tri-kho.md`, viết cho **thủ kho**
 chứ không cho lập trình viên:
 
 1. Thứ tự bắt buộc: **nhập lô trước, duyệt phiếu nhập sau**, và điều gì xảy ra nếu làm

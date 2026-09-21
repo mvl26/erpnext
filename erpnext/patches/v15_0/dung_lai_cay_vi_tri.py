@@ -10,7 +10,7 @@ KHÁC (đặc biệt site `miyano`, cài đặt riêng, không tự động th�
 tác tay đã làm trên `erptest.local` — xem `miyano-portal-install-patch-trap`).
 
 VÒNG SỬA 2/5 (review điều phối): patch này CHỈ còn là một LẦN GỌI vào
-`erpnext.vi_tri_kho.vitri.cay.dam_bao_cay_da_dung()` — đọc docstring của hàm
+`erpnext.warehouse_operations.vitri.cay.dam_bao_cay_da_dung()` — đọc docstring của hàm
 đó để hiểu đầy đủ phán quyết F5+F11 (kiểm `disabled` trước khi rebuild) và
 vì sao logic không còn nằm hẳn ở đây.
 
@@ -25,7 +25,7 @@ không được. Hai cơ chế bổ sung cho nhau, không thừa: patch lo lần
 thứ tự, `after_migrate` lo mọi lần SAU không bị bỏ quên.
 """
 
-from erpnext.vi_tri_kho.vitri.cay import dam_bao_cay_da_dung
+from erpnext.warehouse_operations.vitri.cay import dam_bao_cay_da_dung
 
 
 def execute():

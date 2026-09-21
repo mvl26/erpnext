@@ -420,7 +420,7 @@ class PurchaseReceipt(BuyingController):
 			"Stock Ledger Entry",
 			"Repost Item Valuation",
 			"Serial and Batch Bundle",
-			# `Batch Entry` (module vi_tri_kho) là chứng từ khai lô — nó TRỎ TỚI
+			# `Batch Entry` (module Warehouse Operations) là chứng từ khai lô — nó TRỎ TỚI
 			# phiếu nhập qua Link `phieu_nhap`, chứ không phải ngược lại, nên
 			# không được phép khoá việc huỷ phiếu nhập. Thiếu dòng này thì một
 			# `Batch Entry` đã duyệt làm `check_no_back_links_exist` ném

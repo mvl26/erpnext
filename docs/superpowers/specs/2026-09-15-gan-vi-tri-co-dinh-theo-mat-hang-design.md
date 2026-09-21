@@ -1,6 +1,6 @@
 # Gán vị trí cố định theo mặt hàng — thiết kế
 
-Nhánh `feat/mo-rong-vi-tri-kho-warehouse`, module `erpnext/vi_tri_kho/`.
+Nhánh `feat/mo-rong-vi-tri-kho-warehouse`, module `erpnext/warehouse_operations/`.
 Chốt ngày 15/09/2026 sau brainstorm với chủ đầu tư.
 
 Đây là **khối A+B** của một việc lớn hơn gồm ba khối:
@@ -81,7 +81,7 @@ Bốn câu hỏi đã chốt, ghi lại để không mở lại:
 
 ### 4.1 DocType `Item Location Preference`
 
-`erpnext/vi_tri_kho/doctype/item_location_preference/`
+`erpnext/warehouse_operations/doctype/item_location_preference/`
 
 | Trường | Kiểu | Bắt buộc | Ghi chú |
 |---|---|---|---|
@@ -290,7 +290,7 @@ gợi ý, không phải luật; thủ kho đứng trước kệ biết những t
 
 ## 9. Báo cáo `hang_nam_sai_vi_tri`
 
-`erpnext/vi_tri_kho/report/hang_nam_sai_vi_tri/`
+`erpnext/warehouse_operations/report/hang_nam_sai_vi_tri/`
 
 Cột: `o` · `ma_in_nhan` · `vat_tu_dang_co` · `so_lo` · `so_luong` · `vat_tu_da_gan` ·
 `nut_gan`.
@@ -310,7 +310,7 @@ Báo cáo rỗng = trạng thái đúng.
 
 ## 10. Kiểm thử
 
-`erpnext/vi_tri_kho/tests/test_gan_vi_tri.py` và `test_goi_y_o.py`.
+`erpnext/warehouse_operations/tests/test_gan_vi_tri.py` và `test_goi_y_o.py`.
 
 **Ma trận chồng lấn (§5.3)** — phải có cả chốt âm, vì một đột biến đổi vị từ giao nhau
 thành `s.name = vi_tri` vẫn làm ca "trùng đúng nút" xanh:
@@ -342,7 +342,7 @@ gán "thành công" đã chặn nhầm nửa hệ thống.
 **Phiếu xếp (§8)**: `hang_chua_xep` trả `den_o` đã điền cho mặt hàng đã gán, và **để
 trống** cho mặt hàng chưa gán — trong cùng một lời gọi.
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.<tên>`,
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.<tên>`,
 **tuần tự**, rồi cả bộ `vi_tri_kho` trước khi đóng. Không dùng `--app erpnext`.
 
 ---
@@ -365,7 +365,7 @@ Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.
 Hai câu chưa trả lời, sẽ chốt trong spec của nhãn nhập kho:
 
 1. **Nhà cung cấp.** Chủ đầu tư yêu cầu nhãn có NCC, nhưng bảng F1–F11 và ảnh mockup
-   (`docs/vi_tri_kho/Screenshot 2026-09-15 142544.png`) **không có ô nào cho NCC** — 11 ô
+   (`docs/warehouse_operations/Screenshot 2026-09-15 142544.png`) **không có ô nào cho NCC** — 11 ô
    đã kín vùng in an toàn 47×27mm. `Batch.supplier` có sẵn dữ liệu; chỗ đặt thì chưa có.
 2. **Mã vạch F10 mã hoá gì.** Mockup in `026090374561` (12 chữ số) trong khi F9 "số gọi" là
    `3856` — hai số khác nhau, chưa rõ quan hệ.

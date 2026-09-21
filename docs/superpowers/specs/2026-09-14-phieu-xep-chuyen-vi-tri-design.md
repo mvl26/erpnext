@@ -1,6 +1,6 @@
 # Phiếu xếp / chuyển vị trí — thiết kế
 
-Nhánh `feat/mo-rong-vi-tri-kho-warehouse`, module `erpnext/vi_tri_kho/`.
+Nhánh `feat/mo-rong-vi-tri-kho-warehouse`, module `erpnext/warehouse_operations/`.
 Chốt ngày 14/09/2026 sau brainstorm với chủ đầu tư.
 
 ---

@@ -15,7 +15,7 @@
 - Bench root: `/home/hoangvietyeuem/frappe-bench-yhct`. Site: `erptest.local`. Mọi lệnh `bench` chạy từ bench root.
 - Python: **thụt bằng TAB**, dòng ≤ 110 cột, chuỗi nháy kép. Không có `ruff` trong env này — kiểm tay bằng `awk 'length>110'` và `grep -c "^    "`.
 - **Chỉ chạy MỘT bộ test tại một thời điểm** (chung một CSDL). Chạy song song sẽ cho đỏ giả.
-- Test đặt ở `erpnext/vi_tri_kho/tests/test_*.py`. Cổng cấu trúc: `python3 -m scripts.file_structure --audit` phải ra **0 vi phạm**.
+- Test đặt ở `erpnext/warehouse_operations/tests/test_*.py`. Cổng cấu trúc: `python3 -m scripts.file_structure --audit` phải ra **0 vi phạm**.
 - Sau khi sửa JSON doctype: `bench --site erptest.local migrate`.
 - **Commit sau mỗi task, KHÔNG push.**
 - Không tạo DocPerm cho `Customer` hay `Website User` ở bất kỳ đâu.
@@ -25,13 +25,13 @@
 ## Hàm có sẵn được dùng lại (chữ ký chính xác)
 
 ```python
-# erpnext/vi_tri_kho/vitri/so.py
+# erpnext/warehouse_operations/vitri/so.py
 ghi_dong_so(o, kho, vat_tu, so_lo, so_luong, chung_tu_type, chung_tu,
             chung_tu_row, sle, ngay, thoi_diem, company, da_huy=0) -> str
 ton_o(o, vat_tu, so_lo) -> float
 tong_ton_vi_tri(kho, vat_tu, so_lo) -> float
 
-# erpnext/vi_tri_kho/vitri/kho.py
+# erpnext/warehouse_operations/vitri/kho.py
 kho_co_quan_ly_vi_tri(kho: str) -> bool
 o_chua_xep(kho: str) -> str | None
 ```
@@ -55,12 +55,12 @@ o_chua_xep(kho: str) -> str | None
 Deliverable: lưu và duyệt được một phiếu hợp lệ; phiếu sai bị chặn với thông báo rõ. **Chưa ghi sổ** — Task 2 làm.
 
 **Files:**
-- Create: `erpnext/vi_tri_kho/doctype/location_transfer_item/__init__.py`
-- Create: `erpnext/vi_tri_kho/doctype/location_transfer_item/location_transfer_item.json`
-- Create: `erpnext/vi_tri_kho/doctype/location_transfer/__init__.py`
-- Create: `erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.json`
-- Create: `erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.py`
-- Test: `erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py`
+- Create: `erpnext/warehouse_operations/doctype/location_transfer_item/__init__.py`
+- Create: `erpnext/warehouse_operations/doctype/location_transfer_item/location_transfer_item.json`
+- Create: `erpnext/warehouse_operations/doctype/location_transfer/__init__.py`
+- Create: `erpnext/warehouse_operations/doctype/location_transfer/location_transfer.json`
+- Create: `erpnext/warehouse_operations/doctype/location_transfer/location_transfer.py`
+- Test: `erpnext/warehouse_operations/tests/test_phieu_xep_vi_tri.py`
 
 **Interfaces:**
 - Consumes: `kho.kho_co_quan_ly_vi_tri(kho)`
@@ -68,7 +68,7 @@ Deliverable: lưu và duyệt được một phiếu hợp lệ; phiếu sai b�
 
 - [ ] **Step 1: Viết bài test đỏ trước**
 
-Tạo `erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py`:
+Tạo `erpnext/warehouse_operations/tests/test_phieu_xep_vi_tri.py`:
 
 ```python
 """Phiếu xếp / chuyển vị trí — spec 2026-09-14.
@@ -199,16 +199,16 @@ class TestPhepKiemCoBan(FrappeTestCase):
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_phieu_xep_vi_tri
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_phieu_xep_vi_tri
 ```
 
 Expected: đỏ, `DoesNotExistError: DocType Location Transfer not found`.
 
 - [ ] **Step 3: Tạo child doctype**
 
-`erpnext/vi_tri_kho/doctype/location_transfer_item/__init__.py` — file rỗng.
+`erpnext/warehouse_operations/doctype/location_transfer_item/__init__.py` — file rỗng.
 
-`erpnext/vi_tri_kho/doctype/location_transfer_item/location_transfer_item.json`:
+`erpnext/warehouse_operations/doctype/location_transfer_item/location_transfer_item.json`:
 
 ```json
 {
@@ -238,7 +238,7 @@ Expected: đỏ, `DoesNotExistError: DocType Location Transfer not found`.
  "links": [],
  "modified": "2026-09-14 00:00:00.000000",
  "modified_by": "Administrator",
- "module": "Vi Tri Kho",
+ "module": "Warehouse Operations",
  "name": "Location Transfer Item",
  "owner": "Administrator",
  "permissions": [],
@@ -250,9 +250,9 @@ Expected: đỏ, `DoesNotExistError: DocType Location Transfer not found`.
 
 - [ ] **Step 4: Tạo doctype đầu phiếu**
 
-`erpnext/vi_tri_kho/doctype/location_transfer/__init__.py` — file rỗng.
+`erpnext/warehouse_operations/doctype/location_transfer/__init__.py` — file rỗng.
 
-`erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.json`:
+`erpnext/warehouse_operations/doctype/location_transfer/location_transfer.json`:
 
 ```json
 {
@@ -288,7 +288,7 @@ Expected: đỏ, `DoesNotExistError: DocType Location Transfer not found`.
  "links": [],
  "modified": "2026-09-14 00:00:00.000000",
  "modified_by": "Administrator",
- "module": "Vi Tri Kho",
+ "module": "Warehouse Operations",
  "name": "Location Transfer",
  "owner": "Administrator",
  "permissions": [
@@ -308,7 +308,7 @@ Ghi chú: `Stock User` **không** có `delete` — xoá một phiếu nháp là 
 
 - [ ] **Step 5: Viết controller**
 
-`erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.py`:
+`erpnext/warehouse_operations/doctype/location_transfer/location_transfer.py`:
 
 ```python
 """Phiếu xếp / chuyển vị trí — spec 2026-09-14.
@@ -326,7 +326,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
 
-from erpnext.vi_tri_kho.vitri.kho import kho_co_quan_ly_vi_tri
+from erpnext.warehouse_operations.vitri.kho import kho_co_quan_ly_vi_tri
 
 
 class LocationTransfer(Document):
@@ -419,7 +419,7 @@ class LocationTransfer(Document):
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
 bench --site erptest.local migrate
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_phieu_xep_vi_tri
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_phieu_xep_vi_tri
 ```
 
 Expected: PASS, 10 bài.
@@ -440,8 +440,8 @@ Sửa từng chỗ rồi chạy lại test, xong khôi phục:
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct/apps/erpnext
 python3 -m scripts.file_structure --audit        # phải 0 vi phạm
-awk 'length>110{print FILENAME": "NR}' erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.py
-git add erpnext/vi_tri_kho/
+awk 'length>110{print FILENAME": "NR}' erpnext/warehouse_operations/doctype/location_transfer/location_transfer.py
+git add erpnext/warehouse_operations/
 git commit -m "feat(vi_tri_kho): doctype Phiếu xếp / chuyển vị trí + phép kiểm dòng"
 ```
 
@@ -450,8 +450,8 @@ git commit -m "feat(vi_tri_kho): doctype Phiếu xếp / chuyển vị trí + ph
 ### Task 2: Ghi sổ khi duyệt + chặn tồn âm
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.py`
-- Test: `erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py`
+- Modify: `erpnext/warehouse_operations/doctype/location_transfer/location_transfer.py`
+- Test: `erpnext/warehouse_operations/tests/test_phieu_xep_vi_tri.py`
 
 **Interfaces:**
 - Consumes: `so.ghi_dong_so(...)`, `so.ton_o(o, vat_tu, so_lo)`, `so.tong_ton_vi_tri(kho, vat_tu, so_lo)`
@@ -462,7 +462,7 @@ git commit -m "feat(vi_tri_kho): doctype Phiếu xếp / chuyển vị trí + ph
 Thêm vào `test_phieu_xep_vi_tri.py`:
 
 ```python
-from erpnext.vi_tri_kho.vitri import so
+from erpnext.warehouse_operations.vitri import so
 
 
 def _nap(o, vat_tu, so_lo, sl):
@@ -550,7 +550,7 @@ class TestGhiSo(FrappeTestCase):
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_phieu_xep_vi_tri
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_phieu_xep_vi_tri
 ```
 
 Expected: đỏ — `test_duyet_thi_chuyen_dung_hai_o` thấy tồn không đổi (chưa có `on_submit`).
@@ -562,7 +562,7 @@ Thêm import và phương thức vào `location_transfer.py`:
 ```python
 from frappe.utils import flt, now, nowdate
 
-from erpnext.vi_tri_kho.vitri.so import ghi_dong_so, ton_o
+from erpnext.warehouse_operations.vitri.so import ghi_dong_so, ton_o
 ```
 
 ```python
@@ -633,7 +633,7 @@ from erpnext.vi_tri_kho.vitri.so import ghi_dong_so, ton_o
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_phieu_xep_vi_tri
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_phieu_xep_vi_tri
 ```
 
 Expected: PASS, 14 bài.
@@ -651,7 +651,7 @@ Expected: PASS, 14 bài.
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct/apps/erpnext
-git add erpnext/vi_tri_kho/
+git add erpnext/warehouse_operations/
 git commit -m "feat(vi_tri_kho): phiếu xếp vị trí ghi sổ khi duyệt, chặn tồn âm sau khi ghi"
 ```
 
@@ -660,8 +660,8 @@ git commit -m "feat(vi_tri_kho): phiếu xếp vị trí ghi sổ khi duyệt, c
 ### Task 3: Huỷ phiếu ghi bút toán đảo
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.py`
-- Test: `erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py`
+- Modify: `erpnext/warehouse_operations/doctype/location_transfer/location_transfer.py`
+- Test: `erpnext/warehouse_operations/tests/test_phieu_xep_vi_tri.py`
 
 **Interfaces:**
 - Consumes: `LocationTransfer._ghi(dao=True)` (Task 2)
@@ -756,7 +756,7 @@ Expected: PASS, 17 bài.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/
+git add erpnext/warehouse_operations/
 git commit -m "feat(vi_tri_kho): huỷ phiếu xếp vị trí ghi bút toán đảo"
 ```
 
@@ -765,9 +765,9 @@ git commit -m "feat(vi_tri_kho): huỷ phiếu xếp vị trí ghi bút toán đ
 ### Task 4: Chặn nhánh Ngừng dùng — hai chiều ngược nhau
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/vitri/cay.py` (thêm `nhanh_bi_tat`)
-- Modify: `erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.py`
-- Test: `erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py`
+- Modify: `erpnext/warehouse_operations/vitri/cay.py` (thêm `nhanh_bi_tat`)
+- Modify: `erpnext/warehouse_operations/doctype/location_transfer/location_transfer.py`
+- Test: `erpnext/warehouse_operations/tests/test_phieu_xep_vi_tri.py`
 
 **Interfaces:**
 - Produces: `cay.nhanh_bi_tat(o: str) -> str | None` — trả tên nút đang tắt (chính nó hoặc tổ tiên), `None` nếu không có
@@ -845,7 +845,7 @@ def nhanh_bi_tat(o: str) -> str | None:
 
 - [ ] **Step 4: Gọi trong controller**
 
-Thêm import `from erpnext.vi_tri_kho.vitri.cay import nhanh_bi_tat`, rồi thêm vào cuối `_kiem_mot_dong`:
+Thêm import `from erpnext.warehouse_operations.vitri.cay import nhanh_bi_tat`, rồi thêm vào cuối `_kiem_mot_dong`:
 
 ```python
 		# K4 — chỉ chặn chiều VÀO. Vá đúng bất đối xứng đã ghi trong
@@ -883,7 +883,7 @@ Expected: PASS, 20 bài.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/
+git add erpnext/warehouse_operations/
 git commit -m "feat(vi_tri_kho): chặn xếp hàng vào nhánh Ngừng dùng, vẫn cho lấy ra"
 ```
 
@@ -892,9 +892,9 @@ git commit -m "feat(vi_tri_kho): chặn xếp hàng vào nhánh Ngừng dùng, v
 ### Task 5: Nút "Lấy hàng chưa xếp"
 
 **Files:**
-- Create: `erpnext/vi_tri_kho/vitri/xep.py`
-- Create: `erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.js`
-- Test: `erpnext/vi_tri_kho/tests/test_phieu_xep_vi_tri.py`
+- Create: `erpnext/warehouse_operations/vitri/xep.py`
+- Create: `erpnext/warehouse_operations/doctype/location_transfer/location_transfer.js`
+- Test: `erpnext/warehouse_operations/tests/test_phieu_xep_vi_tri.py`
 
 **Interfaces:**
 - Produces: `xep.hang_chua_xep(kho: str) -> list[dict]` với khoá `vat_tu`, `so_lo`, `tu_o`, `so_luong`
@@ -902,7 +902,7 @@ git commit -m "feat(vi_tri_kho): chặn xếp hàng vào nhánh Ngừng dùng, v
 - [ ] **Step 1: Viết bài test đỏ**
 
 ```python
-from erpnext.vi_tri_kho.vitri.xep import hang_chua_xep
+from erpnext.warehouse_operations.vitri.xep import hang_chua_xep
 
 
 class TestLayHangChuaXep(FrappeTestCase):
@@ -953,7 +953,7 @@ class TestLayHangChuaXep(FrappeTestCase):
 
 - [ ] **Step 2: Chạy để chắc nó đỏ**
 
-Expected: `ModuleNotFoundError: erpnext.vi_tri_kho.vitri.xep`.
+Expected: `ModuleNotFoundError: erpnext.warehouse_operations.vitri.xep`.
 
 - [ ] **Step 3: Viết `xep.py`**
 
@@ -996,7 +996,7 @@ def hang_chua_xep(kho: str) -> list[dict]:
 
 - [ ] **Step 4: Viết form script**
 
-`erpnext/vi_tri_kho/doctype/location_transfer/location_transfer.js`:
+`erpnext/warehouse_operations/doctype/location_transfer/location_transfer.js`:
 
 ```javascript
 // Nút "Lấy hàng chưa xếp": đổ toàn bộ hàng đang ở ô "Chưa xếp vị trí" của
@@ -1023,7 +1023,7 @@ frappe.ui.form.on("Location Transfer", {
 
 function lay_hang_chua_xep(frm) {
 	frappe.call({
-		method: "erpnext.vi_tri_kho.vitri.xep.hang_chua_xep",
+		method: "erpnext.warehouse_operations.vitri.xep.hang_chua_xep",
 		args: { kho: frm.doc.kho },
 		callback(r) {
 			const dong = r.message || [];
@@ -1059,7 +1059,7 @@ function lay_hang_chua_xep(frm) {
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
 bench --site erptest.local clear-cache
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_phieu_xep_vi_tri
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_phieu_xep_vi_tri
 ```
 
 Expected: PASS, 23 bài.
@@ -1075,7 +1075,7 @@ Expected: PASS, 23 bài.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/
+git add erpnext/warehouse_operations/
 git commit -m "feat(vi_tri_kho): nút Lấy hàng chưa xếp trên phiếu xếp vị trí"
 ```
 
@@ -1084,14 +1084,14 @@ git commit -m "feat(vi_tri_kho): nút Lấy hàng chưa xếp trên phiếu xế
 ### Task 6: Chạy thật đầu-cuối + cập nhật tài liệu
 
 **Files:**
-- Modify: `docs/vi_tri_kho/HDSD-quan-ly-vi-tri-kho.md`
-- Modify: `docs/vi_tri_kho/BAN-GIAO-nen-tang-vi-tri-kho.md`
+- Modify: `docs/warehouse_operations/HDSD-quan-ly-vi-tri-kho.md`
+- Modify: `docs/warehouse_operations/BAN-GIAO-nen-tang-vi-tri-kho.md`
 
 - [ ] **Step 1: Chạy TOÀN BỘ bộ test của module**
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
-for m in $(ls apps/erpnext/erpnext/vi_tri_kho/tests/test_*.py | sed 's|apps/erpnext/||; s|/|.|g; s|\.py$||'); do
+for m in $(ls apps/erpnext/erpnext/warehouse_operations/tests/test_*.py | sed 's|apps/erpnext/||; s|/|.|g; s|\.py$||'); do
   echo "=== $m"
   bench --site erptest.local run-tests --module $m 2>&1 | tr '\r' '\n' | grep -E "^Ran|^OK|^FAILED"
 done
@@ -1113,7 +1113,7 @@ ten = frappe.get_all("Location Ledger Entry",
 for n in ten:
 	frappe.delete_doc("Location Ledger Entry", n, force=True, ignore_permissions=True)
 frappe.db.commit()
-from erpnext.vi_tri_kho.vitri.so import dung_lai_ton_vi_tri
+from erpnext.warehouse_operations.vitri.so import dung_lai_ton_vi_tri
 print("đã xoá", len(ten), "dòng mô phỏng; dựng lại", dung_lai_ton_vi_tri("Kho Miyano - MYN"), "dòng tồn")
 frappe.db.commit()
 PY
@@ -1129,8 +1129,8 @@ cd /home/hoangvietyeuem/frappe-bench-yhct/sites && ../env/bin/python - <<'PY'
 import frappe
 frappe.init(site="erptest.local", sites_path="."); frappe.connect(); frappe.set_user("Administrator")
 KHO = "Kho Miyano - MYN"
-from erpnext.vi_tri_kho.vitri.doi_soat import doi_soat_kho
-from erpnext.vi_tri_kho.report.ton_kho_theo_vi_tri.ton_kho_theo_vi_tri import execute
+from erpnext.warehouse_operations.vitri.doi_soat import doi_soat_kho
+from erpnext.warehouse_operations.report.ton_kho_theo_vi_tri.ton_kho_theo_vi_tri import execute
 kq = doi_soat_kho(KHO)
 print("đối soát khớp:", kq["khop"], "| lệch:", kq["so_dong_lech"], "| ô âm:", len(kq["o_am"]))
 cot, dong = execute({"kho": KHO})
@@ -1144,7 +1144,7 @@ Expected: đối soát khớp, **dòng nhóm > 0** (đây là bằng chứng vi�
 
 - [ ] **Step 4: Cập nhật HDSD**
 
-Trong `docs/vi_tri_kho/HDSD-quan-ly-vi-tri-kho.md`:
+Trong `docs/warehouse_operations/HDSD-quan-ly-vi-tri-kho.md`:
 
 1. Mục 6.1 — bỏ câu "Hiện chưa có màn hình khai ô lúc nhập; thủ kho xem báo cáo rồi xếp ngoài
    thực tế", thay bằng trỏ tới mục mới.
@@ -1155,7 +1155,7 @@ Trong `docs/vi_tri_kho/HDSD-quan-ly-vi-tri-kho.md`:
 4. Mục 7 — bỏ câu "Ba câu hỏi khác về cấp Khu … chưa có báo cáo" nếu vẫn đúng thì giữ, chỉ sửa
    câu nói tồn theo Khu/Dãy ra rỗng.
 
-Trong `docs/vi_tri_kho/BAN-GIAO-nen-tang-vi-tri-kho.md`: thêm một dòng vào bảng trạng thái ghi
+Trong `docs/warehouse_operations/BAN-GIAO-nen-tang-vi-tri-kho.md`: thêm một dòng vào bảng trạng thái ghi
 `Location Transfer` là doctype submittable đầu tiên của module.
 
 - [ ] **Step 5: Cập nhật `QUYET-DINH-thi-cong-cay-vi-tri.md`**
@@ -1169,7 +1169,7 @@ ngỏ chiều RA, kèm lý do.
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct/apps/erpnext
 python3 -m scripts.file_structure --audit
-git add docs/ erpnext/vi_tri_kho/
+git add docs/ erpnext/warehouse_operations/
 git commit -m "docs(vi_tri_kho): HDSD phần xếp hàng vào ô, và chạy thật đầu-cuối"
 ```
 

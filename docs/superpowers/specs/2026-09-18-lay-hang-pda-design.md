@@ -60,7 +60,7 @@ Bốn điều chủ đầu tư chốt khi duyệt hướng:
 | `luc_lay` | Datetime | | thời điểm quét |
 
 Gắn vào `Delivery Note` bằng custom field `custom_phan_bo_vi_tri` (Table), tạo bằng patch
-`erpnext/vi_tri_kho/patches/v1_0/them_phan_bo_vi_tri.py` (nhớ thêm một dòng vào `erpnext/patches.txt`
+`erpnext/warehouse_operations/patches/v1_0/them_phan_bo_vi_tri.py` (nhớ thêm một dòng vào `erpnext/patches.txt`
 — thiếu dòng đó thì patch không chạy và field không có, mà không lỗi nào báo), theo đúng khuôn
 `them_so_goi_va_o_in_tem.py`. Field **read-only trên form**: nó là kết quả của việc quét, không
 phải chỗ để khai tay — cùng lẽ với `custom_so_goi` / `custom_o_in_tem`.
@@ -135,7 +135,7 @@ những ô chưa ai tới lấy. Muốn để hệ tự chọn ô thì **xoá s�
 
 ## 6. Trang PDA `lay-hang-pda`
 
-Cùng khuôn hai trang PDA đã có: một cột, ô quét dùng chung `public/js/vi_tri_kho/o_quet.js`,
+Cùng khuôn hai trang PDA đã có: một cột, ô quét dùng chung `public/js/warehouse_operations/o_quet.js`,
 biến màu Frappe, vai trò `System Manager` / `Stock Manager` / `Stock User`.
 
 ### 6.1 Màn danh sách
@@ -243,7 +243,7 @@ sổ vị trí đúng ô. Kèm ca "Enter khi hộp xác nhận đang mở → kh
 
 **Cả bộ `vi_tri_kho` (466 bài) phải xanh** — nhánh hook mới không được đụng đường cũ.
 
-**Luồng A→Z**: chạy lại `docs/vi_tri_kho/HDSD-luong-tu-A-den-Z.md` với bước 9 đi qua trang mới,
+**Luồng A→Z**: chạy lại `docs/warehouse_operations/HDSD-luong-tu-A-den-Z.md` với bước 9 đi qua trang mới,
 rồi cập nhật tài liệu đó (bỏ khung "chưa có màn hình lấy hàng").
 
 ## 10. Rủi ro

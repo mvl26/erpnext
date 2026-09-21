@@ -31,7 +31,7 @@ sang *theo lô*.
 | F8 in vùng đã gán hay ô cụ thể | **Ô cụ thể** (`VT 1A0101-0201`) — kéo theo §8 |
 
 Chốt thêm, đã ghi ở khối B §12 và giữ nguyên: **ảnh mockup thắng bảng chữ F1–F11.**
-Ảnh: `docs/vi_tri_kho/Screenshot 2026-09-15 142544.png`.
+Ảnh: `docs/warehouse_operations/Screenshot 2026-09-15 142544.png`.
 
 ## 4. Dữ liệu
 
@@ -180,7 +180,7 @@ phải là câu chỉ đúng chỗ sai:
 
 ## 6. Nhãn lô 50×30
 
-File mới `erpnext/public/js/vi_tri_kho/tem_lo.js`, dùng lại **nguyên kỷ luật lưới điểm**
+File mới `erpnext/public/js/warehouse_operations/tem_lo.js`, dùng lại **nguyên kỷ luật lưới điểm**
 của `tem_vi_tri.js` (đã kiểm chứng trên ZD421): `flex: 0 0 auto` cho khối mã vạch,
 `min-width: 0` cho cột chữ, `preserveAspectRatio="none"` đi kèm `displayValue: false`.
 
@@ -332,7 +332,7 @@ lần đầu có thể đã dán lên hàng. `goi_y_o` trả `None` (mặt hàng
 
 ## 7. Quét mã tra cứu
 
-Hàm mới `erpnext/vi_tri_kho/vitri/quet.py`:
+Hàm mới `erpnext/warehouse_operations/vitri/quet.py`:
 
 ```
 tra_cuu(ma: str) -> dict
@@ -401,7 +401,7 @@ theo ô, đăng nhập hợp lệ không phải điều kiện đủ.
 
 ## 11. Kiểm thử
 
-**Python** (`bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.<tên>`,
+**Python** (`bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.<tên>`,
 chạy tuần tự, rồi cả bộ `vi_tri_kho` trước khi đóng):
 
 - Submit `Batch Entry` → `Batch` tạo đúng: lô · HSD · NCC · `reference_name` · số gọi.

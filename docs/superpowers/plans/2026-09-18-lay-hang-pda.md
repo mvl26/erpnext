@@ -27,11 +27,11 @@
 ### Task 1: Bảng phân bổ `Location Allocation` + custom field trên Delivery Note
 
 **Files:**
-- Create: `erpnext/vi_tri_kho/doctype/location_allocation/__init__.py`
-- Create: `erpnext/vi_tri_kho/doctype/location_allocation/location_allocation.json`
-- Create: `erpnext/vi_tri_kho/doctype/location_allocation/location_allocation.py`
-- Create: `erpnext/vi_tri_kho/doctype/location_allocation/test_location_allocation.py`
-- Create: `erpnext/vi_tri_kho/patches/v1_0/them_phan_bo_vi_tri.py`
+- Create: `erpnext/warehouse_operations/doctype/location_allocation/__init__.py`
+- Create: `erpnext/warehouse_operations/doctype/location_allocation/location_allocation.json`
+- Create: `erpnext/warehouse_operations/doctype/location_allocation/location_allocation.py`
+- Create: `erpnext/warehouse_operations/doctype/location_allocation/test_location_allocation.py`
+- Create: `erpnext/warehouse_operations/patches/v1_0/them_phan_bo_vi_tri.py`
 - Modify: `erpnext/patches.txt` (thêm một dòng ở cuối)
 
 **Interfaces:**
@@ -40,7 +40,7 @@
 
 - [ ] **Step 1: Viết bài test đỏ**
 
-Tạo `erpnext/vi_tri_kho/doctype/location_allocation/test_location_allocation.py`:
+Tạo `erpnext/warehouse_operations/doctype/location_allocation/test_location_allocation.py`:
 
 ```python
 """Bảng phân bổ vị trí — nơi ghi "hàng của dòng này lấy ở ô nào".
@@ -77,14 +77,14 @@ class TestBangPhanBo(FrappeTestCase):
 
 - [ ] **Step 2: Chạy để thấy đỏ**
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.doctype.location_allocation.test_location_allocation`
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.doctype.location_allocation.test_location_allocation`
 Chờ: FAILED — `DoesNotExistError: DocType Location Allocation not found`.
 
 - [ ] **Step 3: Tạo doctype**
 
-`erpnext/vi_tri_kho/doctype/location_allocation/__init__.py`: file rỗng.
+`erpnext/warehouse_operations/doctype/location_allocation/__init__.py`: file rỗng.
 
-`erpnext/vi_tri_kho/doctype/location_allocation/location_allocation.json`:
+`erpnext/warehouse_operations/doctype/location_allocation/location_allocation.json`:
 
 ```json
 {
@@ -110,7 +110,7 @@ Chờ: FAILED — `DoesNotExistError: DocType Location Allocation not found`.
  "links": [],
  "modified": "2026-09-18 00:00:00.000000",
  "modified_by": "Administrator",
- "module": "Vi Tri Kho",
+ "module": "Warehouse Operations",
  "name": "Location Allocation",
  "owner": "Administrator",
  "permissions": [],
@@ -120,7 +120,7 @@ Chờ: FAILED — `DoesNotExistError: DocType Location Allocation not found`.
 }
 ```
 
-`erpnext/vi_tri_kho/doctype/location_allocation/location_allocation.py`:
+`erpnext/warehouse_operations/doctype/location_allocation/location_allocation.py`:
 
 ```python
 # Bảng con thuần dữ liệu: mọi phép kiểm nằm ở `vitri/lay_hang.kiem_phan_bo_khi_luu`
@@ -136,7 +136,7 @@ class LocationAllocation(Document):
 
 - [ ] **Step 4: Viết patch gắn field vào Delivery Note**
 
-`erpnext/vi_tri_kho/patches/v1_0/them_phan_bo_vi_tri.py`:
+`erpnext/warehouse_operations/patches/v1_0/them_phan_bo_vi_tri.py`:
 
 ```python
 """Thêm `Delivery Note.custom_phan_bo_vi_tri` — bảng phân bổ vị trí (spec lấy hàng §3.1).
@@ -168,19 +168,19 @@ def execute():
 Thêm dòng cuối `erpnext/patches.txt`:
 
 ```
-erpnext.vi_tri_kho.patches.v1_0.them_phan_bo_vi_tri
+erpnext.warehouse_operations.patches.v1_0.them_phan_bo_vi_tri
 ```
 
 - [ ] **Step 5: Migrate rồi chạy lại test**
 
 Chạy: `bench --site erptest.local migrate` rồi
-`bench --site erptest.local run-tests --module erpnext.vi_tri_kho.doctype.location_allocation.test_location_allocation`
+`bench --site erptest.local run-tests --module erpnext.warehouse_operations.doctype.location_allocation.test_location_allocation`
 Chờ: `OK` (2 bài).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/doctype/location_allocation erpnext/vi_tri_kho/patches/v1_0/them_phan_bo_vi_tri.py erpnext/patches.txt
+git add erpnext/warehouse_operations/doctype/location_allocation erpnext/warehouse_operations/patches/v1_0/them_phan_bo_vi_tri.py erpnext/patches.txt
 git commit -m "feat(vi_tri_kho): bảng phân bổ vị trí Location Allocation trên phiếu giao"
 ```
 
@@ -189,9 +189,9 @@ git commit -m "feat(vi_tri_kho): bảng phân bổ vị trí Location Allocation
 ### Task 2: Hook ghi sổ đọc bảng phân bổ
 
 **Files:**
-- Create: `erpnext/vi_tri_kho/vitri/lay_hang.py`
-- Modify: `erpnext/vi_tri_kho/vitri/hook_sle.py` (hàm `_ghi_mot_phan`, khoảng dòng 161-177)
-- Create: `erpnext/vi_tri_kho/tests/test_lay_hang.py`
+- Create: `erpnext/warehouse_operations/vitri/lay_hang.py`
+- Modify: `erpnext/warehouse_operations/vitri/hook_sle.py` (hàm `_ghi_mot_phan`, khoảng dòng 161-177)
+- Create: `erpnext/warehouse_operations/tests/test_lay_hang.py`
 
 **Interfaces:**
 - Consumes: doctype `Location Allocation`, field `Delivery Note.custom_phan_bo_vi_tri` (Task 1).
@@ -203,7 +203,7 @@ git commit -m "feat(vi_tri_kho): bảng phân bổ vị trí Location Allocation
 
 - [ ] **Step 1: Viết bài test đỏ**
 
-Tạo `erpnext/vi_tri_kho/tests/test_lay_hang.py`:
+Tạo `erpnext/warehouse_operations/tests/test_lay_hang.py`:
 
 ```python
 """Lấy hàng theo phân bổ — sổ vị trí phải trừ ĐÚNG ô thủ kho đã quét.
@@ -217,7 +217,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import nowdate
 
-from erpnext.vi_tri_kho.vitri import so
+from erpnext.warehouse_operations.vitri import so
 
 KHO = "Kho Miyano - MYN"
 CTY = "Miyano Việt Nam"
@@ -408,7 +408,7 @@ class TestGhiSoTheoPhanBo(FrappeTestCase):
 
 - [ ] **Step 2: Chạy để thấy đỏ**
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lay_hang`
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lay_hang`
 Chờ: FAILED — bài `test_ghi_so_theo_o_da_phan_bo...` đỏ vì sổ ghi vào `O_GAN` (FEFO) chứ không phải `O_XA`.
 
 - [ ] **Step 3: Viết `vitri/lay_hang.py` (phần đọc phân bổ)**
@@ -473,7 +473,7 @@ def tong_phan_bo(dong: list[dict]) -> float:
 
 - [ ] **Step 4: Mở nhánh trong hook**
 
-Trong `erpnext/vi_tri_kho/vitri/hook_sle.py`, thay thân `_ghi_mot_phan` (dòng 161-177) bằng:
+Trong `erpnext/warehouse_operations/vitri/hook_sle.py`, thay thân `_ghi_mot_phan` (dòng 161-177) bằng:
 
 ```python
 def _ghi_mot_phan(sle, so_lo, so_luong):
@@ -542,16 +542,16 @@ def _phan_bo_da_khai(sle, so_lo, can_xuat) -> list[dict] | None:
 	return [{"o": d["o"], "so_luong": -flt(d["so_luong"])} for d in dong]
 ```
 
-Thêm import ở đầu `hook_sle.py` (cạnh các import `from erpnext.vi_tri_kho.vitri...` sẵn có):
+Thêm import ở đầu `hook_sle.py` (cạnh các import `from erpnext.warehouse_operations.vitri...` sẵn có):
 
 ```python
-from erpnext.vi_tri_kho.vitri.lay_hang import phan_bo_cua_dong, tong_phan_bo
-from erpnext.vi_tri_kho.vitri.nhat_ky_loi import cat_tieu_de
+from erpnext.warehouse_operations.vitri.lay_hang import phan_bo_cua_dong, tong_phan_bo
+from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
 ```
 
 - [ ] **Step 5: Chạy lại bài của task**
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lay_hang`
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lay_hang`
 Chờ: `OK` (5 bài).
 
 - [ ] **Step 6: Chạy CẢ BỘ để chắc đường cũ không đổi**
@@ -560,7 +560,7 @@ Chạy từng module một (bench không cho chạy cả thư mục):
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
-for f in apps/erpnext/erpnext/vi_tri_kho/tests/test_*.py apps/erpnext/erpnext/vi_tri_kho/doctype/*/test_*.py apps/erpnext/erpnext/vi_tri_kho/report/*/test_*.py; do
+for f in apps/erpnext/erpnext/warehouse_operations/tests/test_*.py apps/erpnext/erpnext/warehouse_operations/doctype/*/test_*.py apps/erpnext/erpnext/warehouse_operations/report/*/test_*.py; do
   [ -f "$f" ] || continue
   m=$(echo ${f#apps/erpnext/} | sed 's/\.py$//; s#/#.#g')
   out=$(bench --site erptest.local run-tests --module $m 2>&1)
@@ -573,7 +573,7 @@ Chờ: không dòng `FAILED:` nào.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/vitri/lay_hang.py erpnext/vi_tri_kho/vitri/hook_sle.py erpnext/vi_tri_kho/tests/test_lay_hang.py
+git add erpnext/warehouse_operations/vitri/lay_hang.py erpnext/warehouse_operations/vitri/hook_sle.py erpnext/warehouse_operations/tests/test_lay_hang.py
 git commit -m "feat(vi_tri_kho): hook ghi sổ theo bảng phân bổ, lệch tổng thì chặn"
 ```
 
@@ -582,9 +582,9 @@ git commit -m "feat(vi_tri_kho): hook ghi sổ theo bảng phân bổ, lệch t�
 ### Task 3: Lớp kiểm sớm trên phiếu giao
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/vitri/lay_hang.py` (thêm `kiem_phan_bo_khi_luu`)
+- Modify: `erpnext/warehouse_operations/vitri/lay_hang.py` (thêm `kiem_phan_bo_khi_luu`)
 - Modify: `erpnext/hooks.py` (khối `doc_events` → khoá `"Delivery Note"` ĐÃ CÓ, thêm `validate`)
-- Modify: `erpnext/vi_tri_kho/tests/test_lay_hang.py` (thêm lớp `TestKiemSom`)
+- Modify: `erpnext/warehouse_operations/tests/test_lay_hang.py` (thêm lớp `TestKiemSom`)
 
 **Interfaces:**
 - Consumes: `phan_bo_cua_dong`, `TEN_BANG_PHAN_BO` (Task 2).
@@ -592,7 +592,7 @@ git commit -m "feat(vi_tri_kho): hook ghi sổ theo bảng phân bổ, lệch t�
 
 - [ ] **Step 1: Viết bài test đỏ**
 
-Thêm vào cuối `erpnext/vi_tri_kho/tests/test_lay_hang.py`:
+Thêm vào cuối `erpnext/warehouse_operations/tests/test_lay_hang.py`:
 
 ```python
 class TestKiemSom(FrappeTestCase):
@@ -654,12 +654,12 @@ class TestKiemSom(FrappeTestCase):
 
 - [ ] **Step 2: Chạy để thấy đỏ**
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lay_hang`
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lay_hang`
 Chờ: FAILED — các bài `TestKiemSom` không thấy lỗi nào được ném ra.
 
 - [ ] **Step 3: Viết phép kiểm**
 
-Thêm vào `erpnext/vi_tri_kho/vitri/lay_hang.py`:
+Thêm vào `erpnext/warehouse_operations/vitri/lay_hang.py`:
 
 ```python
 def kiem_phan_bo_khi_luu(doc, method=None):
@@ -746,7 +746,7 @@ def kiem_phan_bo_khi_luu(doc, method=None):
 Thêm vào đầu file (cạnh các import sẵn có):
 
 ```python
-from erpnext.vi_tri_kho.vitri.so import ton_o
+from erpnext.warehouse_operations.vitri.so import ton_o
 
 _SAI_SO = 1e-9
 ```
@@ -757,7 +757,7 @@ Trong `erpnext/hooks.py`, khối `doc_events` ĐÃ CÓ khoá `"Delivery Note"` (
 
 ```python
 	"Delivery Note": {
-		"validate": "erpnext.vi_tri_kho.vitri.lay_hang.kiem_phan_bo_khi_luu",
+		"validate": "erpnext.warehouse_operations.vitri.lay_hang.kiem_phan_bo_khi_luu",
 		"before_cancel": "erpnext.einvoice.builder.before_delivery_note_cancel",
 		"on_cancel": "erpnext.einvoice.builder.on_delivery_note_cancel",
 	},
@@ -765,13 +765,13 @@ Trong `erpnext/hooks.py`, khối `doc_events` ĐÃ CÓ khoá `"Delivery Note"` (
 
 - [ ] **Step 5: Chạy lại bài của task**
 
-Chạy: `bench --site erptest.local clear-cache && bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lay_hang`
+Chạy: `bench --site erptest.local clear-cache && bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lay_hang`
 Chờ: `OK` (11 bài).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/vitri/lay_hang.py erpnext/hooks.py erpnext/vi_tri_kho/tests/test_lay_hang.py
+git add erpnext/warehouse_operations/vitri/lay_hang.py erpnext/hooks.py erpnext/warehouse_operations/tests/test_lay_hang.py
 git commit -m "feat(vi_tri_kho): kiểm phân bổ vị trí ngay khi lưu phiếu giao nháp"
 ```
 
@@ -780,8 +780,8 @@ git commit -m "feat(vi_tri_kho): kiểm phân bổ vị trí ngay khi lưu phi�
 ### Task 4: Máy chủ cho trang PDA — phần ĐỌC
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/vitri/lay_hang.py`
-- Modify: `erpnext/vi_tri_kho/tests/test_lay_hang.py` (thêm lớp `TestDocChoTrang`)
+- Modify: `erpnext/warehouse_operations/vitri/lay_hang.py`
+- Modify: `erpnext/warehouse_operations/tests/test_lay_hang.py` (thêm lớp `TestDocChoTrang`)
 
 **Interfaces:**
 - Consumes: `phan_bo_cua_dong`, `VAI_TRO_DUOC_LAY`.
@@ -792,7 +792,7 @@ git commit -m "feat(vi_tri_kho): kiểm phân bổ vị trí ngay khi lưu phi�
 
 - [ ] **Step 1: Viết bài test đỏ**
 
-Thêm vào `erpnext/vi_tri_kho/tests/test_lay_hang.py`:
+Thêm vào `erpnext/warehouse_operations/tests/test_lay_hang.py`:
 
 ```python
 class TestDocChoTrang(FrappeTestCase):
@@ -814,7 +814,7 @@ class TestDocChoTrang(FrappeTestCase):
 		frappe.db.rollback(save_point=DIEM_TEST)
 
 	def test_danh_sach_hien_phieu_nhap_va_tien_do(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import danh_sach_phieu_giao
+		from erpnext.warehouse_operations.vitri.lay_hang import danh_sach_phieu_giao
 
 		ds = {d["name"]: d for d in danh_sach_phieu_giao(KHO)}
 		self.assertIn(self.dn.name, ds)
@@ -822,7 +822,7 @@ class TestDocChoTrang(FrappeTestCase):
 		self.assertEqual(ds[self.dn.name]["da_lay"], 0.0)
 
 	def test_mo_phieu_ra_o_nen_lay_theo_fefo(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import mo_phieu_giao
+		from erpnext.warehouse_operations.vitri.lay_hang import mo_phieu_giao
 
 		p = mo_phieu_giao(self.dn.name)
 		self.assertEqual(len(p["dong"]), 1)
@@ -832,14 +832,14 @@ class TestDocChoTrang(FrappeTestCase):
 		self.assertEqual([o["o"] for o in d["o_nen_lay"]], [O_GAN])
 
 	def test_quet_lo_cua_phieu_va_quet_o(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+		from erpnext.warehouse_operations.vitri.lay_hang import quet_de_lay
 
 		self.assertEqual(quet_de_lay(self.dn.name, LO)["loai"], "lo")
 		self.assertEqual(quet_de_lay(self.dn.name, O_GAN)["loai"], "o")
 		self.assertEqual(quet_de_lay(self.dn.name, "9L-KHONG-CO-GI")["loai"], None)
 
 	def test_quet_lo_khac_cung_mat_hang_bao_loai_lo_khac_kem_hsd(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import quet_de_lay
+		from erpnext.warehouse_operations.vitri.lay_hang import quet_de_lay
 
 		lo_khac = "9L-LO-LAY-02"
 		if not frappe.db.exists("Batch", lo_khac):
@@ -854,7 +854,7 @@ class TestDocChoTrang(FrappeTestCase):
 		self.assertTrue(kq["han_xa_hon"], "lô 2030 xa hơn lô 2029 của phiếu")
 
 	def test_khong_co_vai_tro_kho_thi_bi_chan(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import danh_sach_phieu_giao
+		from erpnext.warehouse_operations.vitri.lay_hang import danh_sach_phieu_giao
 
 		ten = "lay-hang-khong-quyen@mo-phong.local"
 		if not frappe.db.exists("User", ten):
@@ -868,12 +868,12 @@ class TestDocChoTrang(FrappeTestCase):
 
 - [ ] **Step 2: Chạy để thấy đỏ**
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lay_hang`
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lay_hang`
 Chờ: FAILED — `ImportError: cannot import name 'danh_sach_phieu_giao'`.
 
 - [ ] **Step 3: Viết phần đọc**
 
-Thêm vào `erpnext/vi_tri_kho/vitri/lay_hang.py`:
+Thêm vào `erpnext/warehouse_operations/vitri/lay_hang.py`:
 
 ```python
 def _kiem_tra_quyen():
@@ -984,7 +984,7 @@ def quet_de_lay(phieu: str, ma: str) -> dict:
 	Quét nhầm không bao giờ nổ — cùng lời hứa `quet.py`.
 	"""
 	from erpnext.stock.utils import scan_barcode
-	from erpnext.vi_tri_kho.vitri.quet import _tim_o
+	from erpnext.warehouse_operations.vitri.quet import _tim_o
 
 	_kiem_tra_quyen()
 	ma = (ma or "").strip()
@@ -1035,19 +1035,19 @@ def quet_de_lay(phieu: str, ma: str) -> dict:
 Thêm import ở đầu file:
 
 ```python
-from erpnext.vi_tri_kho.vitri.fefo import chon_o_xuat
-from erpnext.vi_tri_kho.vitri.nhat_ky_loi import cat_tieu_de
+from erpnext.warehouse_operations.vitri.fefo import chon_o_xuat
+from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
 ```
 
 - [ ] **Step 4: Chạy lại bài của task**
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lay_hang`
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lay_hang`
 Chờ: `OK` (17 bài).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/vitri/lay_hang.py erpnext/vi_tri_kho/tests/test_lay_hang.py
+git add erpnext/warehouse_operations/vitri/lay_hang.py erpnext/warehouse_operations/tests/test_lay_hang.py
 git commit -m "feat(vi_tri_kho): API đọc cho trang lấy hàng (danh sách, mở phiếu, quét)"
 ```
 
@@ -1056,8 +1056,8 @@ git commit -m "feat(vi_tri_kho): API đọc cho trang lấy hàng (danh sách, m
 ### Task 5: Máy chủ cho trang PDA — phần GHI
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/vitri/lay_hang.py`
-- Modify: `erpnext/vi_tri_kho/tests/test_lay_hang.py` (thêm lớp `TestGhiChoTrang`)
+- Modify: `erpnext/warehouse_operations/vitri/lay_hang.py`
+- Modify: `erpnext/warehouse_operations/tests/test_lay_hang.py` (thêm lớp `TestGhiChoTrang`)
 
 **Interfaces:**
 - Consumes: mọi thứ của Task 4.
@@ -1070,7 +1070,7 @@ git commit -m "feat(vi_tri_kho): API đọc cho trang lấy hàng (danh sách, m
 
 - [ ] **Step 1: Viết bài test đỏ**
 
-Thêm vào `erpnext/vi_tri_kho/tests/test_lay_hang.py`:
+Thêm vào `erpnext/warehouse_operations/tests/test_lay_hang.py`:
 
 ```python
 class TestGhiChoTrang(FrappeTestCase):
@@ -1091,7 +1091,7 @@ class TestGhiChoTrang(FrappeTestCase):
 		frappe.db.rollback(save_point=DIEM_TEST)
 
 	def test_ghi_da_lay_luu_ngay_len_phieu(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay
+		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay
 
 		p = ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 5)
 		self.assertEqual(p["dong"][0]["da_lay"], 5.0)
@@ -1100,7 +1100,7 @@ class TestGhiChoTrang(FrappeTestCase):
 		self.assertEqual(doc.custom_phan_bo_vi_tri[0].nguoi_lay, frappe.session.user)
 
 	def test_quet_lai_cung_o_thi_cong_don(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay
+		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay
 
 		ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 5)
 		p = ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 3)
@@ -1108,7 +1108,7 @@ class TestGhiChoTrang(FrappeTestCase):
 		self.assertEqual(p["dong"][0]["da_lay"], 8.0)
 
 	def test_bo_dong_da_lay(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import bo_dong_da_lay, ghi_da_lay
+		from erpnext.warehouse_operations.vitri.lay_hang import bo_dong_da_lay, ghi_da_lay
 
 		p = ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 5)
 		ten = p["dong"][0]["da_lay_o"][0]["name"]
@@ -1116,7 +1116,7 @@ class TestGhiChoTrang(FrappeTestCase):
 		self.assertEqual(p2["dong"][0]["da_lay"], 0.0)
 
 	def test_doi_lo_sua_dong_phieu_giao(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import doi_lo
+		from erpnext.warehouse_operations.vitri.lay_hang import doi_lo
 
 		lo2 = "9L-LO-LAY-03"
 		if not frappe.db.exists("Batch", lo2):
@@ -1127,7 +1127,7 @@ class TestGhiChoTrang(FrappeTestCase):
 		self.assertEqual(frappe.db.get_value("Delivery Note Item", self.dong, "batch_no"), lo2)
 
 	def test_hoan_tat_duyet_phieu_va_tru_dung_o(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay, hoan_tat
+		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay, hoan_tat
 
 		ghi_da_lay(self.dn.name, self.dong, LO, O_XA, 10)
 		ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 2)
@@ -1139,7 +1139,7 @@ class TestGhiChoTrang(FrappeTestCase):
 		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 18.0)
 
 	def test_chot_thieu_ha_so_luong_dong_va_ghi_chu(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import chot_thieu, ghi_da_lay, hoan_tat
+		from erpnext.warehouse_operations.vitri.lay_hang import chot_thieu, ghi_da_lay, hoan_tat
 
 		ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 7)
 		chot_thieu(self.dn.name, self.dong)
@@ -1151,7 +1151,7 @@ class TestGhiChoTrang(FrappeTestCase):
 		self.assertEqual(so.ton_o(O_GAN, ITEM, LO), 13.0)
 
 	def test_hoan_tat_khi_chua_lay_du_bi_chan(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay, hoan_tat
+		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay, hoan_tat
 
 		ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 5)
 		with self.assertRaisesRegex(frappe.ValidationError, "chưa lấy đủ"):
@@ -1160,7 +1160,7 @@ class TestGhiChoTrang(FrappeTestCase):
 
 	def test_duyet_hong_thi_phieu_con_nhap(self):
 		"""Ai đó chuyển hàng khỏi ô sau khi đã quét — duyệt phải hỏng mà không mất phân bổ."""
-		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay, hoan_tat
+		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay, hoan_tat
 
 		ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 12)
 		_chuyen_vao_o_khac = frappe.get_doc(
@@ -1185,12 +1185,12 @@ class TestGhiChoTrang(FrappeTestCase):
 
 - [ ] **Step 2: Chạy để thấy đỏ**
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lay_hang`
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lay_hang`
 Chờ: FAILED — `ImportError: cannot import name 'ghi_da_lay'`.
 
 - [ ] **Step 3: Viết phần ghi**
 
-Thêm vào `erpnext/vi_tri_kho/vitri/lay_hang.py`:
+Thêm vào `erpnext/warehouse_operations/vitri/lay_hang.py`:
 
 ```python
 def _dong_cua(doc, dong_hang):
@@ -1376,19 +1376,19 @@ from frappe.utils import flt, now
 
 - [ ] **Step 4: Chạy lại bài của task**
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lay_hang`
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lay_hang`
 Chờ: `OK` (25 bài).
 
 - [ ] **Step 5: Đột biến — chứng minh savepoint chịu lực**
 
 Tạm bỏ dòng `frappe.db.rollback(save_point=diem)` trong `hoan_tat`, chạy
-`bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lay_hang --test test_duyet_hong_thi_phieu_con_nhap`
+`bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lay_hang --test test_duyet_hong_thi_phieu_con_nhap`
 Chờ: FAILED. Khôi phục lại dòng đó rồi chạy lại: `OK`.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/vitri/lay_hang.py erpnext/vi_tri_kho/tests/test_lay_hang.py
+git add erpnext/warehouse_operations/vitri/lay_hang.py erpnext/warehouse_operations/tests/test_lay_hang.py
 git commit -m "feat(vi_tri_kho): API ghi cho trang lấy hàng (quét, đổi lô, chốt thiếu, hoàn tất)"
 ```
 
@@ -1397,8 +1397,8 @@ git commit -m "feat(vi_tri_kho): API ghi cho trang lấy hàng (quét, đổi l�
 ### Task 6: Tách dòng phiếu giao khi một dòng lấy từ hai lô
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/vitri/lay_hang.py`
-- Modify: `erpnext/vi_tri_kho/tests/test_lay_hang.py` (thêm vào lớp `TestGhiChoTrang`)
+- Modify: `erpnext/warehouse_operations/vitri/lay_hang.py`
+- Modify: `erpnext/warehouse_operations/tests/test_lay_hang.py` (thêm vào lớp `TestGhiChoTrang`)
 
 **Interfaces:**
 - Consumes: `ghi_da_lay`, `doi_lo`, `mo_phieu_giao` (Task 4, 5).
@@ -1408,12 +1408,12 @@ git commit -m "feat(vi_tri_kho): API ghi cho trang lấy hàng (quét, đổi l�
 
 - [ ] **Step 1: Viết bài test đỏ**
 
-Thêm vào lớp `TestGhiChoTrang` trong `erpnext/vi_tri_kho/tests/test_lay_hang.py`:
+Thêm vào lớp `TestGhiChoTrang` trong `erpnext/warehouse_operations/tests/test_lay_hang.py`:
 
 ```python
 	def test_tach_dong_khi_lay_tu_hai_lo(self):
 		"""Lô cũ chỉ còn 8/12 → tách: dòng cũ 8 lô cũ, dòng mới 4 lô mới."""
-		from erpnext.vi_tri_kho.vitri.lay_hang import ghi_da_lay, hoan_tat, tach_dong_theo_lo
+		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay, hoan_tat, tach_dong_theo_lo
 
 		lo2 = "9L-LO-LAY-04"
 		if not frappe.db.exists("Batch", lo2):
@@ -1440,7 +1440,7 @@ Thêm vào lớp `TestGhiChoTrang` trong `erpnext/vi_tri_kho/tests/test_lay_hang
 
 	def test_tach_dong_khi_chua_lay_gi_thi_bi_chan(self):
 		"""Chưa lấy được gì của lô cũ thì đó là ĐỔI LÔ, không phải tách."""
-		from erpnext.vi_tri_kho.vitri.lay_hang import tach_dong_theo_lo
+		from erpnext.warehouse_operations.vitri.lay_hang import tach_dong_theo_lo
 
 		with self.assertRaisesRegex(frappe.ValidationError, "chưa lấy được gì"):
 			tach_dong_theo_lo(self.dn.name, self.dong, LO)
@@ -1492,12 +1492,12 @@ def _chuyen_vao_o_lo(so_lo, cap):
 
 - [ ] **Step 2: Chạy để thấy đỏ**
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lay_hang`
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lay_hang`
 Chờ: FAILED — `ImportError: cannot import name 'tach_dong_theo_lo'`.
 
 - [ ] **Step 3: Viết hàm tách dòng**
 
-Thêm vào `erpnext/vi_tri_kho/vitri/lay_hang.py`:
+Thêm vào `erpnext/warehouse_operations/vitri/lay_hang.py`:
 
 ```python
 @frappe.whitelist()
@@ -1560,13 +1560,13 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 
 - [ ] **Step 4: Chạy lại bài của task**
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_lay_hang`
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_lay_hang`
 Chờ: `OK` (27 bài).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/vitri/lay_hang.py erpnext/vi_tri_kho/tests/test_lay_hang.py
+git add erpnext/warehouse_operations/vitri/lay_hang.py erpnext/warehouse_operations/tests/test_lay_hang.py
 git commit -m "feat(vi_tri_kho): tách dòng phiếu giao khi một dòng lấy từ hai lô"
 ```
 
@@ -1575,20 +1575,20 @@ git commit -m "feat(vi_tri_kho): tách dòng phiếu giao khi một dòng lấy 
 ### Task 7: Trang PDA `lay-hang-pda`
 
 **Files:**
-- Create: `erpnext/vi_tri_kho/page/lay_hang_pda/__init__.py`
-- Create: `erpnext/vi_tri_kho/page/lay_hang_pda/lay_hang_pda.json`
-- Create: `erpnext/vi_tri_kho/page/lay_hang_pda/lay_hang_pda.js`
-- Create: `erpnext/vi_tri_kho/page/lay_hang_pda/lay_hang_pda.css`
-- Modify: `erpnext/vi_tri_kho/workspace/vị_trí_kho/vị_trí_kho.json`
-- Modify: `erpnext/vi_tri_kho/tests/test_giao_dien.py`
+- Create: `erpnext/warehouse_operations/page/lay_hang_pda/__init__.py`
+- Create: `erpnext/warehouse_operations/page/lay_hang_pda/lay_hang_pda.json`
+- Create: `erpnext/warehouse_operations/page/lay_hang_pda/lay_hang_pda.js`
+- Create: `erpnext/warehouse_operations/page/lay_hang_pda/lay_hang_pda.css`
+- Modify: `erpnext/warehouse_operations/workspace/vị_trí_kho/vị_trí_kho.json`
+- Modify: `erpnext/warehouse_operations/tests/test_giao_dien.py`
 
 **Interfaces:**
-- Consumes: mọi hàm `@frappe.whitelist()` của Task 4, 5 và 6; `erpnext.vi_tri_kho.OQuet` từ `/assets/erpnext/js/vi_tri_kho/o_quet.js`.
+- Consumes: mọi hàm `@frappe.whitelist()` của Task 4, 5 và 6; `erpnext.warehouse_operations.OQuet` từ `/assets/erpnext/js/warehouse_operations/o_quet.js`.
 - Produces: Page `lay-hang-pda` (vai trò `System Manager`, `Stock Manager`, `Stock User`).
 
 - [ ] **Step 1: Viết bài test đỏ**
 
-Trong `erpnext/vi_tri_kho/tests/test_giao_dien.py`, thêm ở cuối file (lớp cha `TestTrangQuetMa` đã được tham số hoá sẵn cho việc này):
+Trong `erpnext/warehouse_operations/tests/test_giao_dien.py`, thêm ở cuối file (lớp cha `TestTrangQuetMa` đã được tham số hoá sẵn cho việc này):
 
 ```python
 class TestTrangLayHang(TestTrangQuetMa):
@@ -1600,21 +1600,21 @@ class TestTrangLayHang(TestTrangQuetMa):
 	THU_MUC = "lay_hang_pda"
 
 	def _vai_tro_may_chu(self):
-		from erpnext.vi_tri_kho.vitri.lay_hang import VAI_TRO_DUOC_LAY
+		from erpnext.warehouse_operations.vitri.lay_hang import VAI_TRO_DUOC_LAY
 
 		return VAI_TRO_DUOC_LAY
 ```
 
 - [ ] **Step 2: Chạy để thấy đỏ**
 
-Chạy: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_giao_dien`
+Chạy: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_giao_dien`
 Chờ: FAILED — `Page lay-hang-pda` chưa có.
 
 - [ ] **Step 3: Tạo Page**
 
-`erpnext/vi_tri_kho/page/lay_hang_pda/__init__.py`: rỗng.
+`erpnext/warehouse_operations/page/lay_hang_pda/__init__.py`: rỗng.
 
-`erpnext/vi_tri_kho/page/lay_hang_pda/lay_hang_pda.json`:
+`erpnext/warehouse_operations/page/lay_hang_pda/lay_hang_pda.json`:
 
 ```json
 {
@@ -1626,7 +1626,7 @@ Chờ: FAILED — `Page lay-hang-pda` chưa có.
  "idx": 0,
  "modified": "2026-09-18 00:00:00",
  "modified_by": "Administrator",
- "module": "Vi Tri Kho",
+ "module": "Warehouse Operations",
  "name": "lay-hang-pda",
  "owner": "Administrator",
  "page_name": "lay-hang-pda",
@@ -1659,8 +1659,8 @@ Khuôn lấy nguyên từ `xep_hang_pda.js` (IIFE, `OQuet`, hộp hỏi chỉ nh
 //
 // Bọc IIFE và KHÔNG dùng `frappe.confirm` — xem `xep_hang_pda.js` để biết vì sao.
 (function () {
-	const O_QUET = ["/assets/erpnext/js/vi_tri_kho/o_quet.js", "/assets/erpnext/js/vi_tri_kho/o_quet.css"];
-	const API = "erpnext.vi_tri_kho.vitri.lay_hang.";
+	const O_QUET = ["/assets/erpnext/js/warehouse_operations/o_quet.js", "/assets/erpnext/js/warehouse_operations/o_quet.css"];
+	const API = "erpnext.warehouse_operations.vitri.lay_hang.";
 
 	frappe.pages["lay-hang-pda"].on_page_load = function (wrapper) {
 		const page = frappe.ui.make_app_page({ parent: wrapper, title: __("Lấy hàng"), single_column: true });
@@ -1702,7 +1702,7 @@ khuôn `XepHangPda` (cùng lớp CSS, đổi tiền tố `.xh-` → `.lh-`):
 				</div>
 			`).appendTo(this.page.main);
 
-			this.o_quet = new erpnext.vi_tri_kho.OQuet({
+			this.o_quet = new erpnext.warehouse_operations.OQuet({
 				cha: this.$goc.find(".lh-cho-o-quet"),
 				vung: this.$goc,
 				placeholder: __("Quét tem…"),
@@ -1885,7 +1885,7 @@ Chép khuôn `xep_hang_pda.css`, đổi tiền tố `.xh-` → `.lh-`, giữ ngu
 cd /home/hoangvietyeuem/frappe-bench-yhct/apps/erpnext
 python3 - <<'PY'
 import json
-p="erpnext/vi_tri_kho/workspace/vị_trí_kho/vị_trí_kho.json"
+p="erpnext/warehouse_operations/workspace/vị_trí_kho/vị_trí_kho.json"
 d=json.load(open(p))
 d["shortcuts"].insert(2, {"color":"Pink","doc_view":"","label":"Lấy hàng","link_to":"lay-hang-pda","type":"Page"})
 c=json.loads(d["content"])
@@ -1898,20 +1898,20 @@ d["links"].insert(3, {"hidden":0,"is_query_report":0,"label":"Lấy hàng","link
 d["modified"]="2026-09-18 23:00:00.000000"
 open(p,"w").write(json.dumps(d,indent=1))
 PY
-truncate -s -1 "erpnext/vi_tri_kho/workspace/vị_trí_kho/vị_trí_kho.json"
+truncate -s -1 "erpnext/warehouse_operations/workspace/vị_trí_kho/vị_trí_kho.json"
 ```
 
 (JSON phải giữ `ensure_ascii=True` mặc định và **không có newline cuối** — file gốc như vậy, đổi đi thì diff phình ra vô nghĩa.)
 
 - [ ] **Step 7: Migrate và chạy lại bài giao diện**
 
-Chạy: `bench --site erptest.local migrate && bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_giao_dien`
+Chạy: `bench --site erptest.local migrate && bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_giao_dien`
 Chờ: `OK` (31 bài).
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add erpnext/vi_tri_kho/page/lay_hang_pda erpnext/vi_tri_kho/workspace erpnext/vi_tri_kho/tests/test_giao_dien.py
+git add erpnext/warehouse_operations/page/lay_hang_pda erpnext/warehouse_operations/workspace erpnext/warehouse_operations/tests/test_giao_dien.py
 git commit -m "feat(vi_tri_kho): trang Lấy hàng cho PDA"
 ```
 
@@ -1921,8 +1921,8 @@ git commit -m "feat(vi_tri_kho): trang Lấy hàng cho PDA"
 
 **Files:**
 - Create: `<scratchpad>/t21/kiem_lay_hang.js` (không vào repo)
-- Modify: `docs/vi_tri_kho/HDSD-quan-ly-vi-tri-kho.md` (thêm mục 14)
-- Modify: `docs/vi_tri_kho/HDSD-luong-tu-A-den-Z.md` (bước 9)
+- Modify: `docs/warehouse_operations/HDSD-quan-ly-vi-tri-kho.md` (thêm mục 14)
+- Modify: `docs/warehouse_operations/HDSD-luong-tu-A-den-Z.md` (bước 9)
 
 **Interfaces:**
 - Consumes: trang `lay-hang-pda`.
@@ -1983,7 +1983,7 @@ Dùng vòng lặp ở Task 2 Step 6. Chờ: 35/35 module xanh (34 cũ + `test_la
 - [ ] **Step 6: Commit**
 
 ```bash
-git add docs/vi_tri_kho/HDSD-quan-ly-vi-tri-kho.md docs/vi_tri_kho/HDSD-luong-tu-A-den-Z.md
+git add docs/warehouse_operations/HDSD-quan-ly-vi-tri-kho.md docs/warehouse_operations/HDSD-luong-tu-A-den-Z.md
 git commit -m "docs(vi_tri_kho): HDSD màn hình lấy hàng PDA"
 ```
 

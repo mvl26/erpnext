@@ -1,7 +1,7 @@
 """Dọn `Storage Location.loai_vi_tri` còn giá trị không hợp lệ.
 
 "Cách ly" và "Trả hàng" bị bỏ khỏi danh sách lựa chọn: không chỗ nào trong
-`vi_tri_kho/vitri/` đọc trường này, nên hàng ở một ô đánh dấu "Cách ly" vẫn
+`warehouse_operations/vitri/` đọc trường này, nên hàng ở một ô đánh dấu "Cách ly" vẫn
 bị FEFO chọn ra để xuất bán — đúng nghĩa một nhãn an toàn giả. Cách ly thật
 là ranh giới TỒN KHO, nên nó phải là một `Warehouse` (xem spec
 2026-09-11 §3). Để giá trị cũ nằm lại là tiếp tục quảng cáo điều không có.

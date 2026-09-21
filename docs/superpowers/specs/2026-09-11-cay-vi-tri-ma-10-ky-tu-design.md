@@ -2,7 +2,7 @@
 
 Ngày: 2026-09-11
 Trạng thái: chờ chủ dự án duyệt
-Phạm vi: module `Vi Tri Kho` trong app `erpnext` (`erpnext/vi_tri_kho/`)
+Phạm vi: module `Vi Tri Kho` trong app `erpnext` (`erpnext/warehouse_operations/`)
 Thay thế: mục §5.1 và §5.8 của `2026-09-09-miyano-wms-vi-tri-kho-design.md`
 
 > Tài liệu này **không** viết lại toàn bộ thiết kế. Nền tảng — một móc

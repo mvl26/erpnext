@@ -13,9 +13,9 @@
 ## Global Constraints
 
 - Bench root là `/home/hoangvietyeuem/frappe-bench-yhct`, site là **`erptest.local`** (không phải `miyano` như CLAUDE.md viết — CLAUDE.md tả máy của đội, không phải máy này).
-- Chạy test: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.<tên>`. **KHÔNG** dùng `--app erpnext` (kéo theo hàng nghìn bài upstream).
+- Chạy test: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.<tên>`. **KHÔNG** dùng `--app erpnext` (kéo theo hàng nghìn bài upstream).
 - **Chỉ chạy MỘT bộ test tại một thời điểm.** Mọi site dùng chung một CSDL; hai bộ chạy song song làm test đỏ giả. Dấu hiệu: module đỏ mà không có số bài.
-- Style: **thụt đầu dòng bằng TAB**, dòng ≤ 110 ký tự, nháy kép. Kiểm bằng `ruff` (venv tạm `/tmp/.ruffvenv/bin/ruff`, repo không cài sẵn): `ruff check erpnext/vi_tri_kho/` và `ruff format erpnext/vi_tri_kho/`.
+- Style: **thụt đầu dòng bằng TAB**, dòng ≤ 110 ký tự, nháy kép. Kiểm bằng `ruff` (venv tạm `/tmp/.ruffvenv/bin/ruff`, repo không cài sẵn): `ruff check erpnext/warehouse_operations/` và `ruff format erpnext/warehouse_operations/`.
 - Trước mỗi commit: `python3 -m scripts.file_structure --audit` phải ra **0 vi phạm**. Nó chạy `git ls-files` nên phải `git add` trước, không thì không thấy file mới.
 - Patch mới đặt ở `erpnext/patches/v15_0/<động_từ>_<danh_từ>.py` và thêm một dòng vào `erpnext/patches.txt`.
 - Thông báo lỗi bằng **tiếng Việt**, không lộ traceback. Mọi `@frappe.whitelist()` phải kiểm quyền tường minh.
@@ -29,16 +29,16 @@
 
 | File | Trách nhiệm | Task |
 |---|---|---|
-| `erpnext/vi_tri_kho/vitri/ma_vi_tri.py` | Nguồn sự thật DUY NHẤT của quy tắc mã: regex theo cấp, tách thành phần, dựng chuỗi in tem, suy ra mã cha | 1, 2 |
-| `erpnext/vi_tri_kho/doctype/storage_location/storage_location.json` | Schema: cây, các trường thành phần, `loai_vi_tri` | 2, 7 |
+| `erpnext/warehouse_operations/vitri/ma_vi_tri.py` | Nguồn sự thật DUY NHẤT của quy tắc mã: regex theo cấp, tách thành phần, dựng chuỗi in tem, suy ra mã cha | 1, 2 |
+| `erpnext/warehouse_operations/doctype/storage_location/storage_location.json` | Schema: cây, các trường thành phần, `loai_vi_tri` | 2, 7 |
 | `.../storage_location.py` | Cưỡng chế định dạng theo cấp, suy cha, tự tạo tổ tiên | 2 |
-| `erpnext/vi_tri_kho/vitri/sinh_ma.py` | Sinh mã hàng loạt; tạo nút nhóm trước, ô lá sau | 1, 2 |
-| `erpnext/vi_tri_kho/vitri/so.py` | Ghi sổ; chặn ghi vào nút nhóm | 3 |
-| `erpnext/vi_tri_kho/vitri/fefo.py` | Chọn ô khi xuất; thừa kế `disabled`; phạm vi | 4, 5 |
-| `erpnext/vi_tri_kho/report/ton_kho_theo_vi_tri/` | Báo cáo tồn dạng cây, gộp theo cấp | 6 |
+| `erpnext/warehouse_operations/vitri/sinh_ma.py` | Sinh mã hàng loạt; tạo nút nhóm trước, ô lá sau | 1, 2 |
+| `erpnext/warehouse_operations/vitri/so.py` | Ghi sổ; chặn ghi vào nút nhóm | 3 |
+| `erpnext/warehouse_operations/vitri/fefo.py` | Chọn ô khi xuất; thừa kế `disabled`; phạm vi | 4, 5 |
+| `erpnext/warehouse_operations/report/ton_kho_theo_vi_tri/` | Báo cáo tồn dạng cây, gộp theo cấp | 6 |
 | `erpnext/patches/v15_0/don_loai_vi_tri_khong_hop_le.py` | Dọn giá trị `loai_vi_tri` không còn hợp lệ | 7 |
-| `erpnext/vi_tri_kho/tests/test_cay_vi_tri.py` | Bài kiểm cho cây (mới) | 2, 3 |
-| `erpnext/vi_tri_kho/tests/test_fefo_pham_vi.py` | Bài kiểm thừa kế `disabled` và phạm vi (mới) | 4, 5 |
+| `erpnext/warehouse_operations/tests/test_cay_vi_tri.py` | Bài kiểm cho cây (mới) | 2, 3 |
+| `erpnext/warehouse_operations/tests/test_fefo_pham_vi.py` | Bài kiểm thừa kế `disabled` và phạm vi (mới) | 4, 5 |
 
 ---
 
@@ -47,11 +47,11 @@
 Đổi độ dài mã là thay đổi **nguyên khối**: `ma_vi_tri.py`, doctype, bộ sinh và toàn bộ mã trong test phải đổi cùng lúc, không có trạng thái trung gian nào xanh được.
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/vitri/ma_vi_tri.py`
-- Modify: `erpnext/vi_tri_kho/doctype/storage_location/storage_location.json` (bỏ trường `ma_kho`)
-- Modify: `erpnext/vi_tri_kho/doctype/storage_location/storage_location.py`
-- Modify: `erpnext/vi_tri_kho/vitri/sinh_ma.py`
-- Test: `erpnext/vi_tri_kho/tests/test_ma_vi_tri.py` (viết lại)
+- Modify: `erpnext/warehouse_operations/vitri/ma_vi_tri.py`
+- Modify: `erpnext/warehouse_operations/doctype/storage_location/storage_location.json` (bỏ trường `ma_kho`)
+- Modify: `erpnext/warehouse_operations/doctype/storage_location/storage_location.py`
+- Modify: `erpnext/warehouse_operations/vitri/sinh_ma.py`
+- Test: `erpnext/warehouse_operations/tests/test_ma_vi_tri.py` (viết lại)
 - Test: quét mã trong 11 file `tests/test_*.py` còn lại
 
 **Interfaces:**
@@ -68,7 +68,7 @@
 
 - [ ] **Step 1: Viết bài kiểm mới cho `ma_vi_tri`**
 
-Viết lại `erpnext/vi_tri_kho/tests/test_ma_vi_tri.py`. Các bài bắt buộc:
+Viết lại `erpnext/warehouse_operations/tests/test_ma_vi_tri.py`. Các bài bắt buộc:
 
 ```python
 	def test_tach_du_nam_thanh_phan(self):
@@ -124,7 +124,7 @@ Viết lại `erpnext/vi_tri_kho/tests/test_ma_vi_tri.py`. Các bài bắt buộ
 
 - [ ] **Step 2: Chạy để thấy đỏ**
 
-Run: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_ma_vi_tri`
+Run: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_ma_vi_tri`
 Expected: FAIL — `ImportError: cannot import name 'cap_do'` và các bài mã 10 ký tự đỏ vì regex còn đòi 12.
 
 - [ ] **Step 3: Viết lại `ma_vi_tri.py`**
@@ -192,7 +192,7 @@ Cập nhật docstring đầu module: mã **10** ký tự, và ghi rõ vì sao b
 
 - [ ] **Step 4: Chạy lại — phải xanh**
 
-Run: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_ma_vi_tri`
+Run: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_ma_vi_tri`
 Expected: PASS.
 
 - [ ] **Step 5: Bỏ trường `ma_kho` khỏi doctype và controller**
@@ -236,9 +236,9 @@ Quy tắc đổi: bỏ 2 ký tự đầu của mọi mã ô trong test — `K19Z
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct
-for f in apps/erpnext/erpnext/vi_tri_kho/tests/test_*.py; do
+for f in apps/erpnext/erpnext/warehouse_operations/tests/test_*.py; do
   m=$(basename $f .py)
-  bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.$m 2>&1 \
+  bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.$m 2>&1 \
     | tr '\r' '\n' | grep -E "^Ran |^OK|^FAILED" | paste -sd' ' - | sed "s|^|  $m  |"
 done
 ```
@@ -248,8 +248,8 @@ Expected: mọi module OK.
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct/apps/erpnext
-/tmp/.ruffvenv/bin/ruff check erpnext/vi_tri_kho/ && /tmp/.ruffvenv/bin/ruff format erpnext/vi_tri_kho/
-git add -A erpnext/vi_tri_kho && python3 -m scripts.file_structure --audit
+/tmp/.ruffvenv/bin/ruff check erpnext/warehouse_operations/ && /tmp/.ruffvenv/bin/ruff format erpnext/warehouse_operations/
+git add -A erpnext/warehouse_operations && python3 -m scripts.file_structure --audit
 ```
 Expected: ruff không báo gì; audit ra `0 vi pham`.
 
@@ -270,10 +270,10 @@ Them cap_do() va ma_cha() lam nen cho cay o Task 2."
 ## Task 2: Cây suy ra từ mã
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/doctype/storage_location/storage_location.json`
-- Modify: `erpnext/vi_tri_kho/doctype/storage_location/storage_location.py`
-- Modify: `erpnext/vi_tri_kho/vitri/sinh_ma.py`
-- Create: `erpnext/vi_tri_kho/tests/test_cay_vi_tri.py`
+- Modify: `erpnext/warehouse_operations/doctype/storage_location/storage_location.json`
+- Modify: `erpnext/warehouse_operations/doctype/storage_location/storage_location.py`
+- Modify: `erpnext/warehouse_operations/vitri/sinh_ma.py`
+- Create: `erpnext/warehouse_operations/tests/test_cay_vi_tri.py`
 
 **Interfaces:**
 - Consumes: `cap_do()`, `ma_cha()`, `TEN_CAP` từ Task 1
@@ -284,7 +284,7 @@ Them cap_do() va ma_cha() lam nen cho cay o Task 2."
 
 - [ ] **Step 1: Viết bài kiểm cho cây**
 
-Tạo `erpnext/vi_tri_kho/tests/test_cay_vi_tri.py`:
+Tạo `erpnext/warehouse_operations/tests/test_cay_vi_tri.py`:
 
 ```python
 """Cây vị trí là HÌNH CHIẾU của mã, không phải dữ liệu độc lập.
@@ -344,7 +344,7 @@ class TestCaySuyTuMa(FrappeTestCase):
 		)
 
 	def test_o_chua_xep_dung_ngoai_cay(self):
-		from erpnext.vi_tri_kho.vitri.bat_kho import tao_o_chua_xep
+		from erpnext.warehouse_operations.vitri.bat_kho import tao_o_chua_xep
 
 		ma = tao_o_chua_xep(KHO)
 		self.assertIsNone(
@@ -366,7 +366,7 @@ class TestCaySuyTuMa(FrappeTestCase):
 
 - [ ] **Step 2: Chạy để thấy đỏ**
 
-Run: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_cay_vi_tri`
+Run: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_cay_vi_tri`
 Expected: FAIL — chưa có `parent_storage_location`, các bài tổ tiên đỏ.
 
 - [ ] **Step 3: Thêm các trường cây vào doctype**
@@ -393,7 +393,7 @@ Trong `storage_location.py`:
 ```python
 from frappe.utils.nestedset import NestedSet
 
-from erpnext.vi_tri_kho.vitri.ma_vi_tri import cap_do, dinh_dang_nhan, ma_cha, phan_tich_ma
+from erpnext.warehouse_operations.vitri.ma_vi_tri import cap_do, dinh_dang_nhan, ma_cha, phan_tich_ma
 
 
 class StorageLocation(NestedSet):
@@ -471,7 +471,7 @@ Trong `sinh_ma.py`, hàm `sinh()`: trước vòng tạo ô lá, tạo tất cả
 
 ```bash
 cd /home/hoangvietyeuem/frappe-bench-yhct && bench --site erptest.local migrate
-bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_cay_vi_tri
+bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_cay_vi_tri
 ```
 Expected: PASS.
 
@@ -480,7 +480,7 @@ Expected: PASS.
 Dùng vòng lặp ở Task 1 Step 8. Sửa các bài đỏ do đổi `is_group` nếu có. Rồi:
 
 ```bash
-git add -A erpnext/vi_tri_kho
+git add -A erpnext/warehouse_operations
 git commit -m "feat(vi_tri_kho): cay vi tri suy ra tu ma
 
 parent_storage_location read_only, validate() tu tinh tu tien to ma va tu
@@ -496,8 +496,8 @@ khai bang tay."
 ## Task 3: Chặn ghi sổ vào nút nhóm
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/vitri/so.py`
-- Test: `erpnext/vi_tri_kho/tests/test_cay_vi_tri.py` (thêm lớp)
+- Modify: `erpnext/warehouse_operations/vitri/so.py`
+- Test: `erpnext/warehouse_operations/tests/test_cay_vi_tri.py` (thêm lớp)
 
 **Interfaces:**
 - Consumes: `is_group` từ Task 2
@@ -513,7 +513,7 @@ class TestKhongGhiSoVaoNutNhom(FrappeTestCase):
 		"""Nếu lọt, báo cáo gộp theo cấp sẽ đếm HAI LẦN cùng một lượng hàng:
 		một lần ở nút nhóm, một lần khi cộng dồn các ô lá bên dưới.
 		"""
-		from erpnext.vi_tri_kho.vitri import so
+		from erpnext.warehouse_operations.vitri import so
 
 		_o("9Z18010101")
 		with self.assertRaises(frappe.ValidationError) as ctx:
@@ -528,7 +528,7 @@ class TestKhongGhiSoVaoNutNhom(FrappeTestCase):
 
 - [ ] **Step 2: Chạy để thấy đỏ**
 
-Run: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_cay_vi_tri`
+Run: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_cay_vi_tri`
 Expected: FAIL — không có ngoại lệ nào được ném.
 
 - [ ] **Step 3: Thêm kiểm tra vào `ghi_dong_so`**
@@ -560,8 +560,8 @@ Lot qua thi bao cao gop theo cap dem hai lan cung mot luong hang."
 Đây là task nguy hiểm nhất của cả kế hoạch. Đọc §6.2 của spec trước khi làm.
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/vitri/fefo.py`
-- Create: `erpnext/vi_tri_kho/tests/test_fefo_pham_vi.py`
+- Modify: `erpnext/warehouse_operations/vitri/fefo.py`
+- Create: `erpnext/warehouse_operations/tests/test_fefo_pham_vi.py`
 
 **Interfaces:**
 - Consumes: `lft`/`rgt` từ Task 2
@@ -569,7 +569,7 @@ Lot qua thi bao cao gop theo cap dem hai lan cung mot luong hang."
 
 - [ ] **Step 1: Viết bài kiểm**
 
-Tạo `erpnext/vi_tri_kho/tests/test_fefo_pham_vi.py`. Dựng hai ô ở hai dãy khác nhau, cùng mặt hàng, rồi tắt nút **dãy**:
+Tạo `erpnext/warehouse_operations/tests/test_fefo_pham_vi.py`. Dựng hai ô ở hai dãy khác nhau, cùng mặt hàng, rồi tắt nút **dãy**:
 
 ```python
 	def test_tat_nut_day_thi_khong_lay_o_trong_day(self):
@@ -596,7 +596,7 @@ Tạo `erpnext/vi_tri_kho/tests/test_fefo_pham_vi.py`. Dựng hai ô ở hai dã
 
 - [ ] **Step 2: Chạy để thấy đỏ**
 
-Run: `bench --site erptest.local run-tests --module erpnext.vi_tri_kho.tests.test_fefo_pham_vi`
+Run: `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_fefo_pham_vi`
 Expected: FAIL — FEFO vẫn lấy hàng từ dãy đã tắt (chỉ kiểm `disabled` của chính ô lá).
 
 - [ ] **Step 3: Sửa CẢ HAI truy vấn**
@@ -661,8 +661,8 @@ theo hai chieu nguoc nhau. Da dot bien kiem chung tung chieu."
 ## Task 5: Chỉ định lấy hàng theo phạm vi
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/vitri/fefo.py`
-- Test: `erpnext/vi_tri_kho/tests/test_fefo_pham_vi.py`
+- Modify: `erpnext/warehouse_operations/vitri/fefo.py`
+- Test: `erpnext/warehouse_operations/tests/test_fefo_pham_vi.py`
 
 **Interfaces:**
 - Consumes: `_TO_TIEN_TAT` từ Task 4
@@ -723,9 +723,9 @@ vi cu (co bai khoa dieu do)."
 ## Task 6: Báo cáo tồn theo cấp
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/report/ton_kho_theo_vi_tri/ton_kho_theo_vi_tri.py`
-- Modify: `erpnext/vi_tri_kho/report/ton_kho_theo_vi_tri/ton_kho_theo_vi_tri.js`
-- Test: `erpnext/vi_tri_kho/tests/test_bao_cao.py`
+- Modify: `erpnext/warehouse_operations/report/ton_kho_theo_vi_tri/ton_kho_theo_vi_tri.py`
+- Modify: `erpnext/warehouse_operations/report/ton_kho_theo_vi_tri/ton_kho_theo_vi_tri.js`
+- Test: `erpnext/warehouse_operations/tests/test_bao_cao.py`
 
 **Interfaces:**
 - Consumes: `lft`/`rgt`, `is_group` từ Task 2
@@ -771,10 +771,10 @@ frappe.query_reports["Ton Kho Theo Vi Tri"] = {
 ## Task 7: Dọn `loai_vi_tri` và `custom_ma_kho_spd`
 
 **Files:**
-- Modify: `erpnext/vi_tri_kho/doctype/storage_location/storage_location.json`
+- Modify: `erpnext/warehouse_operations/doctype/storage_location/storage_location.json`
 - Create: `erpnext/patches/v15_0/don_loai_vi_tri_khong_hop_le.py`
 - Modify: `erpnext/patches.txt`
-- Test: `erpnext/vi_tri_kho/tests/test_storage_location.py`
+- Test: `erpnext/warehouse_operations/tests/test_storage_location.py`
 
 **Interfaces:**
 - Consumes: —
@@ -840,8 +840,8 @@ Gỡ luôn `custom_ma_kho_spd`: không còn ai đọc sau Task 1. Thêm vào cù
 ## Task 8: Dựng lại dữ liệu trên site và cập nhật tài liệu
 
 **Files:**
-- Modify: `docs/vi_tri_kho/BAN-GIAO-nen-tang-vi-tri-kho.md`
-- Modify: `docs/vi_tri_kho/HDSD-quan-ly-vi-tri-kho.md`
+- Modify: `docs/warehouse_operations/BAN-GIAO-nen-tang-vi-tri-kho.md`
+- Modify: `docs/warehouse_operations/HDSD-quan-ly-vi-tri-kho.md`
 
 - [ ] **Step 1: Xoá 128 ô mã 12 ký tự và sinh lại**
 
@@ -866,7 +866,7 @@ cd /home/hoangvietyeuem/frappe-bench-yhct/sites && ../env/bin/python -c "
 import frappe
 frappe.init(site='erptest.local', sites_path='.'); frappe.connect()
 K='Kho Miyano - MYN'
-from erpnext.vi_tri_kho.vitri.doi_soat import doi_soat_kho
+from erpnext.warehouse_operations.vitri.doi_soat import doi_soat_kho
 kq = doi_soat_kho(K)
 print('ô:', frappe.db.count('Storage Location', {'kho':K}))
 print('đối soát khớp:', kq['khop'], '| lệch:', kq['so_dong_lech'])
@@ -890,4 +890,4 @@ Expected: đối soát khớp, 0 dòng lệch. Số ô = 128 lá + 1+4+16+64 nú
 
 **Nhất quán kiểu:** `cap_do()` trả `int` 1..5 (Task 1) và được dùng đúng kiểu đó ở Task 2. `ma_cha()` trả `str | None`, Task 2 xử lý nhánh `None` cho cấp Khu. `_TO_TIEN_TAT` là chuỗi SQL định nghĩa ở Task 4, Task 5 dùng lại đúng tên đó. `chon_o_xuat` đổi chữ ký ở Task 5 và có bài khoá hành vi cũ khi `pham_vi=None`.
 
-**Chỗ chưa chốt, cố ý để lại cho người thi công:** ba patch hiện nằm ở `erpnext/vi_tri_kho/patches/` thay vì `erpnext/patches/v15_0/` theo quy ước trong skill `code_structure`. Chúng qua được cổng vị trí file và đang chạy đúng, nên **không** gộp vào kế hoạch này — nêu ra để chủ dự án quyết riêng.
+**Chỗ chưa chốt, cố ý để lại cho người thi công:** ba patch hiện nằm ở `erpnext/warehouse_operations/patches/` thay vì `erpnext/patches/v15_0/` theo quy ước trong skill `code_structure`. Chúng qua được cổng vị trí file và đang chạy đúng, nên **không** gộp vào kế hoạch này — nêu ra để chủ dự án quyết riêng.
