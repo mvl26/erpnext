@@ -425,6 +425,10 @@ scheduler_events = {
 		"30 * * * *": [
 			"erpnext.accounts.doctype.gl_entry.gl_entry.rename_gle_sle_docs",
 		],
+		# Nhắc hạn đối chiếu công nợ lúc 08:00
+		"0 8 * * *": [
+			"erpnext.debt_reconciliation.tasks.send_due_reminders",
+		],
 		# Daily but offset by 45 minutes
 		"45 0 * * *": [
 			"erpnext.stock.reorder_item.reorder_item",
@@ -435,6 +439,7 @@ scheduler_events = {
 		"erpnext.projects.doctype.project.project.project_status_update_reminder",
 		"erpnext.projects.doctype.project.project.hourly_reminder",
 		"erpnext.projects.doctype.project.project.collect_project_status",
+		"erpnext.debt_reconciliation.tasks.hourly",
 	],
 	"hourly_long": [
 		"erpnext.stock.doctype.repost_item_valuation.repost_item_valuation.repost_entries",
