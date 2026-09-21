@@ -542,6 +542,7 @@ scheduler_events = {
 		# Thông báo chuỗi cung ứng: nhắc hạn thanh toán và thu tiền (mục 10).
 		"0 8 * * *": [
 			"erpnext.supply_notification.reminders.send_due_reminders",
+			"erpnext.debt_reconciliation.tasks.send_due_reminders",
 		],
 		# HĐĐT: tự tải PDF chính thức khi Fast ký số xong (~1 phút sau phát hành, mục E5 nhánh 7a).
 		"* * * * *": [
@@ -565,6 +566,7 @@ scheduler_events = {
 		"erpnext.projects.doctype.project.project.project_status_update_reminder",
 		"erpnext.projects.doctype.project.project.hourly_reminder",
 		"erpnext.projects.doctype.project.project.collect_project_status",
+		"erpnext.debt_reconciliation.tasks.hourly",
 	],
 	"hourly_long": [
 		"erpnext.stock.doctype.repost_item_valuation.repost_item_valuation.repost_entries",

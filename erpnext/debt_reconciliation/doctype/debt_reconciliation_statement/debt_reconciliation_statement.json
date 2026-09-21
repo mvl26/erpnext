@@ -1,0 +1,547 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "DCCN-.YYYY.-.#####",
+ "creation": "2026-09-21 10:00:00.000000",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "party_type",
+  "party",
+  "party_name",
+  "column_break_general",
+  "from_date",
+  "to_date",
+  "posting_date",
+  "column_break_status",
+  "statement_no",
+  "status",
+  "creation_source",
+  "response_deadline",
+  "amended_from",
+  "section_party",
+  "party_tax_id",
+  "party_address",
+  "party_phone",
+  "party_representative",
+  "party_representative_title",
+  "reconciliation_email",
+  "column_break_party",
+  "framework_contract_no",
+  "framework_contract_date",
+  "company_representative",
+  "company_representative_title",
+  "missing_party_warning",
+  "section_figures",
+  "opening_principal",
+  "opening_interest",
+  "opening_direction",
+  "column_break_figures_1",
+  "debit_in_period",
+  "credit_in_period",
+  "interest_in_period",
+  "column_break_figures_2",
+  "closing_balance",
+  "balance_direction",
+  "figures_fetched_on",
+  "amount_in_words",
+  "section_send",
+  "sent_on",
+  "sent_pdf",
+  "column_break_send",
+  "email_queue",
+  "send_error",
+  "section_confirm",
+  "partner_response",
+  "responded_on",
+  "confirmed_via",
+  "column_break_confirm",
+  "confirmation_method",
+  "signed_copy",
+  "confirmed_on",
+  "section_dispute",
+  "dispute_amount",
+  "dispute_note",
+  "column_break_dispute",
+  "dispute_resolution"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Công ty",
+   "options": "Company",
+   "remember_last_selected_value": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "party_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Loại đối tác",
+   "options": "Supplier\nCustomer",
+   "reqd": 1
+  },
+  {
+   "fieldname": "party",
+   "fieldtype": "Dynamic Link",
+   "in_standard_filter": 1,
+   "label": "Đối tác",
+   "options": "party_type",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "party_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Tên đối tác",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_general",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Kỳ từ ngày",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "Kỳ đến ngày",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "label": "Ngày lập",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_status",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "description": "In ở ô \"Số:\" trên bản giấy — không phải ID bản ghi, các biên bản cùng tháng cùng số (D17)",
+   "fieldname": "statement_no",
+   "fieldtype": "Data",
+   "label": "Số biên bản",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "Nháp",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Trạng thái",
+   "no_copy": 1,
+   "options": "Nháp\nĐã duyệt\nĐã gửi\nLỗi gửi\nĐã đối soát khớp\nChênh lệch\nĐã xác nhận\nĐã hủy",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Thủ công",
+   "fieldname": "creation_source",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Nguồn tạo",
+   "options": "Thủ công\nTự động",
+   "read_only": 1
+  },
+  {
+   "fieldname": "response_deadline",
+   "fieldtype": "Date",
+   "label": "Hạn phản hồi & nhận bản ký",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Sửa đổi từ",
+   "no_copy": 1,
+   "options": "Debt Reconciliation Statement",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_party",
+   "fieldtype": "Section Break",
+   "label": "Đối tác & căn cứ"
+  },
+  {
+   "fieldname": "party_tax_id",
+   "fieldtype": "Data",
+   "label": "MST đối tác",
+   "read_only": 1
+  },
+  {
+   "fieldname": "party_address",
+   "fieldtype": "Small Text",
+   "label": "Địa chỉ đối tác",
+   "read_only": 1
+  },
+  {
+   "fieldname": "party_phone",
+   "fieldtype": "Data",
+   "label": "Điện thoại đối tác",
+   "read_only": 1
+  },
+  {
+   "fieldname": "party_representative",
+   "fieldtype": "Data",
+   "label": "Đại diện đối tác"
+  },
+  {
+   "fieldname": "party_representative_title",
+   "fieldtype": "Data",
+   "label": "Chức vụ đại diện đối tác"
+  },
+  {
+   "fieldname": "reconciliation_email",
+   "fieldtype": "Data",
+   "label": "Email gửi đối chiếu",
+   "options": "Email"
+  },
+  {
+   "fieldname": "column_break_party",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "framework_contract_no",
+   "fieldtype": "Data",
+   "label": "Số HĐ nguyên tắc"
+  },
+  {
+   "fieldname": "framework_contract_date",
+   "fieldtype": "Date",
+   "label": "Ngày HĐ nguyên tắc"
+  },
+  {
+   "fieldname": "company_representative",
+   "fieldtype": "Data",
+   "label": "Đại diện Miyano",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company_representative_title",
+   "fieldtype": "Data",
+   "label": "Chức vụ đại diện Miyano"
+  },
+  {
+   "fieldname": "missing_party_warning",
+   "fieldtype": "Small Text",
+   "label": "Cảnh báo",
+   "read_only": 1
+  },
+  {
+   "description": "Số liệu lấy từ GL Entry bằng nút \"Lấy số liệu từ sổ\"; mọi số là số dương, chiều dư ghi riêng (D9)",
+   "fieldname": "section_figures",
+   "fieldtype": "Section Break",
+   "label": "Số liệu"
+  },
+  {
+   "fieldname": "opening_principal",
+   "fieldtype": "Currency",
+   "label": "Dư đầu kỳ — gốc",
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  },
+  {
+   "description": "Nhập tay; chỉ khi dư đầu kỳ ở chiều còn nợ (D12)",
+   "fieldname": "opening_interest",
+   "fieldtype": "Currency",
+   "label": "Dư đầu kỳ — lãi quá hạn",
+   "non_negative": 1,
+   "options": "Company:company:default_currency"
+  },
+  {
+   "default": "Bằng 0",
+   "fieldname": "opening_direction",
+   "fieldtype": "Select",
+   "label": "Chiều dư đầu kỳ",
+   "options": "Dư Nợ\nDư Có\nBằng 0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_figures_1",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "debit_in_period",
+   "fieldtype": "Currency",
+   "label": "Phát sinh Nợ — gốc",
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "credit_in_period",
+   "fieldtype": "Currency",
+   "label": "Phát sinh Có — gốc",
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  },
+  {
+   "description": "Nhập tay; NCC cộng vào Phát sinh Có, KH cộng vào Phát sinh Nợ (D18)",
+   "fieldname": "interest_in_period",
+   "fieldtype": "Currency",
+   "label": "Lãi quá hạn phát sinh",
+   "non_negative": 1,
+   "options": "Company:company:default_currency"
+  },
+  {
+   "fieldname": "column_break_figures_2",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "closing_balance",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Dư cuối kỳ",
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  },
+  {
+   "default": "Bằng 0",
+   "fieldname": "balance_direction",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Chiều dư cuối kỳ",
+   "options": "Dư Nợ\nDư Có\nBằng 0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "figures_fetched_on",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm lấy số liệu",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount_in_words",
+   "fieldtype": "Small Text",
+   "label": "Số tiền bằng chữ",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.docstatus>0",
+   "fieldname": "section_send",
+   "fieldtype": "Section Break",
+   "label": "Gửi"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "sent_on",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm gửi",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "sent_pdf",
+   "fieldtype": "Attach",
+   "label": "PDF đã gửi",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_send",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "email_queue",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Email Queue",
+   "no_copy": 1,
+   "options": "Email Queue",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "send_error",
+   "fieldtype": "Small Text",
+   "label": "Lỗi gửi",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.docstatus>0",
+   "fieldname": "section_confirm",
+   "fieldtype": "Section Break",
+   "label": "Xác nhận"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "Chưa phản hồi",
+   "fieldname": "partner_response",
+   "fieldtype": "Select",
+   "label": "Phản hồi đối soát",
+   "no_copy": 1,
+   "options": "Chưa phản hồi\nKhớp\nChưa khớp",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "responded_on",
+   "fieldtype": "Date",
+   "label": "Ngày phản hồi",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "Thủ công",
+   "fieldname": "confirmed_via",
+   "fieldtype": "Select",
+   "label": "Kênh xác nhận",
+   "no_copy": 1,
+   "options": "Thủ công\nPortal",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_confirm",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "confirmation_method",
+   "fieldtype": "Select",
+   "label": "Cách xác nhận",
+   "no_copy": 1,
+   "options": "\nC1 - Bản cứng\nC2 - Ký điện tử",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "signed_copy",
+   "fieldtype": "Attach",
+   "label": "Bản xác nhận có ký",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "confirmed_on",
+   "fieldtype": "Date",
+   "label": "Ngày xác nhận",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.dispute_note || doc.status=='Chênh lệch'",
+   "fieldname": "section_dispute",
+   "fieldtype": "Section Break",
+   "label": "Chênh lệch"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "dispute_amount",
+   "fieldtype": "Currency",
+   "label": "Số theo đối tác",
+   "no_copy": 1,
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "dispute_note",
+   "fieldtype": "Small Text",
+   "label": "Diễn giải chênh lệch",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_dispute",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "dispute_resolution",
+   "fieldtype": "Small Text",
+   "label": "Kết quả xử lý",
+   "no_copy": 1
+  }
+ ],
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-09-21 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Debt Reconciliation",
+ "name": "Debt Reconciliation Statement",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "party_name,statement_no",
+ "show_title_field_in_link": 1,
+ "sort_field": "from_date",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "party_name",
+ "track_changes": 1
+}
