@@ -1,0 +1,126 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "Prompt",
+ "creation": "2026-09-09 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "kho",
+  "khu",
+  "col_1",
+  "ghi_chu_mau",
+  "sec_kt",
+  "so_day",
+  "so_khoang_moi_day",
+  "col_2",
+  "so_tang_moi_khoang",
+  "so_o_moi_tang",
+  "so_o_da_tao"
+ ],
+ "fields": [
+  {
+   "fieldname": "kho",
+   "fieldtype": "Link",
+   "label": "Kho",
+   "options": "Warehouse",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "khu",
+   "fieldtype": "Data",
+   "label": "Khu (2 ký tự)",
+   "reqd": 1,
+   "default": "1A",
+   "length": 2,
+   "description": "SỐ rồi CHỮ, ví dụ 1B / 3B / 4B. Hai ký tự đầu của mã (mã kho) lấy tự động từ phiếu kho."
+  },
+  {
+   "fieldname": "col_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ghi_chu_mau",
+   "fieldtype": "Data",
+   "label": "Mẫu mã sinh ra",
+   "read_only": 1,
+   "default": "[Kho][Khu][Dãy][Khoang][Tầng][Ô] — ví dụ K11B01040302"
+  },
+  {
+   "fieldname": "sec_kt",
+   "fieldtype": "Section Break",
+   "label": "Kích thước khu"
+  },
+  {
+   "fieldname": "so_day",
+   "fieldtype": "Int",
+   "label": "Số dãy",
+   "default": "1",
+   "reqd": 1,
+   "description": "01–99, tăng dần từ cửa nhập theo lối đi chính"
+  },
+  {
+   "fieldname": "so_khoang_moi_day",
+   "fieldtype": "Int",
+   "label": "Số khoang mỗi dãy",
+   "default": "1",
+   "reqd": 1,
+   "description": "01–99, đếm từ đầu dãy phía lối đi chính"
+  },
+  {
+   "fieldname": "col_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "so_tang_moi_khoang",
+   "fieldtype": "Int",
+   "label": "Số tầng mỗi khoang",
+   "default": "1",
+   "reqd": 1,
+   "description": "01–09, đếm từ DƯỚI LÊN"
+  },
+  {
+   "fieldname": "so_o_moi_tang",
+   "fieldtype": "Int",
+   "label": "Số ô mỗi tầng",
+   "default": "1",
+   "reqd": 1,
+   "description": "01–99, trái → phải khi đứng đối diện kệ"
+  },
+  {
+   "fieldname": "so_o_da_tao",
+   "fieldtype": "Int",
+   "label": "Số ô đã tạo",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-21 14:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Warehouse Operations",
+ "name": "Location Generator",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1
+  },
+  {
+   "role": "Stock Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

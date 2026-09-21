@@ -1,0 +1,148 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-09-14 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "kho",
+  "col_1",
+  "ngay",
+  "sec_dong",
+  "quet_tem",
+  "items",
+  "sec_ghi_chu",
+  "ghi_chu",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Số phiếu",
+   "options": "XVT-.YYYY.-",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "kho",
+   "fieldtype": "Link",
+   "label": "Kho",
+   "options": "Warehouse",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Phiếu chỉ chuyển giữa các ô TRONG kho này. Đổi kho là việc của phiếu chuyển kho ERPNext."
+  },
+  {
+   "fieldname": "col_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "label": "Ngày",
+   "reqd": 1,
+   "default": "Today",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sec_dong",
+   "fieldtype": "Section Break",
+   "label": "Các dòng chuyển"
+  },
+  {
+   "fieldname": "quet_tem",
+   "fieldtype": "Data",
+   "label": "Quét tem (lô / ô)",
+   "no_copy": 1,
+   "print_hide": 1,
+   "allow_on_submit": 0,
+   "depends_on": "eval:doc.docstatus===0",
+   "description": "Quét tem lô: tự thêm dòng (mặt hàng, lô, từ ô, đến ô theo tem). Quét tem ô: xác nhận ô đến — sai ô là báo ngay."
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Dòng",
+   "options": "Location Transfer Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sec_ghi_chu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "options": "Location Transfer",
+   "no_copy": 1,
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-09-21 14:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Warehouse Operations",
+ "name": "Location Transfer",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Stock Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Stock User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "kho",
+ "track_changes": 1
+}
