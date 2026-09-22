@@ -220,6 +220,32 @@ class TestButtonsFollowTheStateTable(FormStateBase):
 		self.assertIn("reconcile", names)
 		self.assertNotIn("issue", names)
 
+	def test_every_live_state_can_ask_fast(self):
+		"""Hỏi Fast không bao giờ hại gì — kể cả bản nháp (hóa đơn có thể đã phát hành trên portal)."""
+		for status in (STATUS_DRAFT, STATUS_CUSTOMER_APPROVED, STATUS_ISSUED, STATUS_TAX_ACCEPTED):
+			self.assertIn("reconcile", self.buttons_at(status), status)
+
+	def test_a_crash_while_checking_data_keeps_every_button(self):
+		"""Một phần hỏng không được làm form mất sạch nút."""
+		from unittest.mock import patch
+
+		with patch("erpnext.einvoice.form_state.validate_before_send", side_effect=RuntimeError("hong")):
+			state = get_form_state(self.fei)
+
+		names = {b["name"] for b in state["buttons"]}
+		self.assertIn("resync", names)
+		self.assertIn("preview_draft", names)
+		self.assertTrue(state["validation"]["issues"])
+
+	def test_a_crash_while_building_buttons_leaves_the_way_to_fix_it(self):
+		from unittest.mock import patch
+
+		with patch("erpnext.einvoice.form_state.can_amend", side_effect=RuntimeError("hong")):
+			state = get_form_state(self.fei)
+
+		names = {b["name"] for b in state["buttons"]}
+		self.assertTrue({"resync", "preview_draft", "reconcile"} <= names)
+
 	def test_error_state_can_be_fixed_and_retried(self):
 		buttons = self.buttons_at(STATUS_ERROR)
 		self.assertIn("resync", buttons)

@@ -41,6 +41,21 @@ def fast_key_for(delivery_note_name):
 	return safe[: MAX_LEN["fast_key"]]
 
 
+def _unused_key(base):
+	"""Key chưa bản ghi nào dùng — thường chính là tên phiếu giao.
+
+	Phiếu giao có hóa đơn cũ đã Hủy nội bộ (CQT từ chối) thì Key tên phiếu giao
+	đã thuộc về hóa đơn đó trên Fast. Dùng lại thì truy vấn 370 trước phát hành
+	thấy hóa đơn cũ và không cho phát hành — nên hóa đơn lập lại mang hậu tố -L2, -L3…
+	"""
+	candidate, index = base, 1
+	while frappe.db.exists(FEI, {"fast_key": candidate}):
+		index += 1
+		suffix = f"-L{index}"
+		candidate = base[: MAX_LEN["fast_key"] - len(suffix)] + suffix
+	return candidate
+
+
 @frappe.whitelist()
 def create_from_delivery_note(delivery_note):
 	"""Nút 1 — tạo chứng từ HĐĐT từ một phiếu giao đã submit. Trả tên bản ghi."""
@@ -53,7 +68,7 @@ def create_from_delivery_note(delivery_note):
 	fei.invoice_type = INVOICE_TYPE_ORIGINAL
 	fei.status = STATUS_DRAFT
 	# Key sinh đúng một lần, ngay lúc tạo bản ghi (nguyên tắc A4).
-	fei.fast_key = fast_key_for(source.name)
+	fei.fast_key = _unused_key(fast_key_for(source.name))
 	_copy_from_delivery_note(fei, source, settings)
 
 	fei.flags.ignore_permissions = True

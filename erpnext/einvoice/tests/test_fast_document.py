@@ -380,6 +380,10 @@ class TestComputeTotals(FrappeTestCase):
 		frappe.db.rollback()
 
 	def _doc(self, lines, **master):
+		# Mỗi bản ghi một Key: vài test chèn nhiều chứng từ trong cùng một lượt.
+		key = frappe.generate_hash(length=12)
+		master.setdefault("fast_key", key)
+		master.setdefault("delivery_note", f"MAT-DN-TEST-{key}")
 		doc = make_fei(**master)
 		doc.set("lines", [])
 		for line in lines:

@@ -28,11 +28,19 @@ frappe.ui.form.on("Fast EInvoice Document", {
 	},
 
 	async load_einvoice_state(frm) {
-		const { message: state } = await frappe.call({
-			method: "erpnext.einvoice.form_state.get_form_state",
-			args: { fei: frm.doc.name },
-		});
-		if (!state) return;
+		let state;
+		try {
+			({ message: state } = await frappe.call({
+				method: "erpnext.einvoice.form_state.get_form_state",
+				args: { fei: frm.doc.name },
+			}));
+		} catch (error) {
+			// Không lấy được trạng thái thì vẫn không được để form trống trơn: còn
+			// nút tải lại, và lời nói rõ vì sao chưa có các nút khác.
+			render_state_failure(frm);
+			return;
+		}
+		if (!state) return render_state_failure(frm);
 
 		frm.einvoice_state = state;
 		render_status_indicator(frm, state);
@@ -226,6 +234,15 @@ function render_validation(frm, state) {
 }
 
 // --- Nút theo trạng thái (bảng B2) ------------------------------------------
+
+function render_state_failure(frm) {
+	frm.dashboard.add_comment(
+		__("Chưa tải được trạng thái hóa đơn điện tử từ máy chủ. Bấm “Tải lại” để thử lại."),
+		"red",
+		true
+	);
+	frm.add_custom_button(__("Tải lại"), () => frm.reload_doc());
+}
 
 function render_buttons(frm, state) {
 	for (const button of state.buttons) {

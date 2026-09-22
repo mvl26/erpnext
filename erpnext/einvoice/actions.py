@@ -626,7 +626,7 @@ def _explain_pdf_failure(response):
 	if not response.error_code and not (response.message or "").strip():
 		return _(
 			"Fast chưa trả về PDF — hóa đơn có thể đang được ký số (HSM). "
-			"Đợi khoảng 10 giây rồi tải lại; nếu vẫn lỗi, bấm Truy vấn (370) để "
+			"Đợi khoảng 10 giây rồi tải lại; nếu vẫn lỗi, bấm Lấy dữ liệu từ Fast (370) để "
 			"kiểm tra tình trạng hóa đơn trên Fast."
 		)
 	return _explain(response)
@@ -637,7 +637,9 @@ def _pdf_ready_document(fei):
 	doc = frappe.get_doc(FEI, fei)
 	_assert_status(doc, PDF_STATUSES, _("tải PDF"))
 	if not doc.fast_key_search:
-		frappe.throw(_("Chứng từ chưa có mã tra cứu (keySearch) — bấm Truy vấn (370) để lấy về trước."))
+		frappe.throw(
+			_("Chứng từ chưa có mã tra cứu (keySearch) — bấm Lấy dữ liệu từ Fast (370) để lấy về trước.")
+		)
 	_assert_signing_finished(doc)
 	return doc
 

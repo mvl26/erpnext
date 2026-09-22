@@ -407,7 +407,7 @@ def _handle_timeout(doc, exc):
 	"""7c — đã gửi nhưng chưa biết kết quả. Tuyệt đối không tự phát hành lại."""
 	message = _(
 		"Đã gửi lệnh phát hành nhưng chưa nhận được kết quả từ Fast ({0}). "
-		"BẮT BUỘC bấm Truy vấn (370) để biết hóa đơn đã ra số hay chưa, "
+		"BẮT BUỘC bấm Lấy dữ liệu từ Fast (370) để biết hóa đơn đã ra số hay chưa, "
 		"trước khi thao tác tiếp. Không phát hành lại."
 	).format(exc)
 
@@ -436,7 +436,7 @@ def _handle_unexpected(doc, exc):
 	"""
 	frappe.log_error(title=f"HĐĐT: phát hành {doc.name} lỗi ngoài dự kiến")
 	message = _(
-		"Phát hành không hoàn tất: {0}. Chứng từ chuyển sang Cần đối soát — bấm Truy vấn (370) "
+		"Phát hành không hoàn tất: {0}. Chứng từ chuyển sang Cần đối soát — bấm Lấy dữ liệu từ Fast (370) "
 		"để chắc chắn hóa đơn chưa ra số, hoặc Đồng bộ lại từ phiếu giao rồi phát hành lại "
 		"(hệ thống luôn truy vấn Fast trước khi phát hành nên không thể ra hai số)."
 	).format(frappe.utils.strip_html(str(exc)) or type(exc).__name__)

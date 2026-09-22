@@ -20,8 +20,12 @@ from erpnext.einvoice.constants import (
 	INVOICE_TYPE_ORIGINAL,
 	INVOICE_TYPE_REPLACEMENT,
 	ISSUED_STATUSES,
+	LIVE_STATUSES,
 	STATUS_DRAFT,
+	STATUS_ISSUING,
 )
+
+FEI = "Fast EInvoice Document"
 
 # Dữ liệu sẽ gửi lên Fast (nhóm C2.3). Khi hóa đơn đã tiêu số thật thì đây là nội
 # dung của một chứng từ pháp lý — sửa được nghĩa là chứng từ trên ERP lệch với
@@ -129,7 +133,15 @@ def _frozen_values(doc):
 	)
 
 
+# Lệnh gọi Fast thật sự làm ra một hóa đơn: phát hành (310/320/350, action 0),
+# hoặc truy vấn 370 kéo số hóa đơn về khi đối soát.
+_ISSUING_METHODS = (310, 320, 350, 370)
+
+
 class FastEInvoiceDocument(Document):
+	def before_insert(self):
+		self._refuse_duplicate_record()
+
 	def validate(self):
 		if not self.status:
 			self.status = STATUS_DRAFT
@@ -163,6 +175,77 @@ class FastEInvoiceDocument(Document):
 		if not self.official_xml.split("?")[0].lower().endswith(".xml"):
 			frappe.throw(_("File XML hóa đơn phải có đuôi .xml."))
 
+	def _refuse_duplicate_record(self):
+		"""Một lần bán, một hóa đơn, một bản ghi — không bao giờ có bản ghi thứ hai.
+
+		Bản ghi mới chỉ sinh ra từ phiếu giao (`builder`) hoặc từ hóa đơn gốc
+		(`lineage`), luôn ở trạng thái Nháp và có Key riêng. Mọi đường khác — nút
+		Duplicate, import, API — mà chép kèm Key, số hóa đơn hay trạng thái đã
+		phát hành là đẻ ra một hóa đơn "ma": nhìn y như hóa đơn thật, cộng trùng
+		vào báo cáo, lại không xóa được vì mang số hóa đơn. Đã xảy ra thật:
+		FEI-2026-00007 là bản chép của FEI-2026-00006 ngay sau khi phát hành.
+		"""
+		if self.fast_invoice_no or self.fast_key_search or self.status in (*ISSUED_STATUSES, STATUS_ISSUING):
+			frappe.throw(
+				_(
+					"Không tạo được bản ghi hóa đơn mới mang sẵn số hóa đơn / trạng thái đã phát hành "
+					"(số {0}, trạng thái {1}). Hóa đơn chỉ lập từ phiếu giao hàng, hoặc lập điều chỉnh / "
+					"thay thế từ hóa đơn gốc."
+				).format(self.fast_invoice_no or "—", self.status or "—"),
+				frappe.DuplicateEntryError,
+			)
+
+		if self.fast_key:
+			clash = frappe.db.get_value(FEI, {"fast_key": self.fast_key}, ["name", "status"], as_dict=True)
+			if clash:
+				frappe.throw(
+					_(
+						"Key {0} đã thuộc về chứng từ {1} ({2}). Mỗi hóa đơn một Key — bản ghi thứ "
+						"hai cùng Key là hóa đơn trùng."
+					).format(self.fast_key, clash.name, clash.status),
+					frappe.DuplicateEntryError,
+				)
+
+		if self.delivery_note and self.invoice_type == INVOICE_TYPE_ORIGINAL:
+			live = frappe.db.get_value(
+				FEI,
+				{"delivery_note": self.delivery_note, "status": ("in", list(LIVE_STATUSES))},
+				["name", "status"],
+				as_dict=True,
+			)
+			if live:
+				frappe.throw(
+					_("Phiếu giao {0} đã có chứng từ HĐĐT {1} ({2}).").format(
+						self.delivery_note, live.name, live.status
+					),
+					frappe.DuplicateEntryError,
+				)
+
+	def is_duplicate_copy(self):
+		"""Bản chép rác: có bản ghi khác cùng Key lập **trước**, còn bản này chưa từng tự gọi Fast.
+
+		Hóa đơn thật luôn để lại nhật ký lệnh phát hành (hoặc truy vấn 370 kéo số
+		về) của chính nó. Bản chép bằng nút Duplicate thì mang số hóa đơn mà không
+		có dòng nhật ký nào — nó không phải chứng từ pháp lý, chỉ là dữ liệu lặp.
+		"""
+		if not self.fast_key:
+			return False
+		earlier = frappe.db.exists(
+			FEI,
+			{"fast_key": self.fast_key, "name": ("!=", self.name), "creation": ("<", self.creation)},
+		)
+		if not earlier:
+			return False
+		return not frappe.db.exists(
+			"Fast EInvoice Log",
+			{
+				"fei_document": self.name,
+				"action": 0,
+				"method": ("in", _ISSUING_METHODS),
+				"status": "Thành công",
+			},
+		)
+
 	def on_trash(self):
 		"""Gỡ chứng từ ra khỏi mọi thứ đang trỏ tới nó, rồi mới để Frappe xóa.
 
@@ -175,8 +258,11 @@ class FastEInvoiceDocument(Document):
 		Hóa đơn đã tiêu số thật thì không xóa: đó là chứng từ pháp lý Cơ quan Thuế
 		đang giữ, xóa bản ghi ERP chỉ làm mất dấu vết chứ không làm hóa đơn biến
 		mất. Sai nội dung thì lập hóa đơn điều chỉnh hoặc thay thế.
+
+		Ngoại lệ: bản chép rác (`is_duplicate_copy`) — mang số hóa đơn của bản ghi
+		khác nhưng chưa bao giờ tự phát hành gì, nên xóa được.
 		"""
-		if self.status in ISSUED_STATUSES or self.fast_invoice_no:
+		if (self.status in ISSUED_STATUSES or self.fast_invoice_no) and not self.is_duplicate_copy():
 			frappe.throw(
 				_(
 					"Hóa đơn {0} đã phát hành (số {1}) nên không xóa được — đây là chứng từ pháp lý. "

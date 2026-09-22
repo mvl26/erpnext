@@ -166,3 +166,66 @@ class TestDraftStatusIsWhatMakesItDeletable(DeleteBase):
 
 		with self.assertRaises(frappe.PermissionError):
 			frappe.delete_doc(FEI, self.fei)
+
+
+class TestAnIssuedInvoiceIsNeverDuplicated(DeleteBase):
+	"""Một lần bán, một hóa đơn, một bản ghi.
+
+	Nút Duplicate từng chép nguyên một hóa đơn đã phát hành — kèm Key, số hóa đơn,
+	trạng thái 06 — thành bản ghi thứ hai cộng trùng vào báo cáo, mà lại không xóa
+	được vì mang số hóa đơn (FEI-2026-00007 trên site thật).
+	"""
+
+	def _issued(self):
+		self.issue_it()
+		frappe.db.set_value(FEI, self.fei, "fast_key_search", "KS-7")
+		return frappe.get_doc(FEI, self.fei)
+
+	def _smuggle_in_a_copy(self, source):
+		"""Bản chép lọt vào theo đường cũ — không qua `insert`, như dữ liệu đang có trên site."""
+		copy = frappe.copy_doc(source, ignore_no_copy=True)
+		copy.name = None
+		copy.set_new_name()
+		copy.creation = frappe.utils.add_to_date(source.creation, seconds=12)
+		copy.db_insert()
+		for line in copy.lines:
+			line.parent = copy.name
+			line.db_insert()
+		return copy.name
+
+	def test_the_form_offers_no_duplicate_button(self):
+		self.assertEqual(frappe.get_meta(FEI).allow_copy, 1)
+
+	def test_duplicating_from_the_form_carries_over_nothing_that_identifies_the_invoice(self):
+		# Nút Duplicate trên form tôn trọng no_copy — `frappe.copy_doc` mặc định thì không.
+		copy = frappe.copy_doc(self._issued(), ignore_no_copy=False)
+		self.assertFalse(copy.fast_invoice_no)
+		self.assertFalse(copy.fast_key)
+		self.assertFalse(copy.delivery_note)
+		self.assertNotEqual(copy.status, STATUS_ISSUED)
+
+	def test_a_full_copy_is_refused_on_insert(self):
+		copy = frappe.copy_doc(self._issued(), ignore_no_copy=True)
+		with self.assertRaises(frappe.DuplicateEntryError):
+			copy.insert()
+
+	def test_a_second_record_with_the_same_key_is_refused(self):
+		copy = frappe.copy_doc(frappe.get_doc(FEI, self.fei), ignore_no_copy=True)
+		with self.assertRaises(frappe.DuplicateEntryError):
+			copy.insert()
+
+	def test_a_duplicate_copy_already_on_the_site_can_be_deleted(self):
+		copy = self._smuggle_in_a_copy(self._issued())
+
+		frappe.delete_doc(FEI, copy)
+
+		self.assertFalse(frappe.db.exists(FEI, copy))
+		self.assertEqual(frappe.db.get_value(DN, self.dn.name, "fast_einvoice"), self.fei)
+
+	def test_the_real_invoice_still_cannot_be_deleted(self):
+		source = self._issued()
+		self._smuggle_in_a_copy(source)
+		make_log(fei_document=self.fei, action=0, method=310, status="Thành công")
+
+		with self.assertRaises(frappe.PermissionError):
+			frappe.delete_doc(FEI, self.fei)

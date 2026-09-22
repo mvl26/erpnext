@@ -331,6 +331,34 @@ class TestReconcile(TaxStatusBase):
 		self.fei.reload()
 		self.assertEqual(self.fei.status, STATUS_DRAFT)
 
+	def test_the_button_applies_what_fast_says_and_says_so(self):
+		"""Nút trên form: lấy dữ liệu từ Fast là áp luôn, và luôn nói đã thấy gì."""
+		from erpnext.einvoice.reconcile import refresh_from_fast
+
+		other = envelope(1, '{"invoiceNo":"77","serial":"1C26TMY","keySearch":"KS-ABC-123"}')
+		result = refresh_from_fast(self.fei.name, client=self._client(other))
+
+		self.fei.reload()
+		self.assertEqual(self.fei.fast_invoice_no, "77")
+		self.assertIn("77", result["message"])
+
+	def test_the_button_says_when_everything_already_matches(self):
+		from erpnext.einvoice.reconcile import refresh_from_fast
+
+		same = envelope(1, '{"invoiceNo":"2","serial":"1C26TMY","keySearch":"KS-ABC-123"}')
+		result = refresh_from_fast(self.fei.name, client=self._client(same))
+		self.assertIn("khớp", result["message"])
+
+	def test_applying_never_pulls_a_tax_verdict_back_to_issued(self):
+		"""CQT đã chấp nhận thì giữ 08 — kéo về 06 là mất quyền điều chỉnh/thay thế."""
+		frappe.db.set_value(FEI, self.fei.name, "status", "08 - CQT chấp nhận")
+		other = envelope(1, '{"invoiceNo":"77","serial":"1C26TMY","keySearch":"KS-ABC-123"}')
+		reconcile_invoice(self.fei.name, apply=True, client=self._client(other))
+
+		self.fei.reload()
+		self.assertEqual(self.fei.status, "08 - CQT chấp nhận")
+		self.assertEqual(self.fei.fast_invoice_no, "77")
+
 	def test_it_uses_method_370(self):
 		same = envelope(1, '{"invoiceNo":"2","keySearch":"KS-ABC-123"}')
 		reconcile_invoice(self.fei.name, client=self._client(same))
