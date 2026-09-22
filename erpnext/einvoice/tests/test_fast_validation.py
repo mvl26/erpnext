@@ -171,15 +171,7 @@ class TestValidationRules(FrappeTestCase):
 		fei = make_fei(currency="USD", amount_in_words="Một nghìn đồng")
 		self.assertIn(5, rules_hit(check(fei), "block"))
 
-	# --- Quy tắc 6 & 7: độ dài và xuống dòng ------------------------------
-
-	def test_newline_in_any_text_field_is_blocked(self):
-		self.assertIn(6, rules_hit(check(make_fei(customer_name="Bệnh viện\nĐa khoa")), "block"))
-
-	def test_newline_in_a_line_item_name_is_blocked(self):
-		fei = make_fei()
-		fei.lines[0].item_name = "Bơm kim\ntiêm"
-		self.assertIn(6, rules_hit(check(fei), "block"))
+	# --- Quy tắc 7: độ dài ----------------------------------------------
 
 	def test_buyer_longer_than_100_chars_is_blocked(self):
 		self.assertIn(7, rules_hit(check(make_fei(buyer="N" * 101)), "block"))
@@ -232,39 +224,25 @@ class TestValidationRules(FrappeTestCase):
 			fei.append("lines", dict(template, name=None))
 		self.assertIn(10, rules_hit(check(fei), "block"))
 
-	# --- Quy tắc 11: ngày hóa đơn ----------------------------------------
+	# --- Ngày hóa đơn, xuống dòng, ký tự & — không còn là việc của kiểm tra ---
 
-	def test_invoice_date_before_the_last_issued_one_only_warns(self):
-		"""Lỗi 819 là phán quyết của Fast — ERP nói trước, nhưng không chặn.
+	def test_an_old_invoice_date_raises_nothing(self):
+		"""Ngày hóa đơn do hệ thống đặt về hôm nay lúc lưu / xem nháp / phát hành.
 
-		ERP chỉ nhìn thấy hóa đơn đi qua chính nó; hóa đơn phát hành thẳng trên
-		portal hay ở sổ khác thì không thấy. Chặn theo cái nhìn thiếu đó là chặn
-		nhầm người đang làm đúng.
+		Ngày cũ không phải việc để kế toán quyết, nên không chặn cũng không cảnh báo.
 		"""
 		issued = make_fei(fast_key="TRUOCDO")
 		issued.insert()
-		frappe.db.set_value(
-			"Fast EInvoice Document",
-			issued.name,
-			{"status": STATUS_ISSUED, "invoice_date": "2026-08-07"},
-		)
+		frappe.db.set_value("Fast EInvoice Document", issued.name, "status", STATUS_ISSUED)
 
 		result = check(make_fei(fast_key="SAUDO", invoice_date="2026-08-01"))
-		self.assertIn(11, rules_hit(result, "warn"))
-		self.assertNotIn(11, rules_hit(result, "block"))
-		self.assertTrue(result.ok)
+		self.assertEqual(result.issues, [])
 
-	def test_missing_invoice_date_still_blocks(self):
-		"""Fast bắt buộc InvoiceDate — thiếu là chắc chắn hỏng, phải chặn."""
-		self.assertIn(11, rules_hit(check(make_fei(invoice_date=None)), "block"))
-
-	# --- Quy tắc 13 & 14: cảnh báo ---------------------------------------
-
-	def test_xml_special_characters_only_warn(self):
-		"""Ký tự & < > escape được, nên cảnh báo chứ không chặn."""
-		result = check(make_fei(customer_name="Bệnh viện A & B"))
-		self.assertIn(13, rules_hit(result, "warn"))
-		self.assertTrue(result.ok)
+	def test_ampersand_in_names_raises_nothing(self):
+		"""Dữ liệu gửi Fast là JSON mã hóa base64 — & < > không có gì phải lo."""
+		fei = make_fei(customer_name="Công ty A & B", buyer="Nguyễn <Văn> A")
+		fei.lines[0].item_name = "Bơm & kim tiêm"
+		self.assertEqual(check(fei).issues, [])
 
 	def test_malformed_email_only_warns(self):
 		result = check(make_fei(email_deliver="khong-phai-email"))

@@ -195,6 +195,14 @@ class TestCreateFromDeliveryNote(FrappeTestCase):
 		replacement = frappe.get_doc(FEI, create_from_delivery_note(self.dn.name))
 		self.assertEqual(replacement.status, STATUS_DRAFT)
 
+	def test_a_re_raised_invoice_gets_its_own_key(self):
+		"""Key cũ đã thuộc hóa đơn bị hủy trên Fast — dùng lại là 370 chặn phát hành."""
+		fei = self._create()
+		frappe.db.set_value(FEI, fei.name, "status", "12 - Đã hủy nội bộ")
+
+		replacement = frappe.get_doc(FEI, create_from_delivery_note(self.dn.name))
+		self.assertEqual(replacement.fast_key, f"{fei.fast_key}-L2")
+
 	def test_disabled_integration_refuses(self):
 		configure(enabled=0)
 		with self.assertRaises(frappe.ValidationError):

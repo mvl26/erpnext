@@ -6,6 +6,7 @@ import base64
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import add_days, getdate, nowdate
 
 from erpnext.einvoice.actions import preview_draft
 from erpnext.einvoice.builder import create_from_delivery_note
@@ -97,6 +98,21 @@ class TestPreviewDraft(FrappeTestCase):
 		self.fei.reload()
 		self.assertNotEqual(self.fei.draft_pdf, first)
 
+	def test_a_stale_invoice_date_is_moved_to_today_before_previewing(self):
+		"""Chứng từ lập hôm trước: bản nháp phải mang đúng ngày sẽ in lên hóa đơn.
+
+		Gửi ngày cũ thì Fast có thể từ chối (818/819) — mà đây là việc hệ thống tự
+		sửa được, không có gì để kế toán phải quyết.
+		"""
+		frappe.db.set_value(FEI, self.fei.name, "invoice_date", add_days(nowdate(), -1))
+
+		preview_draft(self.fei.name, client=self._client(pdf_response()))
+
+		self.fei.reload()
+		self.assertEqual(getdate(self.fei.invoice_date), getdate(nowdate()))
+		log = frappe.get_doc(LOG, {"fei_document": self.fei.name, "method": 310})
+		self.assertIn(getdate(nowdate()).strftime("%d/%m/%Y"), log.request_json)
+
 	# --- Đường lỗi --------------------------------------------------------
 
 	def test_fast_error_keeps_the_status_and_records_the_reason(self):
@@ -116,7 +132,7 @@ class TestPreviewDraft(FrappeTestCase):
 		Bản nháp không tiêu số hóa đơn, nên cái giá của một lần gọi hỏng chỉ là
 		một vòng mạng. Chốt chặn vẫn nguyên ở `issue_invoice`.
 		"""
-		frappe.db.set_value(FEI, self.fei.name, "amount_in_words", "")
+		frappe.db.set_value(FEI, self.fei.name, {"customer_type": "1", "customer_tax_code": "123"})
 		self.assertTrue(validate_before_send(frappe.get_doc(FEI, self.fei.name)).blocking)
 
 		result = preview_draft(self.fei.name, client=self._client(pdf_response()))
@@ -130,7 +146,7 @@ class TestPreviewDraft(FrappeTestCase):
 		"""Bỏ chốt ở bản nháp không được nới lỏng chỗ thật sự tiêu số hóa đơn."""
 		from erpnext.einvoice.issue import issue_invoice
 
-		frappe.db.set_value(FEI, self.fei.name, "amount_in_words", "")
+		frappe.db.set_value(FEI, self.fei.name, {"customer_type": "1", "customer_tax_code": "123"})
 		with self.assertRaises(frappe.ValidationError):
 			issue_invoice(self.fei.name, client=self._client(pdf_response()))
 

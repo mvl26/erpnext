@@ -1,6 +1,13 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Kiểm tra dữ liệu trước khi gửi Fast — 16 quy tắc Phần F.
+"""Kiểm tra dữ liệu trước khi gửi Fast — các quy tắc Phần F.
+
+Chỉ chặn thứ Fast **thật sự** từ chối mà hệ thống không tự sửa được. Những gì
+tự sửa được thì sửa lúc lưu chứng từ (`FastEInvoiceDocument._fix_what_fast_would_reject`)
+thay vì chặn: ngày hóa đơn luôn về hôm nay (từng là quy tắc 11 — lỗi 818/819),
+xuống dòng gộp thành dấu cách (từng là quy tắc 6 — lỗi 825). Quy tắc 13 (ký tự
+& < >) đã bỏ hẳn: dữ liệu gửi Fast là JSON mã hóa base64, không phải XML ghép
+chuỗi, nên & trong tên khách hàng hay tên hàng không có gì phải lo.
 
 Chạy ở ba thời điểm (mục F): khi tạo bản ghi (chỉ cảnh báo), khi xem bản nháp,
 và **bắt buộc lại phía server ngay trước khi phát hành** — không tin dữ liệu do
@@ -16,7 +23,7 @@ from dataclasses import dataclass, field
 
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate
+from frappe.utils import flt
 
 from erpnext.einvoice.constants import (
 	INVOICE_TYPE_ORIGINAL,
@@ -48,23 +55,6 @@ EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 # Chỉ dòng thực sự bán hàng mới phải trỏ tới danh mục. Dòng ghi chú (4), khuyến
 # mại (2) và chiết khấu (3) không có mặt hàng nào tương ứng.
 ITEM_CODE_REQUIRED_PROCESS_TYPES = frozenset({PROCESS_TYPE_GOODS, PROCESS_TYPE_SPECIAL})
-
-# Trường text sẽ nằm trong XML envelope — xuống dòng là lỗi 825.
-_MASTER_TEXT_FIELDS = (
-	"buyer",
-	"customer_name",
-	"address",
-	"phone_number",
-	"fax_number",
-	"email_deliver",
-	"bank_account",
-	"bank_name",
-	"amount_in_words",
-	"human_name",
-	"external_1",
-	"external_2",
-	"external_3",
-)
 
 
 @dataclass
@@ -123,14 +113,11 @@ def validate_before_send(fei, check_source=True):
 	_rule_3_tax_code(fei, result)
 	_rule_4_id_card(fei, result)
 	_rule_5_amount_in_words(fei, result)
-	_rule_6_newlines(fei, result)
 	_rule_7_lengths(fei, result)
 	_rule_8_line_basics(fei, result)
 	_rule_9_totals(fei, result)
 	_rule_10_line_count(fei, result)
-	_rule_11_invoice_date(fei, result)
 	_rule_12_tax_rates(fei, result)
-	_rule_13_xml_specials(fei, result)
 	_rule_14_email(fei, result)
 	if check_source:
 		_rule_15_source_delivery_note(fei, result)
@@ -225,9 +212,10 @@ def _rule_3_tax_code(fei, result):
 			3,
 			BLOCK,
 			"customer_tax_code",
-			_("Khách là doanh nghiệp thì mã số thuế phải đúng 10 hoặc 13 chữ số (đang là {0}).").format(
-				fei.customer_tax_code or _("trống")
-			),
+			_(
+				"Khách là doanh nghiệp thì mã số thuế phải đúng 10 hoặc 13 chữ số (đang là {0}) — "
+				"Fast từ chối, lỗi 78013."
+			).format(fei.customer_tax_code or _("trống")),
 		)
 		return
 
@@ -272,27 +260,7 @@ def _rule_5_amount_in_words(fei, result):
 		)
 
 
-# --- 6, 7. Xuống dòng và độ dài ---------------------------------------------
-
-
-def _rule_6_newlines(fei, result):
-	for fieldname in _MASTER_TEXT_FIELDS:
-		value = fei.get(fieldname) or ""
-		if "\n" in value or "\r" in value:
-			result.add(
-				6, BLOCK, fieldname, _("Trường “{0}” có ký tự xuống dòng (lỗi 825).").format(fieldname)
-			)
-
-	for line in fei.lines or []:
-		for fieldname in ("item_name", "item_code", "uom", "note"):
-			value = line.get(fieldname) or ""
-			if "\n" in value or "\r" in value:
-				result.add(
-					6,
-					BLOCK,
-					"lines",
-					_("Dòng {0}: “{1}” có ký tự xuống dòng (lỗi 825).").format(line.idx, fieldname),
-				)
+# --- 7. Độ dài -------------------------------------------------------------
 
 
 def _rule_7_lengths(fei, result):
@@ -466,65 +434,7 @@ def _rule_10_line_count(fei, result):
 		)
 
 
-# --- 11. Ngày hóa đơn --------------------------------------------------------
-
-
-def _rule_11_invoice_date(fei, result):
-	"""Ngày hóa đơn: thiếu thì chặn, ra trước hóa đơn khác thì chỉ cảnh báo.
-
-	Fast bắt buộc có ``InvoiceDate`` nên thiếu là chắc chắn hỏng — chặn.
-
-	Nhưng thứ tự ngày thì **Fast mới là bên biết**, không phải mình. Câu truy vấn
-	dưới đây chỉ nhìn thấy những hóa đơn đi qua ERP này; nó không thấy hóa đơn
-	phát hành thẳng trên portal, hóa đơn của sổ khác, hay hóa đơn từ hệ thống cũ.
-	Chặn dựa trên một cái nhìn thiếu như vậy là chặn nhầm người đang làm đúng, mà
-	cái giá phải trả là kế toán ngồi im không thao tác được gì. Fast có kiểm
-	(lỗi 819) và câu trả lời của họ mới là câu trả lời thật — nên nói ra để biết
-	mà lường trước, rồi để Fast quyết. Cùng cách xử lý với số kiểm tra MST ở
-	quy tắc 3.
-	"""
-	if not fei.invoice_date:
-		result.add(11, BLOCK, "invoice_date", _("Chưa có ngày hóa đơn (lỗi 813)."))
-		return
-
-	latest = frappe.db.get_value(
-		"Fast EInvoice Document",
-		{"status": ("in", list(ISSUED_STATUSES)), "name": ("!=", fei.name or "")},
-		"invoice_date",
-		order_by="invoice_date desc",
-	)
-	if latest and getdate(fei.invoice_date) < getdate(latest):
-		result.add(
-			11,
-			WARN,
-			"invoice_date",
-			_(
-				"Ngày hóa đơn {0} nhỏ hơn hóa đơn đã phát hành gần nhất trong ERP ({1}). "
-				"Fast không cho phát hành lùi ngày (lỗi 819) — nhiều khả năng sẽ bị từ chối, "
-				"nhưng Fast mới là bên biết chắc nên vẫn gửi được."
-			).format(getdate(fei.invoice_date).strftime("%d/%m/%Y"), getdate(latest).strftime("%d/%m/%Y")),
-		)
-
-
-# --- 13, 14. Cảnh báo --------------------------------------------------------
-
-
-def _rule_13_xml_specials(fei, result):
-	def flag(where, value):
-		if any(ch in (value or "") for ch in "&<>"):
-			result.add(
-				13,
-				WARN,
-				where,
-				_(
-					"“{0}” có ký tự & < > — hệ thống sẽ escape, nhưng Fast từng lỗi 63505 với ký tự này."
-				).format(value),
-			)
-
-	flag("customer_name", fei.customer_name)
-	flag("buyer", fei.buyer)
-	for line in fei.lines or []:
-		flag("lines", line.item_name)
+# --- 14. Email ---------------------------------------------------------------
 
 
 def _rule_14_email(fei, result):

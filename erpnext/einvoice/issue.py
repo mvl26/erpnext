@@ -24,14 +24,16 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import getdate, now_datetime, nowdate
+from frappe.utils import getdate, now_datetime
 
 from erpnext.einvoice.actions import (
 	ACTION_EXECUTE,
 	FEI,
 	METHOD_INVOICE,
+	_dmy,
 	_explain,
 	_mirror_status,
+	refresh_before_send,
 )
 from erpnext.einvoice.constants import (
 	INVOICE_TYPE_ADJUSTMENT,
@@ -162,7 +164,9 @@ def issue_invoice(fei, client=None):
 		# tiến trình khác có thể đã phát hành xong.
 		doc.reload()
 		_assert_issuable(doc)
-		_stamp_invoice_date(doc)
+		# Ngày hóa đơn về hôm nay, số liệu tính lại — trước validate, trước truy
+		# vấn 370 và trước khi dựng payload, để cả bốn cùng thấy một dữ liệu.
+		refresh_before_send(doc)
 
 		# Bước 2 — không tin dữ liệu client gửi lên.
 		validate_before_send(doc).throw_if_blocking()
@@ -183,6 +187,8 @@ def issue_invoice(fei, client=None):
 			)
 		except FastTimeout as exc:
 			return _handle_timeout(doc, exc)
+		except Exception as exc:
+			return _handle_unexpected(doc, exc)
 
 		if not response.success:
 			return _handle_failure(doc, response)
@@ -214,35 +220,6 @@ def _assert_issuable(doc):
 				doc.status, ", ".join(sorted(allowed))
 			)
 		)
-
-
-def _stamp_invoice_date(doc):
-	"""Ngày hóa đơn = ngày phát hành, luôn luôn.
-
-	Ngày điền sẵn lúc tạo chứng từ (hay chép từ hóa đơn gốc) có thể đã cũ vài
-	ngày khi kế toán mới bấm phát hành. Gửi ngày cũ đó lên là ngày trên hóa đơn
-	lệch ngày ký số — và 8200 lọc theo ngày hóa đơn nên hóa đơn kẹt "Chờ CQT".
-	Đặt lại ngay trước bước kiểm tra dữ liệu để quy tắc 11, truy vấn 370 và thẻ
-	``InvoiceDate`` cùng dùng một ngày.
-	"""
-	today = getdate(nowdate())
-	previous = getdate(doc.invoice_date) if doc.invoice_date else None
-	if previous == today:
-		return
-
-	frappe.db.set_value(FEI, doc.name, "invoice_date", today, update_modified=False)
-	doc.invoice_date = today
-	if previous:
-		doc.add_comment(
-			"Comment",
-			_("Ngày hóa đơn đổi từ {0} sang {1} — ngày hóa đơn luôn bằng ngày phát hành.").format(
-				_dmy(previous), _dmy(today)
-			),
-		)
-
-
-def _dmy(value):
-	return getdate(value).strftime("%d/%m/%Y")
 
 
 class _issuance_lock:
@@ -343,7 +320,7 @@ def _handle_success(doc, response):
 
 	mark_original_superseded(doc)
 
-	# PDF chính thức không tải ở đây: Fast còn đang ký số (30 giây – 1 phút). Job mỗi
+	# PDF chính thức không tải ở đây: Fast còn đang ký số (30 giây — 1 phút). Job mỗi
 	# phút `actions.download_pending_official_pdfs` tự tải khi PDF đã sẵn sàng.
 
 	return {
@@ -430,7 +407,7 @@ def _handle_timeout(doc, exc):
 	"""7c — đã gửi nhưng chưa biết kết quả. Tuyệt đối không tự phát hành lại."""
 	message = _(
 		"Đã gửi lệnh phát hành nhưng chưa nhận được kết quả từ Fast ({0}). "
-		"BẮT BUỘC bấm Truy vấn (370) để biết hóa đơn đã ra số hay chưa, "
+		"BẮT BUỘC bấm Lấy dữ liệu từ Fast (370) để biết hóa đơn đã ra số hay chưa, "
 		"trước khi thao tác tiếp. Không phát hành lại."
 	).format(exc)
 
@@ -443,6 +420,43 @@ def _handle_timeout(doc, exc):
 	_mirror_status(doc.name, STATUS_NEEDS_RECONCILE)
 	_notify_failure(doc, message)
 	return {"ok": False, "needs_reconcile": True, "message": message}
+
+
+def _handle_unexpected(doc, exc):
+	"""Lỗi bất kỳ khác sau khi đã đặt trạng thái 05 — không được để chứng từ kẹt ở đó.
+
+	`call_fast` commit trạng thái "05 - Đang phát hành" **trước** khi gọi Fast.
+	Trước đây chỉ timeout được bắt; mọi lỗi khác (không đăng nhập được, HTTP 500,
+	lỗi đọc phản hồi…) ném thẳng ra ngoài, và chứng từ nằm lại ở 05 — trạng thái
+	không có nút nào, không sửa được, không đồng bộ lại được từ phiếu giao.
+
+	Không biết chắc lệnh đã tới Fast hay chưa, nên đưa về "Cần đối soát": ở đó
+	vẫn sửa, đồng bộ lại, xem nháp được, và lần phát hành sau luôn truy vấn 370
+	trước nên không thể ra hai số.
+	"""
+	frappe.log_error(title=f"HĐĐT: phát hành {doc.name} lỗi ngoài dự kiến")
+	message = _(
+		"Phát hành không hoàn tất: {0}. Chứng từ chuyển sang Cần đối soát — bấm Lấy dữ liệu từ Fast (370) "
+		"để chắc chắn hóa đơn chưa ra số, hoặc Đồng bộ lại từ phiếu giao rồi phát hành lại "
+		"(hệ thống luôn truy vấn Fast trước khi phát hành nên không thể ra hai số)."
+	).format(frappe.utils.strip_html(str(exc)) or type(exc).__name__)
+	frappe.db.set_value(
+		FEI,
+		doc.name,
+		{"status": STATUS_NEEDS_RECONCILE, "error_code": "", "error_message": message},
+		update_modified=False,
+	)
+	_mirror_status(doc.name, STATUS_NEEDS_RECONCILE)
+	_notify_failure(doc, message)
+	return {"ok": False, "needs_reconcile": True, "message": message}
+
+
+def is_issuance_in_progress(name):
+	"""Có tiến trình nào đang giữ khóa phát hành của chứng từ này không."""
+	try:
+		return bool(frappe.cache().get(_issuance_lock(name).key))
+	except Exception:
+		return False
 
 
 def _notify_failure(doc, message):
@@ -460,4 +474,3 @@ def _notify_failure(doc, message):
 	except Exception:
 		# Không gửi được cảnh báo thì cũng không được che mất kết quả phát hành.
 		frappe.log_error(title=f"HĐĐT: không gửi được cảnh báo cho {doc.name}")
-
