@@ -165,16 +165,20 @@ Fallback email khi `reconciliation_email` trống: field `email_id` sẵn có c�
 
 Một hàm thuần, **không ghi DB**, được gọi bởi cả job (FR-04), nút "Lấy số liệu từ sổ" và hộp thoại (FR-20). Đây là trái tim của tính năng — viết và test trước mọi thứ khác.
 
-### 3.1 Tập tài khoản
+### 3.1 Tập tài khoản (sửa 21/09 — xem ghi chú)
 
 ```python
-def get_party_accounts(company, party_type) -> list[str]:
-    number = settings.payable_account_number if party_type == "Supplier" else settings.receivable_account_number
-    root = frappe.db.get_value("Account", {"company": company, "account_number": number}, ["name", "is_group"], as_dict=True)
-    if not root: frappe.throw(...)                       # UC-01 E3: thiếu cấu hình → dừng, báo
-    if not root.is_group: return [root.name]             # hiện trạng site: 331/131 là lá
-    return [a for a in get_descendants_of("Account", root.name) if not is_group(a)]  # frappe.utils.nestedset
+def get_party_accounts(company, party_type, throw=True) -> list[str]:
+    number = "331" / "131" theo Settings
+    # 1. mọi TK lá có số hiệu bắt đầu bằng number — bất kể vị trí trên cây
+    accounts = {Account lá của company có account_number LIKE f"{number}%"}
+    # 2. cộng TK lá dưới node number trên cây (phòng TK con chưa đặt số hiệu)
+    for root in Account nhóm có account_number == number: accounts |= lá trong get_descendants_of(root)
+    if not accounts and throw: frappe.throw(...)            # UC-01 E3
+    return sorted(accounts)
 ```
+
+**Ghi chú lỗi đã gặp (21/09):** bản đầu chỉ lấy theo cây (331 + con cháu của 331). Trên production, `3311 - Phải trả người bán ngắn hạn` và `3312 - Trả trước cho người bán` nằm dưới nhóm `Tài khoản phải trả`, **ngang hàng** với 331 → bị bỏ sót, biên bản ra toàn 0 trong khi Sổ chi tiết công nợ (lấy theo tiền tố) vẫn có số. Nay báo cáo `so_chi_tiet_cong_no` gọi chung hàm này. Test: `TestSiblingChildAccounts` trong `tests/test_figures.py`.
 
 ### 3.2 Truy vấn GL (một câu cho cả đầu kỳ và trong kỳ)
 
@@ -373,7 +377,7 @@ Cron hằng ngày `0 8 * * *` → `reminders.send_due_reminders()`: các biên b
 | Tình trạng đối chiếu công nợ theo kỳ | Script Report | Công ty, Từ/Đến ngày, Loại đối tác | Đếm theo trạng thái, tỷ lệ xác nhận, danh sách quá hạn / chênh lệch |
 | Đối chiếu tổng biên bản vs số dư TK | Script Report | Công ty, Kỳ, Loại đối tác | Σ dư cuối (có hướng) các biên bản chưa Hủy vs số dư TK 331/131 **cùng tập tài khoản 3.1** tại `to_date`; chênh lệch phải = 0 khi mọi đối tác có biên bản (T11) |
 | Number Card ×5 | Number Card | — | Tổng BB kỳ · Đã gửi · Đã xác nhận · Chênh lệch · Quá hạn |
-| **Sổ chi tiết công nợ** (đã có) | bổ sung `so_chi_tiet_cong_no.js` | Công ty (mặc định), Từ ngày, Đến ngày, Loại đối tác (`Supplier`/`Customer`), Đối tác (Dynamic Link) | Logic Python giữ nguyên; hiện báo cáo **không có file bộ lọc** nên trên giao diện luôn trống |
+| **Sổ chi tiết công nợ** (đã có) | bổ sung `so_chi_tiet_cong_no.js` | Công ty (mặc định), Từ ngày, Đến ngày, Loại đối tác (`Supplier`/`Customer`), Đối tác (Dynamic Link) | Lấy tài khoản bằng **chung hàm `get_party_accounts`** với biên bản (3.1); hiện báo cáo **không có file bộ lọc** nên trên giao diện luôn trống |
 
 Nút **"Xem sổ công nợ đối tác"** trên form biên bản → `frappe.set_route("query-report", "Sổ chi tiết công nợ", {company, from_date, to_date, party_type, party})`.
 

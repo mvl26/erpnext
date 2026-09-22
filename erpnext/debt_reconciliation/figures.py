@@ -27,29 +27,39 @@ def get_account_number(party_type):
 
 
 def get_party_accounts(company, party_type, throw=True):
-	"""TK 331/131 của công ty và toàn bộ tài khoản lá bên dưới (D7).
+	"""Mọi tài khoản lá thuộc TK 331/131 của công ty (D7).
 
-	Tìm theo ``account_number`` chứ không theo tên — tên thật trên site là
-	``331 - Phải trả cho người bán - M``.
+	"Tài khoản con" hiểu theo cách đánh số của kế toán VN: mọi tài khoản có số hiệu bắt đầu
+	bằng 331/131 (3311, 3312…), bất kể nằm ở đâu trên cây — trên production 3311/3312 nằm
+	dưới nhóm "Tài khoản phải trả", ngang hàng với 331 chứ không nằm dưới nó. Cộng thêm các
+	tài khoản lá dưới node 331/131 trên cây, phòng tài khoản con chưa đặt số hiệu.
+
+	Báo cáo Sổ chi tiết công nợ dùng chung hàm này để sổ và biên bản không bao giờ lệch.
 	"""
 	number = get_account_number(party_type)
-	root = frappe.db.get_value(
-		"Account", {"company": company, "account_number": number}, ["name", "is_group"], as_dict=True
+	accounts = set(
+		frappe.get_all(
+			"Account",
+			filters={"company": company, "is_group": 0, "account_number": ["like", f"{number}%"]},
+			pluck="name",
+		)
 	)
-	if not root:
-		if throw:
-			frappe.throw(
-				_("Công ty {0} chưa có tài khoản số {1} — kiểm tra Cài đặt đối chiếu công nợ.").format(
-					company, number
-				)
+	for root in frappe.get_all(
+		"Account", filters={"company": company, "account_number": number, "is_group": 1}, pluck="name"
+	):
+		descendants = get_descendants_of("Account", root)
+		if descendants:
+			accounts.update(
+				frappe.get_all("Account", filters={"name": ["in", descendants], "is_group": 0}, pluck="name")
 			)
-		return []
-	if not root.is_group:
-		return [root.name]
-	descendants = get_descendants_of("Account", root.name)
-	if not descendants:
-		return []
-	return frappe.get_all("Account", filters={"name": ["in", descendants], "is_group": 0}, pluck="name")
+
+	if not accounts and throw:
+		frappe.throw(
+			_("Công ty {0} chưa có tài khoản số {1} — kiểm tra Cài đặt đối chiếu công nợ.").format(
+				company, number
+			)
+		)
+	return sorted(accounts)
 
 
 def get_gl_totals(company, party_type, from_date, to_date, party=None, accounts=None):

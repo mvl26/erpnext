@@ -146,7 +146,7 @@ class TestPrintFormats(FrappeTestCase):
 		doc = self.make("Supplier", 250_000, 0)
 		html = self.render(doc)
 		self.assertIn("đã thanh toán trước cho", html)
-		self.assertIn("(Dư Nợ)", html)
+		self.assertIn("Dư nợ cuối kỳ", html)  # nhãn theo chiều dư, không còn ghi chú "(Dư Nợ)"
 		self.assertNotIn("-250", html)
 		self.assertFalse(doc.amount_in_words.lower().startswith("âm"))
 

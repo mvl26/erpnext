@@ -10,7 +10,7 @@ DDL sẽ commit giao dịch test.
 
 import frappe
 
-from erpnext.regional.vietnam.test_setup import make_vn_company
+from erpnext.regional.vietnam.tests.test_setup import make_vn_company
 
 
 def get_company(name, abbr):

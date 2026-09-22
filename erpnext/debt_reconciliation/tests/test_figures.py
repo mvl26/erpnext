@@ -155,3 +155,69 @@ class TestChildAccounts(FrappeTestCase):
 		r = figures.get_figures(self.company, "Supplier", supplier, "2026-03-01", "2026-03-31")
 		self.assertEqual(r.credit_in_period, 500_000)
 		self.assertEqual((r.closing_balance, r.balance_direction), (500_000, DIR_CREDIT))
+
+
+class TestSiblingChildAccounts(FrappeTestCase):
+	"""Bố cục tài khoản trên production: 3311/3312 nằm dưới nhóm "Tài khoản phải trả",
+	ngang hàng với 331 (lá) chứ không nằm dưới 331 — vẫn phải được quét theo số hiệu (D7).
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.company = get_company("_Test DR Figures", "TDRF")
+		cls.root = account(cls.company, "331")
+		parent = frappe.db.get_value("Account", cls.root, "parent_account")
+		cls.siblings = []
+		for number, name in (("3311", "Phải trả người bán ngắn hạn"), ("3312", "Trả trước cho người bán")):
+			existing = account(cls.company, number)
+			if not existing:
+				existing = (
+					frappe.get_doc(
+						{
+							"doctype": "Account",
+							"company": cls.company,
+							"account_name": name,
+							"account_number": number,
+							"parent_account": parent,
+							"account_type": "Payable",
+							"root_type": "Liability",
+						}
+					)
+					.insert(ignore_permissions=True)
+					.name
+				)
+			cls.siblings.append(existing)
+
+	def test_sibling_accounts_found_by_number(self):
+		self.assertEqual(
+			sorted(figures.get_party_accounts(self.company, "Supplier")), sorted([self.root, *self.siblings])
+		)
+
+	def test_ledger_report_and_statement_agree(self):
+		from erpnext.regional.report.so_chi_tiet_cong_no.so_chi_tiet_cong_no import execute
+
+		supplier = make_party("Supplier")
+		# mọi phát sinh nằm trên 3311/3312, 331 trống — đúng tình huống lỗi "toàn 0" trên production
+		post(self.company, "Supplier", supplier, 0, 97_216_000, "2026-08-20", account_name=self.siblings[0])
+		post(self.company, "Supplier", supplier, 1_894_000, 0, "2026-09-09", account_name=self.siblings[0])
+		post(self.company, "Supplier", supplier, 0, 8_844_832, "2026-09-17", account_name=self.siblings[0])
+		post(self.company, "Supplier", supplier, 5_000_000, 0, "2026-09-20", account_name=self.siblings[1])
+
+		r = figures.get_figures(self.company, "Supplier", supplier, "2026-09-01", "2026-09-30")
+		self.assertEqual((r.opening_principal, r.opening_direction), (97_216_000, DIR_CREDIT))
+		self.assertEqual((r.debit_in_period, r.credit_in_period), (6_894_000, 8_844_832))
+		self.assertEqual((r.closing_balance, r.balance_direction), (99_166_832, DIR_CREDIT))
+
+		_, rows = execute(
+			frappe._dict(
+				company=self.company,
+				from_date="2026-09-01",
+				to_date="2026-09-30",
+				party_type="Supplier",
+				party=supplier,
+			)
+		)
+		closing = next(row for row in rows if row.get("is_closing"))
+		# sổ theo quy ước Nợ - Có của ERPNext: dư Có hiện âm
+		self.assertEqual(-closing["balance"], r.closing_balance)
