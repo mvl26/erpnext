@@ -125,7 +125,7 @@ class TestKiemTraDoDai(FrappeTestCase):
 			kiem_tra_do_dai("A" * 14, "lô")  # 189 module
 
 	def test_cau_bao_noi_ro_gioi_han(self):
-		"""Câu báo phải nói ĐANG bao nhiêu và ĐƯỢC bao nhiêu.
+		"""Câu báo phải nói ĐANG bao nhiêu và ĐƯỢC bao nhiêu (ký tự).
 
 		Chốt âm cho lớp lỗi 'màn hình nói sai sự thật' đã dính hai lần trong dự
 		án: một câu chung chung kiểu 'số lô quá dài' khiến thủ kho cắt bừa vài ký
@@ -135,8 +135,9 @@ class TestKiemTraDoDai(FrappeTestCase):
 			kiem_tra_do_dai("A" * 20, "lô")
 		except frappe.ValidationError as e:
 			cau = str(e)
-			self.assertIn("255", cau)  # module đang có
-			self.assertIn("188", cau)  # trần
+			self.assertIn("20 ký tự", cau)  # đang có
+			self.assertIn("13 ký tự", cau)  # được tối đa
+			self.assertIn("không in được", cau)
 		else:
 			self.fail("phải throw")
 
@@ -164,3 +165,82 @@ class TestKiemTraDoDai(FrappeTestCase):
 		# 14 ký tự có chữ = 14 ký hiệu = 189 module > 188 ✗
 		with self.assertRaises(frappe.ValidationError):
 			kiem_tra_do_dai("A" * 14, "mã")
+
+
+class TestKiemSoLoKhiNhap(FrappeTestCase):
+	"""`kiem_so_lo` — màn hình Phiếu nhập lô báo NGAY khi gõ xong số lô (22/09/2026).
+
+	Phải nói ĐÚNG như `validate` lúc lưu, và KHÔNG ném lỗi: ném thì `frappe.throw`
+	đã đẩy câu vào `message_log` trước, trình duyệt bật hộp lỗi thứ hai chồng lên
+	câu báo của màn hình.
+	"""
+
+	def test_so_lo_that_17_ky_tu_co_chu_bi_bao(self):
+		from erpnext.warehouse_operations.vitri.ma_vach import kiem_so_lo
+
+		kq = kiem_so_lo("240311(9A-12 21G)")
+		self.assertEqual(kq["so_ky_tu"], 17)
+		self.assertIn("13 ký tự nếu có chữ", kq["loi"])
+		self.assertIn("không in được", kq["loi"])
+
+	def test_vua_gioi_han_thi_khong_bao(self):
+		from erpnext.warehouse_operations.vitri.ma_vach import kiem_so_lo
+
+		self.assertIsNone(kiem_so_lo("A" * 13)["loi"])
+		self.assertIsNone(kiem_so_lo("1" * 26)["loi"])
+		self.assertIsNone(kiem_so_lo("")["loi"])
+
+	def test_ky_tu_bao_truoc_do_dai(self):
+		"""Cùng thứ tự với `BatchEntry.kiem_tra_so_lo`: số lô vừa có dấu vừa quá dài
+		thì việc phải làm là gõ lại không dấu — báo độ dài trước là xui cắt bớt."""
+		from erpnext.warehouse_operations.vitri.ma_vach import kiem_so_lo
+
+		kq = kiem_so_lo("LÔ-" + "A" * 20)
+		self.assertIn("U+00D4", kq["loi"])
+
+	def test_khong_nem_loi_khong_de_lai_message_log(self):
+		from erpnext.warehouse_operations.vitri.ma_vach import kiem_so_lo
+
+		truoc = len(frappe.local.message_log)
+		kiem_so_lo("240311(9A-12 21G)")
+		self.assertEqual(len(frappe.local.message_log), truoc)
+
+	def test_cau_bao_giong_het_luc_luu(self):
+		from erpnext.warehouse_operations.vitri.ma_vach import kiem_so_lo
+
+		cau = kiem_so_lo("240311(9A-12 21G)")["loi"]
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			kiem_tra_do_dai("240311(9A-12 21G)", "lô")
+		self.assertEqual(str(ctx.exception), cau)
+
+
+class TestTranGoTrenManHinh(FrappeTestCase):
+	"""Màn hình Phiếu nhập lô chặn GÕ quá trần (`batch_entry.js`, 22/09/2026) bằng
+	một hằng viết cứng. Hằng đó phải khớp trần suy từ `ma_vach.py` — nếu ai đổi
+	khổ tem hay bề rộng vạch ở đây mà quên sửa màn hình, màn hình sẽ chặn sai
+	(cho gõ một số lô mà lúc Lưu lại bị từ chối, hoặc chặn oan)."""
+
+	def test_hang_tren_man_hinh_khop_tran_ma_vach(self):
+		import os
+		import re
+
+		import erpnext
+
+		duong = os.path.join(
+			os.path.dirname(erpnext.__file__),
+			"warehouse_operations",
+			"doctype",
+			"batch_entry",
+			"batch_entry.js",
+		)
+		with open(duong, encoding="utf-8") as f:
+			js = f.read()
+		co_chu = int(re.search(r"const TOI_DA_CO_CHU = (\d+);", js).group(1))
+		chu_so = int(re.search(r"const TOI_DA_CHU_SO = (\d+);", js).group(1))
+
+		# Có chữ: ký tự thứ `co_chu` còn vừa, thứ `co_chu + 1` thì không.
+		self.assertLessEqual(so_module("A" * co_chu), MODULE_TOI_DA)
+		self.assertGreater(so_module("A" * (co_chu + 1)), MODULE_TOI_DA)
+		# Toàn chữ số: độ dài `chu_so` còn vừa, và là độ dài lớn nhất còn vừa.
+		self.assertLessEqual(so_module("1" * chu_so), MODULE_TOI_DA)
+		self.assertTrue(all(so_module("1" * n) > MODULE_TOI_DA for n in range(chu_so + 1, chu_so + 6)))

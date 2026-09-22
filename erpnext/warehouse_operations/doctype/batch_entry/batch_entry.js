@@ -28,6 +28,10 @@ const DUONG_IN_NHAN = "/assets/erpnext/js/warehouse_operations/in_nhan_lo.js";
 // nút mở trang đó, trên phiếu đã duyệt — lúc tem đã in ra và có cái để quét.
 
 frappe.ui.form.on("Batch Entry", {
+	onload(frm) {
+		chan_go_qua_tran_so_lo(frm);
+	},
+
 	refresh(frm) {
 		if (frm.doc.docstatus === 0) {
 			// Nút hiện NGAY CẢ KHI `phieu_nhap` còn trống, và điều kiện được
@@ -101,6 +105,116 @@ frappe.ui.form.on("Batch Entry", {
 				});
 			}
 		);
+	},
+});
+
+// Ô Số lô: BÁO NGAY khi thủ kho vừa gõ xong (rời ô), thay vì đợi tới lúc bấm Lưu
+// (22/09/2026, chủ đầu tư: "làm thông báo và giới hạn số ký tự của batch khi nhập
+// batch entry"). Số lô quá dài thì tem 50×30 không in được mã vạch; có dấu tiếng
+// Việt hay gạch ngang dài "–" thì Code 128 không mã hoá được.
+//
+// Hỏi MÁY CHỦ (`ma_vach.kiem_so_lo`) chứ không tự đếm ở đây: luật đếm module
+// Code 128 nằm ở `ma_vach.py`, và `validate` lúc lưu dùng đúng hàm đó — hai bản
+// luật thì một ngày nào đó màn hình cho qua mà lưu lại bị chặn. Ô không cho gõ
+// quá 26 ký tự (`length` trên doctype) — trần tuyệt đối, chỉ đạt được khi toàn
+// chữ số; có chữ thì trần thật là 13, và câu báo này nói đúng con số đó.
+//
+// KHÔNG tự xoá hay cắt số lô: số lô cắt bớt là số lô SAI dán lên hàng. Để nguyên
+// cho thủ kho đối chiếu lại với phiếu của nhà cung cấp; lưu vẫn bị chặn.
+// ------------------------------------------------------------------------------
+// CHẶN GÕ QUÁ TRẦN (22/09/2026, chủ đầu tư: "khi nhập đủ ký tự max thì gõ sẽ
+// không hiện gì nữa và đưa ra cảnh báo"). Gõ thêm ký tự làm số lô vượt trần thì
+// ký tự đó KHÔNG hiện lên, kèm cảnh báo. Dán một chuỗi quá dài thì từ chối CẢ
+// chuỗi — không cắt: số lô cắt bớt là số lô SAI dán lên hàng.
+//
+// Trần theo mã vạch Code 128 trên tem 50×30 (`ma_vach.py`, 188 module):
+//   - CÓ CHỮ: mỗi ký tự một ký hiệu → tối đa 13 ký tự. Chặn ngay ký tự thứ 14.
+//   - TOÀN CHỮ SỐ: 23, 24, 26 in được nhưng 25 thì KHÔNG (độ dài lẻ tốn thêm ký
+//     hiệu chuyển bộ mã). Chặn gõ ở 25 thì người cần số lô 26 chữ số không bao
+//     giờ gõ tới nơi — nên ở đây chỉ chặn quá 26 (`length` của trường), còn ca
+//     đúng 25 chữ số để câu báo lúc rời ô (`kiem_so_lo`) và lúc Lưu bắt.
+// `TOI_DA_CO_CHU` phải khớp `(MODULE_TOI_DA - 35) // 11` bên `ma_vach.py` —
+// `test_ma_vach.TestTranGoTrenManHinh` khoá việc đó.
+const TOI_DA_CO_CHU = 13;
+const TOI_DA_CHU_SO = 26;
+
+function vuot_tran_so_lo(s) {
+	s = (s || "").trim();
+	if (!s) return false;
+	return /^[0-9]+$/.test(s) ? s.length > TOI_DA_CHU_SO : s.length > TOI_DA_CO_CHU;
+}
+
+function canh_bao_tran_so_lo(s) {
+	// Không bắn liên tục khi thủ kho cứ gõ tiếp — một cảnh báo mỗi 2,5 giây là đủ thấy.
+	const bay_gio = Date.now();
+	if (canh_bao_tran_so_lo.luc && bay_gio - canh_bao_tran_so_lo.luc < 2500) return;
+	canh_bao_tran_so_lo.luc = bay_gio;
+	const toan_so = /^[0-9]+$/.test((s || "").trim());
+	frappe.show_alert(
+		{
+			message: toan_so
+				? __("Số lô tối đa {0} chữ số — gõ thêm tem sẽ không in được mã vạch.", [TOI_DA_CHU_SO])
+				: __("Số lô tối đa {0} ký tự nếu có chữ — gõ thêm tem sẽ không in được mã vạch.", [
+						TOI_DA_CO_CHU,
+				  ]),
+			indicator: "orange",
+		},
+		5
+	);
+}
+
+function chan_go_qua_tran_so_lo(frm) {
+	if (frm.__chan_tran_so_lo) return;
+	frm.__chan_tran_so_lo = true;
+	const O = 'input[data-fieldname="so_lo"]';
+	const $w = $(frm.wrapper);
+
+	// Đường chính: chặn TRƯỚC khi ký tự kịp hiện (`beforeinput`) — không nháy.
+	$w.on("beforeinput", O, (ev) => {
+		const e = ev.originalEvent;
+		const el = ev.currentTarget;
+		if (!e || !/^insert/.test(e.inputType || "")) return;
+		const them = e.data != null ? e.data : (e.dataTransfer && e.dataTransfer.getData("text")) || "";
+		const moi = el.value.slice(0, el.selectionStart) + them + el.value.slice(el.selectionEnd);
+		if (vuot_tran_so_lo(moi)) {
+			ev.preventDefault();
+			canh_bao_tran_so_lo(moi);
+		}
+	});
+
+	// Lưới an toàn cho đường `beforeinput` không bắt được (bộ gõ tiếng Việt ghép
+	// chữ, trình duyệt cũ): vượt trần thì trả về giá trị hợp lệ ngay trước đó.
+	$w.on("focusin", O, (ev) => {
+		ev.currentTarget.dataset.loHopLe = ev.currentTarget.value;
+	});
+	$w.on("input", O, (ev) => {
+		const el = ev.currentTarget;
+		if (vuot_tran_so_lo(el.value)) {
+			const moi = el.value;
+			el.value = el.dataset.loHopLe || "";
+			canh_bao_tran_so_lo(moi);
+		} else {
+			el.dataset.loHopLe = el.value;
+		}
+	});
+}
+
+frappe.ui.form.on("Batch Entry Item", {
+	so_lo(frm, cdt, cdn) {
+		const d = locals[cdt][cdn];
+		const so_lo = (d.so_lo || "").trim();
+		if (!so_lo) return;
+		frappe
+			.xcall("erpnext.warehouse_operations.vitri.ma_vach.kiem_so_lo", { so_lo })
+			.then((kq) => {
+				// Người dùng có thể đã sửa tiếp trong lúc chờ — chỉ báo cho đúng giá trị đang hiện.
+				if (!kq || !kq.loi || (locals[cdt][cdn].so_lo || "").trim() !== so_lo) return;
+				frappe.msgprint({
+					title: __("Số lô dòng {0} chưa dùng được", [d.idx]),
+					indicator: "red",
+					message: frappe.utils.escape_html(kq.loi),
+				});
+			});
 	},
 });
 
