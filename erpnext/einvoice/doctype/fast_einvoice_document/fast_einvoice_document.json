@@ -252,7 +252,7 @@
    "read_only": 1
   },
   {
-   "description": "Luôn bằng ngày phát hành — hệ thống tự đặt lại khi bấm Phát hành.",
+   "description": "Luôn bằng ngày phát hành — hệ thống tự đặt về hôm nay mỗi lần lưu, xem nháp và phát hành.",
    "fieldname": "invoice_date",
    "fieldtype": "Date",
    "in_list_view": 1,

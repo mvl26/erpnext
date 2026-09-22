@@ -14,7 +14,7 @@ import time
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, get_datetime, get_url, now_datetime, time_diff_in_seconds
+from frappe.utils import add_to_date, get_datetime, get_url, getdate, now_datetime, time_diff_in_seconds
 
 from erpnext.einvoice.constants import (
 	EDITABLE_STATUSES,
@@ -72,6 +72,7 @@ def preview_draft(fei, client=None):
 	check_enabled()
 	doc = frappe.get_doc(FEI, fei)
 	_assert_status(doc, DRAFT_PREVIEW_STATUSES, _("xem bản nháp"))
+	refresh_before_send(doc)
 
 	response = call_fast(
 		doc,
@@ -104,6 +105,40 @@ def preview_draft(fei, client=None):
 
 
 # --- Tiện ích dùng chung cho các nút ----------------------------------------
+
+
+def refresh_before_send(doc):
+	"""Tự sửa những gì hệ thống sửa được, ngay trước khi gửi Fast — thay vì chặn.
+
+	Ngày hóa đơn về hôm nay, xuống dòng gộp lại, số tổng hợp tính lại từ dòng
+	hàng — đúng những việc `FastEInvoiceDocument.validate` làm lúc Lưu. Chứng từ
+	lập từ hôm trước, hay còn giữ số cũ từ trước một lần đổi công thức, vì thế
+	không bao giờ phải chặn; bản nháp và hóa đơn thật luôn mang đúng ngày sẽ in.
+
+	Cố ý **không** gọi ``doc.save()``: save còn kiểm trường bắt buộc, và một chứng
+	từ thiếu địa chỉ sẽ không xem nháp được — trong khi xem nháp chính là cách
+	nhìn ra mình thiếu gì. Chỗ nào Fast thật sự từ chối thì `validate_before_send`
+	chặn đúng ở nút phát hành. Ghi thẳng xuống DB cũng giữ nguyên ``modified``,
+	nên form đang mở không bị báo "đã bị sửa bởi người khác".
+	"""
+	previous = getdate(doc.invoice_date) if doc.invoice_date else None
+	doc._fix_what_fast_would_reject()
+	doc._compute_totals()
+	doc.db_update()
+	for line in doc.lines or []:
+		line.db_update()
+
+	if previous and previous != getdate(doc.invoice_date):
+		doc.add_comment(
+			"Comment",
+			_("Ngày hóa đơn đổi từ {0} sang {1} — ngày hóa đơn luôn bằng ngày phát hành.").format(
+				_dmy(previous), _dmy(doc.invoice_date)
+			),
+		)
+
+
+def _dmy(value):
+	return getdate(value).strftime("%d/%m/%Y")
 
 
 def _assert_status(doc, allowed, what):
@@ -496,7 +531,7 @@ def download_converted_pdf(fei, convert_name=None, client=None):
 	return {"ok": True, "file_url": file_url}
 
 
-# Sau phát hành HSM, Fast cần khoảng 30 giây – 1 phút ký số xong mới có PDF (mục E5
+# Sau phát hành HSM, Fast cần khoảng 30 giây — 1 phút ký số xong mới có PDF (mục E5
 # nhánh 7a). Gọi 380 sớm hơn chỉ nhận về kết quả rỗng và thêm một dòng nhật ký.
 PDF_READY_AFTER_SECONDS = 60
 # Job tự tải: tối đa 5 lần, hai lần cách nhau ít nhất 2 phút — hết lượt thì kế toán bấm tay.

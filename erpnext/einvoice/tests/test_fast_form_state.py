@@ -154,9 +154,23 @@ class TestButtonsFollowTheStateTable(FormStateBase):
 	def test_approved_invoice_offers_the_issue_button(self):
 		self.assertIn("issue", self.buttons_at(STATUS_CUSTOMER_APPROVED))
 
-	def test_issuing_state_is_completely_locked(self):
-		"""Trạng thái 05 khóa toàn bộ — chống bấm đúp."""
-		self.assertEqual(self.buttons_at(STATUS_ISSUING), set())
+	def test_issuing_state_is_completely_locked_while_an_issue_is_in_flight(self):
+		"""Trạng thái 05 khóa toàn bộ khi có tiến trình đang giữ khóa — chống bấm đúp."""
+		from erpnext.einvoice.issue import _issuance_lock
+
+		with _issuance_lock(self.fei):
+			self.assertEqual(self.buttons_at(STATUS_ISSUING), set())
+
+	def test_an_abandoned_issuing_state_is_released_for_reconciliation(self):
+		"""05 mà không còn ai giữ khóa là tiến trình đã chết — không được khóa kế toán mãi.
+
+		Về "Cần đối soát": còn đồng bộ lại từ phiếu giao, xem nháp, truy vấn 370.
+		"""
+		buttons = self.buttons_at(STATUS_ISSUING)
+
+		self.assertEqual(frappe.db.get_value(FEI, self.fei, "status"), STATUS_NEEDS_RECONCILE)
+		self.assertIn("resync", buttons)
+		self.assertIn("reconcile", buttons)
 
 	def test_issued_invoice_offers_pdf_email_and_tax_check(self):
 		buttons = self.buttons_at(STATUS_ISSUED)

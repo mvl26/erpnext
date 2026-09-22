@@ -632,7 +632,7 @@ Kết quả validate hiển thị dạng bảng ngay trên form (đỏ = chặn,
 Chép nguyên từ mục 18 "Danh sách mã lỗi" của `HDDT Fast - HĐ Cấp mã CQT- Không mã hóa RSA.pdf`
 (trang 40–47). Để ở đây để không phải mở lại file PDF mỗi lần tra.
 
-**Luật của Phần F:** mọi quy tắc mức **Chặn** phải trỏ được về một mã trong bảng này. ERP
+**Luật của Phần F:** mọi quy tắc mức **Chặn** phải trỏ được về một mã trong bảng này — và chỉ chặn khi hệ thống không tự sửa được. Ngày hóa đơn (818/819) và xuống dòng (825) được tự sửa, không chặn. ERP
 không tự đặt thêm điều kiện chặn của riêng mình — Fast mới là bên quyết định hóa đơn có phát
 hành được hay không. Cột cuối cho biết quy tắc nào đang gác mã nào; `TestNothingBlocksMoreThanFastDoes`
 trong `test_fast_validation.py` bắt lỗi ngay nếu có ai thêm một điểm chặn không nêu được căn cứ.
@@ -678,14 +678,14 @@ trong test chứ không lẫn vào các quy tắc khác.
 | `809` | Phát hành token | Có hóa đơn trùng khóa trong chuỗi dữ liệu. | | QT1 |
 | `810` | Phát hành token | Lỗi chưa xác định khi xử lý dữ liệu. | | — |
 | `812` | Phát hành token | Lỗi dữ liệu đầu vào vượt quá giới hạn cho phép. | Ví dụ tên mặt hàng > 500 ký tự, tên người mua > 128 ký tự. | QT1 · QT7 |
-| `813` | Phát hành token | Lỗi dữ liệu đầu vào không được rỗng. | | QT1 · QT5 · QT8 · QT11 |
+| `813` | Phát hành token | Lỗi dữ liệu đầu vào không được rỗng. | | QT1 · QT5 · QT8 |
 | `814` | Phát hành token | Chuỗi kiểm tra không đúng với dữ liệu. | | — |
 | `815` | Phát hành token | Lỗi khi tạo xml cho hóa đơn. | | — |
 | `816` | Phát hành token | Lỗi khi tạo khóa tra cứu cho hóa đơn. | | — |
 | `817` | Phát hành token | Ngày hóa đơn không hợp lệ. | | — |
-| `818` | Phát hành token | Ngày hóa đơn không thuộc giới hạn phát hành cho phép. | Giới hạn số ngày được phép phát hành so với ngày hiện tại. | — |
-| `819` | Phát hành token | Tồn tại hóa đơn có ngày nhỏ hơn hóa đơn đã có. | | QT11 (cảnh báo) |
-| `825` | Phát hành token | Tên hàng hóa hoặc tên khách hàng, địa chỉ chứa ký tự xuống dòng. | | QT6 |
+| `818` | Phát hành token | Ngày hóa đơn không thuộc giới hạn phát hành cho phép. | Giới hạn số ngày được phép phát hành so với ngày hiện tại. | Tự sửa: ngày hóa đơn luôn = hôm nay |
+| `819` | Phát hành token | Tồn tại hóa đơn có ngày nhỏ hơn hóa đơn đã có. | | Tự sửa: ngày hóa đơn luôn = hôm nay |
+| `825` | Phát hành token | Tên hàng hóa hoặc tên khách hàng, địa chỉ chứa ký tự xuống dòng. | | Tự sửa: gộp xuống dòng khi lưu |
 | `835` | Phát hành token | Hóa đơn này đã tồn tại. Vui lòng kiểm tra lại. | | — |
 | `836` | Phát hành HSM | Không phát hành được hóa đơn do lỗi về số liệu — hệ thống chặn không cho xuất. | Fast liệt kê các nguyên nhân: tính chất hàng hóa rỗng · email người mua có ký tự ẩn hoặc vượt giới hạn · có MST người mua nhưng thiếu tên đơn vị mua và địa chỉ · họ tên người mua > 100 ký tự. | QT2 · QT4 · QT8 · QT9 |
 | `900` | Phát hành token | Không tồn tại hóa đơn cần điều chỉnh/thay thế/hủy. | | — |
@@ -697,7 +697,7 @@ trong test chứ không lẫn vào các quy tắc khác.
 | `8031` | Phát hành HSM | access_token null. | | — |
 | `10000` | Phát hành HSM | Lỗi không xác định khi dùng chữ ký số HSM của SmartSign Vina. | | — |
 | `63503` | Phát hành HSM | xml invalid. | | — |
-| `63505` | Phát hành HSM | signature invalid. | | QT13 (cảnh báo) |
+| `63505` | Phát hành HSM | signature invalid. | | — |
 | `78001` | Phát hành token | Chưa khai báo doanh nghiệp truyền nhận dữ liệu cơ quan thuế. | | — |
 | `78010` | Phát hành token | Mã số thuế trong chứng thư số không khớp với thông tin đơn vị. | | — |
 | `78011` | Phát hành token | Thông tin chứng thư số chưa đăng ký trên tờ khai sử dụng hóa đơn điện tử. | | — |

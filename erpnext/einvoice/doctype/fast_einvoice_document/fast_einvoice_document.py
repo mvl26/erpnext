@@ -7,9 +7,12 @@ Cancelled của Frappe, nên trạng thái do trường ``status`` tự quản l
 khóa sửa dựa trên trạng thái chứ không dựa trên docstatus.
 """
 
+import re
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import getdate, nowdate
 
 from erpnext.einvoice.constants import (
 	EDITABLE_STATUSES,
@@ -82,6 +85,33 @@ PROTECTED_LINE_FIELDS = (
 # nên chứng từ đã khóa cũng phải chặn y như chặn số tiền.
 PROTECTED_CONTROL_FIELDS = ("totals_manual_override", "override_reason")
 
+# Trường text nằm trong dữ liệu gửi Fast mà Fast từ chối nếu có xuống dòng (lỗi
+# 825). Hệ thống tự gộp thành một dòng khi lưu, không bắt kế toán đi sửa tay.
+SINGLE_LINE_MASTER_FIELDS = (
+	"buyer",
+	"customer_name",
+	"address",
+	"phone_number",
+	"fax_number",
+	"email_deliver",
+	"bank_account",
+	"bank_name",
+	"amount_in_words",
+	"human_name",
+	"external_1",
+	"external_2",
+	"external_3",
+)
+SINGLE_LINE_LINE_FIELDS = ("item_name", "item_code", "uom", "note")
+
+_LINE_BREAK = re.compile(r"\s*[\r\n]+\s*")
+
+
+def _one_line(value):
+	if not isinstance(value, str) or not ("\n" in value or "\r" in value):
+		return value
+	return _LINE_BREAK.sub(" ", value).strip()
+
 
 def _frozen_values(doc):
 	"""Giá trị các trường đóng băng, quy về cùng một dạng để so sánh được.
@@ -105,6 +135,7 @@ class FastEInvoiceDocument(Document):
 			self.status = STATUS_DRAFT
 		self.is_edit_locked = 0 if self.status in EDITABLE_STATUSES else 1
 
+		self._fix_what_fast_would_reject()
 		self._validate_manual_override()
 		self._compute_totals()
 		self._validate_fast_key_is_immutable()
@@ -185,6 +216,30 @@ class FastEInvoiceDocument(Document):
 		"""
 		for name in frappe.get_all("Fast EInvoice Log", filters={"fei_document": self.name}, pluck="name"):
 			frappe.delete_doc("Fast EInvoice Log", name, ignore_permissions=True, delete_permanently=True)
+
+	def _fix_what_fast_would_reject(self):
+		"""Tự sửa những thứ hệ thống sửa được, thay vì để đến lúc gửi mới chặn.
+
+		- **Ngày hóa đơn = hôm nay.** Ngày hóa đơn luôn là ngày phát hành, và Fast
+		  từ chối ngày ngoài giới hạn so với ngày hiện tại (lỗi 818/730) hoặc nhỏ
+		  hơn hóa đơn đã phát hành (lỗi 819). Chứng từ lập hôm qua, hôm nay mới
+		  bấm, thì chỉ cần đổi ngày — không có gì để kế toán phải quyết.
+		- **Xuống dòng gộp thành dấu cách** (lỗi 825).
+
+		Chỉ chạy khi chứng từ còn sửa được: hóa đơn đã có số là chứng từ pháp lý.
+		"""
+		if self.is_edit_locked:
+			return
+
+		today = getdate(nowdate())
+		if not self.invoice_date or getdate(self.invoice_date) != today:
+			self.invoice_date = today
+
+		for fieldname in SINGLE_LINE_MASTER_FIELDS:
+			self.set(fieldname, _one_line(self.get(fieldname)))
+		for line in self.lines or []:
+			for fieldname in SINGLE_LINE_LINE_FIELDS:
+				line.set(fieldname, _one_line(line.get(fieldname)))
 
 	def _compute_totals(self):
 		"""Tính lại dòng hàng và tổng hợp — công thức nằm ở `einvoice.totals`.

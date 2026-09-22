@@ -129,7 +129,7 @@ def _copy_from_delivery_note(fei, source, settings):
 
 	fei.customer = source.customer
 	# Không lấy ngày phiếu giao: ngày hóa đơn luôn bằng ngày phát hành, và lúc bấm
-	# phát hành `issue._stamp_invoice_date` đặt lại lần nữa. Đây chỉ là giá trị
+	# phát hành `actions.refresh_before_send` đặt lại lần nữa. Đây chỉ là giá trị
 	# hiển thị cho bản nháp.
 	fei.invoice_date = nowdate()
 	fei.customer_code = fast_key_for(source.customer)

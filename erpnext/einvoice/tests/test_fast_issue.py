@@ -266,6 +266,30 @@ class TestFailurePaths(IssueTestBase):
 		issue_calls = [c for c in self.transport.calls if "<method>310</method>" in c["body"]]
 		self.assertEqual(len(issue_calls), 1)
 
+	def test_an_unexpected_error_never_leaves_the_document_stuck_issuing(self):
+		"""Lỗi khác timeout sau khi đã đặt 05 — trước đây chứng từ kẹt ở 05 mãi.
+
+		Ở 05 không có nút nào, không sửa được, không đồng bộ lại được: kế toán
+		không làm gì tiếp được nữa. Phải về "Cần đối soát".
+		"""
+		client = self._client(NOT_FOUND, RuntimeError("mat ket noi"))
+		result = issue_invoice(self.fei.name, client=client)
+
+		self.fei.reload()
+		self.assertFalse(result["ok"])
+		self.assertEqual(self.fei.status, STATUS_NEEDS_RECONCILE)
+		self.assertIn("mat ket noi", self.fei.error_message)
+
+	def test_small_data_problems_are_fixed_not_blocked(self):
+		"""Tổng hợp lỗi thời và xuống dòng: hệ thống tự sửa rồi phát hành luôn."""
+		frappe.db.set_value(FEI, self.fei.name, {"amount_in_words": "", "customer_name": "Benh vien\nA & B"})
+		result = issue_invoice(self.fei.name, client=self._client(NOT_FOUND, ISSUE_OK))
+
+		self.assertTrue(result["ok"])
+		self.fei.reload()
+		self.assertEqual(self.fei.customer_name, "Benh vien A & B")
+		self.assertTrue(self.fei.amount_in_words)
+
 	def test_a_failed_issue_is_still_fully_logged(self):
 		issue_invoice(self.fei.name, client=self._client(NOT_FOUND, envelope(0, "836|Thieu thong tin")))
 
@@ -291,7 +315,7 @@ class TestPreconditions(IssueTestBase):
 		self.assertEqual(self.fei.status, STATUS_ISSUED)
 
 	def test_blocking_validation_prevents_any_call(self):
-		frappe.db.set_value(FEI, self.fei.name, "amount_in_words", "")
+		frappe.db.set_value(FEI, self.fei.name, {"customer_type": "1", "customer_tax_code": "123"})
 		client = self._client(NOT_FOUND, ISSUE_OK)
 
 		with self.assertRaises(frappe.ValidationError):

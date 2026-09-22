@@ -27,6 +27,7 @@ from erpnext.einvoice.constants import (
 	STATUS_DRAFT_VIEWED,
 	STATUS_ERROR,
 	STATUS_ISSUED,
+	STATUS_ISSUING,
 	STATUS_NEEDS_RECONCILE,
 	STATUS_SENT,
 	STATUS_TAX_ACCEPTED,
@@ -192,6 +193,7 @@ def get_form_state(fei):
 	"""Mọi thứ giao diện cần để vẽ form: nút khả dụng, kết quả kiểm tra, cờ chạy thử."""
 	doc = frappe.get_doc(FEI, fei)
 	settings = get_settings()
+	_release_stuck_issuance(doc)
 
 	return {
 		"status": doc.status,
@@ -202,6 +204,38 @@ def get_form_state(fei):
 		"buttons": _buttons_for(doc, settings),
 		"validation": _validation_for(doc),
 	}
+
+
+def _release_stuck_issuance(doc):
+	"""Chứng từ nằm ở "05 - Đang phát hành" mà không còn tiến trình nào đang phát hành.
+
+	Xảy ra khi tiến trình phát hành chết giữa chừng (server khởi động lại, hoặc
+	lỗi mà bản cũ chưa bắt). Trạng thái 05 không có nút nào và khóa dữ liệu, nên
+	nếu để nguyên thì kế toán không làm gì tiếp được. Khóa phát hành trong Redis
+	đã nhả nghĩa là không còn lệnh nào đang bay — đưa về "Cần đối soát", nơi còn
+	đồng bộ lại, xem nháp, truy vấn 370 được.
+	"""
+	from erpnext.einvoice.actions import _mirror_status
+	from erpnext.einvoice.issue import is_issuance_in_progress
+
+	if doc.status != STATUS_ISSUING or is_issuance_in_progress(doc.name):
+		return
+
+	message = _(
+		"Lần phát hành trước dừng giữa chừng, chưa rõ Fast đã nhận hay chưa. Bấm Truy vấn (370) "
+		"để kiểm tra, hoặc Đồng bộ lại từ phiếu giao rồi phát hành lại — hệ thống luôn truy vấn "
+		"Fast trước khi phát hành nên không thể ra hai số."
+	)
+	frappe.db.set_value(
+		FEI,
+		doc.name,
+		{"status": STATUS_NEEDS_RECONCILE, "error_message": message, "is_edit_locked": 0},
+		update_modified=False,
+	)
+	_mirror_status(doc.name, STATUS_NEEDS_RECONCILE)
+	doc.status = STATUS_NEEDS_RECONCILE
+	doc.error_message = message
+	doc.is_edit_locked = 0
 
 
 def _buttons_for(doc, settings):
