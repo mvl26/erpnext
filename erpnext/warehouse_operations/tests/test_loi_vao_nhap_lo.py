@@ -230,23 +230,39 @@ class TestGanViTriTuItem(FrappeTestCase):
 		# bài trước chiếm tầng và bài sau nổ vì "đã được gán cho mặt hàng khác" —
 		# đỏ vì thứ tự chạy, không vì mã sai.
 		frappe.set_user("Administrator")
+		frappe.db.delete("Item Location Preference Row", {"parent": ["like", "_Test LoiVao Item%"]})
 		frappe.db.delete("Item Location Preference", {"vat_tu": ["like", "_Test LoiVao Item%"]})
 
 	def test_gan_lan_dau_tao_ban_gan(self):
 		vt = _mat_hang("_Test LoiVao Item Gan")
-		gan_vi_tri_cho_mat_hang(vt, KHO, self.tang1)
-		self.assertEqual(frappe.db.get_value("Item Location Preference", vt, "vi_tri"), self.tang1)
-		self.assertEqual(vi_tri_cua_mat_hang(vt)["vi_tri"], self.tang1)
+		gan_vi_tri_cho_mat_hang(vt, [self.tang1])
+		self.assertEqual(
+			frappe.db.get_value("Item Location Preference Row", {"parent": vt}, "vi_tri"), self.tang1
+		)
+		self.assertEqual([d.vi_tri for d in vi_tri_cua_mat_hang(vt)["dong"]], [self.tang1])
 
 	def test_gan_lai_thi_sua_dung_ban_gan_cu(self):
 		"""Chốt âm: một cài đặt luôn `insert()` sẽ nổ khoá chính ở lần hai
 		(`autoname: field:vat_tu`), còn một cài đặt xoá-rồi-tạo sẽ vượt qua được
 		nhưng đổi `creation`. Khẳng định vẫn đúng MỘT bản ghi và vị trí đã đổi."""
 		vt = _mat_hang("_Test LoiVao Item DoiGan")
-		gan_vi_tri_cho_mat_hang(vt, KHO, self.tang1)
-		gan_vi_tri_cho_mat_hang(vt, KHO, self.tang2)
+		gan_vi_tri_cho_mat_hang(vt, [self.tang1])
+		gan_vi_tri_cho_mat_hang(vt, [self.tang2])
 		self.assertEqual(frappe.db.count("Item Location Preference", {"vat_tu": vt}), 1)
-		self.assertEqual(vi_tri_cua_mat_hang(vt)["vi_tri"], self.tang2)
+		self.assertEqual([d.vi_tri for d in vi_tri_cua_mat_hang(vt)["dong"]], [self.tang2])
+
+	def test_gan_nhieu_vi_tri_ghi_de_dung_thu_tu(self):
+		"""22/09/2026: một mặt hàng giữ nhiều vị trí. Ghi đè CẢ danh sách, giữ đúng
+		thứ tự người dùng sắp; danh sách đi qua HTTP dạng chuỗi JSON cũng nhận."""
+		vt = _mat_hang("_Test LoiVao Item NhieuViTri")
+		gan_vi_tri_cho_mat_hang(vt, [self.tang2, self.tang1])
+		self.assertEqual([d.vi_tri for d in vi_tri_cua_mat_hang(vt)["dong"]], [self.tang2, self.tang1])
+		gan_vi_tri_cho_mat_hang(vt, frappe.as_json([self.tang1]))
+		self.assertEqual([d.vi_tri for d in vi_tri_cua_mat_hang(vt)["dong"]], [self.tang1])
+
+	def test_danh_sach_rong_bi_chan(self):
+		with self.assertRaises(frappe.ValidationError):
+			gan_vi_tri_cho_mat_hang(_mat_hang("_Test LoiVao Item Rong"), [])
 
 	def test_chua_gan_tra_none(self):
 		self.assertIsNone(vi_tri_cua_mat_hang(_mat_hang("_Test LoiVao Item ChuaGan")))
@@ -257,9 +273,9 @@ class TestGanViTriTuItem(FrappeTestCase):
 		xanh sai: hai mặt hàng cùng một tầng, đúng thứ khối B sinh ra để chặn."""
 		a = _mat_hang("_Test LoiVao Item ChiemA")
 		b = _mat_hang("_Test LoiVao Item ChiemB")
-		gan_vi_tri_cho_mat_hang(a, KHO, self.tang1)
+		gan_vi_tri_cho_mat_hang(a, [self.tang1])
 		with self.assertRaises(frappe.ValidationError):
-			gan_vi_tri_cho_mat_hang(b, KHO, self.tang1)
+			gan_vi_tri_cho_mat_hang(b, [self.tang1])
 
 	def test_stock_user_khong_gan_duoc(self):
 		"""`Item Location Preference` chỉ cho System Manager và Stock Manager tạo /
@@ -269,4 +285,4 @@ class TestGanViTriTuItem(FrappeTestCase):
 		self.assertNotIn("Stock Manager", frappe.get_roles(ten))
 		frappe.set_user(ten)
 		with self.assertRaises(frappe.PermissionError):
-			gan_vi_tri_cho_mat_hang(vt, KHO, self.tang2)
+			gan_vi_tri_cho_mat_hang(vt, [self.tang2])

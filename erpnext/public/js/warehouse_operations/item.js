@@ -43,85 +43,181 @@ frappe.ui.form.on("Item", {
 					|| frappe.model.can_write("Item Location Preference");
 				if (!duoc_gan) return;
 
-				frm.add_custom_button(
-					gan ? __("Đổi vị trí") : __("Gán vị trí"),
-					() => chon_vi_tri(frm, gan),
-					__("Vị trí kho")
-				);
+				frm.add_custom_button(__("Gán vị trí"), () => hop_gan(frm, gan), __("Vị trí kho"));
 			});
 	},
 });
 
 function hien_vi_tri(frm, gan) {
 	const esc = frappe.utils.escape_html;
-	if (!gan) {
+	if (!gan || !(gan.dong || []).length) {
 		frm.dashboard.set_headline_alert(
 			__("Mặt hàng này chưa gán vị trí cố định — tem in ra sẽ trống ô vị trí."),
 			"orange"
 		);
 		return;
 	}
-	const lien_ket = `<a href="/app/item-location-preference/${encodeURIComponent(gan.name)}">${esc(
-		gan.vi_tri
+	// Nhiều vị trí (22/09/2026): liệt kê đủ, theo thứ tự dòng.
+	const ds = gan.dong
+		.map(
+			(d) =>
+				`${esc(d.ma_in_nhan || d.vi_tri)} <span class="text-muted">(${esc(d.cap_do || "")}, ${esc(
+					d.kho || ""
+				)})</span>`
+		)
+		.join(" · ");
+	const lien_ket = `<a href="/app/item-location-preference/${encodeURIComponent(gan.name)}">${__(
+		"xem bản gán"
 	)}</a>`;
-	frm.dashboard.set_headline_alert(
-		__("Vị trí cố định: {0} · {1}{2}", [
-			lien_ket,
-			esc(gan.kho),
-			gan.cap_do ? " · " + esc(__("cấp {0}", [gan.cap_do])) : "",
-		]),
-		"blue"
-	);
+	frm.dashboard.set_headline_alert(__("Vị trí cố định: {0} · {1}", [ds, lien_ket]), "blue");
 }
 
-function chon_vi_tri(frm, gan) {
+// Hộp thoại gán NHIỀU vị trí (22/09/2026 — chủ đầu tư: "1 item có thể gán nhiều vị
+// trí khác nhau… ở ô này và ở tầng bên kia nữa").
+//
+// Danh sách `ds` sống trong bộ nhớ của hộp thoại tới khi bấm Lưu — thêm/bỏ/đổi thứ
+// tự không gọi máy chủ. Lưu gọi `gan_vi_tri_cho_mat_hang` với CẢ danh sách, tức đi
+// qua `validate()` của bản gán: mọi luật (chồng mặt hàng khác, tự lồng nhau, nhánh
+// đang có hàng khác) do máy chủ nói, câu báo "Dòng N: …" hiện nguyên văn.
+//
+// Thứ tự dòng chỉ để phân định khi có nhiều ô trống cùng lúc (gợi ý đi "ô trống
+// trước, bất kể thuộc vị trí nào") — nên không gọi là vị trí "chính/phụ".
+function hop_gan(frm, gan) {
+	const esc = frappe.utils.escape_html;
+	const ds = ((gan && gan.dong) || []).map((x) => Object.assign({}, x));
+
 	const d = new frappe.ui.Dialog({
 		title: __("Vị trí cố định cho {0}", [frm.doc.item_name || frm.doc.name]),
+		size: "large",
 		fields: [
+			{ fieldname: "bang", fieldtype: "HTML" },
 			{
-				fieldname: "kho",
-				fieldtype: "Link",
-				options: "Warehouse",
-				label: __("Kho"),
-				reqd: 1,
-				default: gan ? gan.kho : null,
-				// Chỉ kho ĐÃ bật quản lý vị trí mới có cây vị trí. Chọn một kho
-				// chưa bật thì cây mở ra trống trơn và người dùng không biết vì sao.
-				get_query: () => ({ filters: { custom_quan_ly_vi_tri: 1, is_group: 0 } }),
-				description: __("Chỉ hiện kho đã bật quản lý vị trí."),
+				fieldname: "ghi_chu",
+				fieldtype: "HTML",
+				options: `<p class="text-muted small">${__(
+					"Một mặt hàng có thể giữ nhiều vị trí, kể cả ở kho khác. Gợi ý ô khi nhập hàng: ô trống trước (bất kể thuộc vị trí nào), hết ô trống mới dồn vào ô đang có chính mặt hàng này. Thứ tự chỉ dùng khi có nhiều ô trống cùng lúc."
+				)}</p>`,
 			},
 		],
-		primary_action_label: __("Chọn trên cây vị trí"),
-		primary_action(v) {
-			d.hide();
-			frappe.require(DUONG_CAY_VI_TRI, () => {
-				// `tru_ten`: khi ĐỔI một gán đã có, loại chính gán đó ra khỏi phép
-				// đếm "nhánh này đã có mặt hàng khác giữ" của cây — nếu không, dời
-				// gán lên nút cha của chính nó (thao tác hợp lệ, máy chủ cũng loại
-				// trừ y hệt) sẽ bị khoá oan. Xem chú thích đầu `cay_chon_vi_tri.js`.
-				erpnext.warehouse_operations.chon_vi_tri(v.kho, (o) => luu(frm, v.kho, o), gan ? gan.name : null);
-			});
+		primary_action_label: __("Lưu"),
+		primary_action() {
+			if (!ds.length) {
+				frappe.msgprint(__("Cần ít nhất một vị trí."));
+				return;
+			}
+			frappe
+				.call({
+					method: "erpnext.warehouse_operations.vitri.gan.gan_vi_tri_cho_mat_hang",
+					args: { vat_tu: frm.doc.name, vi_tri: ds.map((x) => x.vi_tri) },
+					freeze: true,
+					freeze_message: __("Đang gán vị trí…"),
+				})
+				.then(() => {
+					d.hide();
+					frappe.show_alert({ message: __("Đã lưu {0} vị trí.", [ds.length]), indicator: "green" });
+					frm.reload_doc();
+				});
+			// Lỗi do `validate()` của bản gán ném ra và `frappe.call` tự hiện — không
+			// viết lại câu báo ở đây: máy chủ đã nêu đích danh dòng nào, đụng ai.
+		},
+		secondary_action_label: __("Thêm vị trí"),
+		secondary_action() {
+			them_vi_tri();
 		},
 	});
+
+	function ve() {
+		const $b = d.fields_dict.bang.$wrapper;
+		if (!ds.length) {
+			$b.html(`<p class="text-muted">${__("Chưa có vị trí nào — bấm Thêm vị trí.")}</p>`);
+			return;
+		}
+		const dong = ds
+			.map(
+				(x, i) => `<tr>
+					<td>${i + 1}</td>
+					<td><b>${esc(x.ma_in_nhan || x.vi_tri)}</b></td>
+					<td>${esc(x.cap_do || "")}</td>
+					<td>${esc(x.kho || "")}</td>
+					<td class="text-right">
+						<button class="btn btn-xs btn-default gvt-len" data-i="${i}" ${i === 0 ? "disabled" : ""}>↑</button>
+						<button class="btn btn-xs btn-default gvt-xuong" data-i="${i}" ${
+					i === ds.length - 1 ? "disabled" : ""
+				}>↓</button>
+						<button class="btn btn-xs btn-danger gvt-bo" data-i="${i}">×</button>
+					</td>
+				</tr>`
+			)
+			.join("");
+		$b.html(`
+			<table class="table table-bordered">
+				<thead><tr>
+					<th style="width:48px">#</th><th>${__("Vị trí")}</th><th>${__("Cấp")}</th>
+					<th>${__("Kho")}</th><th style="width:120px"></th>
+				</tr></thead>
+				<tbody>${dong}</tbody>
+			</table>`);
+	}
+
+	d.fields_dict.bang.$wrapper.on("click", "button", (ev) => {
+		const $n = $(ev.currentTarget);
+		const i = Number($n.attr("data-i"));
+		if ($n.hasClass("gvt-bo")) ds.splice(i, 1);
+		else if ($n.hasClass("gvt-len") && i > 0) [ds[i - 1], ds[i]] = [ds[i], ds[i - 1]];
+		else if ($n.hasClass("gvt-xuong") && i < ds.length - 1) [ds[i + 1], ds[i]] = [ds[i], ds[i + 1]];
+		ve();
+	});
+
+	function them_vi_tri() {
+		const hoi_kho = new frappe.ui.Dialog({
+			title: __("Thêm vị trí — chọn kho"),
+			fields: [
+				{
+					fieldname: "kho",
+					fieldtype: "Link",
+					options: "Warehouse",
+					label: __("Kho"),
+					reqd: 1,
+					default: ds.length ? ds[ds.length - 1].kho : null,
+					// Chỉ kho ĐÃ bật quản lý vị trí mới có cây vị trí. Chọn một kho
+					// chưa bật thì cây mở ra trống trơn và người dùng không biết vì sao.
+					get_query: () => ({ filters: { custom_quan_ly_vi_tri: 1, is_group: 0 } }),
+					description: __("Chỉ hiện kho đã bật quản lý vị trí."),
+				},
+			],
+			primary_action_label: __("Chọn trên cây vị trí"),
+			primary_action(v) {
+				hoi_kho.hide();
+				frappe.require(DUONG_CAY_VI_TRI, () => {
+					// `tru_ten`: loại MỌI dòng đã lưu của bản gán này khỏi "đã có chủ";
+					// `dang_co`: danh sách ĐANG trong hộp thoại — nút giao nó bị khoá.
+					// Xem chú thích đầu `cay_chon_vi_tri.js` và `gan.cay_chon_vi_tri`.
+					erpnext.warehouse_operations.chon_vi_tri(
+						v.kho,
+						(o) => {
+							frappe.db.get_value("Storage Location", o, ["ma_in_nhan", "kho"]).then((r) => {
+								const sl = r.message || {};
+								ds.push({ vi_tri: o, ma_in_nhan: sl.ma_in_nhan || o, kho: sl.kho || v.kho, cap_do: ten_cap(o) });
+								ve();
+							});
+						},
+						gan ? gan.name : null,
+						ds.map((x) => x.vi_tri)
+					);
+				});
+			},
+		});
+		hoi_kho.show();
+	}
+
+	ve();
 	d.show();
 }
 
-function luu(frm, kho, vi_tri) {
-	frappe
-		.call({
-			method: "erpnext.warehouse_operations.vitri.gan.gan_vi_tri_cho_mat_hang",
-			args: { vat_tu: frm.doc.name, kho: kho, vi_tri: vi_tri },
-			freeze: true,
-			freeze_message: __("Đang gán vị trí…"),
-		})
-		.then((r) => {
-			frappe.show_alert({
-				message: __("Đã gán vị trí {0} cho mặt hàng này.", [r.message.vi_tri]),
-				indicator: "green",
-			});
-			frm.reload_doc();
-		});
-	// Lỗi (chồng lấn nhánh, sai kho, thiếu quyền…) do `validate()` của bản gán ném
-	// ra và `frappe.call` tự hiện — không nuốt, không viết lại câu báo ở đây, vì
-	// câu báo của máy chủ đã nêu đích danh mặt hàng nào đang giữ nhánh đó.
+// Chỉ để HIỂN THỊ trong hộp thoại trước khi lưu: mã vị trí mỗi cấp thêm 2 ký tự
+// (`ma_vi_tri.TEN_CAP`, `MAU_CAP` — Khu 2 / Dãy 4 / Khoang 6 / Tầng 8 / Ô 10). Lưu
+// xong máy chủ tự tính lại `cap_do` từ chính mã, không tin giá trị này.
+const TEN_CAP = [__("Khu"), __("Dãy"), __("Khoang"), __("Tầng"), __("Ô")];
+function ten_cap(ma) {
+	return TEN_CAP[(ma || "").length / 2 - 1] || "";
 }

@@ -22,6 +22,15 @@ from frappe.utils import now, nowdate
 
 from erpnext.warehouse_operations.vitri import so
 
+
+def _dong_gan(vi_tri):
+	"""Bảng con `vi_tri_gan` từ một nút hoặc danh sách nút (22/09/2026: một mặt hàng
+	gán được nhiều vị trí). Kho của dòng tự theo nút — tham số `kho` của các helper
+	cũ chỉ còn giữ trong chữ ký cho các bài đang gọi."""
+	ds = [vi_tri] if isinstance(vi_tri, str) else list(vi_tri)
+	return [{"vi_tri": v} for v in ds]
+
+
 KHO = "Kho Miyano - MYN"
 CTY = "Miyano Việt Nam"
 
@@ -61,7 +70,7 @@ def _gan(vat_tu, vi_tri, kho=KHO):
 	"""Gán vị trí cố định — cần cho các bài kiểm gợi ý theo tem (Task 4)."""
 	if not frappe.db.exists("Item Location Preference", vat_tu):
 		frappe.get_doc(
-			{"doctype": "Item Location Preference", "vat_tu": vat_tu, "kho": kho, "vi_tri": vi_tri}
+			{"doctype": "Item Location Preference", "vat_tu": vat_tu, "vi_tri_gan": _dong_gan(vi_tri)}
 		).insert(ignore_permissions=True)
 	return vat_tu
 

@@ -16,6 +16,15 @@ from erpnext.warehouse_operations.tests.test_lo_ncc import _ncc_thu, _phieu_nhap
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import TRAN_DO_DAI_TIEU_DE
 from erpnext.warehouse_operations.vitri.quet import tra_cuu
 
+
+def _dong_gan(vi_tri):
+	"""Bảng con `vi_tri_gan` từ một nút hoặc danh sách nút (22/09/2026: một mặt hàng
+	gán được nhiều vị trí). Kho của dòng tự theo nút — tham số `kho` của các helper
+	cũ chỉ còn giữ trong chữ ký cho các bài đang gọi."""
+	ds = [vi_tri] if isinstance(vi_tri, str) else list(vi_tri)
+	return [{"vi_tri": v} for v in ds]
+
+
 CONG_TY = "Miyano Việt Nam"
 KHO = "Kho Miyano - MYN"
 
@@ -45,7 +54,7 @@ def _o(ma_o, kho=KHO):
 def _gan(vat_tu, vi_tri, kho=KHO):
 	if not frappe.db.exists("Item Location Preference", vat_tu):
 		frappe.get_doc(
-			{"doctype": "Item Location Preference", "vat_tu": vat_tu, "kho": kho, "vi_tri": vi_tri}
+			{"doctype": "Item Location Preference", "vat_tu": vat_tu, "vi_tri_gan": _dong_gan(vi_tri)}
 		).insert(ignore_permissions=True)
 
 
@@ -387,3 +396,24 @@ class TestTraCuuChoPda(FrappeTestCase):
 
 	def test_ma_la_van_khong_bi_nhan_nham_la_o_hay_vat_tu(self):
 		self.assertEqual(tra_cuu("9Q99999999-KHONG-CO"), {"loai": None})
+
+
+class TestTraCuuNhieuViTri(FrappeTestCase):
+	"""22/09/2026: mặt hàng gán NHIỀU vị trí — trang quét phải hiện đủ, theo thứ tự
+	dòng, không lặng lẽ chỉ hiện dòng đầu."""
+
+	def setUp(self):
+		frappe.db.savepoint("tra_cuu_nhieu_vi_tri")
+
+	def tearDown(self):
+		frappe.db.rollback(save_point="tra_cuu_nhieu_vi_tri")
+
+	def test_go_ma_vat_tu_hien_moi_vi_tri_gan(self):
+		item = _tao_item("_Test Quet Nhieu ViTri", co_lo=0)
+		frappe.cache().delete_value(f"erpnext:barcode_scan:{item}")
+		_o("9Q52010101")
+		_o("9Q53010101")
+		_gan(item, ["9Q530101", "9Q52010101"])
+		ket_qua = tra_cuu(item)
+		self.assertEqual(ket_qua["vi_tri_co_dinh"], "9Q530101; 9Q52010101")
+		self.assertEqual(ket_qua["kho_co_dinh"], KHO)

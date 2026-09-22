@@ -109,7 +109,10 @@ frappe.provide("erpnext.warehouse_operations");
 // (`tru_ten=self.name`) nên thao tác đó vốn HỢP LỆ. Xem docstring
 // `cay_chon_vi_tri()` để biết vì sao không tự suy `tru_ten` được ở đây — nơi
 // gọi (form) mới biết mình đang sửa bản ghi nào.
-erpnext.warehouse_operations.chon_vi_tri = function (kho, khi_chon, tru_ten) {
+// `dang_co` (22/09/2026 — gán nhiều vị trí): danh sách nút ĐANG nằm trong hộp thoại
+// gán, kể cả dòng vừa thêm mà chưa lưu. Nút giao một nút trong đó hiện "đã có trong
+// danh sách" và không chọn được — máy chủ (`kiem_tra_tu_long_nhau`) sẽ từ chối nó.
+erpnext.warehouse_operations.chon_vi_tri = function (kho, khi_chon, tru_ten, dang_co) {
 	const d = new frappe.ui.Dialog({
 		title: __("Chọn vị trí cố định"),
 		size: "large",
@@ -122,7 +125,7 @@ erpnext.warehouse_operations.chon_vi_tri = function (kho, khi_chon, tru_ten) {
 		label: kho,
 		expandable: true,
 		method: "erpnext.warehouse_operations.vitri.gan.cay_chon_vi_tri",
-		args: { kho: kho, tru_ten: tru_ten },
+		args: { kho: kho, tru_ten: tru_ten, dang_co: JSON.stringify(dang_co || []) },
 
 		// CỐ Ý không truyền `root_value` riêng (ví dụ chuỗi rỗng) để né việc
 		// gốc gửi `parent = kho` — vòng sửa 2 điều phối (bấm thật trên trình
@@ -152,6 +155,9 @@ erpnext.warehouse_operations.chon_vi_tri = function (kho, khi_chon, tru_ten) {
 			// một trường mô tả tự do), nên escape trước khi ghép HTML.
 			const nhan = frappe.utils.escape_html(node.title || node.label);
 
+			if (n.cua_chinh_minh) {
+				return `<span class="text-muted">${nhan} — ${__("đã có trong danh sách")}</span>`;
+			}
 			if (n.da_gan_cho) {
 				// `da_gan_cho` là mã mặt hàng (Item Code) — cũng là dữ liệu
 				// người dùng gõ tay lúc tạo Item, PHẢI escape.
@@ -234,7 +240,11 @@ erpnext.warehouse_operations.chon_vi_tri = function (kho, khi_chon, tru_ten) {
 				condition: function (node) {
 					const n = node.data || {};
 					return (
-						!node.is_root && !n.da_gan_cho && !n.co_gan_ben_trong && !n.nhanh_ngung_dung
+						!node.is_root &&
+						!n.da_gan_cho &&
+						!n.co_gan_ben_trong &&
+						!n.nhanh_ngung_dung &&
+						!n.cua_chinh_minh
 					);
 				},
 				click: function (node) {
