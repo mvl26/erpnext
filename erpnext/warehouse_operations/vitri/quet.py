@@ -50,18 +50,23 @@ def _kiem_tra_quyen():
 
 
 def _vi_tri_co_dinh(vat_tu: str) -> str | None:
-	"""Vị trí cố định gán cho `vat_tu`, hoặc `None` nếu chưa gán.
+	"""Các vị trí cố định gán cho `vat_tu`, nối bằng "; " theo thứ tự dòng, hoặc
+	`None` nếu chưa gán.
 
-	KHÔNG lọc thêm theo `kho` (khác truy vấn trong `goi_y.goi_y_o`, vốn có
-	`and p.kho = %(kho)s`): `Item Location Preference` đặt tên bản ghi bằng
-	CHÍNH `vat_tu` (`autoname: field:vat_tu`, trường `vat_tu` còn đánh dấu
-	`set_only_once`) nên `name` là PRIMARY KEY của bảng — một mặt hàng CHỈ CÓ
-	THỂ có ĐÚNG MỘT dòng gán trong toàn hệ, không phải một dòng cho mỗi kho.
-	Hai dòng cùng `vat_tu` khác `kho` là bất khả thi (trùng `name`, Frappe tự
-	chặn khi insert). Vì vậy tra theo tên là đủ — không có "vị trí gán cho kho
-	khác" nào để lọc nhầm vào, và filter thêm `kho` ở đây sẽ chỉ là hàng thừa.
+	Từ 22/09/2026 một mặt hàng giữ NHIỀU vị trí (bảng con `vi_tri_gan`), có thể ở
+	nhiều kho — trang quét hiện đủ, không chọn hộ thủ kho một chỗ.
 	"""
-	return frappe.db.get_value("Item Location Preference", vat_tu, "vi_tri")
+	ds = _dong_gan(vat_tu)
+	return "; ".join(d.vi_tri for d in ds) or None
+
+
+def _dong_gan(vat_tu: str) -> list:
+	return frappe.get_all(
+		"Item Location Preference Row",
+		filters={"parent": vat_tu, "parenttype": "Item Location Preference"},
+		fields=["vi_tri", "kho"],
+		order_by="idx asc",
+	)
 
 
 def _ton_theo_o(so_lo: str) -> list[dict]:
@@ -138,7 +143,7 @@ def _tra_cuu_vat_tu(vat_tu: str) -> dict:
 	item = frappe.db.get_value(
 		"Item", vat_tu, ["name", "item_name", "stock_uom", "has_batch_no"], as_dict=True
 	)
-	gan = frappe.db.get_value("Item Location Preference", vat_tu, ["kho", "vi_tri"], as_dict=True)
+	gan = _dong_gan(vat_tu)
 	lo_con_ton = frappe.db.sql(
 		"""
 		select lb.so_lo as so_lo, b.expiry_date as hsd, lb.o as o, lb.kho as kho, lb.so_luong as so_luong
@@ -156,8 +161,8 @@ def _tra_cuu_vat_tu(vat_tu: str) -> dict:
 		"ten_hang": item.item_name,
 		"don_vi": item.stock_uom,
 		"co_lo": bool(item.has_batch_no),
-		"vi_tri_co_dinh": gan.vi_tri if gan else None,
-		"kho_co_dinh": gan.kho if gan else None,
+		"vi_tri_co_dinh": "; ".join(d.vi_tri for d in gan) or None,
+		"kho_co_dinh": "; ".join(dict.fromkeys(d.kho for d in gan)) or None,
 		"lo_con_ton": lo_con_ton,
 	}
 
@@ -244,10 +249,11 @@ def _tra_cuu_o(ma_o: str) -> dict:
 
 	chu = frappe.db.sql(
 		"""
-		select p.vat_tu as vat_tu, p.vi_tri as vi_tri
-		from `tabItem Location Preference` p
-		join `tabStorage Location` s on s.name = p.vi_tri
-		where s.lft <= %(lft)s and s.rgt >= %(rgt)s
+		select r.parent as vat_tu, r.vi_tri as vi_tri
+		from `tabItem Location Preference Row` r
+		join `tabStorage Location` s on s.name = r.vi_tri
+		where r.parenttype = 'Item Location Preference'
+		  and s.lft <= %(lft)s and s.rgt >= %(rgt)s
 		order by s.lft desc
 		limit 1
 		""",

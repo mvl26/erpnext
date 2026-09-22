@@ -489,6 +489,29 @@ class TestHangNamSaiViTri(FrappeTestCase):
 		self.assertIn(lac, sai[0])
 		self.assertIn(chu, sai[0])
 
+	def test_hang_o_nhanh_thu_hai_cua_chinh_no_khong_bi_bao(self):
+		"""22/09/2026: mặt hàng gán NHIỀU vị trí. Hàng nằm ở nhánh thứ hai của chính
+		nó là ĐÚNG chỗ — không được báo sai. Hàng mặt hàng khác lọt vào nhánh thứ
+		hai thì VẪN phải báo (báo cáo đọc mọi dòng, không chỉ dòng đầu)."""
+		from erpnext.warehouse_operations.report.hang_nam_sai_vi_tri.hang_nam_sai_vi_tri import execute
+		from erpnext.warehouse_operations.tests.test_gan_vi_tri import _gan, _mat_hang, _o, _ton
+
+		chu = _mat_hang("_Test Sai VT Hai Nhanh Chu")
+		lac = _mat_hang("_Test Sai VT Hai Nhanh Lac")
+		_o("5F01010101")
+		_o("5G01010101")
+		_gan(chu, ["5F010101", "5G010101"])
+		_ton("5G01010101", chu, 2)
+		_, dong = execute({"kho": KHO})
+		self.assertFalse([d for d in dong if d[0] == "5G01010101"], "hàng đúng chỗ ở nhánh 2")
+
+		_ton("5G01010101", lac, 1)
+		_, dong = execute({"kho": KHO})
+		sai = [d for d in dong if d[0] == "5G01010101"]
+		self.assertEqual(len(sai), 1)
+		self.assertIn(lac, sai[0])
+		self.assertIn(chu, sai[0])
+
 	def test_o_chua_hoi_tu_toa_do_khong_de_bao_dong_bia(self):
 		"""Khoá riêng bẫy `sl.lft > 0` — xem docstring
 		`hang_nam_sai_vi_tri.py` và task-8-report.md, mục "Đột biến 1".

@@ -45,6 +45,7 @@ class TestGoiY(_NenGoiY):
 		# riêng mỗi bài nên không đụng gì; xoá `vat_tu = cls.vt` là no-op vô
 		# hại ở những bài đó. Dọn cả `Location Balance` mà `_ton()` tạo cho
 		# `cls.vt` (`test_o_trong_dau_tien`) để tồn không rò sang bài khác.
+		frappe.db.delete("Item Location Preference Row", {"parent": self.vt})
 		frappe.db.delete("Item Location Preference", {"vat_tu": self.vt})
 		frappe.db.delete("Location Balance", {"vat_tu": self.vt})
 
@@ -341,6 +342,7 @@ class TestUuTienOInTem(_NenGoiY):
 		# xanh nếu dữ liệu vô tình trùng.
 		self.assertEqual(goi_y_o(v, KHO)[0], "6B01020101")
 
+		frappe.db.delete("Item Location Preference Row", {"parent": v})
 		frappe.db.delete("Item Location Preference", {"vat_tu": v})
 
 	def test_khong_truyen_so_lo_thi_bo_qua_nhanh_nay(self):
@@ -355,6 +357,7 @@ class TestUuTienOInTem(_NenGoiY):
 		# Vòng sửa 2: không truyền `so_lo` thì không có gì để nói là "hỏng".
 		self.assertFalse(tem_hong)
 
+		frappe.db.delete("Item Location Preference Row", {"parent": v})
 		frappe.db.delete("Item Location Preference", {"vat_tu": v})
 
 	def test_lo_khong_co_o_in_tem_thi_tem_hong_la_false(self):
@@ -373,6 +376,7 @@ class TestUuTienOInTem(_NenGoiY):
 		self.assertNotIn("tem", ly_do)
 		self.assertFalse(tem_hong)
 
+		frappe.db.delete("Item Location Preference Row", {"parent": v})
 		frappe.db.delete("Item Location Preference", {"vat_tu": v})
 
 	def test_o_da_in_bi_mat_hang_khac_chiem_thi_tra_o_khac(self):
@@ -393,6 +397,7 @@ class TestUuTienOInTem(_NenGoiY):
 		# Tem HỎNG — ô ghi trên tem đã bị mặt hàng khác chiếm.
 		self.assertTrue(tem_hong)
 
+		frappe.db.delete("Item Location Preference Row", {"parent": v})
 		frappe.db.delete("Item Location Preference", {"vat_tu": v})
 
 	def test_o_da_in_dang_co_hang_cung_mat_hang_thi_van_uu_tien(self):
@@ -412,6 +417,7 @@ class TestUuTienOInTem(_NenGoiY):
 		self.assertFalse(tem_hong)
 
 		frappe.db.delete("Location Balance", {"vat_tu": v})
+		frappe.db.delete("Item Location Preference Row", {"parent": v})
 		frappe.db.delete("Item Location Preference", {"vat_tu": v})
 
 	def test_o_da_in_nam_ngoai_vung_gan_thi_bo_qua(self):
@@ -431,6 +437,7 @@ class TestUuTienOInTem(_NenGoiY):
 		# Tem HỎNG — ô ghi trên tem nằm ngoài vùng gán hiện tại.
 		self.assertTrue(tem_hong)
 
+		frappe.db.delete("Item Location Preference Row", {"parent": v})
 		frappe.db.delete("Item Location Preference", {"vat_tu": v})
 
 	def test_o_da_in_dang_ngung_dung_thi_bo_qua(self):
@@ -478,4 +485,97 @@ class TestUuTienOInTem(_NenGoiY):
 			self.assertTrue(tem_hong)
 		finally:
 			frappe.db.set_value("Storage Location", "6B01020103", "disabled", 0)
+			frappe.db.delete("Item Location Preference Row", {"parent": v})
 			frappe.db.delete("Item Location Preference", {"vat_tu": v})
+
+
+class TestNhieuNhanh(FrappeTestCase):
+	"""Gợi ý khi một mặt hàng gán NHIỀU vị trí (22/09/2026).
+
+	Luật chủ đầu tư chốt: ô trống trước, BẤT KỂ thuộc vị trí nào; hết ô trống ở
+	mọi nhánh mới dồn vào ô đang chứa chính mặt hàng này. Thứ tự dòng chỉ phân
+	định khi có nhiều ứng viên ngang nhau.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.a1, cls.a2 = _o("6N01010101"), _o("6N01010102")  # nhánh 1: tầng 6N010101
+		cls.b1, cls.b2 = _o("6N01020101"), _o("6N01020102")  # nhánh 2: tầng 6N010201
+		cls.tang_a, cls.tang_b = "6N010101", "6N010201"
+		cls.khac = _mat_hang("_Test GoiY NN Khac")
+
+	def setUp(self):
+		frappe.db.savepoint("goi_y_nhieu_nhanh")
+
+	def tearDown(self):
+		frappe.db.rollback(save_point="goi_y_nhieu_nhanh")
+
+	def test_o_trong_o_nhanh_2_thang_o_don_cua_nhanh_1(self):
+		"""Chốt then chốt: nhánh 1 chỉ còn ô "dồn được" (đang có chính mặt hàng),
+		nhánh 2 còn ô trống → phải gợi ý ô TRỐNG của nhánh 2, không dồn vào nhánh 1.
+		Một cài đặt "lấp đầy nhánh 1 trước" (phương án chủ đầu tư KHÔNG chọn) sẽ trả
+		ô của nhánh 1 và đỏ ở đây."""
+		v = _mat_hang("_Test GoiY NN TrongTruoc")
+		_gan(v, [self.a1, self.tang_b])  # nhánh 1 là MỘT ô
+		_ton(self.a1, v, 5)
+		o, ly_do, _hong = goi_y_o(v, KHO)
+		self.assertEqual(o, self.b1)
+		self.assertIn("ô trống đầu tiên trong " + self.tang_b, ly_do)
+
+	def test_nhieu_o_trong_thi_theo_thu_tu_dong_khong_theo_cay(self):
+		"""Dòng 1 là nhánh B (lft LỚN hơn), dòng 2 là nhánh A: cả hai còn trống →
+		theo thứ tự DÒNG, tức ô đầu của B — không phải ô có lft nhỏ nhất (A)."""
+		v = _mat_hang("_Test GoiY NN ThuTuDong")
+		_gan(v, [self.tang_b, self.tang_a])
+		o, _ly_do, _hong = goi_y_o(v, KHO)
+		self.assertEqual(o, self.b1)
+
+	def test_het_o_trong_moi_don_theo_thu_tu_dong(self):
+		v = _mat_hang("_Test GoiY NN Don")
+		_gan(v, [self.tang_b, self.tang_a])
+		for o in (self.a1, self.a2):
+			_ton(o, v, 1)
+		for o in (self.b1, self.b2):
+			_ton(o, v, 1)
+		o, ly_do, _hong = goi_y_o(v, KHO)
+		self.assertEqual(o, self.b1, "dồn theo thứ tự dòng: dòng 1 là nhánh B")
+		self.assertIn("dồn", ly_do)
+
+	def test_day_ca_hai_nhanh_bao_ten_moi_vi_tri(self):
+		v = _mat_hang("_Test GoiY NN Day")
+		_gan(v, [self.tang_a, self.tang_b])
+		# Mặt hàng KHÁC chiếm hết ô sau khi gán (vào ô được sau gán — xem báo cáo sai vị trí).
+		for o in (self.a1, self.a2, self.b1, self.b2):
+			_ton(o, self.khac, 1)
+		o, ly_do, _hong = goi_y_o(v, KHO)
+		self.assertIsNone(o)
+		self.assertIn("các vị trí đã gán", ly_do)
+		self.assertIn(self.tang_a, ly_do)
+		self.assertIn(self.tang_b, ly_do)
+
+	def test_chi_xet_dong_cung_kho(self):
+		from erpnext.warehouse_operations.tests.test_gan_vi_tri import _kho_2
+
+		kho_2 = _kho_2()
+		o_kho_2 = "6Y01010101"
+		if not frappe.db.exists("Storage Location", o_kho_2):
+			frappe.get_doc({"doctype": "Storage Location", "ma_o": o_kho_2, "kho": kho_2}).insert(
+				ignore_permissions=True
+			)
+		v = _mat_hang("_Test GoiY NN HaiKho")
+		_gan(v, [o_kho_2, self.tang_a])  # dòng 1 ở kho KHÁC
+		self.assertEqual(goi_y_o(v, KHO)[0], self.a1)
+		self.assertEqual(goi_y_o(v, kho_2)[0], o_kho_2)
+
+	def test_tem_lo_o_nhanh_2_duoc_uu_tien(self):
+		v = _mat_hang("_Test GoiY NN Tem")
+		_gan(v, [self.tang_a, self.tang_b])
+		frappe.db.set_value("Item", v, "has_batch_no", 1)
+		lo = "_Test GoiY NN Lo"
+		if not frappe.db.exists("Batch", lo):
+			frappe.get_doc({"doctype": "Batch", "batch_id": lo, "item": v}).insert(ignore_permissions=True)
+		frappe.db.set_value("Batch", lo, "custom_o_in_tem", self.b2)
+		o, ly_do, hong = goi_y_o(v, KHO, lo)
+		self.assertEqual((o, hong), (self.b2, False))
+		self.assertIn("tem", ly_do)

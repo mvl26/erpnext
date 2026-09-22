@@ -28,6 +28,11 @@ def chu_cua_nhanh(lft: int, rgt: int, tru_ten: str | None = None) -> dict | None
 	`tru_ten` loại chính bản ghi đang lưu ra khỏi phép so — thiếu nó thì mọi
 	lần lưu lại một gán đã tồn tại đều tự báo "đụng chính mình".
 
+	Từ 22/09/2026 một bản gán có NHIỀU dòng (`Item Location Preference Row`);
+	truy vấn đọc bảng con, `r.parent` chính là mã mặt hàng (bản gán đặt tên theo
+	`vat_tu`). Các dòng CỦA CHÍNH bản gán do `tru_ten` loại hết — giao nhau giữa
+	các dòng cùng bản gán là việc của `kiem_tra_tu_long_nhau`.
+
 	Gọi hàm này với `lft`/`rgt` bằng 0 là LỖI của nơi gọi: `0 <= rgt and
 	0 >= lft` đúng với mọi bản ghi, nên nó sẽ trả về một gán tuỳ ý. Nơi gọi
 	phải chặn trước (xem `ItemLocationPreference.kiem_tra_trong_cay`).
@@ -37,10 +42,11 @@ def chu_cua_nhanh(lft: int, rgt: int, tru_ten: str | None = None) -> dict | None
 
 	dong = frappe.db.sql(
 		"""
-		select p.vat_tu as vat_tu, p.vi_tri as vi_tri, s.lft as lft, s.rgt as rgt
-		from `tabItem Location Preference` p
-		join `tabStorage Location` s on s.name = p.vi_tri
-		where p.name != %(tru)s
+		select r.parent as vat_tu, r.vi_tri as vi_tri, s.lft as lft, s.rgt as rgt
+		from `tabItem Location Preference Row` r
+		join `tabStorage Location` s on s.name = r.vi_tri
+		where r.parenttype = 'Item Location Preference'
+		  and r.parent != %(tru)s
 		  and s.lft <= %(rgt)s
 		  and s.rgt >= %(lft)s
 		order by s.lft asc
@@ -183,7 +189,11 @@ VAI_TRO_DUOC_XEM_CAY = {"System Manager", "Stock Manager", "Stock User"}
 
 @frappe.whitelist()
 def cay_chon_vi_tri(
-	kho: str, parent: str | None = None, is_root=None, tru_ten: str | None = None
+	kho: str,
+	parent: str | None = None,
+	is_root=None,
+	tru_ten: str | None = None,
+	dang_co: str | list | None = None,
 ) -> list[dict]:
 	"""Các nút con để vẽ một cấp của cây chọn vị trí (Task 7 — bảng dữ liệu cho `frappe.ui.Tree`
 	phía JS, xem `public/js/warehouse_operations/cay_chon_vi_tri.js`).
@@ -296,6 +306,14 @@ def cay_chon_vi_tri(
 	if not VAI_TRO_DUOC_XEM_CAY & set(frappe.get_roles()):
 		frappe.throw(_("Bạn không có quyền xem cây vị trí."), frappe.PermissionError)
 
+	# NHIỀU VỊ TRÍ (22/09/2026): `dang_co` là danh sách nút ĐANG nằm trong hộp thoại
+	# gán (kể cả dòng vừa thêm/bỏ mà chưa lưu). `cua_chinh_minh` = nút GIAO một nút
+	# trong đó (trùng, tổ tiên hoặc con cháu) — chọn nó thì `kiem_tra_tu_long_nhau`
+	# sẽ từ chối lúc lưu, nên cây khoá trước. Nguồn sự thật là HỘP THOẠI, không phải
+	# CSDL: `tru_ten` đã loại hết các dòng ĐÃ LƯU của bản gán đang sửa, vì người dùng
+	# có thể vừa bỏ một dòng trong hộp thoại và muốn chọn lại chỗ khác trong nhánh đó.
+	cua_chinh_minh, tham_so_chinh_minh = _vi_tu_giao_danh_sach(dang_co)
+
 	la_goc = bool(sbool(is_root)) if is_root is not None else False
 	if la_goc or not parent or parent == kho:
 		dieu_kien = "ifnull(sl.parent_storage_location, '') = ''"
@@ -306,17 +324,20 @@ def cay_chon_vi_tri(
 		select sl.name as value,
 		       ifnull(sl.ma_in_nhan, sl.name) as title,
 		       ifnull(sl.is_group, 0) as expandable,
-		       (select p.vat_tu
-		          from `tabItem Location Preference` p
-		          join `tabStorage Location` s2 on s2.name = p.vi_tri
-		         where p.name != %(tru_ten)s
+		       (select r.parent
+		          from `tabItem Location Preference Row` r
+		          join `tabStorage Location` s2 on s2.name = r.vi_tri
+		         where r.parenttype = 'Item Location Preference'
+		           and r.parent != %(tru_ten)s
 		           and s2.lft <= sl.lft and s2.rgt >= sl.rgt
 		         order by s2.lft asc limit 1) as da_gan_cho,
 		       (select count(*)
-		          from `tabItem Location Preference` p2
-		          join `tabStorage Location` s5 on s5.name = p2.vi_tri
-		         where p2.name != %(tru_ten)s
+		          from `tabItem Location Preference Row` r2
+		          join `tabStorage Location` s5 on s5.name = r2.vi_tri
+		         where r2.parenttype = 'Item Location Preference'
+		           and r2.parent != %(tru_ten)s
 		           and s5.lft > sl.lft and s5.rgt < sl.rgt) as co_gan_ben_trong,
+		       ({cua_chinh_minh}) as cua_chinh_minh,
 		       {to_tien_tat("sl")} as nhanh_ngung_dung,
 		       (select count(distinct lb.vat_tu)
 		          from `tabLocation Balance` lb
@@ -337,52 +358,96 @@ def cay_chon_vi_tri(
 		  and sl.lft > 0
 		order by sl.lft asc
 		""",
-		{"kho": kho, "parent": parent, "tru_ten": tru_ten or ""},
+		{"kho": kho, "parent": parent, "tru_ten": tru_ten or "", **tham_so_chinh_minh},
 		as_dict=True,
 	)
 
 
+def _vi_tu_giao_danh_sach(dang_co) -> tuple[str, dict]:
+	"""Vị từ SQL "nút `sl` GIAO một nút trong `dang_co`" + tham số của nó.
+
+	Đọc toạ độ các nút trước, BỎ nút `lft`/`rgt` = 0 (chưa hội tụ trong cây): cùng
+	cái bẫy `between 0 and 0` khớp MỌI bản ghi 0/0 toàn hệ — xem `chu_cua_nhanh`.
+	Danh sách rỗng → `0` (không nút nào là "của chính mình").
+	"""
+	ds = frappe.parse_json(dang_co) if isinstance(dang_co, str) else (dang_co or [])
+	ds = [x for x in ds if x]
+	if not ds:
+		return "0", {}
+	toa_do = frappe.get_all(
+		"Storage Location", filters={"name": ("in", ds)}, fields=["lft", "rgt"], order_by="lft asc"
+	)
+	vi_tu, tham_so = [], {}
+	for i, t in enumerate(x for x in toa_do if x.lft and x.rgt):
+		vi_tu.append(f"(sl.lft <= %(cm_r{i})s and sl.rgt >= %(cm_l{i})s)")
+		tham_so[f"cm_l{i}"], tham_so[f"cm_r{i}"] = t.lft, t.rgt
+	return (" or ".join(vi_tu) or "0"), tham_so
+
+
 @frappe.whitelist()
 def vi_tri_cua_mat_hang(vat_tu: str) -> dict | None:
-	"""Vị trí cố định đang gán cho `vat_tu`, để form Item hiện ra. `None` nếu chưa gán.
+	"""Các vị trí cố định đang gán cho `vat_tu`, theo thứ tự dòng, để form Item hiện
+	ra. `None` nếu chưa gán.
 
 	Vì sao form Item cần: chủ đầu tư thử luồng thật ngày 17/09/2026 và thấy
 	"trong item chưa có phần setup vị trí" — việc gán chỉ làm được trên một
 	doctype riêng mà không ai biết tìm ở đâu, nên mặt hàng được nhập kho rồi
 	vẫn chưa từng có vị trí.
+
+	Từ 22/09/2026 trả `{"name", "dong": [{vi_tri, kho, cap_do, ma_in_nhan}]}` —
+	một mặt hàng giữ được nhiều vị trí.
 	"""
 	frappe.has_permission("Item", "read", vat_tu, throw=True)
-	gan = frappe.db.get_value(
-		"Item Location Preference", vat_tu, ["name", "kho", "vi_tri", "cap_do"], as_dict=True
+	if not frappe.db.exists("Item Location Preference", vat_tu):
+		return None
+	dong = frappe.db.sql(
+		"""
+		select r.vi_tri as vi_tri, r.kho as kho, r.cap_do as cap_do,
+		       ifnull(sl.ma_in_nhan, r.vi_tri) as ma_in_nhan
+		from `tabItem Location Preference Row` r
+		left join `tabStorage Location` sl on sl.name = r.vi_tri
+		where r.parent = %(vt)s and r.parenttype = 'Item Location Preference'
+		order by r.idx asc
+		""",
+		{"vt": vat_tu},
+		as_dict=True,
 	)
-	return gan or None
+	return {"name": vat_tu, "dong": dong}
 
 
 @frappe.whitelist()
-def gan_vi_tri_cho_mat_hang(vat_tu: str, kho: str, vi_tri: str) -> dict:
-	"""Tạo hoặc sửa bản gán vị trí cố định của `vat_tu`, từ form Item.
+def gan_vi_tri_cho_mat_hang(vat_tu: str, vi_tri: str | list) -> dict:
+	"""Ghi ĐÈ toàn bộ danh sách vị trí cố định của `vat_tu`, đúng thứ tự, từ form Item.
+
+	`vi_tri` là danh sách tên nút (hoặc chuỗi JSON của danh sách — `frappe.call` gửi
+	mảng dưới dạng chuỗi). Thứ tự danh sách là thứ tự dòng: dùng để phân định khi có
+	nhiều ô trống ở nhiều vị trí (`goi_y.goi_y_o`).
 
 	ĐI QUA `Document.save()`/`insert()` của `Item Location Preference`, không
-	ghi thẳng `db.set_value`. Hai lý do, cùng quan trọng:
+	ghi thẳng CSDL. Hai lý do, cùng quan trọng:
 
-	1. `validate()` của bản gán chạy đủ các phép kiểm — nút nằm trong cây, cùng
-	   kho, KHÔNG chồng lấn nhánh của mặt hàng khác, không đè lên hàng đang nằm
-	   đó. Ghi thẳng xuống CSDL là để hai mặt hàng cùng giữ một tầng, đúng thứ
-	   khối B sinh ra để chặn.
+	1. `validate()` của bản gán chạy đủ các phép kiểm cho TỪNG dòng — nút nằm trong
+	   cây, không chồng lên nhánh của mặt hàng khác, không đè lên hàng đang nằm đó,
+	   và các dòng không lồng nhau. Ghi thẳng xuống CSDL là để hai mặt hàng cùng giữ
+	   một tầng, đúng thứ khối B sinh ra để chặn.
 	2. Quyền: bản gán chỉ cho System Manager và Stock Manager tạo/sửa. Nút trên
 	   form Item không được là cửa sau vượt quyền đó — nên không có
 	   `ignore_permissions`.
 
-	Sửa bản cũ chứ không xoá-rồi-tạo: `autoname: field:vat_tu` nên mỗi mặt hàng
-	đúng một bản ghi, và giữ bản cũ là giữ lịch sử thay đổi (`track_changes`).
+	Sửa bản cũ chứ không xoá-rồi-tạo: giữ bản cũ là giữ lịch sử thay đổi
+	(`track_changes`).
 	"""
+	ds = frappe.parse_json(vi_tri) if isinstance(vi_tri, str) else list(vi_tri or [])
+	ds = [v for v in ds if v]
+	if not ds:
+		frappe.throw(_("Cần ít nhất một vị trí."))
+	dong = [{"vi_tri": v} for v in ds]
 	if frappe.db.exists("Item Location Preference", vat_tu):
 		gan = frappe.get_doc("Item Location Preference", vat_tu)
-		gan.kho = kho
-		gan.vi_tri = vi_tri
+		gan.set("vi_tri_gan", dong)
 		gan.save()
 	else:
 		gan = frappe.get_doc(
-			{"doctype": "Item Location Preference", "vat_tu": vat_tu, "kho": kho, "vi_tri": vi_tri}
+			{"doctype": "Item Location Preference", "vat_tu": vat_tu, "vi_tri_gan": dong}
 		).insert()
-	return {"name": gan.name, "kho": gan.kho, "vi_tri": gan.vi_tri, "cap_do": gan.cap_do}
+	return vi_tri_cua_mat_hang(gan.name)

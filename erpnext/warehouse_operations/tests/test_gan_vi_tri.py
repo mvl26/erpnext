@@ -11,6 +11,15 @@ from frappe.tests.utils import FrappeTestCase
 
 from erpnext.warehouse_operations.vitri import kho as vk
 
+
+def _dong_gan(vi_tri):
+	"""Bảng con `vi_tri_gan` từ một nút hoặc danh sách nút (22/09/2026: một mặt hàng
+	gán được nhiều vị trí). Kho của dòng tự theo nút — tham số `kho` của các helper
+	cũ chỉ còn giữ trong chữ ký cho các bài đang gọi."""
+	ds = [vi_tri] if isinstance(vi_tri, str) else list(vi_tri)
+	return [{"vi_tri": v} for v in ds]
+
+
 KHO = "Kho Miyano - MYN"
 
 
@@ -40,7 +49,7 @@ def _mat_hang(ma):
 
 def _gan(vat_tu, vi_tri, kho=KHO):
 	return frappe.get_doc(
-		{"doctype": "Item Location Preference", "vat_tu": vat_tu, "kho": kho, "vi_tri": vi_tri}
+		{"doctype": "Item Location Preference", "vat_tu": vat_tu, "vi_tri_gan": _dong_gan(vi_tri)}
 	).insert(ignore_permissions=True)
 
 
@@ -63,6 +72,7 @@ class TestLuocDo(_Nen):
 		# đây, bài chạy sau đụng đúng khoá chính bài trước vừa tạo và văng
 		# `DuplicateEntryError` ngay ở lệnh gán bình thường — không phải ở chỗ bài
 		# đang cố kiểm.
+		frappe.db.delete("Item Location Preference Row", {"parent": ("in", [self.vt_a, self.vt_b])})
 		frappe.db.delete("Item Location Preference", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
 
 	def test_ten_ban_ghi_chinh_la_ma_mat_hang(self):
@@ -91,9 +101,9 @@ class TestLuocDo(_Nen):
 		để ca thử chỉ còn khoá đúng điều nó khai — cấp độ suy từ mã — chứ
 		không tình cờ đụng bất biến "một ô một chủ" của một bài kiểm khác.
 		"""
-		self.assertEqual(_gan(self.vt_a, self.o1).cap_do, "Ô")
+		self.assertEqual(_gan(self.vt_a, self.o1).vi_tri_gan[0].cap_do, "Ô")
 		_o("8C010101")
-		self.assertEqual(_gan(self.vt_b, "8C010101").cap_do, "Tầng")
+		self.assertEqual(_gan(self.vt_b, "8C010101").vi_tri_gan[0].cap_do, "Tầng")
 
 
 class TestChanNutKhongHopLe(_Nen):
@@ -105,13 +115,23 @@ class TestChanNutKhongHopLe(_Nen):
 		with self.assertRaises(frappe.ValidationError):
 			_gan(self.vt_a, zzz)
 
-	def test_chan_nut_thuoc_kho_khac(self):
+	def test_kho_cua_dong_luon_theo_nut(self):
+		"""22/09/2026: kho không còn khai trên bản gán — mỗi dòng TỰ mang kho của
+		nút. Có ai điền tay một kho khác vào dòng thì `validate` ghi đè bằng kho
+		thật của nút, nên không bao giờ có dòng "nút kho A, ghi kho B"."""
 		kho_khac = frappe.db.get_value("Warehouse", {"name": ("!=", KHO), "is_group": 0}, "name")
 		self.assertIsNotNone(kho_khac)
-		with self.assertRaises(frappe.ValidationError) as e:
-			_gan(self.vt_a, self.o1, kho=kho_khac)
-		# Khẳng định nó nổ vì LỆCH KHO, không phải vì kho kia chưa bật quản lý vị trí.
-		self.assertIn(KHO, str(e.exception))
+		g = frappe.get_doc(
+			{
+				"doctype": "Item Location Preference",
+				"vat_tu": self.vt_a,
+				"vi_tri_gan": [{"vi_tri": self.o1, "kho": kho_khac}],
+			}
+		).insert(ignore_permissions=True)
+		try:
+			self.assertEqual(g.vi_tri_gan[0].kho, KHO)
+		finally:
+			frappe.delete_doc("Item Location Preference", g.name, force=True, ignore_permissions=True)
 
 	def test_chan_kho_chua_bat_quan_ly_vi_tri(self):
 		"""Nút thuộc ĐÚNG kho đang khai, nhưng kho đó chưa bật quản lý vị trí.
@@ -214,6 +234,7 @@ class TestChongLan(_Nen):
 		# nếu không dọn ở đây, bài chạy sau đụng đúng khoá chính bài trước vừa
 		# tạo và văng `DuplicateEntryError` ngay ở lệnh gán bình thường —
 		# không phải ở chỗ bài đang cố kiểm.
+		frappe.db.delete("Item Location Preference Row", {"parent": ("in", [self.vt_a, self.vt_b])})
 		frappe.db.delete("Item Location Preference", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
 
 	def test_trung_dung_nut_bi_chan(self):
@@ -250,7 +271,7 @@ class TestChongLan(_Nen):
 		tế nó chặn oan mọi ô cạnh nhau — tức không ai gán được gì."""
 		_gan(self.vt_a, self.o1)
 		d = _gan(self.vt_b, self.o2)
-		self.assertEqual(d.vi_tri, self.o2)
+		self.assertEqual(d.vi_tri_gan[0].vi_tri, self.o2)
 
 	def test_nhanh_khu_khac_van_gan_duoc(self):
 		"""CHỐT ÂM thứ hai: đột biến bỏ hẳn mệnh đề giao nhau thì bài này vẫn
@@ -258,7 +279,7 @@ class TestChongLan(_Nen):
 		_o("8C01010101")
 		_gan(self.vt_a, self.o1)
 		d = _gan(self.vt_b, "8C01010101")
-		self.assertEqual(d.vi_tri, "8C01010101")
+		self.assertEqual(d.vi_tri_gan[0].vi_tri, "8C01010101")
 
 	def test_sua_chinh_ban_ghi_cua_minh_van_duoc(self):
 		"""Loại trừ `p.name != self.name`. Thiếu nó thì mọi lần lưu lại bản ghi
@@ -267,7 +288,9 @@ class TestChongLan(_Nen):
 		d = _gan(self.vt_a, self.o1)
 		d.ghi_chu = "đổi chỗ để kiểm"
 		d.save(ignore_permissions=True)
-		self.assertEqual(frappe.db.get_value("Item Location Preference", self.vt_a, "vi_tri"), self.o1)
+		self.assertEqual(
+			frappe.db.get_value("Item Location Preference Row", {"parent": self.vt_a}, "vi_tri"), self.o1
+		)
 
 	def test_thong_bao_neu_ten_mat_hang_dang_giu(self):
 		"""'Không hợp lệ' trần thì người dùng không biết đi sửa ở đâu."""
@@ -300,6 +323,7 @@ class TestChanTheoTon(_Nen):
 		# tạo và văng `DuplicateEntryError` ngay ở lệnh gán bình thường. Dọn
 		# thêm `Location Balance` mà `_ton()` tạo ra — nếu không, tồn sót lại sẽ
 		# làm bài của task sau (gợi ý ô) thấy hàng ở chỗ nó không ngờ.
+		frappe.db.delete("Item Location Preference Row", {"parent": ("in", [self.vt_a, self.vt_b])})
 		frappe.db.delete("Item Location Preference", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
 		frappe.db.delete("Location Balance", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
 
@@ -332,14 +356,14 @@ class TestChanTheoTon(_Nen):
 		món đã nằm sẵn đúng chỗ."""
 		_ton(self.o1, self.vt_a, 15)
 		d = _gan(self.vt_a, "7A010101")
-		self.assertEqual(d.vi_tri, "7A010101")
+		self.assertEqual(d.vi_tri_gan[0].vi_tri, "7A010101")
 
 	def test_ton_bang_0_khong_chan(self):
 		"""Ô từng có hàng rồi hết vẫn còn dòng `so_luong = 0`. Coi đó là 'đang
 		có hàng' thì mọi ô từng dùng qua đều vĩnh viễn không gán được."""
 		_ton(self.o1, self.vt_b, 0)
 		d = _gan(self.vt_a, "7A010101")
-		self.assertEqual(d.vi_tri, "7A010101")
+		self.assertEqual(d.vi_tri_gan[0].vi_tri, "7A010101")
 
 	def test_thong_bao_dem_dung_so_o_con_lai(self):
 		"""VÒNG SỬA 1 (review điều phối). `ton_khac_trong_nhanh()` bị `limit`
@@ -415,7 +439,7 @@ class TestDoiMaMatHang(_Nen):
 		frappe.rename_doc("Item", nguon, dich, merge=True)
 
 		d = frappe.get_doc("Item Location Preference", dich)
-		self.assertEqual(d.vi_tri, o_nguon)
+		self.assertEqual(d.vi_tri_gan[0].vi_tri, o_nguon)
 
 	def test_gop_mat_hang_ma_dich_da_co_gan_thi_giu_gan_cua_dich(self):
 		"""Nửa còn lại của Ruling L, gỡ BLOCKED ở Ruling M (vòng sửa 2, review
@@ -449,7 +473,7 @@ class TestDoiMaMatHang(_Nen):
 
 		self.assertFalse(frappe.db.exists("Item Location Preference", nguon))
 		d = frappe.get_doc("Item Location Preference", dich)
-		self.assertEqual(d.vi_tri, o_dich)
+		self.assertEqual(d.vi_tri_gan[0].vi_tri, o_dich)
 
 
 class TestCayChonViTri(_Nen):
@@ -488,6 +512,7 @@ class TestCayChonViTri(_Nen):
 		# `vat_tu`), nên nếu không dọn ở đây, bài chạy sau đụng đúng khoá
 		# chính bài trước vừa tạo và văng `DuplicateEntryError` ngay ở lệnh
 		# gán bình thường — không phải ở chỗ bài đang cố kiểm.
+		frappe.db.delete("Item Location Preference Row", {"parent": ("in", [self.vt_a, self.vt_b])})
 		frappe.db.delete("Item Location Preference", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
 
 	def test_tra_ve_khu_khi_khong_co_parent(self):
@@ -503,6 +528,26 @@ class TestCayChonViTri(_Nen):
 		_gan(self.vt_a, "7A010101")
 		nut = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent="7A0101")}
 		self.assertEqual(nut["7A010101"]["da_gan_cho"], self.vt_a)
+
+	def test_cua_chinh_minh_theo_danh_sach_dang_co_trong_hop_thoai(self):
+		"""22/09/2026: hộp thoại gán nhiều vị trí truyền danh sách nút ĐANG có (kể cả
+		dòng chưa lưu). Nút giao một nút trong đó — chính nó, tổ tiên, con cháu — phải
+		hiện `cua_chinh_minh`, vì chọn nó thì `kiem_tra_tu_long_nhau` từ chối lúc lưu.
+		Nút anh em thì không."""
+		from erpnext.warehouse_operations.vitri.gan import cay_chon_vi_tri
+
+		o_anh_em = _o("7A01010201")  # tầng 7A010102, anh em với self.tang
+		dang_co = frappe.as_json([self.tang])
+		o_tang = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent="7A0101", dang_co=dang_co)}
+		self.assertTrue(o_tang[self.tang]["cua_chinh_minh"])
+		self.assertFalse(o_tang["7A010102"]["cua_chinh_minh"])
+		o_con = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent=self.tang, dang_co=dang_co)}
+		self.assertTrue(o_con[self.o1]["cua_chinh_minh"], "con cháu của nút đang có")
+		o_cha = {n["value"]: n for n in cay_chon_vi_tri(KHO, parent="7A01", dang_co=dang_co)}
+		self.assertTrue(o_cha["7A0101"]["cua_chinh_minh"], "tổ tiên của nút đang có")
+		self.assertTrue(o_anh_em)
+		# Không truyền gì → không nút nào là của chính mình.
+		self.assertFalse(any(n["cua_chinh_minh"] for n in cay_chon_vi_tri(KHO, parent="7A0101")))
 
 	def test_con_chau_cua_nut_da_co_chu_cung_bao_co_chu(self):
 		"""CHỐT ÂM quan trọng nhất của cây. Một bản chỉ tra gán ĐÚNG nút sẽ
@@ -703,3 +748,128 @@ class TestCayChonViTri(_Nen):
 		nut = {n["value"] for n in cay_chon_vi_tri(KHO, parent="7A", is_root="false")}
 		self.assertIn("7A01", nut)
 		self.assertTrue(all(len(v) > 2 for v in nut), "không được lẫn Khu (2 ký tự) vào nhánh")
+
+
+KHO_2 = "_Test Kho Gan 2 - MYN"
+
+
+def _kho_2():
+	"""Kho quản lý vị trí THỨ HAI, cho các bài "một mặt hàng gán ở nhiều kho". Bật cờ
+	thẳng (không qua `Warehouse Location Setup`) — các bài này chỉ cần nút cây của
+	kho đó tồn tại, không cần sổ vị trí hay ô Chưa xếp."""
+	if not frappe.db.exists("Warehouse", KHO_2):
+		frappe.get_doc(
+			{"doctype": "Warehouse", "warehouse_name": "_Test Kho Gan 2", "company": "Miyano Việt Nam"}
+		).insert(ignore_permissions=True)
+	frappe.db.set_value("Warehouse", KHO_2, "custom_quan_ly_vi_tri", 1)
+	vk.xoa_cache_kho(KHO_2)
+	return KHO_2
+
+
+class TestNhieuViTri(_Nen):
+	"""Một mặt hàng giữ NHIỀU vị trí (22/09/2026 — chủ đầu tư: "item này có thể ở
+	ô này và ở tầng bên kia nữa")."""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.o3 = _o("7A01010201")  # tầng KHÁC `cls.tang` (7A010102), cùng khoang
+		cls.tang_2 = "7A010102"
+
+	def tearDown(self):
+		frappe.db.delete("Item Location Preference Row", {"parent": ("in", [self.vt_a, self.vt_b])})
+		frappe.db.delete("Item Location Preference", {"vat_tu": ("in", [self.vt_a, self.vt_b])})
+
+	def test_gan_hai_nhanh_khac_nhau(self):
+		g = _gan(self.vt_a, [self.o1, self.tang_2])
+		self.assertEqual([d.vi_tri for d in g.vi_tri_gan], [self.o1, self.tang_2])
+		self.assertEqual([d.cap_do for d in g.vi_tri_gan], ["Ô", "Tầng"])
+		self.assertEqual({d.kho for d in g.vi_tri_gan}, {KHO})
+
+	def test_dong_thu_hai_chong_mat_hang_khac_bi_chan_va_neu_dung_dong(self):
+		_gan(self.vt_b, self.o3)
+		with self.assertRaises(frappe.ValidationError) as e:
+			_gan(self.vt_a, [self.o1, self.tang_2])  # tang_2 bao trùm o3 của vt_b
+		cau = str(e.exception)
+		self.assertTrue(cau.startswith("Dòng 2:"), cau)
+		self.assertIn(self.vt_b, cau)
+
+	def test_hai_dong_tu_long_nhau_bi_chan(self):
+		with self.assertRaisesRegex(frappe.ValidationError, "Dòng 2 .*lồng với dòng 1"):
+			_gan(self.vt_a, [self.tang, self.o1])  # o1 nằm trong tang
+
+	def test_hai_dong_trung_nut_bi_chan(self):
+		with self.assertRaisesRegex(frappe.ValidationError, "Dòng 2 .*dòng 1"):
+			_gan(self.vt_a, [self.o1, self.o1])
+
+	def test_khong_co_dong_nao_bi_chan(self):
+		with self.assertRaises(frappe.ValidationError):
+			frappe.get_doc(
+				{"doctype": "Item Location Preference", "vat_tu": self.vt_a, "vi_tri_gan": []}
+			).insert(ignore_permissions=True)
+
+	def test_hai_kho_moi_dong_mang_kho_cua_no(self):
+		kho_2 = _kho_2()
+		o_kho_2 = "6Z01010101"
+		if not frappe.db.exists("Storage Location", o_kho_2):
+			frappe.get_doc({"doctype": "Storage Location", "ma_o": o_kho_2, "kho": kho_2}).insert(
+				ignore_permissions=True
+			)
+		g = _gan(self.vt_a, [self.o1, o_kho_2])
+		self.assertEqual([d.kho for d in g.vi_tri_gan], [KHO, kho_2])
+
+	def test_sua_lai_ban_gan_nhieu_dong_khong_tu_bao_dung_chinh_minh(self):
+		g = _gan(self.vt_a, [self.o1, self.tang_2])
+		g.ghi_chu = "sửa ghi chú"
+		g.save(ignore_permissions=True)
+		self.assertEqual(len(frappe.get_doc("Item Location Preference", self.vt_a).vi_tri_gan), 2)
+
+
+class TestPatchGanNhieuViTri(_Nen):
+	"""Patch `gan_nhieu_vi_tri`: bản gán kiểu cũ (cột `vi_tri`/`kho`/`cap_do` trên
+	bảng cha) thành một dòng bảng con, rồi xoá cột cũ.
+
+	DDL (`alter table`) TỰ COMMIT — không rollback được (memory
+	`nested-set-ro-ri-trong-test`). Bài dựng lại ba cột cũ, chạy patch (patch tự
+	xoá ba cột), và dọn tay mọi thứ nó ghi trong `finally`.
+	"""
+
+	def test_ban_gan_cu_thanh_mot_dong_va_chay_lai_khong_nhan_doi(self):
+		from erpnext.warehouse_operations.patches.v1_0.gan_nhieu_vi_tri import execute
+
+		bang = "tabItem Location Preference"
+		ten = "_Test Gan Patch Cu"
+		_mat_hang(ten)
+		try:
+			from erpnext.warehouse_operations.patches.v1_0.gan_nhieu_vi_tri import _co_cot
+
+			for cot in ("vi_tri", "kho", "cap_do"):
+				if not _co_cot(cot):
+					frappe.db.sql_ddl(f"alter table `{bang}` add column `{cot}` varchar(140)")
+			frappe.db.sql(
+				f"""insert into `{bang}` (name, vat_tu, vi_tri, kho, cap_do, creation, modified,
+				owner, modified_by, docstatus) values (%s, %s, %s, %s, 'Ô', now(), now(),
+				'Administrator', 'Administrator', 0)""",
+				(ten, ten, "7A01010102", KHO),
+			)
+			execute()
+			execute()
+			dong = frappe.get_all(
+				"Item Location Preference Row",
+				filters={"parent": ten},
+				fields=["vi_tri", "kho", "cap_do", "idx", "parentfield"],
+			)
+			self.assertEqual(len(dong), 1)
+			self.assertEqual(
+				(dong[0].vi_tri, dong[0].kho, dong[0].cap_do, dong[0].idx, dong[0].parentfield),
+				("7A01010102", KHO, "Ô", 1, "vi_tri_gan"),
+			)
+			self.assertFalse(_co_cot("vi_tri"), "patch phải xoá cột cũ")
+		finally:
+			# Bài đỏ giữa chừng thì cột thêm bằng DDL (tự commit) vẫn nằm lại — gỡ.
+			for cot in ("vi_tri", "kho", "cap_do"):
+				if _co_cot(cot):
+					frappe.db.sql_ddl(f"alter table `{bang}` drop column `{cot}`")
+			frappe.db.delete("Item Location Preference Row", {"parent": ten})
+			frappe.db.delete("Item Location Preference", {"name": ten})
+			frappe.db.commit()

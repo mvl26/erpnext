@@ -14,6 +14,15 @@ from erpnext.warehouse_operations.tests.test_hook_nhap import _tao_item
 from erpnext.warehouse_operations.tests.test_lo_ncc import _ncc_thu, _ncc_thu_2, _phieu_nhap_nhap
 from erpnext.warehouse_operations.vitri.nhap_lo import dat_o_in_tem, du_lieu_tem, lay_dong_tu_phieu_nhap
 
+
+def _dong_gan(vi_tri):
+	"""Bảng con `vi_tri_gan` từ một nút hoặc danh sách nút (22/09/2026: một mặt hàng
+	gán được nhiều vị trí). Kho của dòng tự theo nút — tham số `kho` của các helper
+	cũ chỉ còn giữ trong chữ ký cho các bài đang gọi."""
+	ds = [vi_tri] if isinstance(vi_tri, str) else list(vi_tri)
+	return [{"vi_tri": v} for v in ds]
+
+
 CONG_TY = "Miyano Việt Nam"
 
 
@@ -556,7 +565,7 @@ def _o_vt(ma_o, kho, **kw):
 
 def _gan_vt(vat_tu, vi_tri, kho):
 	return frappe.get_doc(
-		{"doctype": "Item Location Preference", "vat_tu": vat_tu, "kho": kho, "vi_tri": vi_tri}
+		{"doctype": "Item Location Preference", "vat_tu": vat_tu, "vi_tri_gan": _dong_gan(vi_tri)}
 	).insert(ignore_permissions=True)
 
 

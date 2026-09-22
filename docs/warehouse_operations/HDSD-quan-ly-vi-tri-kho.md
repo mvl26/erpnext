@@ -569,9 +569,12 @@ ngay. Ngược lại: **hệ cũng không tự sửa lại** cái bạn đã ch�
 
 Từ 16/09/2026. Đây là thứ làm cho cột *Đến ô* ở mục 6.3 tự điền được.
 
-**Ý tưởng:** mỗi mặt hàng có **một chỗ cố định** trên kệ, như kho SPD bên Nhật vẫn làm. Khi ô đã
+**Ý tưởng:** mỗi mặt hàng có **chỗ cố định** trên kệ, như kho SPD bên Nhật vẫn làm. Khi ô đã
 thuộc về đúng một mặt hàng thì câu "hàng này xếp đâu" trả lời được ngay, **không cần khai sức
 chứa cho ô nào** — đó là lý do trước đây hệ không dám gợi ý.
+
+> **Từ 22/09/2026, một mặt hàng gán được NHIỀU vị trí** — ví dụ một ô ở dãy này và cả một tầng ở
+> dãy bên kia, kể cả ở kho khác. Luật "một ô chỉ thuộc một mặt hàng" vẫn giữ nguyên.
 
 ### 10.1 Gán một mặt hàng
 
@@ -580,9 +583,13 @@ chứa cho ô nào** — đó là lý do trước đây hệ không dám gợi �
 1. Mở mặt hàng cần gán (chỉ mặt hàng có **Lưu kho**).
 2. Ngay đầu form có một dòng cho biết mặt hàng **đã gán ở đâu**, hoặc báo màu cam
    *"chưa gán vị trí cố định — tem in ra sẽ trống ô vị trí"*.
-3. Bấm nhóm nút **Vị trí kho → Gán vị trí** (đã gán rồi thì là **Đổi vị trí**).
-4. Chọn **Kho** — ô này chỉ hiện kho đã bật quản lý vị trí.
-5. Bấm **"Chọn trên cây vị trí"**, rồi chọn nút trên cây (nên chọn cấp **Tầng**, xem 10.2).
+3. Bấm nhóm nút **Vị trí kho → Gán vị trí**. Hộp thoại liệt kê các vị trí đang gán.
+4. Bấm **Thêm vị trí** → chọn **Kho** (chỉ hiện kho đã bật quản lý vị trí) → **Chọn trên cây vị
+   trí** → chọn nút trên cây (nên chọn cấp **Tầng**, xem 10.2). Lặp lại để thêm vị trí khác.
+5. Bỏ một vị trí bằng nút **×**, đổi thứ tự bằng **↑ ↓**, rồi bấm **Lưu**.
+
+Thứ tự vị trí **không** phải "chính / phụ": nó chỉ dùng để phân định khi có nhiều ô trống cùng lúc
+(xem 10.4).
 
 Không thấy nhóm nút **Vị trí kho**? Việc gán chỉ dành cho **Stock Manager** và **System
 Manager**. Thủ kho vai trò *Stock User* xem được dòng vị trí nhưng không đổi được — nhờ quản lý kho.
@@ -592,12 +599,11 @@ chối, kèm tên mặt hàng đang giữ nó.
 
 **Cách cũ — màn hình riêng**, vẫn dùng được, tiện khi gán nhiều mặt hàng liền tay:
 
-1. Mở **`/app/item-location-preference`** (hoặc bấm **Gán vị trí cố định** trên trang *Vị trí kho*).
+1. Mở **`/app/item-location-preference`** (hoặc bấm **Gán vị trí cố định** trên trang *Quản lý kho*).
 2. **Mặt hàng** — chọn một lần, **không sửa được về sau**. Gán nhầm thì xoá bản ghi rồi tạo lại.
-3. **Kho** — phải là kho đang quản lý vị trí.
-4. **Vị trí cố định** — gõ mã ô, hoặc bấm **"Chọn trên cây vị trí"** để chọn trực quan.
+3. Bảng **Vị trí gán** — mỗi dòng một vị trí: gõ mã ô, hoặc bấm **"Thêm vị trí từ cây"**.
 
-Ô **Cấp** tự hiện ra (Khu / Dãy / Khoang / Tầng / Ô) — chỉ để nhìn cho chắc, không gõ.
+Cột **Kho** và **Cấp** (Khu / Dãy / Khoang / Tầng / Ô) tự điền theo vị trí — không gõ.
 
 ### 10.2 Nên gán ở cấp TẦNG, đừng gán một Ô lẻ
 
@@ -623,6 +629,7 @@ Nốt **không chọn được thì không có nút "Chọn"** — cố ý. Vớ
 | *đã gán: `<mặt hàng>`* | nốt này, hoặc một nút trên nó, đã thuộc mặt hàng khác | chọn nhánh khác |
 | *có gán bên trong* | bên trong nhánh này đã có mặt hàng khác giữ chỗ | gỡ gán con đó trước, hoặc chọn nhánh khác |
 | *đang ngừng dùng* | nốt này hoặc một nút trên nó đang tắt | bật lại nhánh, hoặc chờ sửa kệ xong |
+| *đã có trong danh sách* | nốt này trùng, nằm trong, hoặc bao trùm một vị trí **đang có trong hộp thoại** của chính mặt hàng này | không cần gán lần nữa — một nhánh chỉ gán một lần |
 
 > **Một ô chỉ thuộc về một mặt hàng.** Hệ chặn cả ba chiều: gán trùng đúng nút, gán vào **con
 > cháu** của nút đã có chủ, và gán vào **nút cha bao trùm** nút đã có chủ. Hai nhánh **cạnh
@@ -630,13 +637,16 @@ Nốt **không chọn được thì không có nút "Chọn"** — cố ý. Vớ
 
 ### 10.4 Hệ gợi ý ô theo luật nào
 
-Khi bấm *"Lấy hàng chưa xếp"*, với mỗi mặt hàng đã gán:
+Khi in tem lô / bấm *"Lấy hàng chưa xếp"*, với mỗi mặt hàng đã gán, **trong đúng kho đang làm**:
 
-1. Duyệt các ô trong vùng đã gán **theo thứ tự cây** (Khu → Dãy → Khoang → Tầng → Ô), bỏ qua ô
-   nằm dưới nhánh đang ngừng dùng.
-2. Lấy **ô trống đầu tiên**.
-3. Hết ô trống thì lấy **ô đang chứa chính mặt hàng đó** (dồn vào chỗ cũ).
-4. Không có cả hai → báo **"vùng `<nút>` đã đầy"**, để trống ô đích.
+1. Lô đã in tem mà ô trên tem còn dùng được → **ô trên tem** (xem luật xếp đúng ô trên tem, 6.3).
+2. **Ô trống đầu tiên, xét MỌI vị trí đã gán** — theo thứ tự vị trí trong danh sách, rồi thứ tự
+   cây. Còn một ô trống ở vị trí thứ hai thì hệ gợi ý ô đó, **dù** vị trí thứ nhất vẫn còn chỗ dồn.
+3. Hết ô trống ở mọi vị trí → lấy **ô đang chứa chính mặt hàng đó** (dồn vào chỗ cũ).
+4. Không có cả hai → báo **"vùng … đã đầy"** (một vị trí) hoặc **"các vị trí đã gán (…) đã đầy"**,
+   để trống ô đích.
+
+Bỏ qua ô nằm dưới nhánh đang ngừng dùng.
 
 Gợi ý **không ép**. Sửa đè lúc nào cũng được.
 
@@ -647,8 +657,11 @@ bao nhiêu — chuyển những ô đó đi bằng phiếu xếp / chuyển vị
 không bao giờ gặp vì hàng còn nằm ở ô "Chưa xếp"; nó sẽ bắt đầu gặp khi kho đã xếp được một thời
 gian.
 
-**Một mặt hàng chỉ gán được ở MỘT kho.** Hôm nay vô hại vì chỉ `Kho Miyano - MYN` quản lý vị trí.
-Ngày bật kho thứ hai, đây là chỗ phải sửa lược đồ — xem `BAN-GIAO-nen-tang-vi-tri-kho.md`.
+**Các vị trí của cùng mặt hàng không được chồng nhau.** Đã gán cả tầng thì không gán thêm một ô nằm
+trong tầng đó — hệ báo *"Dòng N trùng hoặc lồng với dòng M"*.
+
+**Gán được ở nhiều kho** (từ 22/09/2026): mỗi vị trí mang kho của chính nó, gợi ý chỉ xét các vị
+trí thuộc kho đang nhập / xếp.
 
 **Đổi mã mặt hàng thì gán tự đi theo**, không phải gán lại.
 

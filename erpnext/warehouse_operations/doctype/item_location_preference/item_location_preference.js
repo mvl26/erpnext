@@ -9,25 +9,42 @@ const DUONG_CAY = "/assets/erpnext/js/warehouse_operations/cay_chon_vi_tri.js";
 
 frappe.ui.form.on("Item Location Preference", {
 	refresh(frm) {
-		frm.add_custom_button(__("Chọn trên cây vị trí"), () => {
-			if (!frm.doc.kho) {
-				frappe.msgprint(__("Chọn Kho trước — cây vị trí là của một kho."));
-				return;
-			}
-			frappe.require(DUONG_CAY, () => {
-				// `tru_ten`: khi đang SỬA một bản ghi đã lưu (không phải tạo
-				// mới), truyền tên chính nó để cây loại trừ gán này ra khỏi
-				// `co_gan_ben_trong` — nếu không, dời gán từ Tầng lên Khoang
-				// cha của chính nó (thao tác HỢP LỆ, `validate()` phía máy
-				// chủ cũng loại trừ y hệt qua `tru_ten=self.name`) sẽ bị nút
-				// "Chọn vị trí này" khoá oan vì cây đếm nhầm CHÍNH gán đang
-				// sửa là "gán bên trong". `frm.is_new()` chặn gửi tên tạm
-				// (`new-item-location-preference-...`) khi đang tạo mới —
-				// tên đó không khớp bản ghi nào nên vô hại, nhưng gửi đúng
-				// `undefined` rõ ràng hơn là gửi rác.
-				const tru_ten = frm.is_new() ? null : frm.doc.name;
-				erpnext.warehouse_operations.chon_vi_tri(frm.doc.kho, (o) => frm.set_value("vi_tri", o), tru_ten);
+		// 22/09/2026 — bản gán giữ NHIỀU vị trí (bảng `vi_tri_gan`). Nút này THÊM một
+		// dòng; bỏ/sắp lại dòng dùng lưới như thường. Kho hỏi mỗi lần thêm vì các dòng
+		// có thể ở các kho khác nhau.
+		frm.add_custom_button(__("Thêm vị trí từ cây"), () => {
+			const d = new frappe.ui.Dialog({
+				title: __("Thêm vị trí — chọn kho"),
+				fields: [
+					{
+						fieldname: "kho",
+						fieldtype: "Link",
+						options: "Warehouse",
+						label: __("Kho"),
+						reqd: 1,
+						get_query: () => ({ filters: { custom_quan_ly_vi_tri: 1, is_group: 0 } }),
+					},
+				],
+				primary_action_label: __("Chọn trên cây vị trí"),
+				primary_action(v) {
+					d.hide();
+					frappe.require(DUONG_CAY, () => {
+						const tru_ten = frm.is_new() ? null : frm.doc.name;
+						const dang_co = (frm.doc.vi_tri_gan || []).map((r) => r.vi_tri).filter(Boolean);
+						erpnext.warehouse_operations.chon_vi_tri(
+							v.kho,
+							(o) => {
+								frm.add_child("vi_tri_gan", { vi_tri: o });
+								frm.refresh_field("vi_tri_gan");
+								frm.dirty();
+							},
+							tru_ten,
+							dang_co
+						);
+					});
+				},
 			});
+			d.show();
 		});
 	},
 });
