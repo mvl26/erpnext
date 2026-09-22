@@ -81,13 +81,24 @@ def kiem_tra_ky_tu(s: str, nhan: str) -> None:
 	dấu gạch ngang dài `–` (U+2013) dán từ phiếu đóng gói của nhà cung cấp, nên
 	câu báo nói thẳng cả hai.
 	"""
+	loi = loi_ky_tu(s, nhan)
+	if loi:
+		frappe.throw(loi)
+
+
+def loi_ky_tu(s: str, nhan: str) -> str | None:
+	"""Câu báo của `kiem_tra_ky_tu`, hoặc `None` nếu hợp lệ — KHÔNG ném lỗi.
+
+	Tách ra để màn hình Phiếu nhập lô báo NGAY lúc thủ kho vừa gõ xong số lô
+	(`kiem_so_lo`), bằng ĐÚNG câu và ĐÚNG luật mà `validate` dùng lúc lưu.
+	"""
 	if not s:
-		return
+		return None
 
 	for i, c in enumerate(s):
 		if ord(c) <= _MA_HOA_DUOC_TOI_DA:
 			continue
-		frappe.throw(
+		return (
 			_(
 				"Số {0} '{1}' có ký tự '{2}' (U+{3:04X}) ở vị trí {4} — mã vạch Code 128 "
 				"không mã hoá được ký tự này, nên nhãn sẽ không có mã vạch để quét. "
@@ -97,6 +108,7 @@ def kiem_tra_ky_tu(s: str, nhan: str) -> None:
 				"ĐỪNG xoá bớt ký tự: số lô cắt bớt là số lô sai dán lên hàng."
 			).format(nhan, s, c, ord(c), i + 1)
 		)
+	return None
 
 
 def kiem_tra_do_dai(s: str, nhan: str) -> None:
@@ -108,18 +120,42 @@ def kiem_tra_do_dai(s: str, nhan: str) -> None:
 	Một câu chung chung khiến người dùng cắt bừa vài ký tự rồi thử lại — và số
 	lô cắt bớt là số lô SAI dán lên hàng.
 	"""
+	loi = loi_do_dai(s, nhan)
+	if loi:
+		frappe.throw(loi)
+
+
+def loi_do_dai(s: str, nhan: str) -> str | None:
+	"""Câu báo của `kiem_tra_do_dai`, hoặc `None` nếu vừa nhãn — KHÔNG ném lỗi.
+	Cùng lẽ tách như `loi_ky_tu`."""
 	m = so_module(s)
 	if m <= MODULE_TOI_DA:
-		return
+		return None
 
-	frappe.throw(
-		_(
-			"Số {0} '{1}' dài {2} ký tự, cần {3} module mã vạch nhưng nhãn 50×30 chỉ "
-			"chứa được {4} module. Giới hạn thực tế: 26 chữ số (độ dài chẵn), "
-			"23 chữ số (độ dài lẻ), hoặc 13 ký tự nếu có chữ. Không thu nhỏ mã vạch "
-			"được: dưới 2 dot trên máy in nhiệt thì máy quét đọc ra SAI ký tự."
-		).format(nhan, s, len(s), m, MODULE_TOI_DA)
-	)
+	# Câu NGẮN theo yêu cầu chủ đầu tư (22/09/2026: "thông báo là không in được vì
+	# ký tự quá dài là được") — con số module/2 dot là chuyện của người làm tem,
+	# thủ kho chỉ cần biết không in được và được tối đa bao nhiêu. Vẫn nói ĐANG
+	# bao nhiêu / ĐƯỢC bao nhiêu (xem `test_cau_bao_noi_ro_gioi_han`): câu chỉ
+	# "quá dài" khiến người ta cắt bừa, mà số lô cắt bớt là số lô SAI.
+	return _(
+		"Số {0} '{1}' quá dài ({2} ký tự) nên không in được mã vạch trên tem. "
+		"Tối đa 13 ký tự nếu có chữ."
+	).format(nhan, s, len(s))
+
+
+@frappe.whitelist()
+def kiem_so_lo(so_lo: str | None = None) -> dict:
+	"""Cho ô Số lô trên Phiếu nhập lô: báo NGAY khi thủ kho vừa gõ xong, thay vì
+	đợi tới lúc bấm Lưu (22/09/2026, chủ đầu tư: "làm thông báo và giới hạn số
+	ký tự của batch khi nhập batch entry").
+
+	Cùng thứ tự với `BatchEntry.kiem_tra_so_lo`: ký tự TRƯỚC, độ dài sau — số lô
+	có dấu tiếng Việt thì việc phải làm là gõ lại không dấu, không phải cắt bớt.
+	Chỉ ĐỌC, không ghi gì; `validate` lúc lưu vẫn là chốt chặn thật.
+	"""
+	s = (so_lo or "").strip()
+	loi = loi_ky_tu(s, _("lô")) or loi_do_dai(s, _("lô"))
+	return {"loi": loi, "so_ky_tu": len(s)}
 
 
 def kiem_ky_tu_lo(doc, method=None):

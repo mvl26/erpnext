@@ -131,7 +131,7 @@ class TestValidate(FrappeTestCase):
 		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="A" * 30)])
 		with self.assertRaises(frappe.ValidationError) as ngu_canh:
 			be.insert(ignore_permissions=True)
-		self.assertIn("module", str(ngu_canh.exception))
+		self.assertIn("quá dài", str(ngu_canh.exception))
 
 	def test_so_lo_trung_voi_lo_cua_mat_hang_khac_thi_chan(self):
 		item2 = _tao_item("_Test NhapLo Co Lo 2", co_lo=1)
