@@ -45,16 +45,11 @@ def get_columns():
 
 
 def _control_accounts(company, party_type):
-	prefixes = PARTY_ACCOUNT_PREFIXES.get(party_type) or ("131", "331")
-	return [
-		a.name
-		for a in frappe.get_all(
-			"Account",
-			filters={"company": company, "is_group": 0},
-			fields=["name", "account_number"],
-		)
-		if (a.account_number or "").startswith(prefixes)
-	]
+	"""Cùng tập tài khoản với Biên bản đối chiếu công nợ (D7) — sổ và biên bản không lệch."""
+	from erpnext.debt_reconciliation.figures import get_party_accounts
+
+	party_types = [party_type] if party_type in PARTY_ACCOUNT_PREFIXES else list(PARTY_ACCOUNT_PREFIXES)
+	return [a for pt in party_types for a in get_party_accounts(company, pt, throw=False)]
 
 
 def get_data(filters):
@@ -101,7 +96,13 @@ def get_data(filters):
 		opening = flt(opening_by_party.get(party))
 		balance = opening
 		rows.append(
-			{"party": label, "party_link": party, "remarks": _("Số dư đầu kỳ"), "balance": opening, "is_opening": 1}
+			{
+				"party": label,
+				"party_link": party,
+				"remarks": _("Số dư đầu kỳ"),
+				"balance": opening,
+				"is_opening": 1,
+			}
 		)
 		for e in entries_by_party.get(party, []):
 			balance += flt(e.debit) - flt(e.credit)
@@ -120,6 +121,12 @@ def get_data(filters):
 				}
 			)
 		rows.append(
-			{"party": label, "party_link": party, "remarks": _("Số dư cuối kỳ"), "balance": balance, "is_closing": 1}
+			{
+				"party": label,
+				"party_link": party,
+				"remarks": _("Số dư cuối kỳ"),
+				"balance": balance,
+				"is_closing": 1,
+			}
 		)
 	return rows

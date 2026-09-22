@@ -17,3 +17,6 @@ __pycache__
 .vscode/
 node_modules/
 .backportrc.json
+# Vùng làm việc tạm của subagent-driven-development (ledger, brief, review package).
+# Git history mới là bản ghi; thư mục này xoá được bất cứ lúc nào.
+.superpowers/

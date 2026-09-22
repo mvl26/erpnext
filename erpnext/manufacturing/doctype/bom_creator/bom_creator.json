@@ -175,7 +175,8 @@
    "fetch_from": "item_code.item_name",
    "fieldname": "item_name",
    "fieldtype": "Data",
-   "label": "Item Name"
+   "label": "Item Name",
+   "length": 500
   },
   {
    "fetch_from": "item_code.stock_uom",

@@ -28,7 +28,8 @@
    "fieldname": "item_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Scrap Item Name"
+   "label": "Scrap Item Name",
+   "length": 500
   },
   {
    "fieldname": "column_break_3",

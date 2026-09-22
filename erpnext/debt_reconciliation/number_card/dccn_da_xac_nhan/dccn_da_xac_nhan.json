@@ -1,0 +1,22 @@
+{
+ "color": "Green",
+ "creation": "2026-09-21 10:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Debt Reconciliation Statement",
+ "dynamic_filters_json": "[[\"Debt Reconciliation Statement\", \"to_date\", \"=\", \"frappe.datetime.month_end(frappe.datetime.add_months(frappe.datetime.get_today(), -1))\"], [\"Debt Reconciliation Statement\", \"company\", \"=\", \"frappe.defaults.get_user_default(\\\"Company\\\")\"]]",
+ "filters_json": "[[\"Debt Reconciliation Statement\", \"status\", \"=\", \"Đã xác nhận\", false]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Đã xác nhận",
+ "modified": "2026-09-21 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Debt Reconciliation",
+ "name": "DCCN Da Xac Nhan",
+ "owner": "Administrator",
+ "show_percentage_stats": 0,
+ "stats_time_interval": "Monthly",
+ "type": "Document Type"
+}

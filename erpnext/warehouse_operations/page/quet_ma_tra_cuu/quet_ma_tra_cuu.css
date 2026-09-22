@@ -1,0 +1,570 @@
+/* Trang "Quét mã tra cứu" — bố cục một cột cho PDA (màn 360–480px).
+ *
+ * Chỉ dùng biến màu của Frappe (--card-bg, --bg-red, --text-on-red…) để chế độ
+ * tối tự đúng. Chữ và vùng chạm to hơn form thường: thủ kho đọc ở một tay, đứng
+ * giữa lối đi kệ, thường đeo găng. */
+
+.qmtc {
+	max-width: 560px;
+	margin: 0 auto;
+	padding-bottom: 24px;
+}
+
+/* Frappe chia đầu trang 7/12 cho tiêu đề, 5/12 cho nút hành động. Trang này
+ * không có nút nào, nên trên màn 360px tiêu đề bị cắt còn "Quét m…" trong khi
+ * nửa phải trống trơn — nhường hết bề ngang cho tiêu đề. */
+.page-container[data-page-route="quet-ma-tra-cuu"] .page-title {
+	flex: 1 1 auto;
+	max-width: none;
+}
+.page-container[data-page-route="quet-ma-tra-cuu"] .page-title .title-text {
+	max-width: none;
+}
+.page-container[data-page-route="quet-ma-tra-cuu"] .page-head .page-actions {
+	flex: 0 0 auto;
+	max-width: none;
+	width: auto;
+}
+
+/* ------------------------------------------------------------------ thẻ */
+
+.qmtc-the {
+	background: var(--card-bg);
+	border: 1px solid var(--border-color);
+	border-radius: 14px;
+	overflow: hidden;
+	box-shadow: var(--shadow-sm);
+}
+
+.qmtc-the a {
+	color: inherit;
+}
+
+.qmtc-cho,
+.qmtc-dang-tra,
+.qmtc-khong-thay {
+	text-align: center;
+	padding: 28px 20px;
+}
+
+.qmtc-cho-hinh {
+	--icon-stroke: currentColor;
+	display: inline-flex;
+	padding: 14px;
+	border-radius: 50%;
+	background: var(--control-bg);
+	color: var(--text-muted);
+	margin-bottom: 10px;
+}
+
+.qmtc-cho-chu {
+	font-size: 17px;
+	font-weight: 600;
+	color: var(--text-color);
+	margin-bottom: 4px;
+}
+
+.qmtc-khong-thay {
+	border-style: dashed;
+	border-width: 2px;
+}
+
+.qmtc-khong-thay .qmtc-ma-to {
+	margin: 8px 0;
+	word-break: break-all;
+}
+
+.qmtc-thanh-cho {
+	height: 4px;
+	margin: 14px auto 0;
+	max-width: 160px;
+	border-radius: 2px;
+	background: linear-gradient(90deg, var(--control-bg) 0%, var(--primary) 50%, var(--control-bg) 100%);
+	background-size: 200% 100%;
+	animation: qmtc-chay 1s linear infinite;
+}
+
+@keyframes qmtc-chay {
+	from {
+		background-position: 200% 0;
+	}
+	to {
+		background-position: 0 0;
+	}
+}
+
+/* Dải màu mép trên thẻ lô theo tình trạng hạn — nhìn lướt từ xa đã biết. */
+.qmtc-the-lo {
+	border-top-width: 6px;
+}
+.qmtc-the-lo.muc-con {
+	border-top-color: var(--green-500, #30a66d);
+}
+.qmtc-the-lo.muc-can {
+	border-top-color: var(--orange-500, #f5a524);
+}
+.qmtc-the-lo.muc-het {
+	border-top-color: var(--red-500, #e03636);
+}
+
+.qmtc-dau {
+	padding: 14px 16px 12px;
+}
+
+.qmtc-nhan-loai {
+	display: inline-block;
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	padding: 2px 8px;
+	border-radius: 6px;
+	margin-bottom: 6px;
+}
+
+.qmtc-nhan-loai.loai-lo {
+	background: var(--bg-purple);
+	color: var(--text-on-purple);
+}
+.qmtc-nhan-loai.loai-vat_tu {
+	background: var(--bg-blue);
+	color: var(--text-on-blue);
+}
+.qmtc-nhan-loai.loai-o {
+	background: var(--bg-cyan);
+	color: var(--text-on-cyan);
+}
+.qmtc-nhan-loai.loai-kho {
+	background: var(--bg-yellow);
+	color: var(--text-on-yellow);
+}
+.qmtc-nhan-loai.loai-khong {
+	background: var(--bg-gray);
+	color: var(--text-on-gray);
+}
+
+.qmtc-ma-to {
+	display: block;
+	font-family: var(--font-stack-monospace, monospace);
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 1.25;
+	color: var(--heading-color, var(--text-color));
+	word-break: break-all;
+}
+
+.qmtc-ten-hang {
+	display: block;
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.35;
+	color: var(--text-color);
+	margin-top: 4px;
+}
+
+.qmtc-ten-to {
+	font-size: 19px;
+	margin-top: 0;
+}
+
+.qmtc-mo {
+	font-size: 13px;
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+.qmtc-nhan {
+	font-size: 12px;
+	color: var(--text-muted);
+	line-height: 1.3;
+}
+
+/* Hạn dùng: khối lớn nhất sau số lô — câu hỏi đầu tiên khi cầm một thùng
+ * vật tư y tế lên là "còn hạn không". */
+.qmtc-han {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0 12px;
+	padding: 10px 12px;
+	border-radius: 10px;
+	background: var(--control-bg);
+}
+
+.qmtc-han-ngay {
+	font-size: 20px;
+	font-weight: 700;
+	color: var(--text-color);
+}
+
+.qmtc-han-con {
+	font-size: 14px;
+	font-weight: 700;
+	padding: 6px 10px;
+	border-radius: 8px;
+	white-space: nowrap;
+}
+
+.qmtc-han.muc-con {
+	background: var(--bg-green);
+}
+.qmtc-han.muc-con .qmtc-han-ngay,
+.qmtc-han.muc-con .qmtc-han-con {
+	color: var(--text-on-green);
+}
+.qmtc-han.muc-can {
+	background: var(--bg-orange);
+}
+.qmtc-han.muc-can .qmtc-han-ngay,
+.qmtc-han.muc-can .qmtc-han-con {
+	color: var(--text-on-orange);
+}
+.qmtc-han.muc-het {
+	background: var(--bg-red);
+}
+.qmtc-han.muc-het .qmtc-han-ngay,
+.qmtc-han.muc-het .qmtc-han-con {
+	color: var(--text-on-red);
+}
+.qmtc-han .qmtc-han-con {
+	background: var(--card-bg);
+}
+
+.qmtc-luoi {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px 12px;
+	padding: 14px 16px;
+}
+
+.qmtc-o-luoi.rong {
+	grid-column: 1 / -1;
+}
+
+.qmtc-gia-tri {
+	font-size: 15px;
+	font-weight: 500;
+	color: var(--text-color);
+	word-break: break-word;
+}
+
+.qmtc-gia-tri a {
+	text-decoration: underline;
+	text-decoration-color: var(--border-color);
+	text-underline-offset: 3px;
+}
+
+/* ----------------------------------------------------------------- mục */
+
+.qmtc-muc {
+	padding: 12px 16px;
+	border-top: 1px solid var(--border-color);
+}
+
+.qmtc-dau + .qmtc-muc {
+	border-top: 0;
+	padding-top: 0;
+}
+
+.qmtc-tieu-de-muc {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	margin-bottom: 8px;
+}
+
+.qmtc-tong-nho {
+	text-transform: none;
+	letter-spacing: 0;
+	font-size: 13px;
+	color: var(--text-color);
+}
+
+.qmtc-chip-hang {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.qmtc-chip-hang:not(:empty) + .qmtc-bang,
+.qmtc-chip-hang:not(:empty) + .qmtc-trong {
+	margin-top: 10px;
+}
+
+.qmtc-chip {
+	display: inline-flex;
+	align-items: stretch;
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	overflow: hidden;
+	font-size: 14px;
+}
+
+.qmtc-chip-nhan {
+	padding: 6px 8px;
+	background: var(--control-bg);
+	color: var(--text-muted);
+}
+
+.qmtc-chip-gia-tri {
+	padding: 6px 10px;
+	font-family: var(--font-stack-monospace, monospace);
+	font-weight: 700;
+	color: var(--text-color);
+}
+
+.qmtc-chip-gia-tri.trong {
+	font-family: var(--font-stack);
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.qmtc-bang {
+	border: 1px solid var(--border-color);
+	border-radius: 10px;
+	overflow: hidden;
+}
+
+.qmtc-dong {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-height: 48px;
+	padding: 8px 12px;
+}
+
+.qmtc-dong + .qmtc-dong {
+	border-top: 1px solid var(--border-color);
+}
+
+.qmtc-dong-chinh {
+	flex: 1;
+	min-width: 0;
+}
+
+.qmtc-ma-o {
+	font-family: var(--font-stack-monospace, monospace);
+	font-weight: 600;
+	font-size: 15px;
+	color: var(--text-color);
+}
+
+.qmtc-so {
+	font-size: 18px;
+	font-weight: 700;
+	color: var(--text-color);
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.qmtc-so small {
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.qmtc-tong {
+	background: var(--control-bg);
+}
+
+.qmtc-tong .qmtc-dong-chinh {
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+.qmtc-dong-ten {
+	font-weight: 600;
+	color: var(--text-color);
+	line-height: 1.3;
+}
+
+.qmtc-dong-lo {
+	font-family: var(--font-stack-monospace, monospace);
+	font-weight: 700;
+	font-size: 15px;
+	color: var(--text-color);
+	word-break: break-all;
+}
+
+.qmtc-dong-phu {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 10px;
+	margin-top: 2px;
+}
+
+.qmtc-dong-phu .qmtc-ma-o {
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.qmtc-han-nho {
+	font-size: 12px;
+	font-weight: 600;
+	padding: 1px 6px;
+	border-radius: 5px;
+	background: var(--bg-gray);
+	color: var(--text-on-gray);
+}
+.qmtc-han-nho.muc-con {
+	background: var(--bg-green);
+	color: var(--text-on-green);
+}
+.qmtc-han-nho.muc-can {
+	background: var(--bg-orange);
+	color: var(--text-on-orange);
+}
+.qmtc-han-nho.muc-het {
+	background: var(--bg-red);
+	color: var(--text-on-red);
+}
+
+.qmtc-trong {
+	font-size: 14px;
+	color: var(--text-muted);
+	padding: 4px 0;
+}
+
+.qmtc-hop-hang {
+	display: block;
+	padding: 10px 12px;
+	border-radius: 10px;
+	background: var(--control-bg);
+}
+
+.qmtc-hop-hang .qmtc-ten-hang {
+	margin-top: 0;
+}
+
+.qmtc-co-hang {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+.qmtc-co {
+	font-size: 12px;
+	font-weight: 600;
+	padding: 2px 8px;
+	border-radius: 6px;
+	background: var(--bg-gray);
+	color: var(--text-on-gray);
+}
+.qmtc-co.co-do {
+	background: var(--bg-red);
+	color: var(--text-on-red);
+}
+.qmtc-co.co-xanh {
+	background: var(--bg-green);
+	color: var(--text-on-green);
+}
+
+.qmtc-thong-ke {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	border-top: 1px solid var(--border-color);
+}
+
+.qmtc-thong-ke > div {
+	padding: 14px 16px;
+}
+
+.qmtc-thong-ke > div + div {
+	border-left: 1px solid var(--border-color);
+}
+
+.qmtc-so-to {
+	font-size: 28px;
+	font-weight: 700;
+	color: var(--text-color);
+	font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------- lịch sử */
+
+.qmtc-lich-su:not(:empty) {
+	margin-top: 20px;
+}
+
+.qmtc-lich-su > .qmtc-tieu-de-muc {
+	padding: 0 4px;
+}
+
+.qmtc-dong-lich-su {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 52px;
+	padding: 8px 12px;
+	background: var(--card-bg);
+	border: 1px solid var(--border-color);
+	border-radius: 10px;
+	cursor: pointer;
+}
+
+.qmtc-dong-lich-su + .qmtc-dong-lich-su {
+	margin-top: 6px;
+}
+
+.qmtc-dong-lich-su:active {
+	background: var(--control-bg);
+}
+
+.qmtc-dong-lich-su .qmtc-nhan-loai {
+	margin: 0;
+	min-width: 52px;
+	text-align: center;
+}
+
+.qmtc-lich-su-chu {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.qmtc-lich-su-ma {
+	font-family: var(--font-stack-monospace, monospace);
+	font-weight: 600;
+	color: var(--text-color);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.qmtc-lich-su-ten {
+	font-size: 12px;
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.qmtc-lich-su-luc {
+	font-size: 12px;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.qmtc-dong-lich-su.khong-thay .qmtc-lich-su-ma {
+	color: var(--text-muted);
+}
+
+@media (max-width: 480px) {
+	/* Trên PDA, lề trang của Frappe ăn mất bề ngang quý giá. */
+	.qmtc {
+		margin: 0 -8px;
+	}
+	.qmtc-ma-to {
+		font-size: 22px;
+	}
+}

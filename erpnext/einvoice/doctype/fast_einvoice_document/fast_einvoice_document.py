@@ -7,17 +7,25 @@ Cancelled của Frappe, nên trạng thái do trường ``status`` tự quản l
 khóa sửa dựa trên trạng thái chứ không dựa trên docstatus.
 """
 
+import re
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import getdate, nowdate
 
 from erpnext.einvoice.constants import (
 	EDITABLE_STATUSES,
 	INVOICE_TYPE_ADJUSTMENT,
 	INVOICE_TYPE_ORIGINAL,
 	INVOICE_TYPE_REPLACEMENT,
+	ISSUED_STATUSES,
+	LIVE_STATUSES,
 	STATUS_DRAFT,
+	STATUS_ISSUING,
 )
+
+FEI = "Fast EInvoice Document"
 
 # Dữ liệu sẽ gửi lên Fast (nhóm C2.3). Khi hóa đơn đã tiêu số thật thì đây là nội
 # dung của một chứng từ pháp lý — sửa được nghĩa là chứng từ trên ERP lệch với
@@ -81,6 +89,33 @@ PROTECTED_LINE_FIELDS = (
 # nên chứng từ đã khóa cũng phải chặn y như chặn số tiền.
 PROTECTED_CONTROL_FIELDS = ("totals_manual_override", "override_reason")
 
+# Trường text nằm trong dữ liệu gửi Fast mà Fast từ chối nếu có xuống dòng (lỗi
+# 825). Hệ thống tự gộp thành một dòng khi lưu, không bắt kế toán đi sửa tay.
+SINGLE_LINE_MASTER_FIELDS = (
+	"buyer",
+	"customer_name",
+	"address",
+	"phone_number",
+	"fax_number",
+	"email_deliver",
+	"bank_account",
+	"bank_name",
+	"amount_in_words",
+	"human_name",
+	"external_1",
+	"external_2",
+	"external_3",
+)
+SINGLE_LINE_LINE_FIELDS = ("item_name", "item_code", "uom", "note")
+
+_LINE_BREAK = re.compile(r"\s*[\r\n]+\s*")
+
+
+def _one_line(value):
+	if not isinstance(value, str) or not ("\n" in value or "\r" in value):
+		return value
+	return _LINE_BREAK.sub(" ", value).strip()
+
 
 def _frozen_values(doc):
 	"""Giá trị các trường đóng băng, quy về cùng một dạng để so sánh được.
@@ -98,17 +133,199 @@ def _frozen_values(doc):
 	)
 
 
+# Lệnh gọi Fast thật sự làm ra một hóa đơn: phát hành (310/320/350, action 0),
+# hoặc truy vấn 370 kéo số hóa đơn về khi đối soát.
+_ISSUING_METHODS = (310, 320, 350, 370)
+
+
 class FastEInvoiceDocument(Document):
+	def before_insert(self):
+		self._refuse_duplicate_record()
+
 	def validate(self):
 		if not self.status:
 			self.status = STATUS_DRAFT
 		self.is_edit_locked = 0 if self.status in EDITABLE_STATUSES else 1
 
+		self._fix_what_fast_would_reject()
 		self._validate_manual_override()
 		self._compute_totals()
 		self._validate_fast_key_is_immutable()
 		self._validate_lineage()
 		self._guard_locked_data()
+		self._validate_official_xml()
+
+	def on_update(self):
+		if self.official_xml and self.has_value_changed("official_xml"):
+			from erpnext.einvoice.folders import place_attached_file
+
+			place_attached_file(self, self.official_xml)
+
+	def _validate_official_xml(self):
+		"""XML hóa đơn: chỉ nhận file ``.xml``, và chỉ khi hóa đơn đã có số.
+
+		API Fast không có lệnh tải XML (tài liệu API chỉ có PDF 380/385), nên kế
+		toán tải XML trên portal Fast rồi đính vào đây. Hóa đơn chưa phát hành thì
+		chưa có XML thật nào — chặn để khỏi đính nhầm file khác.
+		"""
+		if not self.official_xml:
+			return
+		if not self.fast_invoice_no:
+			frappe.throw(_("Hóa đơn chưa phát hành (chưa có số) nên chưa có XML để đính kèm."))
+		if not self.official_xml.split("?")[0].lower().endswith(".xml"):
+			frappe.throw(_("File XML hóa đơn phải có đuôi .xml."))
+
+	def _refuse_duplicate_record(self):
+		"""Một lần bán, một hóa đơn, một bản ghi — không bao giờ có bản ghi thứ hai.
+
+		Bản ghi mới chỉ sinh ra từ phiếu giao (`builder`) hoặc từ hóa đơn gốc
+		(`lineage`), luôn ở trạng thái Nháp và có Key riêng. Mọi đường khác — nút
+		Duplicate, import, API — mà chép kèm Key, số hóa đơn hay trạng thái đã
+		phát hành là đẻ ra một hóa đơn "ma": nhìn y như hóa đơn thật, cộng trùng
+		vào báo cáo, lại không xóa được vì mang số hóa đơn. Đã xảy ra thật:
+		FEI-2026-00007 là bản chép của FEI-2026-00006 ngay sau khi phát hành.
+		"""
+		if self.fast_invoice_no or self.fast_key_search or self.status in (*ISSUED_STATUSES, STATUS_ISSUING):
+			frappe.throw(
+				_(
+					"Không tạo được bản ghi hóa đơn mới mang sẵn số hóa đơn / trạng thái đã phát hành "
+					"(số {0}, trạng thái {1}). Hóa đơn chỉ lập từ phiếu giao hàng, hoặc lập điều chỉnh / "
+					"thay thế từ hóa đơn gốc."
+				).format(self.fast_invoice_no or "—", self.status or "—"),
+				frappe.DuplicateEntryError,
+			)
+
+		if self.fast_key:
+			clash = frappe.db.get_value(FEI, {"fast_key": self.fast_key}, ["name", "status"], as_dict=True)
+			if clash:
+				frappe.throw(
+					_(
+						"Key {0} đã thuộc về chứng từ {1} ({2}). Mỗi hóa đơn một Key — bản ghi thứ "
+						"hai cùng Key là hóa đơn trùng."
+					).format(self.fast_key, clash.name, clash.status),
+					frappe.DuplicateEntryError,
+				)
+
+		if self.delivery_note and self.invoice_type == INVOICE_TYPE_ORIGINAL:
+			live = frappe.db.get_value(
+				FEI,
+				{"delivery_note": self.delivery_note, "status": ("in", list(LIVE_STATUSES))},
+				["name", "status"],
+				as_dict=True,
+			)
+			if live:
+				frappe.throw(
+					_("Phiếu giao {0} đã có chứng từ HĐĐT {1} ({2}).").format(
+						self.delivery_note, live.name, live.status
+					),
+					frappe.DuplicateEntryError,
+				)
+
+	def is_duplicate_copy(self):
+		"""Bản chép rác: có bản ghi khác cùng Key lập **trước**, còn bản này chưa từng tự gọi Fast.
+
+		Hóa đơn thật luôn để lại nhật ký lệnh phát hành (hoặc truy vấn 370 kéo số
+		về) của chính nó. Bản chép bằng nút Duplicate thì mang số hóa đơn mà không
+		có dòng nhật ký nào — nó không phải chứng từ pháp lý, chỉ là dữ liệu lặp.
+		"""
+		if not self.fast_key:
+			return False
+		earlier = frappe.db.exists(
+			FEI,
+			{"fast_key": self.fast_key, "name": ("!=", self.name), "creation": ("<", self.creation)},
+		)
+		if not earlier:
+			return False
+		return not frappe.db.exists(
+			"Fast EInvoice Log",
+			{
+				"fei_document": self.name,
+				"action": 0,
+				"method": ("in", _ISSUING_METHODS),
+				"status": "Thành công",
+			},
+		)
+
+	def on_trash(self):
+		"""Gỡ chứng từ ra khỏi mọi thứ đang trỏ tới nó, rồi mới để Frappe xóa.
+
+		Phiếu giao có trường `fast_einvoice` trỏ ngược về đây, còn chứng từ này
+		lại trỏ sang phiếu giao — hai Link vòng vào nhau nên Frappe từ chối xóa cả
+		hai đầu, không có lối ra nào ngoài `force`. Frappe chạy `on_trash` **trước**
+		`check_if_doc_is_linked` (frappe/model/delete_doc.py:126 rồi 133), nên dọn
+		ở đây là vừa kịp.
+
+		Hóa đơn đã tiêu số thật thì không xóa: đó là chứng từ pháp lý Cơ quan Thuế
+		đang giữ, xóa bản ghi ERP chỉ làm mất dấu vết chứ không làm hóa đơn biến
+		mất. Sai nội dung thì lập hóa đơn điều chỉnh hoặc thay thế.
+
+		Ngoại lệ: bản chép rác (`is_duplicate_copy`) — mang số hóa đơn của bản ghi
+		khác nhưng chưa bao giờ tự phát hành gì, nên xóa được.
+		"""
+		if (self.status in ISSUED_STATUSES or self.fast_invoice_no) and not self.is_duplicate_copy():
+			frappe.throw(
+				_(
+					"Hóa đơn {0} đã phát hành (số {1}) nên không xóa được — đây là chứng từ pháp lý. "
+					"Cần sửa nội dung thì lập hóa đơn điều chỉnh hoặc thay thế."
+				).format(self.name, self.fast_invoice_no or self.status),
+				frappe.PermissionError,
+			)
+
+		self._release_delivery_note()
+		self._drop_own_logs()
+
+	def _release_delivery_note(self):
+		"""Xóa dấu vết của chứng từ này trên phiếu giao.
+
+		Giữ lại `fast_key_search` — trường đó vốn được đặt ra làm bản sao dự phòng
+		"phòng khi chứng từ HĐĐT bị xóa" (xem `einvoice/setup.py`), nên đây đúng là
+		lúc nó có việc để làm.
+		"""
+		if not self.delivery_note or not frappe.db.exists("Delivery Note", self.delivery_note):
+			return
+		if frappe.db.get_value("Delivery Note", self.delivery_note, "fast_einvoice") != self.name:
+			# Phiếu giao đang trỏ tới một chứng từ khác — không đụng vào.
+			return
+
+		frappe.db.set_value(
+			"Delivery Note",
+			self.delivery_note,
+			{"fast_einvoice": "", "fast_einvoice_status": "", "fast_invoice_no": ""},
+			update_modified=False,
+		)
+
+	def _drop_own_logs(self):
+		"""Nhật ký là hội thoại **của riêng** chứng từ này, đi cùng nó.
+
+		Để lại thì thành hàng mồ côi trỏ tới một bản ghi không còn tồn tại, mà
+		hàng mồ côi kiểu đó về sau làm hỏng những form chẳng liên quan gì.
+		"""
+		for name in frappe.get_all("Fast EInvoice Log", filters={"fei_document": self.name}, pluck="name"):
+			frappe.delete_doc("Fast EInvoice Log", name, ignore_permissions=True, delete_permanently=True)
+
+	def _fix_what_fast_would_reject(self):
+		"""Tự sửa những thứ hệ thống sửa được, thay vì để đến lúc gửi mới chặn.
+
+		- **Ngày hóa đơn = hôm nay.** Ngày hóa đơn luôn là ngày phát hành, và Fast
+		  từ chối ngày ngoài giới hạn so với ngày hiện tại (lỗi 818/730) hoặc nhỏ
+		  hơn hóa đơn đã phát hành (lỗi 819). Chứng từ lập hôm qua, hôm nay mới
+		  bấm, thì chỉ cần đổi ngày — không có gì để kế toán phải quyết.
+		- **Xuống dòng gộp thành dấu cách** (lỗi 825).
+
+		Chỉ chạy khi chứng từ còn sửa được: hóa đơn đã có số là chứng từ pháp lý.
+		"""
+		if self.is_edit_locked:
+			return
+
+		today = getdate(nowdate())
+		if not self.invoice_date or getdate(self.invoice_date) != today:
+			self.invoice_date = today
+
+		for fieldname in SINGLE_LINE_MASTER_FIELDS:
+			self.set(fieldname, _one_line(self.get(fieldname)))
+		for line in self.lines or []:
+			for fieldname in SINGLE_LINE_LINE_FIELDS:
+				line.set(fieldname, _one_line(line.get(fieldname)))
 
 	def _compute_totals(self):
 		"""Tính lại dòng hàng và tổng hợp — công thức nằm ở `einvoice.totals`.

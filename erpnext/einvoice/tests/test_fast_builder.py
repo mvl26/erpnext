@@ -4,6 +4,7 @@
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import add_days, getdate, nowdate
 
 from erpnext.einvoice.builder import (
 	create_from_delivery_note,
@@ -45,6 +46,11 @@ class TestCreateFromDeliveryNote(FrappeTestCase):
 		self.assertEqual(fei.status, STATUS_DRAFT)
 		self.assertEqual(fei.invoice_type, "Hóa đơn gốc")
 
+	def test_invoice_date_is_not_the_delivery_date(self):
+		"""Ngày hóa đơn = ngày phát hành; phiếu giao có thể đã từ mấy hôm trước."""
+		frappe.db.set_value("Delivery Note", self.dn.name, "posting_date", add_days(nowdate(), -5))
+		self.assertEqual(getdate(self._create().invoice_date), getdate(nowdate()))
+
 	def test_key_comes_from_the_delivery_note_name(self):
 		self.assertEqual(self._create().fast_key, fast_key_for(self.dn.name))
 
@@ -68,6 +74,51 @@ class TestCreateFromDeliveryNote(FrappeTestCase):
 		fei = self._create()
 		self.assertEqual(fei.lines[0].tax_rate, "10")
 		self.assertAlmostEqual(fei.lines[0].tax_amount, self.dn.total_taxes_and_charges, places=2)
+
+	def test_an_eight_percent_delivery_note_becomes_an_invoice(self):
+		"""Thuế suất 8% (giảm thuế theo nghị quyết) phải tạo được chứng từ HĐĐT."""
+		dn = make_delivery_note(vat_rate=8)
+
+		name = create_from_delivery_note(dn.name)
+
+		fei = frappe.get_doc(FEI, name)
+		self.assertEqual(fei.lines[0].tax_rate, "8")
+		self.assertAlmostEqual(fei.lines[0].tax_amount, dn.total_taxes_and_charges, places=2)
+		self.assertAlmostEqual(fei.tax_amount, dn.total_taxes_and_charges, places=2)
+
+	def test_eight_percent_leaves_the_four_group_boxes_empty(self):
+		"""Fast chưa có ô nhóm cho 8% — phần thuế đó nằm ngoài bốn ô, không nhét vào ô 10%."""
+		dn = make_delivery_note(vat_rate=8)
+
+		fei = frappe.get_doc(FEI, create_from_delivery_note(dn.name))
+
+		self.assertEqual(fei.tax_amount_10, 0)
+		self.assertEqual(fei.tax_amount_5, 0)
+		self.assertEqual(fei.tax_amount_free, 0)
+		self.assertAlmostEqual(fei.tax_amount, dn.total_taxes_and_charges, places=2)
+
+	def test_eight_percent_from_an_item_tax_template(self):
+		"""8% khai trên Item Tax Template — đường cấu hình một lần cho mặt hàng."""
+		from erpnext.einvoice.tests.test_fixtures import output_vat_account
+
+		template = frappe.get_doc(
+			{
+				"doctype": "Item Tax Template",
+				"title": f"GTGT 8pc test {frappe.generate_hash(length=6)}",
+				"company": "Miyano",
+				"taxes": [{"tax_type": output_vat_account(), "tax_rate": 8}],
+			}
+		)
+		template.flags.ignore_permissions = True
+		template.insert()
+
+		dn = make_delivery_note(vat_rate=10)
+		frappe.db.set_value("Delivery Note Item", dn.items[0].name, "item_tax_template", template.name)
+
+		fei = frappe.get_doc(FEI, create_from_delivery_note(dn.name))
+
+		self.assertEqual(fei.lines[0].tax_rate, "8")
+		self.assertEqual(fei.tax_rate, "8")
 
 	def test_tax_group_buckets_are_filled(self):
 		fei = self._create()
@@ -143,6 +194,14 @@ class TestCreateFromDeliveryNote(FrappeTestCase):
 
 		replacement = frappe.get_doc(FEI, create_from_delivery_note(self.dn.name))
 		self.assertEqual(replacement.status, STATUS_DRAFT)
+
+	def test_a_re_raised_invoice_gets_its_own_key(self):
+		"""Key cũ đã thuộc hóa đơn bị hủy trên Fast — dùng lại là 370 chặn phát hành."""
+		fei = self._create()
+		frappe.db.set_value(FEI, fei.name, "status", "12 - Đã hủy nội bộ")
+
+		replacement = frappe.get_doc(FEI, create_from_delivery_note(self.dn.name))
+		self.assertEqual(replacement.fast_key, f"{fei.fast_key}-L2")
 
 	def test_disabled_integration_refuses(self):
 		configure(enabled=0)

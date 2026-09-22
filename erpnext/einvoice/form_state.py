@@ -27,6 +27,7 @@ from erpnext.einvoice.constants import (
 	STATUS_DRAFT_VIEWED,
 	STATUS_ERROR,
 	STATUS_ISSUED,
+	STATUS_ISSUING,
 	STATUS_NEEDS_RECONCILE,
 	STATUS_SENT,
 	STATUS_TAX_ACCEPTED,
@@ -152,10 +153,13 @@ BUTTONS = (
 	),
 	(
 		"reconcile",
-		"Truy vấn đối soát (370)",
-		"erpnext.einvoice.reconcile.reconcile_invoice",
+		"Lấy dữ liệu từ Fast (370)",
+		"erpnext.einvoice.reconcile.refresh_from_fast",
 		1,
-		(*_HAS_NUMBER, STATUS_TAX_REJECTED, STATUS_NEEDS_RECONCILE, STATUS_ERROR),
+		# Mọi trạng thái trừ "đang phát hành" (có lệnh đang bay, khóa chống bấm đúp)
+		# và các trạng thái đã hết hiệu lực. Hỏi Fast không bao giờ hại gì: bản nháp
+		# cũng cần biết hóa đơn đã được phát hành ở nơi khác (portal) hay chưa.
+		(*_FIXABLE, *_HAS_NUMBER, STATUS_TAX_REJECTED),
 		False,
 	),
 	(
@@ -192,6 +196,7 @@ def get_form_state(fei):
 	"""Mọi thứ giao diện cần để vẽ form: nút khả dụng, kết quả kiểm tra, cờ chạy thử."""
 	doc = frappe.get_doc(FEI, fei)
 	settings = get_settings()
+	_guarded(_release_stuck_issuance, doc)
 
 	return {
 		"status": doc.status,
@@ -199,12 +204,95 @@ def get_form_state(fei):
 		"is_test_mode": settings.is_test_mode,
 		"enabled": settings.enabled,
 		"is_chief": is_chief_accountant(),
-		"buttons": _buttons_for(doc, settings),
-		"validation": _validation_for(doc),
+		"buttons": _guarded(_buttons_for, doc, settings, fallback=_fallback_buttons(doc)),
+		"validation": _guarded(_validation_for, doc, fallback=_validation_crashed()),
 	}
 
 
+def _guarded(fn, *args, fallback=None):
+	"""Một phần hỏng không được kéo cả form mất nút theo.
+
+	Form vẽ mọi nút từ đúng một lời gọi này. Để một ngoại lệ ở phần kiểm tra dữ
+	liệu (hay ở bất kỳ đâu) lọt ra là người dùng nhìn một chứng từ trống trơn,
+	không đồng bộ lại, không xem nháp, không hỏi Fast được — mà lỗi thì nằm ở
+	một chỗ chẳng liên quan. Ghi Error Log để còn sửa, rồi trả phần dự phòng.
+	"""
+	try:
+		return fn(*args)
+	except Exception:
+		frappe.log_error(title=f"HĐĐT: dựng form lỗi ở {fn.__name__}")
+		return fallback
+
+
+def _fallback_buttons(doc):
+	"""Khi không tính được bảng nút: vẫn để lại đường sửa và đường hỏi Fast."""
+	names = {"reconcile"}
+	if doc.status in EDITABLE_STATUSES:
+		names |= {"resync", "preview_draft"}
+	return [
+		{"name": name, "label": _(label), "method": method, "level": level, "confirm_word": None}
+		for name, label, method, level, _statuses, _chief in BUTTONS
+		if name in names
+	]
+
+
+def _validation_crashed():
+	return {
+		"ok": True,
+		"issues": [
+			{
+				"rule": 0,
+				"level": "warn",
+				"field": "",
+				"message": _(
+					"Không chạy được phần kiểm tra dữ liệu (xem Error Log). Các nút vẫn dùng được; "
+					"khi phát hành hệ thống vẫn kiểm tra lại."
+				),
+			}
+		],
+	}
+
+
+def _release_stuck_issuance(doc):
+	"""Chứng từ nằm ở "05 - Đang phát hành" mà không còn tiến trình nào đang phát hành.
+
+	Xảy ra khi tiến trình phát hành chết giữa chừng (server khởi động lại, hoặc
+	lỗi mà bản cũ chưa bắt). Trạng thái 05 không có nút nào và khóa dữ liệu, nên
+	nếu để nguyên thì kế toán không làm gì tiếp được. Khóa phát hành trong Redis
+	đã nhả nghĩa là không còn lệnh nào đang bay — đưa về "Cần đối soát", nơi còn
+	đồng bộ lại, xem nháp, truy vấn 370 được.
+	"""
+	from erpnext.einvoice.actions import _mirror_status
+	from erpnext.einvoice.issue import is_issuance_in_progress
+
+	if doc.status != STATUS_ISSUING or is_issuance_in_progress(doc.name):
+		return
+
+	message = _(
+		"Lần phát hành trước dừng giữa chừng, chưa rõ Fast đã nhận hay chưa. Bấm Lấy dữ liệu từ Fast (370) "
+		"để kiểm tra, hoặc Đồng bộ lại từ phiếu giao rồi phát hành lại — hệ thống luôn truy vấn "
+		"Fast trước khi phát hành nên không thể ra hai số."
+	)
+	frappe.db.set_value(
+		FEI,
+		doc.name,
+		{"status": STATUS_NEEDS_RECONCILE, "error_message": message, "is_edit_locked": 0},
+		update_modified=False,
+	)
+	_mirror_status(doc.name, STATUS_NEEDS_RECONCILE)
+	doc.status = STATUS_NEEDS_RECONCILE
+	doc.error_message = message
+	doc.is_edit_locked = 0
+
+
 def _buttons_for(doc, settings):
+	"""Các nút dùng được ở trạng thái hiện tại.
+
+	Lọc theo **trạng thái chứng từ**, không theo kết quả kiểm tra dữ liệu: lỗi dữ
+	liệu chỉ chặn đúng nút phát hành, và chốt đó nằm ở `issue_invoice` chứ không
+	nằm ở đây. Chứng từ đang có lỗi vẫn đồng bộ lại, vẫn xem nháp, vẫn gửi nháp
+	cho khách được — đó là cách sửa được lỗi.
+	"""
 	chief = is_chief_accountant()
 	buttons = []
 	for name, label, method, level, statuses, needs_chief in BUTTONS:

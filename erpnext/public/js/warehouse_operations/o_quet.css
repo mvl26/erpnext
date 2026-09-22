@@ -1,0 +1,95 @@
+/* Ô quét dùng chung cho các trang PDA của module vị trí kho — xem `o_quet.js`.
+ *
+ * Chỉ dùng biến màu của Frappe để chế độ tối tự đúng. Vùng chạm 48px: thủ kho
+ * thao tác một tay, thường đeo găng. */
+
+.oq {
+	margin-bottom: 12px;
+}
+
+.oq-o {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	background: var(--card-bg);
+	border: 2px solid var(--border-color);
+	border-radius: 14px;
+	padding: 4px 4px 4px 12px;
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.oq-o:focus-within {
+	border-color: var(--primary);
+	box-shadow: 0 0 0 3px var(--bg-blue);
+}
+
+.oq-bieu-tuong {
+	display: flex;
+	color: var(--text-muted);
+	--icon-stroke: currentColor;
+}
+
+.oq-nhap {
+	flex: 1;
+	min-width: 0;
+	border: 0;
+	outline: none;
+	background: transparent;
+	color: var(--text-color);
+	font-size: 19px;
+	font-weight: 500;
+	height: 48px;
+	padding: 0 4px;
+	font-family: var(--font-stack-monospace, monospace);
+	letter-spacing: 0.02em;
+}
+
+.oq-nhap::placeholder {
+	font-family: var(--font-stack);
+	font-weight: 400;
+	font-size: 16px;
+	letter-spacing: 0;
+	color: var(--text-light, var(--text-muted));
+}
+
+.oq-nut {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	border: 0;
+	border-radius: 10px;
+	background: var(--control-bg);
+	color: var(--text-color);
+	/* Biểu tượng Frappe vẽ bằng `--icon-stroke`, ở chế độ tối nó gần trùng nền
+	 * nút — cho biểu tượng theo màu chữ của nút. */
+	--icon-stroke: currentColor;
+}
+
+.oq-nut.dang-bat {
+	background: var(--bg-blue);
+	color: var(--text-on-blue);
+}
+
+.oq-goi-y {
+	margin: 6px 4px 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+/* Trang đang chờ một thao tác cụ thể (vd. "quét tem Ô cho lô X") — viền cam
+ * và chữ gợi ý đậm, để không ai quét nhầm tem lô thứ hai vào lúc hệ đang đợi ô. */
+.oq.nhan-manh .oq-o {
+	border-color: var(--orange-500, #f5a524);
+	box-shadow: 0 0 0 3px var(--bg-orange);
+}
+
+.oq.nhan-manh .oq-goi-y {
+	color: var(--text-on-orange);
+	background: var(--bg-orange);
+	font-weight: 600;
+	font-size: 14px;
+	padding: 6px 10px;
+	border-radius: 8px;
+}

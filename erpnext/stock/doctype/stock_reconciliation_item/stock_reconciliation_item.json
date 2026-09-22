@@ -62,6 +62,7 @@
    "fieldtype": "Data",
    "in_global_search": 1,
    "label": "Item Name",
+   "length": 500,
    "no_copy": 1,
    "print_hide": 1,
    "read_only": 1

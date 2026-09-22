@@ -31,11 +31,33 @@ email_css = "email_erpnext.bundle.css"
 
 doctype_js = {
 	"Address": "public/js/address.js",
-	"Delivery Note": "public/js/einvoice/delivery_note.js",
+	"Delivery Note": ["public/js/einvoice/delivery_note.js", "public/js/warehouse_operations/delivery_note.js"],
 	"Communication": "public/js/communication.js",
 	"Event": "public/js/event.js",
 	"Newsletter": "public/js/newsletter.js",
 	"Contact": "public/js/contact.js",
+	# Mở rộng Warehouse theo vị trí — thêm nút vào phiếu kho mà không phải sửa
+	# `stock/doctype/warehouse/warehouse.js` của upstream (bớt một điểm xung đột
+	# mỗi lần merge). Mất dòng này thì phiếu kho trông vẫn bình thường, chỉ là
+	# không còn đường vào quản lý vị trí — `warehouse_operations/tests/test_giao_dien.py`
+	# khoá việc đó.
+	"Warehouse": "public/js/warehouse_operations/warehouse.js",
+	# Nút "In nhãn" trên form lô (khối C §6.5) — in LẠI con tem của một lô khi
+	# tem rách hoặc thùng bị tách. Mất dòng này thì form `Batch` trông vẫn bình
+	# thường, chỉ là không còn nút In nhãn, và KHÔNG GÌ BÁO —
+	# `warehouse_operations/tests/test_giao_dien.py::TestNutTrenPhieuLo` khoá việc đó.
+	#
+	# Đây là khoá "Batch" trong `doctype_js`. `doc_events` bên dưới CŨNG có một
+	# khoá "Batch" (móc NCC + kiểm ký tự lô) — hai dict KHÁC NHAU, đừng nhầm, và
+	# đừng tạo khoá "Batch" thứ hai trong bất kỳ dict nào: khoá sau nuốt khoá
+	# trước trong im lặng, dự án đã dính đúng việc này.
+	"Batch": "public/js/warehouse_operations/batch.js",
+	# Hai lối vào chủ đầu tư đòi sau khi thử luồng thật 17/09/2026: nút "Nhập lô &
+	# in nhãn" trên phiếu nhập, và chỗ gán vị trí ngay trên form mặt hàng. Mất một
+	# trong hai dòng này thì form vẫn trông bình thường, chỉ là mất đường vào —
+	# `warehouse_operations/tests/test_giao_dien.py` khoá việc đó.
+	"Purchase Receipt": "public/js/warehouse_operations/purchase_receipt.js",
+	"Item": "public/js/warehouse_operations/item.js",
 }
 doctype_list_js = {
 	"Code List": [
@@ -68,6 +90,16 @@ after_install = "erpnext.setup.install.after_install"
 after_migrate = [
 	"erpnext.einvoice.setup.setup_einvoice",
 	"erpnext.supply_notification.setup.setup_supply_notification",
+	# Dựng lại lft/rgt của Storage Location nếu còn bản ghi thiếu toạ độ và an
+	# toàn để làm (không ô nào đang `disabled`). MẤT DÒNG NÀY: patch
+	# `v15_0.dung_lai_cay_vi_tri` (chạy đúng MỘT LẦN, patches.txt) vẫn còn,
+	# nhưng nếu patch đó gặp `disabled=1` và bỏ qua, sẽ KHÔNG BAO GIỜ tự thử
+	# lại — cây vĩnh viễn thiếu toạ độ, "thừa kế disabled xuống cả nhánh" và
+	# "lấy hàng theo phạm vi" nằm im mãi mãi, âm thầm, không ai biết. Dòng này
+	# là cơ chế HỘI TỤ LẠI ở mọi lần migrate sau — mất nó thì mất luôn khả năng
+	# tự phục hồi đó. `erpnext.warehouse_operations.tests.test_app_khoi_dong` khoá việc
+	# này còn trong danh sách.
+	"erpnext.warehouse_operations.vitri.cay.dam_bao_cay_da_dung",
 ]
 
 boot_session = "erpnext.startup.boot.boot_session"
@@ -345,9 +377,48 @@ doc_events = {
 			"erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
 			"erpnext.tbyt.item_hooks.warn_about_missing_documents",
 		],
+		# Đổi mã một Item phải kéo theo `name` của bản ghi gán vị trí, vì doctype
+		# đó dùng `autoname: field:vat_tu` — `name` là nguồn sự thật, không phải
+		# trường. Mất dòng này thì đổi mã mặt hàng làm gán vị trí ÂM THẦM trỏ về mã
+		# cũ ở lần lưu kế tiếp (`_sync_autoname_field`, base_document.py:1027):
+		# không lỗi, không dấu vết, chỉ là gợi ý xếp hàng biến mất.
+		# `warehouse_operations/tests/test_app_khoi_dong.py` khoá việc này.
+		"after_rename": "erpnext.warehouse_operations.vitri.gan.doi_ten_theo_mat_hang",
 	},
 	tuple(period_closing_doctypes): {
 		"validate": "erpnext.accounts.doctype.accounting_period.accounting_period.validate_accounting_period_on_doc_save",
+	},
+	# Mở rộng Warehouse theo vị trí (module "Warehouse Operations"). MỘT móc duy nhất cho
+	# cả tầng vị trí: `stock_ledger.py` tạo mọi Stock Ledger Entry qua
+	# `make_entry()` -> `sle.submit()`, kể cả đường huỷ chứng từ (ERPNext ghi
+	# thêm dòng đảo dấu rồi mới cờ dòng cũ). Nhờ vậy không phải móc vào 8 doctype
+	# chứng từ, và doctype nào ERPNext thêm về sau cũng tự động được bắt.
+	#
+	# ĐÂY LÀ DÒNG DỄ MẤT NHẤT khi merge ERPNext bản mới. Giải xung đột sai ở đây
+	# thì hệ vẫn chạy, chứng từ vẫn ghi được, chỉ là không ô nào được ghi sổ nữa
+	# — hỏng trong im lặng. `warehouse_operations/tests/test_app_khoi_dong.py` khoá việc này.
+	"Stock Ledger Entry": {
+		"on_submit": "erpnext.warehouse_operations.vitri.hook_sle.ghi_so_vi_tri",
+	},
+	# Lô sinh từ hộp thoại lô sẵn có của ERPNext không mang NCC. Spec khối C §4.3
+	# chọn vá dữ liệu thay vì chặn đường đó, vì `Batch` dùng chung với nhiều luồng
+	# kho khác. `warehouse_operations/tests/test_lo_ncc.py` khoá việc này.
+	"Batch": {
+		"before_insert": "erpnext.warehouse_operations.vitri.lo_ncc.dien_ncc_tu_chung_tu",
+		# Thêm vào ĐÚNG dict con đã có ở trên, KHÔNG tạo khoá "Batch" thứ hai:
+		# khoá sau nuốt khoá trước trong im lặng và móc NCC sẽ biến mất mà
+		# không ai thấy.
+		"validate": "erpnext.warehouse_operations.vitri.ma_vach.kiem_ky_tu_lo",
+	},
+	# Kho đã bật quản lý vị trí: số lô phải đến từ phiếu nhập lô, không gõ tay trên
+	# phiếu nhập. Chủ đầu tư chốt 17/09/2026 sau khi phiếu MAT-PRE-2026-00008 được
+	# duyệt với số lô `17/09/2026` gõ thẳng vào ô lô chuẩn — mất số lô NCC, không có
+	# tem. Đây là khoá CHUỖI "Purchase Receipt"; khối cuối `doc_events` có một khoá
+	# TUPLE chứa "Purchase Receipt" (thông báo chuỗi cung ứng) — Python coi là hai
+	# khoá khác nhau và `frappe.get_doc_hooks()` gộp cả hai, nên không đè nhau.
+	# `warehouse_operations/tests/test_loi_vao_nhap_lo.py` khoá việc này.
+	"Purchase Receipt": {
+		"before_submit": "erpnext.warehouse_operations.vitri.phieu_nhap.chan_lo_go_tay_khi_duyet",
 	},
 	"Stock Entry": {
 		"on_submit": "erpnext.stock.doctype.material_request.material_request.update_completed_and_requested_qty",
@@ -361,7 +432,11 @@ doc_events = {
 			"erpnext.portal.utils.set_default_role",
 		],
 	},
+	"Email Queue": {
+		"before_insert": "erpnext.utilities.email_guard.block_unsubscribed_recipients",
+	},
 	"Communication": {
+		"before_insert": "erpnext.utilities.email_guard.handle_bounce",
 		"on_update": [
 			"erpnext.support.doctype.service_level_agreement.service_level_agreement.on_communication_update",
 			"erpnext.support.doctype.issue.issue.set_first_response_time",
@@ -414,6 +489,15 @@ doc_events = {
 	"Integration Request": {
 		"validate": "erpnext.accounts.doctype.payment_request.payment_request.validate_payment"
 	},
+	# Chứng từ HĐĐT trỏ tới phiếu giao bằng một Link, nên mặc định Frappe từ chối
+	# hủy phiếu giao khi còn bất kỳ chứng từ nào trỏ tới — kể cả bản nháp. Hook này
+	# chỉ chặn khi hóa đơn đã thật sự tiêu số, và nói rõ vì sao.
+	"Delivery Note": {
+		"validate": "erpnext.warehouse_operations.vitri.lay_hang.kiem_phan_bo_khi_luu",
+		"on_submit": "erpnext.warehouse_operations.vitri.lay_hang.ghi_cot_vi_tri_khi_duyet",
+		"before_cancel": "erpnext.einvoice.builder.before_delivery_note_cancel",
+		"on_cancel": "erpnext.einvoice.builder.on_delivery_note_cancel",
+	},
 	# Thông báo chuỗi cung ứng: sáu chứng từ còn lại chưa có on_submit riêng.
 	# Purchase Invoice và Payment Entry đã được nối ở khối của chúng phía trên.
 	(
@@ -427,6 +511,13 @@ doc_events = {
 		"on_submit": "erpnext.supply_notification.events.on_submit",
 	},
 }
+
+# Nhật ký HĐĐT là vết kiểm toán, không phải quan hệ nghiệp vụ: nó không được
+# khóa việc xóa chính chứng từ mà nó ghi lại. Cùng loại với Version / Activity
+# Log / Comment trong danh sách mặc định của Frappe.
+ignore_links_on_delete = [
+	"Fast EInvoice Log",
+]
 
 # function should expect the variable and doc as arguments
 naming_series_variables = {
@@ -451,6 +542,11 @@ scheduler_events = {
 		# Thông báo chuỗi cung ứng: nhắc hạn thanh toán và thu tiền (mục 10).
 		"0 8 * * *": [
 			"erpnext.supply_notification.reminders.send_due_reminders",
+			"erpnext.debt_reconciliation.tasks.send_due_reminders",
+		],
+		# HĐĐT: tự tải PDF chính thức khi Fast ký số xong (~1 phút sau phát hành, mục E5 nhánh 7a).
+		"* * * * *": [
+			"erpnext.einvoice.actions.download_pending_official_pdfs",
 		],
 		# HĐĐT: quét các hóa đơn còn chờ Cơ quan Thuế (mục E8).
 		"0/20 * * * *": [
@@ -470,6 +566,7 @@ scheduler_events = {
 		"erpnext.projects.doctype.project.project.project_status_update_reminder",
 		"erpnext.projects.doctype.project.project.hourly_reminder",
 		"erpnext.projects.doctype.project.project.collect_project_status",
+		"erpnext.debt_reconciliation.tasks.hourly",
 	],
 	"hourly_long": [
 		"erpnext.stock.doctype.repost_item_valuation.repost_item_valuation.repost_entries",

@@ -177,8 +177,13 @@ def compute_tax_groups(lines):
 	Trả thêm ``unbucketed``: tiền thuế của những thuế suất không có ô nào nhận —
 	trong thực tế là **thuế suất 8%** (giảm thuế theo nghị quyết). Bảng thẻ của
 	đặc tả chỉ có Free/0/5/10, chưa có TaxAmount8. Không tự nhét 8% vào ô 10%:
-	số liệu kê khai sai còn tệ hơn số liệu thiếu. Tầng kiểm tra dữ liệu sẽ cảnh
-	báo khi ``unbucketed`` khác 0 để kế toán xác nhận thẻ đúng với Fast.
+	số liệu kê khai sai còn tệ hơn số liệu thiếu.
+
+	Để trống như vậy **không** làm hỏng hóa đơn: đã phát hành thử một hóa đơn
+	5% + 8% trên môi trường thử ngày 2026-09-08, bốn ô cộng thiếu đúng phần 8%
+	mà Fast vẫn nhận và Cơ quan Thuế vẫn chấp nhận. Thuế suất thật đi theo từng
+	dòng hàng, và đó mới là căn cứ dựng tờ khai. Quy tắc 17 vẫn ghi ra con số
+	này, nhưng chỉ để kế toán biết, không phải để chặn.
 	"""
 	groups = {"tax_amount_free": 0.0, "tax_amount_0": 0.0, "tax_amount_5": 0.0, "tax_amount_10": 0.0}
 	unbucketed = 0.0

@@ -13,6 +13,7 @@ from typing import ClassVar
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import flt
 
 from erpnext.einvoice.constants import (
 	PROCESS_TYPE_DISCOUNT,
@@ -21,7 +22,13 @@ from erpnext.einvoice.constants import (
 	PROCESS_TYPE_PROMOTION,
 	PROCESS_TYPE_SPECIAL,
 )
-from erpnext.einvoice.totals import amount_precision, compute_lines, dominant_tax_rate, summarise
+from erpnext.einvoice.totals import (
+	amount_precision,
+	compute_lines,
+	dominant_tax_rate,
+	summarise,
+	total_precision,
+)
 
 
 def line(**values):
@@ -40,9 +47,8 @@ def line(**values):
 
 def totals_of(lines, currency="VND", **deductions):
 	"""Tính dòng rồi tổng hợp — đúng thứ tự chứng từ thật chạy."""
-	precision = amount_precision(currency)
-	compute_lines(lines, precision)
-	return summarise(lines, precision, **deductions)
+	compute_lines(lines, amount_precision(currency))
+	return summarise(lines, currency, **deductions)
 
 
 class TestLineFormula(FrappeTestCase):
@@ -250,14 +256,14 @@ class TestArithmeticInvariants(FrappeTestCase):
 
 		for label, lines, totals in self._each_case():
 			expected = sum(row.amount for row in lines if is_billable(row))
-			self.assertEqual(totals["amount"], expected, label)
+			self.assertEqual(totals["amount"], flt(expected, 2), label)
 
 	def test_tax_equals_the_sum_of_the_billable_line_tax(self):
 		from erpnext.einvoice.totals import is_billable
 
 		for label, lines, totals in self._each_case():
 			expected = sum(row.tax_amount for row in lines if is_billable(row))
-			self.assertEqual(totals["tax_amount"], expected, label)
+			self.assertEqual(totals["tax_amount"], flt(expected, 2), label)
 
 	def test_group_boxes_plus_the_unboxed_part_equal_the_tax(self):
 		for label, _lines, totals in self._each_case():
@@ -267,7 +273,7 @@ class TestArithmeticInvariants(FrappeTestCase):
 				+ totals["tax_amount_5"]
 				+ totals["tax_amount_10"]
 			)
-			self.assertEqual(boxed + totals["unbucketed"], totals["tax_amount"], label)
+			self.assertEqual(flt(boxed + totals["unbucketed"], 2), totals["tax_amount"], label)
 
 	def test_grand_total_is_net_plus_tax_minus_deductions(self):
 		for label, template in self.CASES.items():
@@ -275,25 +281,42 @@ class TestArithmeticInvariants(FrappeTestCase):
 			totals = totals_of(lines, deduction_amount=1234, deduction_amount_other=567)
 			self.assertEqual(
 				totals["total_amount"],
-				totals["amount"] + totals["tax_amount"] - 1234 - 567,
+				flt(totals["amount"] + totals["tax_amount"] - 1234 - 567, total_precision("VND")),
 				label,
 			)
 
-	def test_dong_totals_carry_no_fractions(self):
-		"""VND lấy đồng nguyên: không được để số lẻ nào sống sót vào chứng từ."""
+	def test_only_the_grand_total_is_rounded_to_whole_dong(self):
+		"""VND: Tiền hàng và Tiền thuế giữ hai số lẻ, chỉ Tổng thanh toán mới tròn."""
 		for label, _lines, totals in self._each_case():
+			self.assertEqual(
+				totals["total_amount"],
+				int(totals["total_amount"]),
+				f"{label} · total_amount = {totals['total_amount']}",
+			)
 			for field, value in totals.items():
-				if field == "tax_rate":
+				if field in ("tax_rate", "total_amount"):
 					continue
-				self.assertEqual(value, int(value), f"{label} · {field} = {value}")
+				self.assertEqual(value, flt(value, 2), f"{label} · {field} quá hai số lẻ = {value}")
 
-	def test_rounding_happens_per_line_and_never_drifts(self):
-		"""Cộng các số ĐÃ làm tròn — nếu cộng số thô rồi mới tròn thì lệch 4 đồng."""
+	def test_components_keep_two_decimals_and_the_total_rounds_once(self):
+		"""Đơn giá lẻ: thành phần giữ số lẻ, chỉ số phải thu cuối cùng mới làm tròn."""
 		lines = [line(qty=1, price=1000.4, tax_rate="10") for _ in range(10)]
 		totals = totals_of(lines)
-		self.assertEqual([row.amount for row in lines], [1000] * 10)
-		self.assertEqual(totals["amount"], 10_000)
-		self.assertEqual(totals["tax_amount"], 1_000)
+		self.assertEqual([row.amount for row in lines], [1000.4] * 10)
+		self.assertEqual([row.tax_amount for row in lines], [100.04] * 10)
+		self.assertEqual(totals["amount"], 10_004)
+		self.assertEqual(totals["tax_amount"], 1000.4)
+		# 10.004 + 1.000,40 = 11.004,40 → số phải thu là 11.004 đồng chẵn.
+		self.assertEqual(totals["total_amount"], 11_004)
+
+	def test_grand_total_absorbs_at_most_half_a_dong(self):
+		"""Chênh lệch làm tròn không bao giờ vượt nửa đồng — làm tròn đúng một lần."""
+		lines = [line(qty=1, price=1234.56, tax_rate="8")]
+		totals = totals_of(lines)
+		self.assertEqual(totals["amount"], 1234.56)
+		self.assertEqual(totals["tax_amount"], 98.76)
+		self.assertEqual(totals["total_amount"], 1333)
+		self.assertLessEqual(abs(totals["amount"] + totals["tax_amount"] - totals["total_amount"]), 0.5)
 
 	def test_foreign_currency_keeps_two_decimals(self):
 		"""Ngoại tệ giữ hai số lẻ — không bị làm tròn về đồng nguyên như VND."""

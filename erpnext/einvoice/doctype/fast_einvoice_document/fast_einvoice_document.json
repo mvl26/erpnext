@@ -101,6 +101,8 @@
   "issued_by",
   "issued_time",
   "official_pdf",
+  "public_pdf_url",
+  "official_xml",
   "converted_pdf",
   "delivery_section",
   "invoice_sent_to",
@@ -134,14 +136,16 @@
    "options": "Delivery Note",
    "reqd": 1,
    "search_index": 1,
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "sales_invoice",
    "fieldtype": "Link",
    "label": "Hóa đơn bán (ERP)",
    "options": "Sales Invoice",
-   "read_only_depends_on": "eval:doc.is_edit_locked"
+   "read_only_depends_on": "eval:doc.is_edit_locked",
+   "no_copy": 1
   },
   {
    "fieldname": "customer",
@@ -165,7 +169,8 @@
    "label": "Trạng thái",
    "options": "01 - Nháp\n02 - Đã xem nháp\n03 - Chờ khách duyệt\n04 - Khách đã duyệt\n05 - Đang phát hành\n06 - Đã phát hành\n07 - Đã gửi khách\n08 - CQT chấp nhận\n09 - CQT từ chối\n10 - Đã điều chỉnh\n11 - Đã thay thế\n12 - Đã hủy nội bộ\n98 - Cần đối soát\n99 - Lỗi",
    "read_only": 1,
-   "reqd": 1
+   "reqd": 1,
+   "no_copy": 1
   },
   {
    "default": "0",
@@ -174,7 +179,8 @@
    "fieldtype": "Check",
    "hidden": 1,
    "label": "Đã khóa sửa",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "default": "Hóa đơn gốc",
@@ -198,7 +204,8 @@
    "fieldtype": "Link",
    "label": "Hóa đơn gốc",
    "options": "Fast EInvoice Document",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "adjustment_type",
@@ -234,7 +241,8 @@
    "fieldtype": "Link",
    "label": "Đã được thay thế / điều chỉnh bởi",
    "options": "Fast EInvoice Document",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "buyer_section",
@@ -247,15 +255,18 @@
    "fieldtype": "Data",
    "label": "Key (mã chống trùng)",
    "length": 32,
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
+   "description": "Luôn bằng ngày phát hành — hệ thống tự đặt về hôm nay mỗi lần lưu, xem nháp và phát hành.",
    "fieldname": "invoice_date",
    "fieldtype": "Date",
    "in_list_view": 1,
    "label": "Ngày hóa đơn",
-   "read_only_depends_on": "eval:doc.is_edit_locked",
-   "reqd": 1
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "customer_code",
@@ -627,32 +638,37 @@
    "fieldname": "draft_pdf",
    "fieldtype": "Attach",
    "label": "File PDF nháp",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "draft_pdf_time",
    "fieldtype": "Datetime",
    "label": "Thời điểm tạo nháp",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "draft_sent_to",
    "fieldtype": "Data",
    "label": "Đã gửi nháp tới",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "draft_sent_time",
    "fieldtype": "Datetime",
    "label": "Thời điểm gửi nháp",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "default": "0",
    "fieldname": "draft_send_count",
    "fieldtype": "Int",
    "label": "Số lần gửi nháp",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "column_break_approval",
@@ -663,19 +679,22 @@
    "fieldname": "customer_feedback",
    "fieldtype": "Text",
    "label": "Ý kiến khách hàng",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "customer_approved_by",
    "fieldtype": "Data",
    "label": "Người xác nhận khách duyệt",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "customer_approved_time",
    "fieldtype": "Datetime",
    "label": "Thời điểm khách duyệt",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "default": "0",
@@ -683,7 +702,8 @@
    "fieldname": "revision_count",
    "fieldtype": "Int",
    "label": "Số lần sửa",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "depends_on": "eval:doc.fast_key_search || doc.fast_invoice_no",
@@ -695,32 +715,37 @@
    "fieldname": "fast_key_search",
    "fieldtype": "Data",
    "label": "Mã tra cứu (keySearch)",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "fast_invoice_no",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Số hóa đơn",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "fast_pattern",
    "fieldtype": "Data",
    "label": "Mẫu số",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "fast_serial",
    "fieldtype": "Data",
    "label": "Ký hiệu",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "fast_signed_date",
    "fieldtype": "Date",
    "label": "Ngày phát hành",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "column_break_result",
@@ -731,25 +756,46 @@
    "fieldtype": "Link",
    "label": "Người phát hành",
    "options": "User",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "issued_time",
    "fieldtype": "Datetime",
    "label": "Thời điểm phát hành",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "official_pdf",
    "fieldtype": "Attach",
    "label": "PDF chính thức",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "description": "Link công khai tới PDF chính thức — gửi cho khách xem, ai có link đều mở được. Có sau khi PDF tải về (khoảng 1 phút sau phát hành).",
+   "fieldname": "public_pdf_url",
+   "fieldtype": "Data",
+   "label": "Link xem hóa đơn",
+   "options": "URL",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "depends_on": "eval:doc.fast_invoice_no",
+   "description": "API Fast chưa có lệnh tải XML — tải file XML trên portal Fast rồi đính vào đây. Bắt buộc có trước khi ERP gửi hóa đơn cho khách (email kèm cả PDF và XML).",
+   "fieldname": "official_xml",
+   "fieldtype": "Attach",
+   "label": "XML hóa đơn",
+   "no_copy": 1
   },
   {
    "fieldname": "converted_pdf",
    "fieldtype": "Attach",
    "label": "PDF chuyển đổi",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "collapsible": 1,
@@ -761,7 +807,8 @@
    "fieldname": "invoice_sent_to",
    "fieldtype": "Data",
    "label": "Đã gửi hóa đơn tới",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "column_break_delivery",
@@ -771,14 +818,16 @@
    "fieldname": "invoice_sent_time",
    "fieldtype": "Datetime",
    "label": "Thời điểm gửi",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "default": "0",
    "fieldname": "invoice_send_count",
    "fieldtype": "Int",
    "label": "Số lần gửi",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "tax_section",
@@ -791,13 +840,15 @@
    "in_standard_filter": 1,
    "label": "Trạng thái CQT",
    "options": "\nChờ CQT\n3 - Chấp nhận\n4 - Từ chối",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "tax_verification_code",
    "fieldtype": "Data",
    "label": "Mã CQT cấp",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "column_break_tax",
@@ -807,13 +858,15 @@
    "fieldname": "tax_feedback",
    "fieldtype": "Small Text",
    "label": "Phản hồi CQT",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "tax_checked_time",
    "fieldtype": "Datetime",
    "label": "Lần kiểm tra CQT gần nhất",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "depends_on": "eval:doc.error_code || doc.cancel_reason",
@@ -825,13 +878,15 @@
    "fieldname": "error_code",
    "fieldtype": "Data",
    "label": "Mã lỗi",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "error_message",
    "fieldtype": "Small Text",
    "label": "Thông báo lỗi",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "column_break_error",
@@ -841,19 +896,21 @@
    "fieldname": "cancel_reason",
    "fieldtype": "Small Text",
    "label": "Lý do hủy nội bộ",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "cancelled_time",
    "fieldtype": "Datetime",
    "label": "Thời điểm hủy",
-   "read_only": 1
+   "read_only": 1,
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 0,
  "links": [],
- "modified": "2026-08-07 09:00:00.000000",
+ "modified": "2026-09-22 12:30:00.000000",
  "modified_by": "Administrator",
  "module": "Einvoice",
  "name": "Fast EInvoice Document",
@@ -877,5 +934,6 @@
  "sort_order": "DESC",
  "states": [],
  "title_field": "delivery_note",
- "track_changes": 1
+ "track_changes": 1,
+ "allow_copy": 1
 }

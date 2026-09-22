@@ -178,7 +178,20 @@ def ensure_departments(company: str, keys=None) -> dict[str, str]:
 			doc.company = company
 			if parent:
 				doc.parent_department = parent
-			doc.insert(ignore_permissions=True)
+
+			# Chạy trong `after_migrate`: tạo bù phòng ban là tiện ích, không đáng để làm
+			# hỏng cả lần migrate (d778f7d). Savepoint bỏ bản ghi chèn dở — cây nested
+			# set hỏng thì lỗi ném ra *sau* khi đã chèn.
+			frappe.db.savepoint("department_catalog_insert")
+			try:
+				doc.insert(ignore_permissions=True)
+			except Exception:
+				frappe.db.rollback(save_point="department_catalog_insert")
+				frappe.log_error(
+					title=f"Danh mục phòng ban: không tạo được phòng {doc.department_name}",
+					message=frappe.get_traceback(with_context=True),
+				)
+				continue
 			resolved[key] = doc.name
 
 	return resolved
@@ -198,9 +211,14 @@ def _sibling_parent(company: str, known: list[str]) -> str | None:
 
 
 def _root_department() -> str | None:
+	"""Gốc cây phòng ban, chỉ trả về khi cây nested set còn lành (rgt > 0).
+
+	Cây chưa dựng (lft = rgt = 0, do tạo công ty đứt giữa chừng) mà gán làm cha thì
+	`validate_loop` của Frappe báo nhầm NestedSetRecursionError — xem d778f7d.
+	"""
 	roots = frappe.get_all(
 		"Department",
-		filters={"is_group": 1, "parent_department": ("in", ("", None))},
+		filters={"is_group": 1, "parent_department": ("in", ("", None)), "rgt": (">", 0)},
 		pluck="name",
 		limit=1,
 	)

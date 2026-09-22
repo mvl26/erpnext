@@ -335,6 +335,41 @@ class TestFastEInvoiceDocument(FrappeTestCase):
 		self.assertEqual(adjustment.original_document, original.name)
 
 
+class TestSystemFixesWhatFastWouldReject(FrappeTestCase):
+	"""Những gì hệ thống sửa được thì sửa lúc lưu — không để tới lúc gửi mới chặn."""
+
+	def setUp(self):
+		frappe.db.rollback()
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def test_invoice_date_is_always_today_while_editable(self):
+		fei = make_fei(invoice_date=frappe.utils.add_days(frappe.utils.nowdate(), -1))
+		fei.insert()
+		self.assertEqual(str(fei.invoice_date), frappe.utils.nowdate())
+
+	def test_line_breaks_become_spaces(self):
+		fei = make_fei(customer_name="Bệnh viện\nĐa khoa", address="Số 1,\r\n  Hà Nội")
+		fei.lines[0].item_name = "Bơm kim\ntiêm"
+		fei.insert()
+		self.assertEqual(fei.customer_name, "Bệnh viện Đa khoa")
+		self.assertEqual(fei.address, "Số 1, Hà Nội")
+		self.assertEqual(fei.lines[0].item_name, "Bơm kim tiêm")
+
+	def test_an_issued_invoice_keeps_its_date(self):
+		"""Hóa đơn đã có số là chứng từ pháp lý — không bao giờ đổi ngày."""
+		fei = make_fei()
+		fei.insert()
+		frappe.db.set_value(
+			FEI, fei.name, {"status": STATUS_ISSUED, "invoice_date": "2026-08-07", "is_edit_locked": 1}
+		)
+		fei = frappe.get_doc(FEI, fei.name)
+		fei.flags.ignore_links = True
+		fei.save()
+		self.assertEqual(str(fei.invoice_date), "2026-08-07")
+
+
 class TestComputeTotals(FrappeTestCase):
 	"""Chứng từ tự tính dòng hàng và tổng hợp — không chỉ giữ data copy."""
 
@@ -345,6 +380,10 @@ class TestComputeTotals(FrappeTestCase):
 		frappe.db.rollback()
 
 	def _doc(self, lines, **master):
+		# Mỗi bản ghi một Key: vài test chèn nhiều chứng từ trong cùng một lượt.
+		key = frappe.generate_hash(length=12)
+		master.setdefault("fast_key", key)
+		master.setdefault("delivery_note", f"MAT-DN-TEST-{key}")
 		doc = make_fei(**master)
 		doc.set("lines", [])
 		for line in lines:

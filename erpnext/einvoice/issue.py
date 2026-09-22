@@ -30,8 +30,10 @@ from erpnext.einvoice.actions import (
 	ACTION_EXECUTE,
 	FEI,
 	METHOD_INVOICE,
+	_dmy,
 	_explain,
 	_mirror_status,
+	refresh_before_send,
 )
 from erpnext.einvoice.constants import (
 	INVOICE_TYPE_ADJUSTMENT,
@@ -49,6 +51,7 @@ from erpnext.einvoice.constants import (
 from erpnext.einvoice.errors import is_duplicate_invoice_error
 from erpnext.einvoice.fast_client import FastClient, FastTimeout
 from erpnext.einvoice.fast_settings import check_enabled, get_notify_recipients
+from erpnext.einvoice.folders import move_invoice_files
 from erpnext.einvoice.gateway import call_fast
 from erpnext.einvoice.payload import build_payload
 from erpnext.einvoice.setup import is_chief_accountant
@@ -161,6 +164,9 @@ def issue_invoice(fei, client=None):
 		# tiến trình khác có thể đã phát hành xong.
 		doc.reload()
 		_assert_issuable(doc)
+		# Ngày hóa đơn về hôm nay, số liệu tính lại — trước validate, trước truy
+		# vấn 370 và trước khi dựng payload, để cả bốn cùng thấy một dữ liệu.
+		refresh_before_send(doc)
 
 		# Bước 2 — không tin dữ liệu client gửi lên.
 		validate_before_send(doc).throw_if_blocking()
@@ -181,6 +187,8 @@ def issue_invoice(fei, client=None):
 			)
 		except FastTimeout as exc:
 			return _handle_timeout(doc, exc)
+		except Exception as exc:
+			return _handle_unexpected(doc, exc)
 
 		if not response.success:
 			return _handle_failure(doc, response)
@@ -312,11 +320,8 @@ def _handle_success(doc, response):
 
 	mark_original_superseded(doc)
 
-	try:
-		_queue_pdf_download(doc)
-	except Exception:
-		# Hóa đơn đã ra số thật rồi — không được để việc tải PDF làm hỏng kết quả.
-		frappe.log_error(title=f"HĐĐT: không hẹn được việc tải PDF cho {doc.name}")
+	# PDF chính thức không tải ở đây: Fast còn đang ký số (30 giây — 1 phút). Job mỗi
+	# phút `actions.download_pending_official_pdfs` tự tải khi PDF đã sẵn sàng.
 
 	return {
 		"ok": True,
@@ -348,6 +353,26 @@ def _store_issue_result(doc, result, issued_now):
 	frappe.db.set_value(FEI, doc.name, values, update_modified=False)
 	_stamp_delivery_note(doc, result)
 	_mirror_status(doc.name, STATUS_ISSUED)
+	# Hóa đơn vừa có số: bản nháp đang ở thư mục tạm dời về thư mục số hóa đơn.
+	move_invoice_files(doc.name)
+	if issued_now:
+		_flag_signing_date_mismatch(doc, result.get("fast_signed_date"))
+
+
+def _flag_signing_date_mismatch(doc, signed):
+	"""Fast ký khác ngày hóa đơn dù ngày hóa đơn đã đặt bằng hôm nay.
+
+	Chỉ xảy ra khi bấm phát hành sát nửa đêm. Hóa đơn đã ra số thật nên không sửa
+	được nữa — ghi lại để kế toán đối chiếu với Fast thay vì im lặng.
+	"""
+	if not signed or not doc.invoice_date or getdate(signed) == getdate(doc.invoice_date):
+		return
+	doc.add_comment(
+		"Comment",
+		_("Cảnh báo: Fast ký số ngày {0} nhưng ngày hóa đơn là {1}. Cần đối chiếu với Fast.").format(
+			_dmy(signed), _dmy(doc.invoice_date)
+		),
+	)
 
 
 def _stamp_delivery_note(doc, result):
@@ -382,7 +407,7 @@ def _handle_timeout(doc, exc):
 	"""7c — đã gửi nhưng chưa biết kết quả. Tuyệt đối không tự phát hành lại."""
 	message = _(
 		"Đã gửi lệnh phát hành nhưng chưa nhận được kết quả từ Fast ({0}). "
-		"BẮT BUỘC bấm Truy vấn (370) để biết hóa đơn đã ra số hay chưa, "
+		"BẮT BUỘC bấm Lấy dữ liệu từ Fast (370) để biết hóa đơn đã ra số hay chưa, "
 		"trước khi thao tác tiếp. Không phát hành lại."
 	).format(exc)
 
@@ -395,6 +420,43 @@ def _handle_timeout(doc, exc):
 	_mirror_status(doc.name, STATUS_NEEDS_RECONCILE)
 	_notify_failure(doc, message)
 	return {"ok": False, "needs_reconcile": True, "message": message}
+
+
+def _handle_unexpected(doc, exc):
+	"""Lỗi bất kỳ khác sau khi đã đặt trạng thái 05 — không được để chứng từ kẹt ở đó.
+
+	`call_fast` commit trạng thái "05 - Đang phát hành" **trước** khi gọi Fast.
+	Trước đây chỉ timeout được bắt; mọi lỗi khác (không đăng nhập được, HTTP 500,
+	lỗi đọc phản hồi…) ném thẳng ra ngoài, và chứng từ nằm lại ở 05 — trạng thái
+	không có nút nào, không sửa được, không đồng bộ lại được từ phiếu giao.
+
+	Không biết chắc lệnh đã tới Fast hay chưa, nên đưa về "Cần đối soát": ở đó
+	vẫn sửa, đồng bộ lại, xem nháp được, và lần phát hành sau luôn truy vấn 370
+	trước nên không thể ra hai số.
+	"""
+	frappe.log_error(title=f"HĐĐT: phát hành {doc.name} lỗi ngoài dự kiến")
+	message = _(
+		"Phát hành không hoàn tất: {0}. Chứng từ chuyển sang Cần đối soát — bấm Lấy dữ liệu từ Fast (370) "
+		"để chắc chắn hóa đơn chưa ra số, hoặc Đồng bộ lại từ phiếu giao rồi phát hành lại "
+		"(hệ thống luôn truy vấn Fast trước khi phát hành nên không thể ra hai số)."
+	).format(frappe.utils.strip_html(str(exc)) or type(exc).__name__)
+	frappe.db.set_value(
+		FEI,
+		doc.name,
+		{"status": STATUS_NEEDS_RECONCILE, "error_code": "", "error_message": message},
+		update_modified=False,
+	)
+	_mirror_status(doc.name, STATUS_NEEDS_RECONCILE)
+	_notify_failure(doc, message)
+	return {"ok": False, "needs_reconcile": True, "message": message}
+
+
+def is_issuance_in_progress(name):
+	"""Có tiến trình nào đang giữ khóa phát hành của chứng từ này không."""
+	try:
+		return bool(frappe.cache().get(_issuance_lock(name).key))
+	except Exception:
+		return False
 
 
 def _notify_failure(doc, message):
@@ -412,21 +474,3 @@ def _notify_failure(doc, message):
 	except Exception:
 		# Không gửi được cảnh báo thì cũng không được che mất kết quả phát hành.
 		frappe.log_error(title=f"HĐĐT: không gửi được cảnh báo cho {doc.name}")
-
-
-def _queue_pdf_download(doc, enqueue=None):
-	"""Nhánh 7a — hẹn tải PDF chính thức sau khi phát hành xong.
-
-	Đi qua ``download_official_pdf_after_signing``: job này đợi Fast ký số HSM
-	xong rồi mới tải, thay vì tải ngay và nhận kết quả rỗng.
-	"""
-	settings = check_enabled()
-	if not settings.auto_download_pdf:
-		return
-
-	(enqueue or frappe.enqueue)(
-		method="erpnext.einvoice.actions.download_official_pdf_after_signing",
-		queue="long",
-		enqueue_after_commit=True,
-		fei=doc.name,
-	)

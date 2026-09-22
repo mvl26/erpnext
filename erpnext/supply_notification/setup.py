@@ -50,9 +50,18 @@ def make_admin_role():
 
 
 def root_department() -> str | None:
+	"""Gốc cây phòng ban, chỉ trả về khi cây nested set còn lành.
+
+	`rgt = 0` nghĩa là cây chưa dựng: ERPNext chèn phòng ban hàng loạt với
+	`ignore_update_nsm` rồi mới `rebuild_tree` ở cuối (xem `Company.create_default_departments`),
+	nên một lần tạo công ty đứt giữa chừng để lại toàn bộ `lft`/`rgt` bằng 0.
+	Gán một nút như vậy làm cha thì `validate_loop` của Frappe thấy bản ghi vừa
+	chèn (cũng lft=0, rgt=0) nằm trong khoảng `lft <= 0 and rgt >= 0` và ném
+	`NestedSetRecursionError` — báo đệ quy dù không hề có vòng lặp.
+	"""
 	roots = frappe.get_all(
 		"Department",
-		filters={"is_group": 1, "parent_department": ("in", ("", None))},
+		filters={"is_group": 1, "parent_department": ("in", ("", None)), "rgt": (">", 0)},
 		pluck="name",
 		limit=1,
 	)

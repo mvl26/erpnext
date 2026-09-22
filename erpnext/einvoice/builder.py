@@ -11,11 +11,12 @@ import unicodedata
 
 import frappe
 from frappe import _
-from frappe.utils import flt, get_fullname
+from frappe.utils import flt, get_fullname, nowdate
 
 from erpnext.einvoice.constants import (
 	EDITABLE_STATUSES,
 	INVOICE_TYPE_ORIGINAL,
+	ISSUED_STATUSES,
 	LIVE_STATUSES,
 	MAX_LEN,
 	PROCESS_TYPE_GOODS,
@@ -40,6 +41,21 @@ def fast_key_for(delivery_note_name):
 	return safe[: MAX_LEN["fast_key"]]
 
 
+def _unused_key(base):
+	"""Key chưa bản ghi nào dùng — thường chính là tên phiếu giao.
+
+	Phiếu giao có hóa đơn cũ đã Hủy nội bộ (CQT từ chối) thì Key tên phiếu giao
+	đã thuộc về hóa đơn đó trên Fast. Dùng lại thì truy vấn 370 trước phát hành
+	thấy hóa đơn cũ và không cho phát hành — nên hóa đơn lập lại mang hậu tố -L2, -L3…
+	"""
+	candidate, index = base, 1
+	while frappe.db.exists(FEI, {"fast_key": candidate}):
+		index += 1
+		suffix = f"-L{index}"
+		candidate = base[: MAX_LEN["fast_key"] - len(suffix)] + suffix
+	return candidate
+
+
 @frappe.whitelist()
 def create_from_delivery_note(delivery_note):
 	"""Nút 1 — tạo chứng từ HĐĐT từ một phiếu giao đã submit. Trả tên bản ghi."""
@@ -52,7 +68,7 @@ def create_from_delivery_note(delivery_note):
 	fei.invoice_type = INVOICE_TYPE_ORIGINAL
 	fei.status = STATUS_DRAFT
 	# Key sinh đúng một lần, ngay lúc tạo bản ghi (nguyên tắc A4).
-	fei.fast_key = fast_key_for(source.name)
+	fei.fast_key = _unused_key(fast_key_for(source.name))
 	_copy_from_delivery_note(fei, source, settings)
 
 	fei.flags.ignore_permissions = True
@@ -127,7 +143,10 @@ def _copy_from_delivery_note(fei, source, settings):
 	customer = frappe.get_doc("Customer", source.customer)
 
 	fei.customer = source.customer
-	fei.invoice_date = source.posting_date
+	# Không lấy ngày phiếu giao: ngày hóa đơn luôn bằng ngày phát hành, và lúc bấm
+	# phát hành `actions.refresh_before_send` đặt lại lần nữa. Đây chỉ là giá trị
+	# hiển thị cho bản nháp.
+	fei.invoice_date = nowdate()
 	fei.customer_code = fast_key_for(source.customer)
 	fei.customer_name = source.customer_name or source.customer
 	fei.customer_tax_code = (customer.get("tax_id") or "").strip()
@@ -320,5 +339,76 @@ def _stamp_delivery_note(fei):
 			"fast_invoice_no": fei.fast_invoice_no or "",
 			"fast_key_search": fei.fast_key_search or "",
 		},
+		update_modified=False,
+	)
+
+
+# --- Hủy phiếu giao ----------------------------------------------------------
+
+
+def before_delivery_note_cancel(doc, method=None):
+	"""Chặn hủy phiếu giao khi hóa đơn điện tử của nó đã tiêu số thật.
+
+	Đặt ở `before_cancel` chứ không phải `on_cancel`: `before_cancel` chạy
+	**trước** khi `docstatus` được ghi xuống (frappe/model/document.py:1151, còn
+	`on_cancel` mãi tới 1186), nên từ chối ở đây là chưa có chữ nào rơi vào cơ sở
+	dữ liệu. Từ chối ở `on_cancel` thì phiếu đã mang docstatus=2 rồi, chỉ còn
+	trông vào rollback của request để dọn — đúng trong thực tế, nhưng là một sự
+	đúng đi mượn.
+
+	Hóa đơn đã lên Cơ quan Thuế mà phiếu giao gốc bị hủy thì sổ sách không còn
+	giải thích được. Lối đi đúng là hóa đơn điều chỉnh hoặc thay thế.
+	"""
+	issued = frappe.get_all(
+		FEI,
+		filters={"delivery_note": doc.name, "status": ("in", list(ISSUED_STATUSES))},
+		fields=["name", "fast_invoice_no", "status"],
+		limit=1,
+	)
+	if not issued:
+		return
+
+	found = issued[0]
+	frappe.throw(
+		_(
+			"Phiếu giao {0} đã có hóa đơn điện tử {1} (số {2}) nên không hủy được. "
+			"Cần sửa thì lập hóa đơn điều chỉnh hoặc thay thế từ chứng từ đó."
+		).format(doc.name, found.name, found.fast_invoice_no or found.status)
+	)
+
+
+def on_delivery_note_cancel(doc, method=None):
+	"""Chứng từ HĐĐT chưa phát hành không được khóa việc hủy phiếu giao.
+
+	`Fast EInvoice Document.delivery_note` là một Link, nên mặc định Frappe từ
+	chối hủy phiếu giao khi còn bất kỳ chứng từ HĐĐT nào trỏ tới — kể cả một bản
+	nháp chưa gửi đi đâu cả. Hủy phiếu giao là việc bình thường của kho; chặn nó
+	vì một bản nháp là chặn thừa, và `LinkExistsError` của Frappe cũng không nói
+	được vì sao. Trường hợp thật sự phải chặn đã do `before_delivery_note_cancel`
+	lo, kèm lời giải thích.
+
+	Chạy **sau** `on_cancel` của Delivery Note (`compose` gọi method của
+	controller trước, rồi tới hook), nên chỉ nối thêm vào `ignore_linked_doctypes`
+	chứ không gán đè cái core vừa đặt.
+	"""
+	doc.ignore_linked_doctypes = (*(doc.get("ignore_linked_doctypes") or ()), FEI)
+	_clear_delivery_note_stamp(doc.name)
+
+
+def _clear_delivery_note_stamp(delivery_note):
+	"""Xóa dấu vết HĐĐT khỏi phiếu giao — giữ `fast_key_search` làm bản sao dự phòng.
+
+	Bốn trường này là Custom Field do `einvoice.setup` dựng lúc `after_migrate`.
+	Trên site chưa chạy setup (hoặc đang giữa chừng một lần cài) chúng chưa tồn
+	tại, và ghi vào cột không có sẽ ném lỗi SQL — tức là làm hỏng việc hủy **mọi**
+	phiếu giao. Không có trường thì đơn giản là không có dấu vết nào để xóa.
+	"""
+	if not frappe.get_meta("Delivery Note").has_field("fast_einvoice"):
+		return
+
+	frappe.db.set_value(
+		"Delivery Note",
+		delivery_note,
+		{"fast_einvoice": "", "fast_einvoice_status": "", "fast_invoice_no": ""},
 		update_modified=False,
 	)

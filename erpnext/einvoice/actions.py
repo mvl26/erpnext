@@ -8,9 +8,13 @@ tầng giao diện; phía server vẫn kiểm tra lại tiền điều kiện �
 client gửi lên.
 """
 
+import hashlib
+import math
+import time
+
 import frappe
 from frappe import _
-from frappe.utils import get_datetime, now_datetime, time_diff_in_seconds
+from frappe.utils import add_to_date, get_datetime, get_url, getdate, now_datetime, time_diff_in_seconds
 
 from erpnext.einvoice.constants import (
 	EDITABLE_STATUSES,
@@ -23,11 +27,11 @@ from erpnext.einvoice.constants import (
 )
 from erpnext.einvoice.errors import describe_error
 from erpnext.einvoice.fast_client import decode_message
-from erpnext.einvoice.fast_settings import check_enabled
+from erpnext.einvoice.fast_settings import check_enabled, get_settings
+from erpnext.einvoice.folders import invoice_folder, move_invoice_files
 from erpnext.einvoice.gateway import call_fast
 from erpnext.einvoice.payload import build_payload
 from erpnext.einvoice.setup import DRAFT_TEMPLATE, ISSUED_TEMPLATE
-from erpnext.einvoice.validation import validate_before_send
 
 FEI = "Fast EInvoice Document"
 
@@ -55,13 +59,20 @@ def preview_draft(fei, client=None):
 
 	Không tiêu số hóa đơn: ``action=600`` chỉ dựng bản in thử. PDF thu được là
 	**bản nháp không có giá trị pháp lý** cho tới khi thực sự phát hành.
+
+	**Không** chạy chốt chặn dữ liệu ở đây, dù chứng từ đang có lỗi mức Chặn.
+	Xem nháp chính là cách kế toán nhìn ra mình sai ở đâu; chặn nó lại vì dữ liệu
+	sai là khóa đúng cái cửa dẫn tới chỗ sửa. Bản nháp không tiêu số hóa đơn nên
+	cái giá đắt nhất của một lần gọi hỏng chỉ là một vòng mạng — rẻ hơn nhiều so
+	với việc kế toán ngồi đoán. Nếu dữ liệu thật sự sai thì Fast trả lỗi, và mã
+	lỗi của Fast còn nói đúng chỗ hơn phỏng đoán của mình.
+
+	Chốt chặn vẫn nguyên vẹn ở `issue_invoice` — nơi thực sự tiêu một số hóa đơn.
 	"""
 	check_enabled()
 	doc = frappe.get_doc(FEI, fei)
 	_assert_status(doc, DRAFT_PREVIEW_STATUSES, _("xem bản nháp"))
-
-	# Chặn trước khi tốn một lời gọi nào với Fast.
-	validate_before_send(doc).throw_if_blocking()
+	refresh_before_send(doc)
 
 	response = call_fast(
 		doc,
@@ -96,6 +107,40 @@ def preview_draft(fei, client=None):
 # --- Tiện ích dùng chung cho các nút ----------------------------------------
 
 
+def refresh_before_send(doc):
+	"""Tự sửa những gì hệ thống sửa được, ngay trước khi gửi Fast — thay vì chặn.
+
+	Ngày hóa đơn về hôm nay, xuống dòng gộp lại, số tổng hợp tính lại từ dòng
+	hàng — đúng những việc `FastEInvoiceDocument.validate` làm lúc Lưu. Chứng từ
+	lập từ hôm trước, hay còn giữ số cũ từ trước một lần đổi công thức, vì thế
+	không bao giờ phải chặn; bản nháp và hóa đơn thật luôn mang đúng ngày sẽ in.
+
+	Cố ý **không** gọi ``doc.save()``: save còn kiểm trường bắt buộc, và một chứng
+	từ thiếu địa chỉ sẽ không xem nháp được — trong khi xem nháp chính là cách
+	nhìn ra mình thiếu gì. Chỗ nào Fast thật sự từ chối thì `validate_before_send`
+	chặn đúng ở nút phát hành. Ghi thẳng xuống DB cũng giữ nguyên ``modified``,
+	nên form đang mở không bị báo "đã bị sửa bởi người khác".
+	"""
+	previous = getdate(doc.invoice_date) if doc.invoice_date else None
+	doc._fix_what_fast_would_reject()
+	doc._compute_totals()
+	doc.db_update()
+	for line in doc.lines or []:
+		line.db_update()
+
+	if previous and previous != getdate(doc.invoice_date):
+		doc.add_comment(
+			"Comment",
+			_("Ngày hóa đơn đổi từ {0} sang {1} — ngày hóa đơn luôn bằng ngày phát hành.").format(
+				_dmy(previous), _dmy(doc.invoice_date)
+			),
+		)
+
+
+def _dmy(value):
+	return getdate(value).strftime("%d/%m/%Y")
+
+
 def _assert_status(doc, allowed, what):
 	if doc.status not in allowed:
 		frappe.throw(_("Hóa đơn đang ở trạng thái {0} nên không {1} được.").format(doc.status, what))
@@ -116,13 +161,25 @@ def _record_error(doc, response):
 	)
 
 
-def _attach_pdf(doc, base64_message, filename):
-	"""Giải base64 rồi đính kèm vào chứng từ. File để riêng tư."""
+def _attach_pdf(doc, base64_message, filename, is_private=1):
+	"""Giải base64 rồi đính kèm vào chứng từ. Mặc định riêng tư — chỉ PDF chính thức mới công khai."""
 	from frappe.utils.file_manager import save_file
 
 	content = decode_message(base64_message)
-	saved = save_file(filename, content, FEI, doc.name, is_private=1)
+	folder = invoice_folder(doc)
+	saved = save_file(filename, content, FEI, doc.name, folder=folder, is_private=is_private)
+	_keep_in_folder(saved, folder)
 	return saved.file_url
+
+
+def _keep_in_folder(saved, folder):
+	"""Ép file về đúng thư mục hóa đơn.
+
+	``save_file`` gặp file cùng nội dung đã đính vào chính chứng từ đó thì trả lại
+	bản ghi File cũ — thư mục cũ vẫn giữ nguyên (thường là ``Home/Attachments``).
+	"""
+	if saved.folder != folder:
+		frappe.db.set_value("File", saved.name, "folder", folder, update_modified=False)
 
 
 def _draft_filename(doc):
@@ -387,7 +444,13 @@ PDF_THROTTLE_SECONDS = 5
 
 @frappe.whitelist()
 def download_official_pdf(fei, client=None):
-	"""Nút 8 — tải bản PDF chính thức của hóa đơn đã phát hành."""
+	"""Nút 8 — tải bản PDF chính thức của hóa đơn đã phát hành.
+
+	PDF chính thức để **công khai**: hóa đơn đã phát hành là chứng từ gửi cho khách,
+	và ``public_pdf_url`` là link kế toán dán thẳng vào email / tin nhắn cho khách
+	xem, khỏi phải giải thích mã tra cứu. Tên file mang một đoạn băm nên không đổi
+	số hóa đơn trên link mà dò ra được hóa đơn của khách khác.
+	"""
 	doc = _pdf_ready_document(fei)
 	_assert_pdf_throttle()
 
@@ -404,15 +467,35 @@ def download_official_pdf(fei, client=None):
 		_record_error(doc, response)
 		return {"ok": False, "message": message}
 
-	filename = f"HD_{doc.fast_serial or 'HD'}_{doc.fast_invoice_no or doc.name}.pdf"
-	file_url = _attach_pdf(doc, response.message, filename)
-	frappe.db.set_value(FEI, doc.name, "official_pdf", file_url, update_modified=False)
+	filename = _official_pdf_filename(doc)
+	file_url = _attach_pdf(doc, response.message, filename, is_private=0)
+	public_url = get_url(file_url)
+	frappe.db.set_value(
+		FEI, doc.name, {"official_pdf": file_url, "public_pdf_url": public_url}, update_modified=False
+	)
 
 	# Bản PDF cũng đính sang phiếu giao: thủ kho và kế toán kho làm việc ở đó.
 	if doc.delivery_note:
-		_attach_pdf_to(doc, response.message, filename, "Delivery Note", doc.delivery_note)
+		_attach_pdf_to(doc, response.message, filename, "Delivery Note", doc.delivery_note, is_private=0)
+		frappe.db.set_value(
+			"Delivery Note", doc.delivery_note, "fast_einvoice_pdf_url", public_url, update_modified=False
+		)
 
-	return {"ok": True, "file_url": file_url}
+	# Hóa đơn phát hành từ trước khi có cây thư mục: gom bản nháp cũ về cùng chỗ với PDF chính thức.
+	move_invoice_files(doc.name)
+
+	return {"ok": True, "file_url": file_url, "public_url": public_url}
+
+
+def _official_pdf_filename(doc):
+	"""``HD_{ký hiệu}_{số}_{băm}.pdf``.
+
+	File công khai nằm ở ``/files/<tên file>``. Chỉ có ký hiệu và số thì đổi số trên
+	link là ra hóa đơn của khách khác — lộ tên khách, hàng hóa, số tiền. Đoạn băm
+	lấy từ mã tra cứu (Fast cấp ngẫu nhiên, chỉ chứng từ này biết) nên không đoán được.
+	"""
+	digest = hashlib.sha256(f"{doc.name}|{doc.fast_key_search}".encode()).hexdigest()[:16]
+	return f"HD_{doc.fast_serial or 'HD'}_{doc.fast_invoice_no or doc.name}_{digest}.pdf"
 
 
 @frappe.whitelist()
@@ -448,36 +531,89 @@ def download_converted_pdf(fei, convert_name=None, client=None):
 	return {"ok": True, "file_url": file_url}
 
 
-# Sau phát hành HSM, Fast cần vài giây ký số xong mới có PDF (mục E5 nhánh 7a).
-PDF_SIGNING_WAIT_SECONDS = 6
-PDF_DOWNLOAD_ATTEMPTS = 5
+# Sau phát hành HSM, Fast cần khoảng 30 giây — 1 phút ký số xong mới có PDF (mục E5
+# nhánh 7a). Gọi 380 sớm hơn chỉ nhận về kết quả rỗng và thêm một dòng nhật ký.
+PDF_READY_AFTER_SECONDS = 60
+# Job tự tải: tối đa 5 lần, hai lần cách nhau ít nhất 2 phút — hết lượt thì kế toán bấm tay.
+PDF_AUTO_ATTEMPTS = 5
+PDF_AUTO_RETRY_SECONDS = 120
+# Chỉ tự tải hóa đơn phát hành trong 24 giờ gần nhất; cũ hơn mà chưa có PDF là đã có chuyện, xử lý tay.
+PDF_AUTO_WINDOW_HOURS = 24
 
 
-@frappe.whitelist()
-def download_official_pdf_after_signing(fei, _download=None, _sleep=None):
-	"""Job nền: đợi Fast ký số HSM xong rồi tải PDF chính thức.
+def download_pending_official_pdfs(client=None, _sleep=None):
+	"""Job mỗi phút — tự tải PDF chính thức khi Fast đã ký số xong.
 
-	`frappe.enqueue` chạy gần như ngay sau commit, mà ký số HSM mất vài giây, nên
-	tải ngay sẽ nhận kết quả rỗng (đúng lỗi kế toán hay gặp khi bấm tải sớm). Job
-	này đợi rồi thử lại nhiều lần; hết số lần vẫn chưa có thì để kế toán tự tải
-	sau — hóa đơn đã ra số thật rồi nên không sao.
+	Thay cho việc tải ngay sau phát hành rồi ``sleep`` giữ worker chờ: hóa đơn chỉ
+	được thử khi đã phát hành đủ ``PDF_READY_AFTER_SECONDS``, lần thử sau cách lần
+	trước ``PDF_AUTO_RETRY_SECONDS``, tối đa ``PDF_AUTO_ATTEMPTS`` lần (tính cả lần
+	kế toán bấm tay). Trả danh sách chứng từ đã thử.
 	"""
-	import time
+	settings = get_settings()
+	if not settings.enabled or not settings.auto_download_pdf:
+		return []
+
+	now = now_datetime()
+	candidates = frappe.get_all(
+		FEI,
+		filters=[
+			[FEI, "status", "in", list(PDF_STATUSES)],
+			[FEI, "official_pdf", "is", "not set"],
+			[FEI, "fast_key_search", "is", "set"],
+			[FEI, "issued_time", "<=", add_to_date(now, seconds=-PDF_READY_AFTER_SECONDS)],
+			[FEI, "issued_time", ">=", add_to_date(now, hours=-PDF_AUTO_WINDOW_HOURS)],
+		],
+		order_by="issued_time asc",
+		pluck="name",
+	)
 
 	sleep = _sleep or time.sleep
-	download = _download or download_official_pdf
-
-	for attempt in range(PDF_DOWNLOAD_ATTEMPTS):
-		sleep(PDF_SIGNING_WAIT_SECONDS)
+	tried = []
+	for name in candidates:
+		if not _auto_download_due(name, now):
+			continue
+		if tried:
+			# Fast: hai lần gọi 380/385 phải cách nhau tối thiểu 5 giây (mục E6).
+			sleep(PDF_THROTTLE_SECONDS)
 		try:
-			if download(fei).get("ok"):
-				return {"ok": True, "attempts": attempt + 1}
+			download_official_pdf(name, client=client)
 		except Exception:
-			frappe.log_error(title=f"HĐĐT: tự tải PDF lỗi cho {fei}")
-			return {"ok": False, "attempts": attempt + 1}
+			# Một hóa đơn hỏng không được làm chết cả lô.
+			frappe.log_error(title=f"HĐĐT: tự tải PDF lỗi cho {name}")
+		tried.append(name)
+	return tried
 
-	frappe.log_error(title=f"HĐĐT: PDF chưa sẵn sàng sau {PDF_DOWNLOAD_ATTEMPTS} lần thử cho {fei}")
-	return {"ok": False, "attempts": PDF_DOWNLOAD_ATTEMPTS}
+
+def _auto_download_due(fei, now):
+	attempts = frappe.get_all(
+		"Fast EInvoice Log",
+		filters={"fei_document": fei, "method": METHOD_OFFICIAL_PDF},
+		order_by="creation desc",
+		pluck="creation",
+	)
+	if len(attempts) >= PDF_AUTO_ATTEMPTS:
+		return False
+	return not attempts or time_diff_in_seconds(now, get_datetime(attempts[0])) >= PDF_AUTO_RETRY_SECONDS
+
+
+def _seconds_until_pdf_ready(doc, now=None):
+	"""Còn bao nhiêu giây nữa Fast mới ký số xong. 0 = tải được rồi."""
+	if not doc.issued_time:
+		return 0
+	elapsed = time_diff_in_seconds(now or now_datetime(), get_datetime(doc.issued_time))
+	return max(0, math.ceil(PDF_READY_AFTER_SECONDS - elapsed))
+
+
+def _assert_signing_finished(doc):
+	"""Chặn trước khi gọi Fast: bấm tải ngay sau phát hành chỉ nhận về rỗng."""
+	wait = _seconds_until_pdf_ready(doc)
+	if wait:
+		frappe.throw(
+			_(
+				"Hóa đơn vừa phát hành — Fast cần khoảng 1 phút để ký số xong mới có PDF. "
+				"Vui lòng đợi {0} giây rồi tải. Hệ thống cũng sẽ tự tải khi PDF sẵn sàng."
+			).format(wait)
+		)
 
 
 def _explain_pdf_failure(response):
@@ -490,7 +626,7 @@ def _explain_pdf_failure(response):
 	if not response.error_code and not (response.message or "").strip():
 		return _(
 			"Fast chưa trả về PDF — hóa đơn có thể đang được ký số (HSM). "
-			"Đợi khoảng 10 giây rồi tải lại; nếu vẫn lỗi, bấm Truy vấn (370) để "
+			"Đợi khoảng 10 giây rồi tải lại; nếu vẫn lỗi, bấm Lấy dữ liệu từ Fast (370) để "
 			"kiểm tra tình trạng hóa đơn trên Fast."
 		)
 	return _explain(response)
@@ -501,7 +637,10 @@ def _pdf_ready_document(fei):
 	doc = frappe.get_doc(FEI, fei)
 	_assert_status(doc, PDF_STATUSES, _("tải PDF"))
 	if not doc.fast_key_search:
-		frappe.throw(_("Chứng từ chưa có mã tra cứu (keySearch) — bấm Truy vấn (370) để lấy về trước."))
+		frappe.throw(
+			_("Chứng từ chưa có mã tra cứu (keySearch) — bấm Lấy dữ liệu từ Fast (370) để lấy về trước.")
+		)
+	_assert_signing_finished(doc)
 	return doc
 
 
@@ -524,10 +663,16 @@ def _assert_pdf_throttle():
 		)
 
 
-def _attach_pdf_to(doc, base64_message, filename, doctype, name):
+def _attach_pdf_to(doc, base64_message, filename, doctype, name, is_private=1):
 	from frappe.utils.file_manager import save_file
 
-	return save_file(filename, decode_message(base64_message), doctype, name, is_private=1).file_url
+	# Bản trên phiếu giao nằm cùng thư mục hóa đơn — một hóa đơn, một chỗ tìm.
+	folder = invoice_folder(doc)
+	saved = save_file(
+		filename, decode_message(base64_message), doctype, name, folder=folder, is_private=is_private
+	)
+	_keep_in_folder(saved, folder)
+	return saved.file_url
 
 
 # --- Nút 10 — gửi hóa đơn chính thức cho khách hàng (mục E7) ----------------
@@ -563,10 +708,14 @@ def send_invoice_to_customer(
 
 
 def _send_invoice_via_erp(doc, to, cc, subject, message, mailer):
+	"""Email gửi khách luôn kèm đủ hai file: PDF để đọc, XML là hóa đơn điện tử gốc có chữ ký số."""
+	missing = []
 	if not doc.official_pdf:
-		frappe.throw(
-			_("Chưa tải PDF chính thức — bấm “Tải PDF” trước, nếu không khách nhận email không có hóa đơn.")
-		)
+		missing.append(_("PDF chính thức (bấm “Tải PDF chính thức”)"))
+	if not doc.official_xml:
+		missing.append(_("XML hóa đơn (tải trên portal Fast rồi đính vào trường “XML hóa đơn”)"))
+	if missing:
+		frappe.throw(_("Chưa đủ file để gửi khách — còn thiếu: {0}.").format("; ".join(missing)))
 
 	rendered = _render_template(ISSUED_TEMPLATE, doc, subject, message)
 	log = _open_email_log(doc, _("Gửi hóa đơn chính thức cho khách"), to)
@@ -576,7 +725,7 @@ def _send_invoice_via_erp(doc, to, cc, subject, message, mailer):
 		cc=_recipient_list(cc),
 		subject=rendered["subject"],
 		message=rendered["message"],
-		attachments=[{"file_url": doc.official_pdf}],
+		attachments=[{"file_url": doc.official_pdf}, {"file_url": doc.official_xml}],
 		reference_doctype=FEI,
 		reference_name=doc.name,
 	)

@@ -121,6 +121,9 @@ def configure(**values):
 			"proxy_code": "006384",
 			"unit_code": "CTY",
 			"voucher_book": "1C26TAA",
+			# Giá trị giả, cố ý. Test không bao giờ chạm mạng — transport được tiêm
+			# vào `FastClient` — nên không cần thông tin đăng nhập thật, và một mật
+			# khẩu thật nằm ở đây là một mật khẩu thật nằm trong lịch sử git.
 			"api_user": "erp.miyano",
 			"api_password": "s3cret",
 			**values,

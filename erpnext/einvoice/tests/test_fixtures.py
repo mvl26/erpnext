@@ -178,6 +178,20 @@ def make_delivery_note(qty=100, rate=100000, submit=True, is_return=False, vat_r
 	return doc
 
 
+def attach_official_xml(fei_name, filename=None, content=b'<?xml version="1.0" encoding="UTF-8"?><HDon/>'):
+	"""Đính XML hóa đơn như kế toán tải từ portal Fast về — API Fast không có lệnh tải XML."""
+	from frappe.utils.file_manager import save_file
+
+	saved = save_file(
+		filename or f"HD_{fei_name}.xml", content, "Fast EInvoice Document", fei_name, is_private=1
+	)
+	doc = frappe.get_doc("Fast EInvoice Document", fei_name)
+	doc.official_xml = saved.file_url
+	doc.flags.ignore_links = True
+	doc.save(ignore_permissions=True)
+	return saved.file_url
+
+
 def minimal_pdf_bytes():
 	"""PDF hợp lệ tối thiểu.
 
