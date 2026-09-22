@@ -9,6 +9,8 @@ giống cho site mới — site đang chạy giữ nguyên bản ghi nghiệp v�
 Tham chiếu: docs/05c_Spec_KyThuat_Plan_Thong_Bao.md muc 7 va Phu luc A/C.
 """
 
+from erpnext.setup import department_catalog
+
 SUBMIT = "Submit"
 DUE_REMINDER = "Due Reminder"
 
@@ -24,14 +26,13 @@ SOUND = "alert"
 #: Sự kiện realtime riêng của Miyano, kèm dữ liệu để dựng toast.
 REALTIME_EVENT = "supply_notification"
 
-#: Tên phòng ban (chưa kèm viết tắt công ty) dùng khi gieo hạt giống.
-DEPT_STOCK = "Kho"
-DEPT_PURCHASE = "Mua hàng"
-DEPT_SALES = "Kinh doanh"
-DEPT_ACCOUNTS = "Kế toán"
-
-#: Hai phòng ban hàm cài đặt tạo bù nếu site chưa có (quyết định D3).
-DEPARTMENTS_TO_CREATE = (DEPT_STOCK, DEPT_PURCHASE)
+#: Mã phòng ban trong danh mục chuẩn (`erpnext.setup.department_catalog`), không
+#: phải tên phòng — site đổi tên `Kế toán - M` thành `P. Kế toán tài chính - M`
+#: vẫn nhận ra, và hàm cài đặt chỉ tạo bù phòng thật sự chưa có (quyết định D3).
+DEPT_STOCK = department_catalog.STOCK
+DEPT_PURCHASE = department_catalog.PURCHASE
+DEPT_SALES = department_catalog.SALES
+DEPT_ACCOUNTS = department_catalog.ACCOUNTS
 
 PREFIX = "[SupplyCore]"
 
@@ -114,8 +115,7 @@ POINTS = (
 		"date_field": "schedule_date",
 		"show_stock_report": 0,
 		"subject_template": (
-			"{{ prefix }} Đơn mua hàng {{ doc.name }} – NCC {{ party_name }}"
-			" – dự kiến nhận hàng {{ date }}"
+			"{{ prefix }} Đơn mua hàng {{ doc.name }} – NCC {{ party_name }} – dự kiến nhận hàng {{ date }}"
 		),
 		"intro_template": (
 			"Đơn mua hàng {{ doc.name }} gửi nhà cung cấp {{ party_name }} đã được ghi sổ,"
@@ -204,7 +204,7 @@ POINTS = (
 		"date_field": "due_date",
 		"show_stock_report": 0,
 		"subject_template": (
-			"{{ prefix }} Hoá đơn {{ doc.name }} đến hạn thanh toán {{ date }}" " – còn nợ {{ amount }}"
+			"{{ prefix }} Hoá đơn {{ doc.name }} đến hạn thanh toán {{ date }} – còn nợ {{ amount }}"
 		),
 		"intro_template": (
 			"Hoá đơn mua {{ doc.name }} của nhà cung cấp {{ party_name }} đến hạn thanh toán"
@@ -232,10 +232,10 @@ POINTS = (
 		"date_field": "posting_date",
 		"show_stock_report": 0,
 		"subject_template": (
-			"{{ prefix }} Phiếu giao hàng {{ doc.name }} cho khách {{ party_name }}" " đã xuất kho, đang giao"
+			"{{ prefix }} Phiếu giao hàng {{ doc.name }} cho khách {{ party_name }} đã xuất kho, đang giao"
 		),
 		"intro_template": (
-			"Phiếu giao hàng {{ doc.name }} cho khách hàng {{ party_name }} đã xuất kho" " ngày {{ date }}."
+			"Phiếu giao hàng {{ doc.name }} cho khách hàng {{ party_name }} đã xuất kho ngày {{ date }}."
 		),
 		"action_template": "Đề nghị theo dõi giao nhận và xác nhận với khách hàng.",
 		"external_subject_template": (
@@ -266,8 +266,7 @@ POINTS = (
 		"date_field": "due_date",
 		"show_stock_report": 0,
 		"subject_template": (
-			"{{ prefix }} Hoá đơn bán {{ doc.name }} đến hạn thu tiền {{ date }}"
-			" – khách còn nợ {{ amount }}"
+			"{{ prefix }} Hoá đơn bán {{ doc.name }} đến hạn thu tiền {{ date }} – khách còn nợ {{ amount }}"
 		),
 		"intro_template": (
 			"Hoá đơn bán {{ doc.name }} của khách hàng {{ party_name }} đến hạn thu tiền"
@@ -295,8 +294,7 @@ POINTS = (
 		"date_field": "transaction_date",
 		"show_stock_report": 0,
 		"subject_template": (
-			"{{ prefix }} Yêu cầu thanh toán {{ doc.name }} cho NCC {{ party_name }}"
-			" – số tiền {{ amount }}"
+			"{{ prefix }} Yêu cầu thanh toán {{ doc.name }} cho NCC {{ party_name }} – số tiền {{ amount }}"
 		),
 		"intro_template": (
 			"Yêu cầu thanh toán {{ doc.name }} cho nhà cung cấp {{ party_name }},"
@@ -324,7 +322,7 @@ POINTS = (
 		"date_field": "posting_date",
 		"show_stock_report": 0,
 		"subject_template": (
-			"{{ prefix }} Đã thanh toán {{ amount }} cho {{ party_name }}" " theo phiếu {{ doc.name }}"
+			"{{ prefix }} Đã thanh toán {{ amount }} cho {{ party_name }} theo phiếu {{ doc.name }}"
 		),
 		"intro_template": (
 			"Phiếu chi {{ doc.name }} ngày {{ date }} đã ghi sổ:"
@@ -368,7 +366,7 @@ POINTS = (
 		),
 		"action_template": "Đề nghị theo dõi phản hồi của khách hàng và tiến độ thu tiền.",
 		"external_subject_template": (
-			"{{ prefix }} Đề nghị thanh toán {{ amount }}" "{% if due %} – hạn {{ due }}{% endif %}"
+			"{{ prefix }} Đề nghị thanh toán {{ amount }}{% if due %} – hạn {{ due }}{% endif %}"
 		),
 		"external_intro_template": (
 			"Kính gửi Quý khách {{ party_name }},<br><br>"

@@ -353,94 +353,11 @@ class Company(NestedSet):
 		)
 
 	def create_default_departments(self):
-		records = [
-			# Department
-			{
-				"doctype": "Department",
-				"department_name": _("All Departments"),
-				"is_group": 1,
-				"parent_department": "",
-				"__condition": lambda: not frappe.db.exists("Department", _("All Departments")),
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Accounts"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Marketing"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Sales"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Purchase"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Operations"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Production"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Dispatch"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Customer Service"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Human Resources"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Management"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Quality Management"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Research & Development"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-			{
-				"doctype": "Department",
-				"department_name": _("Legal"),
-				"parent_department": _("All Departments"),
-				"company": self.name,
-			},
-		]
+		# Miyano: bộ phòng ban chuẩn tiếng Việt thay bộ tiếng Anh của bản gốc,
+		# để cấu hình dựa theo phòng ban (thông báo chuỗi cung ứng…) tìm được phòng.
+		from erpnext.setup.department_catalog import default_department_records
+
+		records = default_department_records(self.name)
 
 		# Make root department with NSM updation
 		make_records(records[:1])

@@ -2,6 +2,9 @@
 
 """Dựng vai trò, phòng ban còn thiếu và 12 điểm thông báo mặc định.
 
+Phòng ban tra theo danh mục chuẩn `erpnext.setup.department_catalog` (khớp bí danh),
+nên phòng đã có dưới tên khác được dùng lại thay vì tạo trùng.
+
 Chạy được nhiều lần: gọi lại không nhân đôi bản ghi và **không** ghi đè điểm
 thông báo đã tồn tại — nghiệp vụ có thể đã sửa người nhận hoặc câu chữ.
 
@@ -10,7 +13,8 @@ Tham chiếu: docs/05c_Spec_KyThuat_Plan_Thong_Bao.md muc 3.2 va Phu luc C.
 
 import frappe
 
-from erpnext.supply_notification.constants import ADMIN_ROLE, DEPARTMENTS_TO_CREATE, POINTS
+from erpnext.setup.department_catalog import ensure_departments
+from erpnext.supply_notification.constants import ADMIN_ROLE, POINTS
 
 POINT_DOCTYPE = "Supply Notification Point"
 
@@ -19,9 +23,8 @@ def setup_supply_notification():
 	"""Điểm vào duy nhất, gọi từ patch và từ `after_migrate`."""
 	make_admin_role()
 	company = default_company()
-	if company:
-		make_departments(company)
-	seed_points(company)
+	departments = ensure_departments(company, needed_departments()) if company else {}
+	seed_points(departments)
 
 
 def default_company() -> str | None:
@@ -65,56 +68,18 @@ def root_department() -> str | None:
 	return roots[0] if roots else None
 
 
-def find_department(department_name: str, company: str | None) -> str | None:
-	filters = {"department_name": department_name}
-	if company:
-		filters["company"] = company
-
-	found = frappe.get_all("Department", filters=filters, pluck="name", limit=1)
-	if found:
-		return found[0]
-
-	# Site một công ty đôi khi để trống `company`; thử lại không ràng buộc.
-	found = frappe.get_all("Department", filters={"department_name": department_name}, pluck="name", limit=1)
-	return found[0] if found else None
+def needed_departments() -> list[str]:
+	"""Mã phòng ban mà 12 điểm mặc định dùng, giữ thứ tự xuất hiện."""
+	return list(dict.fromkeys(key for spec in POINTS for key in spec["departments"]))
 
 
-def make_departments(company: str) -> list[str]:
-	"""Tạo bù phòng Kho và Mua hàng nếu site chưa có (quyết định D3)."""
-	created = []
-	parent = root_department()
+def seed_points(departments: dict[str, str] | None = None) -> list[str]:
+	"""Gieo các điểm thông báo còn thiếu. Trả về mã các điểm vừa tạo.
 
-	for department_name in DEPARTMENTS_TO_CREATE:
-		if find_department(department_name, company):
-			continue
-
-		doc = frappe.new_doc("Department")
-		doc.department_name = department_name
-		doc.company = company
-		if parent:
-			doc.parent_department = parent
-
-		# Hàm này chạy trong `after_migrate`: tạo bù phòng ban là tiện ích, không
-		# đáng để làm hỏng cả lần migrate. Điểm lưu giúp bản ghi chèn dở (cây
-		# nested set hỏng thì lỗi ném ra *sau* khi đã chèn) không còn sót lại.
-		frappe.db.savepoint("supply_notification_department")
-		try:
-			doc.insert(ignore_permissions=True)
-		except Exception:
-			frappe.db.rollback(save_point="supply_notification_department")
-			frappe.log_error(
-				title=f"Supply Notification: không tạo được phòng ban {department_name}",
-				message=frappe.get_traceback(with_context=True),
-			)
-			continue
-
-		created.append(doc.name)
-
-	return created
-
-
-def seed_points(company: str | None = None) -> list[str]:
-	"""Gieo các điểm thông báo còn thiếu. Trả về mã các điểm vừa tạo."""
+	`departments` là {mã danh mục: tên Department} do `ensure_departments` trả về;
+	mã không có trong đó thì bỏ dòng khỏi bảng con, không nổ.
+	"""
+	departments = departments or {}
 	created = []
 
 	for spec in POINTS:
@@ -140,11 +105,9 @@ def seed_points(company: str | None = None) -> list[str]:
 		doc.external_subject_template = spec["external_subject_template"]
 		doc.external_intro_template = spec["external_intro_template"]
 
-		for department_name in spec["departments"]:
-			resolved = find_department(department_name, company)
-			if not resolved:
-				continue
-			doc.append("departments", {"department": resolved})
+		for key in spec["departments"]:
+			if departments.get(key):
+				doc.append("departments", {"department": departments[key]})
 
 		doc.insert(ignore_permissions=True)
 		created.append(doc.code)
