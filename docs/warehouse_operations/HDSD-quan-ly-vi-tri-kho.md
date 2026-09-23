@@ -1258,6 +1258,56 @@ từng form Lô. Vào từ ô bấm **Đặt ô trên tem hàng loạt** đầu 
 
 ---
 
+## 16. Nối luồng nhập kho và tab Connections (từ 23/09/2026)
+
+Trước mục này, mỗi bước của luồng nhập là một màn hình rời: khai lô xong phải tự gõ tên phiếu
+nhập trên thanh tìm kiếm để quay lại duyệt, duyệt xong lại tự đi tìm trang xếp hàng. Nay mỗi màn
+hình chỉ ra bước kế tiếp và có nút đi thẳng.
+
+### 16.1 Thanh "Luồng nhập kho" trên phiếu nhập
+
+Vẽ ngay trên bảng dòng hàng, đọc trạng thái thật của phiếu:
+
+| Thanh nói | Nút phải bấm |
+|---|---|
+| Còn N dòng chưa khai lô | **Nhập lô & in nhãn** |
+| Đã khai lô đủ các dòng | **Submit** |
+| Còn X đang ở ô Chưa xếp vị trí | **Xếp hàng lên kệ** |
+| Đã xếp hết lên kệ | — xong |
+
+Phiếu không có dòng nào thuộc kho quản lý vị trí thì **không hiện thanh nào** — luồng này không
+nói gì về phiếu đó.
+
+> Con số "còn X ở ô Chưa xếp" là tồn của đúng các (kho, mặt hàng, lô) **có trên phiếu này**. Ô
+> Chưa xếp là ô dùng chung của cả kho, nên nếu cùng một lô còn hàng của phiếu nhập khác thì con
+> số đó tính chung — sổ vị trí ghi theo (ô, mặt hàng, lô), không ghi theo chứng từ đã đưa vào.
+
+### 16.2 Các nút nối bước
+
+- **Phiếu nhập lô đã duyệt → "Duyệt phiếu nhập kho"**: mở lại đúng phiếu nhập để bấm Submit (phiếu
+  nhập đã duyệt rồi thì nút đổi thành "Xem phiếu nhập kho"). Nút chỉ MỞ phiếu — duyệt một chứng từ
+  ghi sổ kho và sổ kế toán vẫn là việc người dùng nhìn rồi tự bấm.
+- **Phiếu nhập đã duyệt → "Xếp hàng lên kệ"**: mở phiếu xếp nháp, điền sẵn kho, tự đổ các dòng
+  đang chờ ở ô Chưa xếp kèm ô đến theo tem lô. Lấy **cả kho**, và **bỏ qua** dòng chưa có ô đến
+  (mặt hàng chưa gán vị trí, lô chưa có ô trên tem) kèm câu báo nêu rõ số lượng và lý do — những
+  dòng đó xếp bằng nút **Lấy hàng chưa xếp** rồi điền ô tay, hoặc gán vị trí trước (mục 10).
+- **Form lô → "Xem phiếu nhập lô"**: đi ngược từ số lô về phiếu đã khai ra nó.
+
+### 16.3 Tab Connections
+
+| Mở phiếu nào | Tab Connections thấy gì |
+|---|---|
+| Phiếu nhập kho | nhóm **Vị trí kho**: Phiếu nhập lô, Sổ vị trí |
+| Phiếu nhập lô | Phiếu nhập kho gốc, các Lô đã tạo |
+| Phiếu xếp / chuyển vị trí | Sổ vị trí của phiếu |
+| Lô | Sổ vị trí của lô |
+
+> Lô **không** có mục "Phiếu nhập lô" trong Connections: tab này chỉ tìm được trường Link nằm trên
+> chính doctype đích, mà phiếu nhập lô giữ số lô ở bảng con. Đường đi ngược đó là nút **Xem phiếu
+> nhập lô** ở mục 16.2.
+
+---
+
 ## Phụ lục A. Một lần chạy thật, từ mua hàng tới tồn theo ô
 
 Chạy ngày 13/09/2026 trên `erptest.local`, mặt hàng `MYN-IMP-NEP-8` (Nẹp khoá 8 lỗ titan,
