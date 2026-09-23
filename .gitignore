@@ -20,3 +20,17 @@ node_modules/
 # Vùng làm việc tạm của subagent-driven-development (ledger, brief, review package).
 # Git history mới là bản ghi; thư mục này xoá được bất cứ lúc nào.
 .superpowers/
+# Vỏ app PDA (Capacitor, spec 2026-09-23) — sản phẩm build của Android/Gradle,
+# không phải mã nguồn. pda_app/.gitignore đã chặn cục bộ; khai lại ở đây cho rõ
+# ý (Task 5, bước 5) và phòng khi ai đó git add -f từ ngoài pda_app/.
+pda_app/node_modules/
+pda_app/android/build/
+pda_app/android/app/build/
+pda_app/android/.gradle/
+pda_app/android/local.properties
+pda_app/android/app/release/
+pda_app/*.apk
+pda_app/*.keystore
+pda_app/*.jks
+pda_app/**/key.properties
+pda_app/**/keystore.properties

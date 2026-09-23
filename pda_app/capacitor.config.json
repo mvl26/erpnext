@@ -1,0 +1,13 @@
+{
+  "appId": "vn.com.miyano.pda",
+  "appName": "Miyano PDA",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true
+  },
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": ["192.168.*.*", "10.*.*.*", "erp.miyano.com.vn"],
+    "errorPath": "index.html"
+  }
+}

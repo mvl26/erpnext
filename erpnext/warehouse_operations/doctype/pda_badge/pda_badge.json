@@ -1,0 +1,40 @@
+{
+ "actions": [],
+ "autoname": "field:nguoi_dung",
+ "creation": "2026-09-23 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": ["nguoi_dung", "ho_ten", "con_hieu_luc", "cb1", "cap_luc", "lan_dung_cuoi", "thiet_bi_cuoi", "sec_kt", "ma_bam", "muoi", "ghi_chu"],
+ "fields": [
+  {"fieldname": "nguoi_dung", "fieldtype": "Link", "label": "Người dùng", "options": "User",
+   "reqd": 1, "unique": 1, "set_only_once": 1, "in_list_view": 1},
+  {"fieldname": "ho_ten", "fieldtype": "Data", "label": "Họ tên", "read_only": 1, "in_list_view": 1},
+  {"fieldname": "con_hieu_luc", "fieldtype": "Check", "label": "Còn hiệu lực", "default": "1", "in_list_view": 1},
+  {"fieldname": "cb1", "fieldtype": "Column Break"},
+  {"fieldname": "cap_luc", "fieldtype": "Datetime", "label": "Cấp lúc", "read_only": 1},
+  {"fieldname": "lan_dung_cuoi", "fieldtype": "Datetime", "label": "Lần quét cuối", "read_only": 1},
+  {"fieldname": "thiet_bi_cuoi", "fieldtype": "Data", "label": "Thiết bị lần cuối", "read_only": 1},
+  {"fieldname": "sec_kt", "fieldtype": "Section Break"},
+  {"fieldname": "ma_bam", "fieldtype": "Data", "label": "Mã băm", "read_only": 1, "hidden": 1, "no_copy": 1,
+   "description": "SHA-256 của (muối + mã thẻ). Máy chủ KHÔNG lưu mã gốc — mất thẻ thì cấp thẻ mới."},
+  {"fieldname": "muoi", "fieldtype": "Data", "label": "Muối băm", "read_only": 1, "hidden": 1, "no_copy": 1,
+   "description": "Muối ngẫu nhiên riêng của thẻ này, trộn vào mã trước khi băm — lộ CSDL không dò được nhiều thẻ cùng lúc bằng một bảng tra cứu chung."},
+  {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chú"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-23 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Warehouse Operations",
+ "name": "PDA Badge",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1},
+  {"role": "Stock Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

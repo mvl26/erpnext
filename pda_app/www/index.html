@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="vi">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+	<title>Miyano PDA</title>
+	<style>
+		body { font-family: system-ui, sans-serif; margin: 0; padding: 24px; background: #111; color: #eee; }
+		h1 { font-size: 20px; }
+		input { width: 100%; height: 52px; font-size: 18px; padding: 0 12px; box-sizing: border-box; }
+		button { width: 100%; height: 52px; font-size: 17px; margin-top: 12px; border: 0; border-radius: 10px; }
+		.chinh { background: #2d7ff9; color: #fff; }
+		.phu { background: #333; color: #eee; }
+		.bao { min-height: 44px; margin-top: 12px; }
+		.loi { color: #ff8a80; }
+	</style>
+</head>
+<body>
+	<h1>Miyano PDA</h1>
+	<div id="dang-noi" hidden>
+		<p id="chu-noi"></p>
+		<button class="chinh" id="thu-lai">Thử lại</button>
+		<button class="phu" id="doi">Đổi máy chủ</button>
+	</div>
+	<div id="khai" hidden>
+		<p>Địa chỉ máy chủ:</p>
+		<input id="dia-chi" type="url" inputmode="url" autocapitalize="none" autocomplete="off"
+			placeholder="http://192.168.61.129:8003" />
+		<button class="chinh" id="luu">Kiểm tra &amp; lưu</button>
+	</div>
+	<div class="bao" id="bao"></div>
+
+<script>
+// Vỏ app chỉ làm đúng ba việc: nhớ địa chỉ máy chủ, thử xem có nối được không,
+// rồi giao màn hình cho máy chủ. Mọi nghiệp vụ nằm trên máy chủ (spec §3).
+//
+// VÌ SAO PING TRƯỚC KHI CHUYỂN: mất wifi mà chuyển thẳng thì người dùng nhìn
+// thấy trang lỗi của Chrome, không có đường nào quay lại màn này để đổi máy chủ.
+// Ping trước thì lỗi mạng hiện ở đây, kèm nút Thử lại và nút Đổi máy chủ.
+(function () {
+	var KHOA = "pda_may_chu";
+	var MAC_DINH = "http://192.168.61.129:8003";
+	var bao = document.getElementById("bao");
+	// Địa chỉ của lần thử gần nhất — để nút "Thử lại" gọi lại ĐÚNG địa chỉ vừa
+	// thất bại, không cần người dùng gõ lại hay vòng qua màn khai địa chỉ.
+	var u_gan_nhat = null;
+
+	function chuan_hoa(u) {
+		u = (u || "").trim().replace(/\/+$/, "");
+		if (!u) return "";
+		if (!/^https?:\/\//i.test(u)) u = "http://" + u;
+		return u;
+	}
+
+	function hien_khai(gia_tri) {
+		document.getElementById("dang-noi").hidden = true;
+		document.getElementById("khai").hidden = false;
+		document.getElementById("dia-chi").value = gia_tri || MAC_DINH;
+	}
+
+	function ping(u) {
+		return new Promise(function (xong) {
+			var bo = new AbortController();
+			var hen = setTimeout(function () { bo.abort(); }, 6000);
+			// VÌ SAO "no-cors": vỏ app chạy ở nguồn https://localhost (Capacitor
+			// androidScheme: "https"), còn máy chủ Frappe là một nguồn khác (khác
+			// scheme/host/port) — đây là request khác nguồn (cross-origin). Site không bật
+			// allow_cors (quyết định của chủ đầu tư: không nới an ninh CORS cho toàn hệ
+			// thống chỉ để phục vụ một phép thử kết nối), nên phản hồi không có header
+			// Access-Control-Allow-Origin. Với fetch() chế độ mặc định ("cors"), thiếu
+			// header đó khiến trình duyệt/WebView coi phản hồi là lỗi và tự reject promise —
+			// ping sẽ LUÔN báo "không nối được" dù máy chủ đang chạy tốt (đã kiểm thật bằng
+			// curl: máy chủ trả 200 OK nhưng không có header CORS).
+			//
+			// "no-cors" tắt yêu cầu đó: request vẫn thật sự được gửi và máy chủ vẫn thật sự
+			// trả lời, NHƯNG JS không còn được phép đọc nội dung/mã trạng thái của phản hồi —
+			// phản hồi trả về là "đục" (r.type === "opaque", r.ok LUÔN là false bất kể máy
+			// chủ trả 200 hay 500). Đây không phải thiếu sót: vì vậy hàm này KHÔNG kiểm r.ok
+			// nữa — nếu giữ điều kiện đó thì mọi ping sẽ lại báo "không nối được" như cũ,
+			// quay lại đúng cái bẫy vừa thoát. Chỉ còn suy luận gián tiếp qua vòng đời của
+			// fetch(): HOÀN TẤT (dù không đọc được gì) nghĩa là có thứ gì đó trả lời tại địa
+			// chỉ này; NÉM LỖI (mất mạng, sai địa chỉ, hoặc quá 6 giây) nghĩa là không nối
+			// được.
+			//
+			// GIỚI HẠN đã biết: cách này chỉ biết "có thứ gì đó trả lời ở địa chỉ này", không
+			// phân biệt được đó có đúng là máy chủ Frappe của Miyano hay không (gõ nhầm sang
+			// một máy chủ HTTP khác cùng mạng nội bộ vẫn coi là "nối được"). Chấp nhận được:
+			// sai địa chỉ thì bước sau — nạp thẳng "<máy chủ>/pda" — sẽ lộ ra ngay.
+			fetch(u + "/api/method/ping", { mode: "no-cors", signal: bo.signal, credentials: "omit" })
+				.then(function () { clearTimeout(hen); xong(true); })
+				.catch(function () { clearTimeout(hen); xong(false); });
+		});
+	}
+
+	function di(u) {
+		window.location.href = u + "/pda";
+	}
+
+	function thu(u, tu_dong) {
+		u_gan_nhat = u;
+		bao.className = "bao";
+		bao.textContent = "Đang nối " + u + " …";
+		// Đường tự động (mở app đã có địa chỉ lưu sẵn) không bao giờ hiện #khai nên
+		// không cần ẩn. Đường bấm tay ("Kiểm tra & lưu") thì đang đứng ở #khai —
+		// phải ẩn nó đi ở đây, không chỉ hiện #dang-noi, nếu không hai khối chồng
+		// lên nhau suốt lúc đang ping và lúc ping hỏng.
+		document.getElementById("khai").hidden = true;
+		document.getElementById("dang-noi").hidden = false;
+		document.getElementById("chu-noi").textContent = "Máy chủ: " + u;
+		ping(u).then(function (duoc) {
+			if (duoc) {
+				localStorage.setItem(KHOA, u);
+				di(u);
+				return;
+			}
+			bao.className = "bao loi";
+			// BA nguyên nhân có thể, không phải chỉ wifi (xem mục 2 đợt sửa cuối app PDA):
+			// (1) gõ sai địa chỉ máy chủ; (2) máy PDA mất wifi/mất mạng nội bộ;
+			// (3) địa chỉ đúng nhưng chạy HTTP và CHƯA được khai ngoại lệ trong
+			// `network_security_config.xml` — trường hợp này Android chặn ở tầng mạng
+			// trước khi app kịp phân biệt, nên KHÔNG tự đoán được nguyên nhân nào trong
+			// ba cái — chỉ liệt kê đủ cả ba để người đọc không chỉ mất công kiểm wifi.
+			//
+			// CÂU GỢI Ý HÀNH ĐỘNG PHẢI KHỚP MÀN HÌNH THẬT SỰ HIỆN RA, không phải màn hình
+			// đang đứng lúc gọi hàm này: đường tự động (`tu_dong`, mở app đã có địa chỉ lưu
+			// sẵn) gọi `hien_khai(u)` NGAY SAU đoạn này, chuyển hẳn sang màn #khai (chỉ có ô
+			// nhập địa chỉ + nút "Kiểm tra & lưu" — ĐÚNG như tài liệu HDSD mục 7 đã ghim: màn
+			// đó "không có nút Đổi máy chủ"). Đường bấm tay (`Kiểm tra & lưu`) thì màn #dang-noi
+			// (có cả "Thử lại" và "Đổi máy chủ") vẫn đứng nguyên. Nhắc tên nút KHÔNG có mặt trên
+			// màn là chỉ đường vào hư không — vừa hỏng vừa lệch tài liệu.
+			var goi_y = tu_dong
+				? "Kiểm tra lại địa chỉ rồi bấm Kiểm tra & lưu."
+				: "Bấm Thử lại, hoặc Đổi máy chủ nếu địa chỉ sai.";
+			bao.textContent = "Không nối được máy chủ. Có thể do: sai địa chỉ máy chủ, "
+				+ "mất wifi/mạng nội bộ, hoặc địa chỉ này chưa được kỹ thuật khai trong "
+				+ "network_security_config.xml. " + goi_y;
+			if (tu_dong) hien_khai(u);
+		});
+	}
+
+	document.getElementById("luu").addEventListener("click", function () {
+		var u = chuan_hoa(document.getElementById("dia-chi").value);
+		if (!u) { bao.className = "bao loi"; bao.textContent = "Chưa nhập địa chỉ."; return; }
+		thu(u, false);
+	});
+	document.getElementById("thu-lai").addEventListener("click", function () {
+		thu(u_gan_nhat || localStorage.getItem(KHOA) || MAC_DINH, true);
+	});
+	document.getElementById("doi").addEventListener("click", function () {
+		hien_khai(localStorage.getItem(KHOA) || MAC_DINH);
+	});
+
+	var da_luu = localStorage.getItem(KHOA);
+	if (da_luu) thu(da_luu, true);
+	else hien_khai(MAC_DINH);
+})();
+</script>
+</body>
+</html>

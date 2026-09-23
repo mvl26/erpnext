@@ -504,3 +504,115 @@ class TestNoiLuongNhapKho(FrappeTestCase):
 		for tuong_doi in (DUONG_DAN_JS_PHIEU_XEP, DUONG_DAN_JS_PHIEU_NHAP_LO, DUONG_DAN_JS_LO):
 			duong_dan = frappe.get_app_path("erpnext", *tuong_doi.split("/"))
 			self.assertTrue(os.path.exists(duong_dan), f"thiếu file {duong_dan}")
+
+
+DUONG_DAN_JS_THE_PDA = "warehouse_operations/doctype/pda_badge/pda_badge.js"
+
+
+class TestNutThePda(FrappeTestCase):
+	"""Nút cấp/in thẻ PDA. Hỏng theo kiểu im lặng: đổi tên hàm máy chủ thì nút vẫn
+	vẽ ra, bấm mới biết; nên khoá cả đường gọi lẫn việc nó còn `@frappe.whitelist`."""
+
+	def _ma_js(self):
+		with open(frappe.get_app_path("erpnext", *DUONG_DAN_JS_THE_PDA.split("/")), encoding="utf-8") as f:
+			return f.read()
+
+	def test_file_js_co_that(self):
+		duong_dan = frappe.get_app_path("erpnext", *DUONG_DAN_JS_THE_PDA.split("/"))
+		self.assertTrue(os.path.exists(duong_dan), f"thiếu file {duong_dan}")
+
+	def test_co_hai_nhan_nut(self):
+		ma = self._ma_js()
+		self.assertIn("Cấp thẻ & in", ma)
+		self.assertIn("Thu hồi thẻ", ma)
+
+	def test_duong_goi_may_chu_co_that_va_duoc_whitelist(self):
+		import re
+
+		duong = set(re.findall(r"erpnext\.warehouse_operations\.vitri\.the_pda\.\w+", self._ma_js()))
+		self.assertTrue(duong, "JS không còn gọi `the_pda` — mất đường cấp thẻ.")
+		for d in duong:
+			self.assertIn(frappe.get_attr(d), frappe.whitelisted, f"{d} mất @frappe.whitelist()")
+
+
+class TestTrangPdaHome(FrappeTestCase):
+	"""Menu của app PDA. Trang trỏ sai route thì Frappe vẫn dựng trang, bấm vào ra
+	trang trắng — đúng hạng hỏng im lặng cả file này sinh ra để bắt."""
+
+	def test_trang_ton_tai_thuoc_module(self):
+		self.assertEqual(frappe.db.get_value("Page", "pda-home", "module"), TEN_MODULE)
+
+	def test_dung_ba_vai_tro_kho(self):
+		vai_tro = set(frappe.get_all("Has Role", {"parent": "pda-home", "parenttype": "Page"}, pluck="role"))
+		self.assertEqual(vai_tro, {"System Manager", "Stock Manager", "Stock User"})
+
+	def test_bon_route_trong_menu_deu_co_that(self):
+		import re
+
+		duong_dan = frappe.get_app_path(
+			"erpnext", "warehouse_operations", "page", "pda_home", "pda_home.js"
+		)
+		with open(duong_dan, encoding="utf-8") as f:
+			ma_js = f.read()
+		route = set(re.findall(r'route:\s*"([a-z0-9-]+)"', ma_js))
+		self.assertEqual(
+			route, {"xep-hang-pda", "lay-hang-pda", "quet-ma-tra-cuu", "dat-o-hang-loat"}
+		)
+		for r in route:
+			self.assertTrue(frappe.db.exists("Page", r), f"route {r} không có Page nào")
+
+
+class TestTrangQuetThePda(FrappeTestCase):
+	"""`/pda` — cửa vào DUY NHẤT của toàn bộ app PDA, và là trang WEBSITE mở cho khách
+	(chưa đăng nhập). Mất trang này là mất cả app, mà tới đợt sửa cuối (23/09/2026) chưa
+	có bài test nào canh nó — đúng lỗ hổng mục 6 của đợt sửa cuối vá.
+
+	Ba kiểu hỏng im lặng bắt ở đây: (1) thiếu file thì `/pda` ra 404, không lỗi máy chủ nào
+	khác; (2) `pda.html` gọi sai tên hàm máy chủ thì súng quét bắn mã, JS gọi `fetch` tới một
+	đường không tồn tại, không có gì báo ngoài "không nối được"; (3) hàm mất
+	`@frappe.whitelist` thì mọi lần quét đều bị Frappe chặn ở tầng permission trước khi chạm
+	tới logic nghiệp vụ, lại đúng kiểu lỗi im lặng từ phía súng quét."""
+
+	DUONG_DANG_NHAP = "erpnext.warehouse_operations.vitri.the_pda.dang_nhap_bang_the"
+
+	def test_hai_file_pda_ton_tai(self):
+		for ten in ("pda.py", "pda.html"):
+			duong_dan = frappe.get_app_path("erpnext", "www", ten)
+			self.assertTrue(os.path.exists(duong_dan), f"thiếu file {duong_dan}")
+
+	def test_pda_html_goi_dung_duong_dang_nhap_va_ham_con_whitelist(self):
+		duong_dan = frappe.get_app_path("erpnext", "www", "pda.html")
+		with open(duong_dan, encoding="utf-8") as f:
+			html = f.read()
+		self.assertIn(
+			self.DUONG_DANG_NHAP,
+			html,
+			f"pda.html không còn gọi đúng {self.DUONG_DANG_NHAP} — súng quét bắn mã vào hư không",
+		)
+		ham = frappe.get_attr(self.DUONG_DANG_NHAP)
+		self.assertIn(
+			ham, frappe.whitelisted, f"{self.DUONG_DANG_NHAP} mất @frappe.whitelist() — mọi lần quét bị chặn"
+		)
+
+	def test_pda_py_khong_cache(self):
+		import erpnext.www.pda as trang_pda
+
+		self.assertEqual(
+			getattr(trang_pda, "no_cache", None),
+			1,
+			"thiếu `no_cache = 1` thì trang có thể bị cache lại phiên bản cũ/của người khác",
+		)
+
+	def test_pda_py_dieu_huong_nguoi_da_dang_nhap_sang_pda_home(self):
+		"""Đi đúng đường trình duyệt đi (gọi thẳng `get_context`), không chỉ đọc mã nguồn:
+		người ĐÃ đăng nhập mở `/pda` phải bị đá thẳng sang `/app/pda-home`, không phải thấy
+		lại màn quét thẻ — quét thẻ hai lần khi đã có phiên là một trải nghiệm vô nghĩa."""
+		import erpnext.www.pda as trang_pda
+
+		frappe.set_user("Administrator")
+		try:
+			with self.assertRaises(frappe.Redirect):
+				trang_pda.get_context({})
+			self.assertEqual(frappe.local.flags.redirect_location, "/app/pda-home")
+		finally:
+			frappe.local.flags.redirect_location = None
