@@ -184,7 +184,7 @@ Từ đơn bán → **Create → Delivery Note**.
 | | Chọn **LÔ** nào | Trong lô đó, lấy ở **Ô** nào |
 |---|---|---|
 | Ai quyết | ERPNext gốc | phần vị trí của Miyano |
-| Theo quy tắc | cấu hình `Stock Settings` → hiện đang để **FIFO** (lô tạo trước đi trước) | **hạn dùng gần nhất trước**, cùng hạn thì theo thứ tự lấy hàng của ô |
+| Theo quy tắc | cấu hình `Stock Settings` → từ 22/09/2026 để **Expiry** (lô hết hạn sớm nhất đi trước; trước đó là FIFO) | **hạn dùng gần nhất trước**, cùng hạn thì theo thứ tự lấy hàng của ô |
 | Người dùng thấy ở đâu | ô **Số lô** trên từng dòng phiếu giao | **không thấy trước** — xem lại sau khi duyệt (bên dưới) |
 
 **Việc phải làm khi lập phiếu giao:**
@@ -195,8 +195,9 @@ Từ đơn bán → **Create → Delivery Note**.
    sửa số lượng cho khớp. Không tách thì lúc duyệt hệ báo *"Batch No … has negative stock"* —
    đúng lỗi gặp trong lần chạy thật khi để nguyên một dòng 50 Hộp. Từ trang **Lấy hàng** (bên
    dưới), việc tách dòng này KHÔNG cần làm tay nữa — xem mục "Lấy hàng trên PDA".
-3. Không thao tác qua trang Lấy hàng thì mới cần tách dòng tay rồi **Submit thẳng trên form** —
-   hệ vẫn tự trừ theo ô lúc đó (theo FEFO, mục 6.2 tài liệu *HDSD quản lý vị trí kho*).
+3. **Từ 22/09/2026 phải lấy hàng trước khi duyệt**: dòng ở kho quản lý vị trí chưa lấy (quét lô,
+   quét ô) đủ, hoặc còn kiện chưa in tem, thì **Submit bị chặn**. Đường "Submit thẳng rồi hệ tự
+   trừ theo FEFO" chỉ còn cho dòng không quét được (dịch vụ, kho không quản lý vị trí).
 
 *Lần chạy thật `MAT-DN-2026-00055`: tách dòng 1 = 20 Hộp lô `GT-M-2601-B` (hạn 31/12/2026, đi
 trước), dòng 2 = 30 Hộp lô `GT-M-2606-A`. Sổ vị trí ghi −20 và −30 ở ô `1A01020201`; còn lại 10
@@ -226,8 +227,21 @@ xác nhận từng thùng đã lấy:
 | Bảng **Phân bổ vị trí** dưới bảng hàng | Từng lượt quét: ô, lô, số lượng, người lấy, lúc lấy. |
 | Tab **Connections → Vị trí kho → Sổ vị trí** | Sau khi duyệt: các dòng sổ vị trí của phiếu (ô nào bị trừ bao nhiêu, lô nào). |
 
-Chi tiết từng bước, kể cả chốt thiếu và cách gỡ phân bổ khi cần duyệt thẳng trên form: xem mục
-**14 "Lấy hàng (trên PDA)"** của tài liệu `HDSD-quan-ly-vi-tri-kho.md`.
+### Lấy trên máy tính, đổi đơn vị, in tem kiện (từ 22/09/2026)
+
+- Nút **Lấy hàng** trên form mở **hộp thoại lấy hàng** — quét lô, quét ô, chọn **đơn vị** (Cái,
+  Hộp, Thùng… theo quy đổi khai trên mặt hàng), số lượng, **số kiện** → Ghi. PDA có cùng hàng nút
+  đơn vị và số kiện.
+- Nút **In tem kiện**: mỗi kiện một tem 50×30 (hàng, lô, HSD, số lượng trong kiện, tên khách, số
+  phiếu, *Kiện i/N*). Thanh **Lấy hàng** trên form hiện *"x/y kiện đã in tem"*.
+- **Duyệt chỉ qua được khi lấy đủ và in đủ tem kiện.**
+
+*Lần chạy thật 22/09/2026 (dữ liệu thử, đã hoàn nguyên): phiếu 6 Hộp, lô tự điền lô hạn gần nhất;
+máy tính lấy 5 Hộp (5 kiện) + 20 Cái, PDA lấy nốt 80 Cái; Submit bị chặn "Còn 7/7 kiện chưa in
+tem"; in 7 tem rồi duyệt được; sổ vị trí trừ 600 Cái ở đúng ô đã quét.*
+
+Chi tiết từng bước, kể cả chốt thiếu, đơn vị và tem kiện: xem mục **14 "Lấy hàng"** (14.8, 14.9)
+của tài liệu `HDSD-quan-ly-vi-tri-kho.md`.
 
 ![Hộp xác nhận Hoàn tất trên trang Lấy hàng](anh-luong/lay-hang-04-xac-nhan-hoan-tat.png)
 

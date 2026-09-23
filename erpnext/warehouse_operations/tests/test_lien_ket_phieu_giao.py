@@ -27,6 +27,7 @@ from erpnext.warehouse_operations.tests.test_lay_hang import (
 	_phieu_giao,
 	_vat_tu,
 	_vat_tu_dich_vu,
+	bo_bat_buoc_lay_hang,
 )
 
 COT = "custom_vi_tri_lay"
@@ -42,6 +43,9 @@ def _cot(dn_name, idx=1):
 
 class TestCotViTriLay(FrappeTestCase):
 	def setUp(self):
+		# Bài về sổ/phân bổ/FEFO, không về luật bắt buộc lấy hàng + tem kiện
+		# (luật đó có bộ riêng: `test_lay_hang_don_vi.TestChanDuyet`).
+		self.enterContext(bo_bat_buoc_lay_hang())
 		from erpnext.warehouse_operations.vitri.lay_hang import _khoa_chot_thieu
 
 		frappe.set_user("Administrator")
@@ -153,6 +157,9 @@ class TestCotViTriLay(FrappeTestCase):
 
 class TestCotDongDichVu(FrappeTestCase):
 	def setUp(self):
+		# Bài về sổ/phân bổ/FEFO, không về luật bắt buộc lấy hàng + tem kiện
+		# (luật đó có bộ riêng: `test_lay_hang_don_vi.TestChanDuyet`).
+		self.enterContext(bo_bat_buoc_lay_hang())
 		frappe.set_user("Administrator")
 		frappe.db.savepoint(DIEM_TEST)
 		_vat_tu()
@@ -194,6 +201,9 @@ class TestCotDongDichVu(FrappeTestCase):
 
 class TestTienDoLayHang(FrappeTestCase):
 	def setUp(self):
+		# Bài về sổ/phân bổ/FEFO, không về luật bắt buộc lấy hàng + tem kiện
+		# (luật đó có bộ riêng: `test_lay_hang_don_vi.TestChanDuyet`).
+		self.enterContext(bo_bat_buoc_lay_hang())
 		from erpnext.warehouse_operations.vitri.lay_hang import _khoa_chot_thieu
 
 		frappe.set_user("Administrator")
@@ -276,6 +286,9 @@ class TestTienDoLayHang(FrappeTestCase):
 
 class TestConnectionsViTriKho(FrappeTestCase):
 	def setUp(self):
+		# Bài về sổ/phân bổ/FEFO, không về luật bắt buộc lấy hàng + tem kiện
+		# (luật đó có bộ riêng: `test_lay_hang_don_vi.TestChanDuyet`).
+		self.enterContext(bo_bat_buoc_lay_hang())
 		frappe.set_user("Administrator")
 		frappe.db.savepoint(DIEM_TEST)
 		_vat_tu()

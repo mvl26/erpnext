@@ -494,6 +494,7 @@ doc_events = {
 	# chỉ chặn khi hóa đơn đã thật sự tiêu số, và nói rõ vì sao.
 	"Delivery Note": {
 		"validate": "erpnext.warehouse_operations.vitri.lay_hang.kiem_phan_bo_khi_luu",
+		"before_submit": "erpnext.warehouse_operations.vitri.lay_hang.chan_duyet_chua_lay",
 		"on_submit": "erpnext.warehouse_operations.vitri.lay_hang.ghi_cot_vi_tri_khi_duyet",
 		"before_cancel": "erpnext.einvoice.builder.before_delivery_note_cancel",
 		"on_cancel": "erpnext.einvoice.builder.on_delivery_note_cancel",

@@ -257,6 +257,54 @@
 	line-height: 1;
 }
 
+.lh-kien-cong-tru {
+	width: 52px;
+	height: 52px;
+	flex: none;
+	border: 0;
+	border-radius: 12px;
+	background: var(--control-bg);
+	color: var(--text-color);
+	font-size: 26px;
+	font-weight: 600;
+	line-height: 1;
+}
+
+.lh-so-kien {
+	flex: 1;
+	text-align: center;
+	font-size: 22px;
+	font-weight: 700;
+}
+
+/* Nút đơn vị (22/09/2026): chạm được bằng ngón cái — cao 44px như các nút khác. */
+.lh-chon-don-vi-ds {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.lh-chon-don-vi {
+	min-height: 44px;
+	padding: 6px 14px;
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	background: var(--control-bg);
+	color: var(--text-color);
+	font-weight: 600;
+}
+
+.lh-chon-don-vi small {
+	font-weight: 400;
+	opacity: 0.8;
+}
+
+.lh-chon-don-vi.dang-chon {
+	background: var(--primary);
+	border-color: var(--primary);
+	color: var(--white, #fff);
+}
+
 .lh-so-luong {
 	flex: 1;
 	min-width: 0;
@@ -482,6 +530,18 @@
 	padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
 	background: var(--bg-color);
 	border-top: 1px solid var(--border-color);
+}
+
+.lh-trang-thai-tem {
+	max-width: 560px;
+	margin: 0 auto 8px;
+	text-align: center;
+	font-size: 13px;
+}
+
+.lh-trang-thai-tem.thieu {
+	color: var(--orange-600, #c05621);
+	font-weight: 600;
 }
 
 .lh-hoan-tat {

@@ -1070,7 +1070,7 @@ bấm **Xếp hàng vào ô** đầu trang **Vị trí kho**.
 
 ---
 
-## 14. Lấy hàng (trên PDA)
+## 14. Lấy hàng (PDA và máy tính)
 
 Trang để **cầm PDA đi lấy hàng giao khách**: mở đúng phiếu giao, quét tem lô trên thùng, quét tem
 ô nơi lấy — hệ ghi lại **đúng ô đã lấy**, không tự đoán theo hạn dùng như trước. Vào từ ô bấm
@@ -1168,14 +1168,15 @@ nhiêu, không cố quét cho đủ số không có:
 
 ![Đã duyệt — sổ vị trí đã trừ đúng các ô vừa quét](anh-luong/lay-hang-05-da-duyet.png)
 
-### 14.6 Phiếu có phân bổ dở dang mà duyệt thẳng trên máy tính
+### 14.6 Bấm Submit thẳng trên form khi chưa lấy xong
 
-Một phiếu đang quét dở (có bảng phân bổ nhưng chưa đủ số lượng dòng) mà bấm **Submit** thẳng trên
-form Phiếu giao hàng ở máy tính — **KHÔNG qua trang Lấy hàng** — sẽ **bị chặn lúc ghi sổ**, phiếu
-tự trở lại nháp (không kẹt ở trạng thái nửa vời). Bảng phân bổ hiện **chỉ đọc** trên form (không
-tự xoá dòng ở đó được), nên đường thoát là quay lại trang **Lấy hàng**: bỏ bớt lượt bằng nút **×**
-cạnh mỗi lượt đã lấy nếu cần sửa, hoặc quét cho đủ / bấm **Chốt thiếu** cho dòng còn thiếu rồi bấm
-**Hoàn tất phiếu** đúng cách — đừng Submit thẳng trên form.
+Từ 22/09/2026, **mọi** đường duyệt phiếu giao (nút **Submit** trên form, **Hoàn tất** trên PDA hay
+trong hộp thoại) đều bị chặn nếu dòng ở kho quản lý vị trí **chưa lấy đủ** hoặc **còn kiện chưa in
+tem** (mục 14.8). Câu báo nói đúng dòng nào, thiếu gì. Phiếu vẫn ở trạng thái nháp.
+
+Dòng đã **chốt thiếu** mà bấm Submit trên form cũng bị chặn: chỉ **Hoàn tất** (PDA hoặc hộp thoại)
+mới hạ số lượng dòng xuống đúng số đã lấy trước khi duyệt. Bảng phân bổ hiện **chỉ đọc** trên form;
+muốn sửa lượt đã lấy thì bỏ lượt bằng nút **×** trên màn hình lấy hàng.
 
 ### 14.7 Những điều cần biết
 
@@ -1191,6 +1192,49 @@ cạnh mỗi lượt đã lấy nếu cần sửa, hoặc quét cho đủ / bấ
   không cần quét", và không tính vào điều kiện Hoàn tất.
 - Mặt hàng **không quản lý lô** thì quét **mã hàng** thay cho tem lô ở bước ①; các bước còn lại
   giống hệt.
+
+### 14.8 Đơn vị lấy, số kiện, tem kiện (từ 22/09/2026)
+
+**Lấy theo đơn vị nào cũng được** — mọi đơn vị khai trong bảng quy đổi của mặt hàng (*Item › UOMs*),
+ví dụ tồn theo Cái, khai 1 Hộp = 100 Cái, 1 Thùng = 2.000 Cái. Sổ vị trí luôn trừ theo **đơn vị
+tồn** (Cái): lấy 5 Hộp là trừ 500 Cái ở ô đó.
+
+- Trên **PDA**: sau khi quét lô, hàng nút **Đơn vị** hiện ra (mặc định đơn vị của dòng phiếu
+  giao). Chạm đơn vị khác thì số lượng tự đổi theo phần còn thiếu — đơn vị đóng gói lấy **phần
+  nguyên** (còn 580 Cái → gợi ý 5 Hộp), phần lẻ lấy tiếp bằng Cái. Dòng *"Nên lấy lô …"* hiện lô
+  hết hạn sớm nhất còn trong kho, kèm cảnh báo nếu lô trên phiếu hết hạn **muộn hơn**.
+- **Số kiện (số tem)**: mặc định mỗi Hộp/Thùng là một kiện (5 Hộp → 5 kiện), lấy theo Cái là một
+  kiện. Sửa bằng − / + (ví dụ 300 Cái chia 3 túi → 3 kiện).
+- Dòng bán theo Hộp mà chốt thiếu thì số thực lấy phải **tròn Hộp** nếu đơn vị Hộp khai "phải là
+  số nguyên" (*UOM › Must be Whole Number*) — lấy thêm hoặc bỏ bớt cho tròn.
+
+![PDA: chọn đơn vị, số lượng, số kiện](anh-luong/lay-hang-07-pda-chon-don-vi.png)
+
+**Tem kiện — mỗi kiện một tem.** Máy in tem nối với máy tính, nên in ở **form phiếu giao** (nút
+**In tem kiện**) hoặc trong **hộp thoại Lấy hàng**. Tem cùng khổ 50×30 với tem lô: mã và tên hàng,
+số lượng trong kiện (*1 Hộp*, *80 Cái*), HSD, lô, **tên khách**, số phiếu giao, số kiện **i/N**
+chữ to (đánh số trên cả phiếu cho mỗi mặt hàng + lô), mã vạch = số lô. Lần bấm sau chỉ in các kiện
+**chưa in**; in đủ rồi thì nút đổi thành **In lại tem kiện** (in lại cả phiếu, cả khi phiếu đã
+duyệt — tem rách, mất). PDA chỉ hiện *"x/y kiện đã in tem"*.
+
+![Tem kiện: 5 kiện 1 Hộp, một kiện 20 Cái, một kiện 80 Cái](anh-luong/lay-hang-08-tem-kien.png)
+
+> Hai lượt cùng ô, cùng lô, cùng đơn vị chỉ **gộp** khi mỗi kiện chứa cùng số lượng (2 Hộp + 1
+> Hộp). 20 Cái rồi 80 Cái là hai kiện khác nhau → hai lượt, hai tem.
+
+### 14.9 Lấy hàng trên máy tính (hộp thoại trên form phiếu giao)
+
+Ở bàn đóng gói có súng quét USB: mở phiếu giao nháp → nút **Lấy hàng** (nút **Lấy hàng trên PDA**
+vẫn còn). Hộp thoại dùng **cùng luật** với PDA:
+
+1. Quét tem **lô** → hệ chọn dòng, điền đơn vị + số lượng + số kiện mặc định.
+2. Quét tem **ô** nơi lấy → con trỏ nhảy vào ô số lượng.
+3. Sửa đơn vị / số lượng / số kiện nếu cần → **Ghi** (hoặc Enter ở ô số).
+4. Bảng dưới hiện từng dòng: đã lấy/cần (theo đơn vị của dòng và đơn vị tồn), lô nên lấy, ô nên
+   lấy, các lượt đã lấy (nút **×** để bỏ), nút **Chốt thiếu**.
+5. **In tem kiện** → dán tem → **Hoàn tất (duyệt)**.
+
+![Hộp thoại Lấy hàng trên máy tính: 5 Hộp (5 kiện) + 20 Cái (1 kiện)](anh-luong/lay-hang-06-hop-thoai-may-tinh.png)
 
 ---
 
