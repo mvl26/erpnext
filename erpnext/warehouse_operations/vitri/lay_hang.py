@@ -23,6 +23,12 @@ _SAI_SO = 1e-9
 
 TEN_BANG_PHAN_BO = "custom_phan_bo_vi_tri"
 
+# Cờ TRONG TIẾN TRÌNH (không đặt được qua HTTP) bỏ luật "bắt buộc lấy hàng + in tem
+# kiện trước khi duyệt" (`chan_duyet_chua_lay`). CHỈ bộ test dùng, để dựng các bài
+# không nói về luật đó (FEFO tự trừ, cột vị trí…). Không đoạn mã nghiệp vụ nào được
+# đặt cờ này — đặt là mở cửa sau cho đúng thứ chủ đầu tư cấm (22/09/2026).
+CO_BO_BAT_BUOC = "vi_tri_kho_bo_bat_buoc_lay_hang"
+
 # Chỉ phiếu giao có giao diện phân bổ (spec §2). Các chứng từ khác vẫn đi đường
 # cũ — hằng số ở đây để nơi đọc không phải đoán, và để mở rộng sau này là sửa
 # đúng một chỗ.
@@ -241,6 +247,64 @@ def ghi_cot_vi_tri_khi_duyet(doc, method=None) -> None:
 		_dat_cot(d, _chuoi_vi_tri(theo_dong.get(d.name, [])), ghi_db=True)
 
 
+def chan_duyet_chua_lay(doc, method=None) -> None:
+	"""`doc_events` before_submit của Delivery Note: BẮT BUỘC lấy hàng + in tem kiện.
+
+	Chủ đầu tư 22/09/2026 chốt "Bắt buộc" và "Chặn duyệt": dòng ở kho quản lý vị
+	trí phải được lấy (quét lô, quét ô) đủ số theo đơn vị tồn, và mọi kiện đã lấy
+	phải có tem, thì mới duyệt được. Đường FEFO tự trừ khi duyệt thẳng vì thế
+	không còn chạm tới dòng quét được; nó vẫn phục vụ chứng từ khác và dòng không
+	quét được (`hook_sle`).
+
+	Một chỗ chặn cho MỌI đường duyệt — nút Submit trên form, `hoan_tat` của PDA
+	và hộp thoại lấy hàng (cùng đi qua `doc.submit()`). `hoan_tat` hạ số lượng dòng
+	chốt thiếu TRƯỚC khi submit, nên ở đây chỉ cần so "đã lấy = cần".
+
+	Bỏ qua: phiếu trả hàng (`is_return` — hàng vào, không lấy), và cờ trong tiến
+	trình `CO_BO_BAT_BUOC` dành cho test dựng dữ liệu (`frappe.flags` sống theo
+	request, không đặt được qua HTTP).
+	"""
+	if doc.is_return or frappe.flags.get(CO_BO_BAT_BUOC):
+		return
+	da = _da_lay_theo_dong(doc)
+	thieu = _doc_chot_thieu(doc.name)
+	for d in doc.items:
+		if not _can_quet_dong(d):
+			continue
+		lay = flt(da.get(d.name, 0.0))
+		if abs(lay - _can_ton(d)) <= _SAI_SO:
+			continue
+		if lay <= 0:
+			frappe.throw(
+				_("Dòng {0} ({1}) chưa lấy hàng — bấm Lấy hàng (quét lô, quét ô) trước khi duyệt.").format(
+					d.idx, d.item_code
+				),
+				title=_("Chưa lấy hàng"),
+			)
+		goi_y = (
+			_("Dòng này đã chốt thiếu — bấm Hoàn tất trên màn hình lấy hàng để hạ số lượng.")
+			if d.name in thieu
+			else _("Lấy tiếp, hoặc chốt thiếu rồi bấm Hoàn tất trên màn hình lấy hàng.")
+		)
+		frappe.throw(
+			_("Dòng {0} ({1}) mới lấy {2}/{3} {4}. {5}").format(
+				d.idx, d.item_code, flt(lay, 3), flt(_can_ton(d), 3), d.stock_uom, goi_y
+			),
+			title=_("Chưa lấy đủ hàng"),
+		)
+
+	from erpnext.warehouse_operations.vitri.tem_kien import dem_kien
+
+	da_in, tong = dem_kien(doc)
+	if da_in < tong:
+		frappe.throw(
+			_("Còn {0}/{1} kiện chưa in tem — bấm In tem kiện, dán tem lên hàng rồi duyệt.").format(
+				tong - da_in, tong
+			),
+			title=_("Chưa in đủ tem kiện"),
+		)
+
+
 def kiem_phan_bo_khi_luu(doc, method=None):
 	"""Lớp kiểm SỚM cho phân bổ trên chứng từ (spec §5). Gắn `doc_events` validate.
 
@@ -393,12 +457,12 @@ def kiem_phan_bo_khi_luu(doc, method=None):
 
 	for (dh_ten, _lo), tong in theo_dong.items():
 		dh = dong_hang[dh_ten]
-		if tong > flt(dh.qty) + _SAI_SO:
+		if tong > _can_ton(dh) + _SAI_SO:
 			frappe.throw(
 				_(
 					"Phân bổ vị trí cho {0}: tổng {1} vượt số lượng {2} của dòng hàng. Bỏ bớt dòng "
 					"phân bổ hoặc sửa số lượng trên phiếu."
-				).format(dh.item_code, flt(tong, 3), flt(dh.qty, 3))
+				).format(dh.item_code, flt(tong, 3), flt(_can_ton(dh), 3))
 			)
 
 
@@ -409,6 +473,62 @@ def kiem_phan_bo_khi_luu(doc, method=None):
 # cần lấy bao nhiêu và nên tới ô nào, và nhận diện một mã quét. Ba hàm dưới
 # đây không ghi gì cả — ghi bảng `custom_phan_bo_vi_tri` là việc của Task 5.
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Đơn vị (22/09/2026 — chủ đầu tư: "chuyển đổi linh hoạt… thùng 2000 cái nhưng lấy
+# 5 hộp mỗi hộp 100 cái… tùy chuyển đổi đã setup sẵn trong item"). Bảng phân bổ và
+# sổ vị trí đo bằng ĐƠN VỊ TỒN; mọi phép so "đủ / thiếu / vượt" trên dòng phiếu
+# giao phải dùng `_can_ton(d)`, KHÔNG dùng `d.qty` (đơn vị giao dịch của dòng).
+# ---------------------------------------------------------------------------
+
+
+def _can_ton(d) -> float:
+	"""Số lượng CẦN của dòng phiếu giao, theo đơn vị tồn."""
+	return flt(d.get("stock_qty")) or flt(d.qty) * (flt(d.conversion_factor) or 1.0)
+
+
+def _he_so_cua_dong(d) -> float:
+	return flt(d.conversion_factor) or 1.0
+
+
+def _don_vi_chon(vat_tu: str) -> list[dict]:
+	"""Các đơn vị lấy được của mặt hàng: đơn vị tồn (hệ số 1) + mọi quy đổi đã khai."""
+	stock_uom = frappe.get_cached_value("Item", vat_tu, "stock_uom")
+	ds = frappe.get_all(
+		"UOM Conversion Detail",
+		filters={"parent": vat_tu, "parenttype": "Item"},
+		fields=["uom", "conversion_factor"],
+		order_by="conversion_factor asc",
+	)
+	kq = [{"uom": stock_uom, "he_so": 1.0}]
+	kq += [{"uom": x.uom, "he_so": flt(x.conversion_factor)} for x in ds if x.uom != stock_uom]
+	return kq
+
+
+def _he_so_don_vi(vat_tu: str, don_vi: str) -> float:
+	"""Hệ số `don_vi` → đơn vị tồn của `vat_tu`. Không khai thì CHẶN, không đoán 1."""
+	for x in _don_vi_chon(vat_tu):
+		if x["uom"] == don_vi:
+			return x["he_so"]
+	frappe.throw(
+		_("Mặt hàng {0} không khai đơn vị {1} — khai quy đổi trên mặt hàng trước.").format(vat_tu, don_vi)
+	)
+
+
+def _chan_khong_tron(d, qty_moi: float) -> None:
+	"""Đơn vị của dòng buộc số NGUYÊN (`UOM.must_be_whole_number`, vd Hộp) mà số
+	lượng mới của dòng không tròn → chặn, nói rõ. Không tự làm tròn: làm tròn là
+	ghi lên phiếu một số hàng KHÁC số thủ kho thật sự lấy."""
+	if not frappe.get_cached_value("UOM", d.uom, "must_be_whole_number"):
+		return
+	if abs(qty_moi - round(qty_moi)) > 1e-6:
+		frappe.throw(
+			_(
+				"Dòng {0} bán theo {1}: số lấy thực phải tròn {1} (đang {2} {1}). Lấy thêm "
+				"hoặc bỏ bớt cho tròn."
+			).format(d.idx, d.uom, flt(qty_moi, 3))
+		)
 
 
 def _kiem_tra_quyen():
@@ -488,8 +608,8 @@ def _ly_do_khong_quet_dong(d) -> str | None:
 		return _("Kho không quản lý vị trí — lấy tay, không cần quét.")
 	if not frappe.get_cached_value("Item", d.item_code, "is_stock_item"):
 		return _("Mặt hàng không quản lý tồn kho — lấy tay, không cần quét.")
-	if flt(d.conversion_factor) not in (0, 1):
-		return _("Dòng bán theo {0}, lấy tay trên form.").format(d.uom or d.stock_uom or "—")
+	# 22/09/2026: KHÔNG còn chặn dòng bán theo đơn vị khác đơn vị tồn — lấy hàng
+	# giờ đo bằng đơn vị tồn (`_can_ton`) và cho chọn đơn vị lúc lấy.
 	return None
 
 
@@ -601,7 +721,7 @@ def danh_sach_phieu_giao(kho: str | None = None) -> dict:
 					"name": doc.name,
 					"khach_hang": doc.customer_name or doc.customer,
 					"so_dong": len(dong_kho_nay),
-					"can_lay": flt(sum(flt(d.qty) for d in dong_kho_nay)),
+					"can_lay": flt(sum(_can_ton(d) for d in dong_kho_nay)),
 					"da_lay": flt(sum(da.get(d.name, 0.0) for d in dong_kho_nay)),
 					"nguoi_dang_lay": sorted(nguoi - {frappe.session.user}),
 				}
@@ -721,7 +841,7 @@ def mo_phieu_giao(phieu: str) -> dict:
 	for d in doc.items:
 		ly_do_khong_quet = _ly_do_khong_quet_dong(d)
 		can_quet = ly_do_khong_quet is None
-		con_can = flt(d.qty) - da.get(d.name, 0.0)
+		con_can = _can_ton(d) - da.get(d.name, 0.0)
 		goi_y = []
 		thieu_trong_lo = 0.0
 		if can_quet and con_can > 0:
@@ -819,16 +939,38 @@ def mo_phieu_giao(phieu: str) -> dict:
 						frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: mo_phieu_giao goi y loi ({phieu})"))
 						goi_y = []
 		co_chot = da_chot.get(d.name)
+		lo_nen = _lo_nen_lay(d.warehouse, d.item_code) if can_quet else None
+		hsd_dong = frappe.db.get_value("Batch", d.batch_no, "expiry_date") if d.batch_no else None
 		dong.append(
 			{
 				"dong_hang": d.name,
 				"vat_tu": d.item_code,
 				"ten_hang": d.item_name,
-				"don_vi": d.stock_uom or d.uom,
+				# Hai hệ đơn vị: `can_lay`/`da_lay`/`don_vi` theo ĐƠN VỊ CỦA DÒNG (thứ in
+				# trên phiếu), `*_ton` theo đơn vị tồn (thứ sổ trừ). `o_nen_lay` và
+				# `thieu_trong_lo` đo bằng đơn vị tồn.
+				"don_vi": d.uom or d.stock_uom,
+				"don_vi_dong": d.uom or d.stock_uom,
+				"he_so_dong": _he_so_cua_dong(d),
+				"don_vi_ton": d.stock_uom,
+				"can_lay_ton": _can_ton(d),
+				"da_lay_ton": da.get(d.name, 0.0),
+				"don_vi_chon": _don_vi_chon(d.item_code) if can_quet else [],
 				"so_lo": d.batch_no or None,
-				"hsd": frappe.db.get_value("Batch", d.batch_no, "expiry_date") if d.batch_no else None,
+				"hsd": hsd_dong,
+				# Lô NÊN lấy theo hạn dùng (22/09/2026 — chủ đầu tư: "gợi ý lô theo FEFO,
+				# có thể sửa được"). Chỉ GỢI Ý: lô trên phiếu vẫn là lô sẽ lấy, thủ kho
+				# quét lô khác thì đi luồng đổi/tách lô sẵn có.
+				"lo_nen_lay": lo_nen.so_lo if lo_nen else None,
+				"lo_nen_lay_hsd": lo_nen.expiry_date if lo_nen else None,
+				"lo_tren_phieu_muon_hon": bool(
+					lo_nen
+					and d.batch_no
+					and lo_nen.so_lo != d.batch_no
+					and _han_xa_hon(hsd_dong, lo_nen.expiry_date)
+				),
 				"can_lay": flt(d.qty),
-				"da_lay": da.get(d.name, 0.0),
+				"da_lay": flt(da.get(d.name, 0.0) / _he_so_cua_dong(d), 6),
 				"can_quet": can_quet,
 				"ly_do_khong_quet": ly_do_khong_quet,
 				"thieu_trong_lo": thieu_trong_lo,
@@ -844,19 +986,60 @@ def mo_phieu_giao(phieu: str) -> dict:
 					for g in goi_y
 				],
 				"da_lay_o": [
-					{"name": p.name, "o": p.o, "so_luong": flt(p.so_luong)}
+					{
+						"name": p.name,
+						"o": p.o,
+						"ma_in_nhan": frappe.db.get_value("Storage Location", p.o, "ma_in_nhan") or p.o,
+						"so_luong": flt(p.so_luong),
+						"don_vi_lay": p.get("don_vi_lay") or d.stock_uom,
+						"so_luong_lay": flt(p.get("so_luong_lay")) or flt(p.so_luong),
+						"so_kien": cint(p.get("so_kien")) or 1,
+						"so_kien_da_in": cint(p.get("so_kien_da_in")),
+					}
 					for p in (doc.get(TEN_BANG_PHAN_BO) or [])
 					if p.dong_hang == d.name
 				],
 			}
 		)
+	from erpnext.warehouse_operations.vitri.tem_kien import dem_kien
+
+	kien_da_in, tong_kien = dem_kien(doc)
 	return {
 		"name": doc.name,
 		"docstatus": doc.docstatus,
 		"kho": doc.set_warehouse or (doc.items[0].warehouse if doc.items else None),
 		"khach_hang": doc.customer_name or doc.customer,
 		"dong": dong,
+		# Tem kiện (`tem_kien.py`) — màn hình lấy hàng hiện "x/y kiện đã in tem".
+		"so_kien_da_in": kien_da_in,
+		"tong_kien": tong_kien,
 	}
+
+
+def _lo_nen_lay(kho: str, vat_tu: str):
+	"""Lô còn tồn trong kho quản lý vị trí có HSD gần nhất (chưa hết hạn), hoặc None.
+
+	Đọc sổ vị trí (`Location Balance`), không đọc `Bin`: gợi ý phải là lô CÓ THẬT
+	trên kệ để thủ kho đi lấy. Lô không có HSD xếp sau cùng. Mặt hàng không quản lý
+	lô thì không có gì để gợi ý.
+	"""
+	if not frappe.get_cached_value("Item", vat_tu, "has_batch_no"):
+		return None
+	dong = frappe.db.sql(
+		"""
+		select lb.so_lo as so_lo, b.expiry_date as expiry_date
+		from `tabLocation Balance` lb
+		join `tabBatch` b on b.name = lb.so_lo
+		where lb.kho = %(kho)s and lb.vat_tu = %(vt)s and lb.so_luong > 0
+		  and (b.expiry_date is null or b.expiry_date >= curdate())
+		group by lb.so_lo, b.expiry_date
+		order by b.expiry_date is null, b.expiry_date asc, lb.so_lo asc
+		limit 1
+		""",
+		{"kho": kho, "vt": vat_tu},
+		as_dict=True,
+	)
+	return dong[0] if dong else None
 
 
 def _da_het_han(hsd) -> bool:
@@ -920,7 +1103,7 @@ def _chon_dong_ung_vien(ung_vien: list, da_lay: dict, dong_hang: str | None):
 		return next((d for d in ung_vien if d.name == dong_hang), None)
 	if not ung_vien:
 		return None
-	chua_du = [d for d in ung_vien if flt(d.qty) - da_lay.get(d.name, 0.0) > _SAI_SO]
+	chua_du = [d for d in ung_vien if _can_ton(d) - da_lay.get(d.name, 0.0) > _SAI_SO]
 	return (chua_du or ung_vien)[0]
 
 
@@ -1208,7 +1391,14 @@ def _ton_o_con_lai_tren_phieu(doc, o: str, vat_tu: str, so_lo: str | None) -> fl
 
 @frappe.whitelist()
 def ghi_da_lay(
-	phieu: str, dong_hang: str, so_lo: str | None, o: str, so_luong, lay_toi_da_theo_o: int = 0
+	phieu: str,
+	dong_hang: str,
+	so_lo: str | None,
+	o: str,
+	so_luong,
+	lay_toi_da_theo_o: int = 0,
+	don_vi: str | None = None,
+	so_kien=None,
 ) -> dict:
 	"""Ghi một lần quét (lô, ô, số lượng) vào bảng phân bổ và LƯU NGAY.
 
@@ -1243,6 +1433,12 @@ def ghi_da_lay(
 
 	doc = _mo_de_ghi(phieu)
 	d = _dong_cua(doc, dong_hang)
+	# ĐƠN VỊ (22/09/2026): `so_luong` tính theo `don_vi` (mặc định đơn vị của dòng).
+	# Mọi phép kiểm và cột `so_luong` của bảng phân bổ đo bằng ĐƠN VỊ TỒN.
+	don_vi = don_vi or d.uom or d.stock_uom
+	he_so = _he_so_don_vi(d.item_code, don_vi)
+	so_luong_lay = so_luong
+	so_luong = flt(so_luong_lay * he_so)
 	_chan_bundle_serial_batch(d)
 	if (d.batch_no or None) != so_lo:
 		frappe.throw(
@@ -1261,17 +1457,46 @@ def ghi_da_lay(
 		# lượng khác trong file, xem `kiem_phan_bo_khi_luu`).
 		if con_lai > _SAI_SO:
 			so_that_ghi = min(so_luong, con_lai)
+	# Cắt theo ô (nếu có) làm bằng đơn vị tồn; quy ngược về đơn vị lấy để ghi.
+	so_luong_lay = flt(so_that_ghi / he_so, 9)
+
+	# SỐ KIỆN: mặc định mỗi đơn vị "đóng gói" (Hộp, Thùng — hệ số ≠ 1) là một kiện;
+	# lấy theo đơn vị tồn (Cái) là MỘT kiện. Thủ kho sửa được (chia 500 Cái thành 5
+	# kiện). Mỗi kiện một tem (`tem_kien.py`).
+	if so_kien in (None, ""):
+		so_kien = max(1, cint(round(so_luong_lay))) if abs(he_so - 1) > _SAI_SO else 1
+	so_kien = cint(so_kien)
+	if so_kien < 1:
+		frappe.throw(_("Số kiện phải từ 1 trở lên."))
+
+	# Cộng dồn vào lượt cũ chỉ khi CÙNG ô, lô, đơn vị lấy VÀ mỗi kiện chứa CÙNG số
+	# lượng: tem kiện in `so_luong_lay / so_kien`. 2 Hộp + 1 Hộp (mỗi kiện 1 Hộp) gộp
+	# được; 20 Cái + 80 Cái (mỗi lượt một kiện) mà gộp thì thành hai tem "50 Cái",
+	# sai với hai kiện thật — và tem ĐÃ IN của lượt cũ sẽ nói khác kiện đã dán.
+	mot_kien = so_luong_lay / so_kien
+
+	def _cung_kien(p) -> bool:
+		sl_cu = flt(p.get("so_luong_lay")) or flt(p.so_luong)
+		return abs(sl_cu / max(1, cint(p.get("so_kien")) or 1) - mot_kien) <= 1e-6
 
 	trung = next(
 		(
 			p
 			for p in doc.get(TEN_BANG_PHAN_BO) or []
-			if p.dong_hang == dong_hang and (p.so_lo or None) == so_lo and p.o == o
+			if p.dong_hang == dong_hang
+			and (p.so_lo or None) == so_lo
+			and p.o == o
+			and (p.get("don_vi_lay") or d.stock_uom) == don_vi
+			and _cung_kien(p)
 		),
 		None,
 	)
 	if trung:
 		trung.so_luong = flt(trung.so_luong) + so_that_ghi
+		trung.so_luong_lay = flt(trung.get("so_luong_lay")) + so_luong_lay
+		trung.so_kien = cint(trung.get("so_kien")) + so_kien
+		trung.don_vi_lay = don_vi
+		trung.he_so = he_so
 		trung.nguoi_lay = frappe.session.user
 		trung.luc_lay = now()
 	else:
@@ -1283,13 +1508,19 @@ def ghi_da_lay(
 				"so_lo": so_lo,
 				"o": o,
 				"so_luong": so_that_ghi,
+				"don_vi_lay": don_vi,
+				"so_luong_lay": so_luong_lay,
+				"he_so": he_so,
+				"so_kien": so_kien,
+				"so_kien_da_in": 0,
 				"nguoi_lay": frappe.session.user,
 				"luc_lay": now(),
 			},
 		)
 	_luu_hoac_bao_xung_dot(doc)
 	ket_qua = mo_phieu_giao(phieu)
-	ket_qua["so_luong_da_ghi"] = so_that_ghi
+	ket_qua["so_luong_da_ghi"] = so_luong_lay
+	ket_qua["don_vi_da_ghi"] = don_vi
 	return ket_qua
 
 
@@ -1377,8 +1608,12 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 	doc = _mo_de_ghi(phieu)
 	d = _dong_cua(doc, dong_hang)
 	_chan_bundle_serial_batch(d)
+	# Đo bằng ĐƠN VỊ TỒN (22/09/2026): `da` là tổng phân bổ (đơn vị tồn), `qty` của
+	# hai dòng sau tách quy ngược theo hệ số của dòng.
 	da = flt(_da_lay_theo_dong(doc).get(dong_hang, 0.0))
-	con_lai = flt(d.qty) - da
+	con_lai = _can_ton(d) - da
+	conv = _he_so_cua_dong(d)
+	_chan_khong_tron(d, da / conv)
 
 	if da <= _SAI_SO:
 		frappe.throw(
@@ -1389,7 +1624,7 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 	if con_lai <= _SAI_SO:
 		frappe.throw(
 			_("Dòng {0} ({1}) đã lấy đủ {2}, không còn gì để tách.").format(
-				d.idx, d.item_code, flt(d.qty, 3)
+				d.idx, d.item_code, flt(_can_ton(d), 3)
 			)
 		)
 
@@ -1437,7 +1672,7 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 			"base_tax_exclusive_amount",
 		)
 	}
-	moi["qty"] = con_lai
+	moi["qty"] = flt(con_lai / conv, 9)
 	moi["batch_no"] = so_lo_moi
 
 	# Minor 2 (vòng sửa 1/5 Task 6, review điều phối): `total_weight`/
@@ -1449,12 +1684,12 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 	# CẢ hai dòng sau tách — tổng trọng lượng phiếu gần gấp đôi, in sai lên vận
 	# đơn. Tính tay theo đúng công thức client, không suy đoán: không có
 	# `weight_per_unit` thì 0.
-	conv = flt(d.conversion_factor) or 1.0
+	# `da`/`con_lai` đã là đơn vị tồn — trọng lượng = đơn vị tồn × `weight_per_unit`.
 	wpu = flt(d.weight_per_unit)
-	d.total_weight = flt(wpu * da * conv) if wpu else 0.0
-	moi["total_weight"] = flt(wpu * con_lai * conv) if wpu else 0.0
+	d.total_weight = flt(wpu * da) if wpu else 0.0
+	moi["total_weight"] = flt(wpu * con_lai) if wpu else 0.0
 
-	d.qty = da
+	d.qty = flt(da / conv, 9)
 	doc.append("items", moi)
 	_luu_hoac_bao_xung_dot(doc)
 	return mo_phieu_giao(phieu)
@@ -1607,14 +1842,14 @@ def hoan_tat(phieu: str) -> dict:
 			continue
 		so_dong_quan_ly += 1
 		lay = flt(da.get(d.name, 0.0))
-		if abs(lay - flt(d.qty)) <= _SAI_SO:
+		if abs(lay - _can_ton(d)) <= _SAI_SO:
 			continue
 		if d.name not in thieu:
 			frappe.throw(
 				_(
 					"Dòng {0} ({1}) chưa lấy đủ: cần {2}, đã lấy {3}. Quét tiếp, hoặc bấm 'Chốt "
 					"thiếu' cho dòng đó."
-				).format(d.idx, d.item_code, flt(d.qty, 3), flt(lay, 3))
+				).format(d.idx, d.item_code, flt(_can_ton(d), 3), flt(lay, 3))
 			)
 		if lay <= 0:
 			# Important 3 (vòng sửa 1/5 Task 6, review điều phối): câu báo TRƯỚC
@@ -1636,8 +1871,10 @@ def hoan_tat(phieu: str) -> dict:
 		# không có gì để hỏng cả, chặn sớm hơn là cấm oan những phiếu không
 		# đụng gì tới bundle.
 		_chan_bundle_serial_batch(d)
-		lay_thieu.append({"vat_tu": d.item_code, "so_lo": d.batch_no, "thieu": flt(d.qty) - lay})
-		d.qty = lay
+		qty_moi = lay / _he_so_cua_dong(d)
+		_chan_khong_tron(d, qty_moi)
+		lay_thieu.append({"vat_tu": d.item_code, "so_lo": d.batch_no, "thieu": _can_ton(d) - lay})
+		d.qty = flt(qty_moi, 9)
 
 	diem = "vi_tri_kho_hoan_tat_lay_hang"
 	frappe.db.savepoint(diem)
@@ -1723,7 +1960,7 @@ def tien_do_lay_hang(phieu: str) -> dict:
 	so_du = 0
 	so_chot = 0
 	for d in dong_quet:
-		if abs(flt(da.get(d.name, 0.0)) - flt(d.qty)) <= _SAI_SO:
+		if abs(flt(da.get(d.name, 0.0)) - _can_ton(d)) <= _SAI_SO:
 			so_du += 1
 		elif d.name in chot:
 			so_chot += 1
@@ -1741,16 +1978,23 @@ def tien_do_lay_hang(phieu: str) -> dict:
 	else:
 		trang_thai = "dang_lay"
 
+	# Import tại chỗ: `tem_kien` import ngược `lay_hang`.
+	from erpnext.warehouse_operations.vitri.tem_kien import dem_kien
+
+	kien_da_in, tong_kien = dem_kien(doc)
 	return {
 		"trang_thai": trang_thai,
 		"so_dong_quet": len(dong_quet),
 		"so_dong_du": so_du,
 		"so_dong_chot_thieu": so_chot,
 		"so_dong_khong_quet": len(doc.items) - len(dong_quet),
-		# Theo đơn vị giao dịch của dòng — cùng thước đo `can_lay`/`da_lay` trên trang PDA.
-		"tong_can": flt(sum(flt(d.qty) for d in dong_quet)),
+		# Theo ĐƠN VỊ TỒN (22/09/2026): dòng bán theo Hộp mà lấy bằng Cái vẫn cộng được.
+		"tong_can": flt(sum(_can_ton(d) for d in dong_quet)),
 		"tong_da_lay": flt(sum(flt(da.get(d.name, 0.0)) for d in dong_quet)),
 		"nguoi_lay": sorted({p.nguoi_lay for p in bang if p.nguoi_lay}),
+		# Tem kiện (`tem_kien.py`): chưa in đủ thì không duyệt được phiếu.
+		"so_kien_da_in": kien_da_in,
+		"tong_kien": tong_kien,
 		"lay_duoc": bool(
 			doc.docstatus == 0 and dong_quet and VAI_TRO_DUOC_LAY & set(frappe.get_roles())
 		),

@@ -12,7 +12,12 @@ def get_data():
 			"Purchase Receipt": "return_against",
 			"Stock Reservation Entry": "from_voucher_no",
 			"Quality Inspection": "reference_name",
+			# Vị trí kho (Miyano): phiếu nhập lô trỏ về bằng `phieu_nhap`; sổ vị trí
+			# trỏ về bằng Dynamic Link (`chung_tu_type` + `chung_tu`).
+			"Batch Entry": "phieu_nhap",
+			"Location Ledger Entry": "chung_tu",
 		},
+		"dynamic_links": {"chung_tu": ["Purchase Receipt", "chung_tu_type"]},
 		"internal_links": {
 			"Material Request": ["items", "material_request"],
 			"Purchase Order": ["items", "purchase_order"],
@@ -29,5 +34,6 @@ def get_data():
 			},
 			{"label": _("Returns"), "items": ["Purchase Receipt"]},
 			{"label": _("Subscription"), "items": ["Auto Repeat"]},
+			{"label": _("Vị trí kho"), "items": ["Batch Entry", "Location Ledger Entry"]},
 		],
 	}

@@ -36,6 +36,7 @@ frappe.ui.form.on("Batch", {
 		frappe.db.get_value("Item", frm.doc.item, "has_batch_no").then((r) => {
 			if (!r || !r.message || !r.message.has_batch_no) return;
 			frm.add_custom_button(__("In nhãn"), () => in_nhan(frm));
+			nut_phieu_nhap_lo(frm);
 			frappe.xcall(O_TEM_API + "thong_tin_o_tem", { so_lo: frm.doc.name }).then((t) => {
 				if (!t) return;
 				if (t.loi) frm.dashboard.set_headline_alert(frappe.utils.escape_html(t.loi), "red");
@@ -52,6 +53,25 @@ frappe.ui.form.on("Batch", {
 		});
 	},
 });
+
+// NÚT "Xem phiếu nhập lô" (23/09/2026) — thay cho một mục Connections KHÔNG làm
+// được: tab Connections chỉ tìm trường Link trên chính doctype đích, mà số lô nằm
+// ở BẢNG CON của `Batch Entry` (`Batch Entry Item.lo_da_tao`). Xem chú thích ở
+// `stock/doctype/batch/batch_dashboard.py`.
+//
+// Từ lô đi ngược về phiếu khai ra nó là đường thật: tem rách hay sai hạn dùng thì
+// người ta cầm số lô trong tay, không nhớ phiếu nào.
+function nut_phieu_nhap_lo(frm) {
+	frappe.xcall("erpnext.warehouse_operations.vitri.luong_nhap.phieu_nhap_lo_cua_lo", {
+		so_lo: frm.doc.name,
+	}).then((ds) => {
+		if (!ds || !ds.length) return;
+		frm.add_custom_button(__("Xem phiếu nhập lô"), () => {
+			if (ds.length === 1) frappe.set_route("Form", "Batch Entry", ds[0]);
+			else frappe.set_route("List", "Batch Entry", { name: ["in", ds] });
+		});
+	});
+}
 
 function in_nhan(frm) {
 	frappe.require(DUONG_IN_NHAN, () => {

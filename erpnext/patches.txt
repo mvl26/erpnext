@@ -443,3 +443,4 @@ erpnext.warehouse_operations.patches.v1_0.them_thong_so_tem_cho_item
 erpnext.warehouse_operations.patches.v1_0.them_phan_bo_vi_tri
 erpnext.warehouse_operations.patches.v1_0.them_cot_vi_tri_lay
 erpnext.warehouse_operations.patches.v1_0.gan_nhieu_vi_tri
+erpnext.warehouse_operations.patches.v1_0.chon_lo_theo_han_dung
