@@ -154,7 +154,8 @@
    "collapsible": 1,
    "fieldname": "additional_discount_amount",
    "fieldtype": "Currency",
-   "label": "Additional Discount Amount"
+   "label": "Additional Discount Amount",
+   "precision": "0"
   },
   {
    "collapsible": 1,
@@ -267,7 +268,7 @@
    "link_fieldname": "subscription"
   }
  ],
- "modified": "2023-12-28 17:20:42.687789",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Subscription",

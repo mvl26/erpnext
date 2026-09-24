@@ -92,6 +92,7 @@
    "in_list_view": 1,
    "label": "Thành tiền",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -104,7 +105,8 @@
    "fieldname": "discount_amount",
    "fieldtype": "Currency",
    "label": "Tiền chiết khấu",
-   "options": "currency"
+   "options": "currency",
+   "precision": "0"
   },
   {
    "columns": 1,
@@ -121,6 +123,7 @@
    "fieldtype": "Currency",
    "label": "Tiền thuế GTGT",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -138,7 +141,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-07 09:00:00.000000",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Einvoice",
  "name": "Fast EInvoice Line",

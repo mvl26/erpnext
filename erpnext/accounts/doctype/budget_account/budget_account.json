@@ -24,12 +24,13 @@
    "in_list_view": 1,
    "label": "Budget Amount",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "reqd": 1
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2024-03-04 15:43:27.016947",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Budget Account",

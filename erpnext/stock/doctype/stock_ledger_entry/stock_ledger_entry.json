@@ -219,6 +219,7 @@
    "oldfieldname": "stock_value",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -226,6 +227,7 @@
    "fieldtype": "Currency",
    "label": "Change in Stock Value",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -362,7 +364,7 @@
  "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-10-04 09:59:15.546556",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Stock Ledger Entry",

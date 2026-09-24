@@ -142,6 +142,7 @@
    "fieldtype": "Currency",
    "label": "Expected Value After Useful Life",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -158,6 +159,7 @@
    "hidden": 1,
    "label": "Opening Accumulated Depreciation",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -167,6 +169,7 @@
    "hidden": 1,
    "label": "Gross Purchase Amount",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -207,7 +210,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2024-01-08 16:31:04.533928",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Assets",
  "name": "Asset Depreciation Schedule",

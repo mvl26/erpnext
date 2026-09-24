@@ -363,6 +363,7 @@
    "oldfieldname": "export_amount",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "print_width": "100px",
    "read_only": 1,
    "width": "100px"
@@ -390,6 +391,7 @@
    "oldfieldname": "amount",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "print_width": "100px",
    "read_only": 1,
@@ -428,6 +430,7 @@
    "fieldtype": "Currency",
    "label": "Net Amount",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -448,6 +451,7 @@
    "fieldtype": "Currency",
    "label": "Net Amount (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -680,6 +684,7 @@
    "label": "Billed Amt",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -919,7 +924,8 @@
    "fieldname": "distributed_discount_amount",
    "fieldtype": "Currency",
    "label": "Distributed Discount Amount",
-   "options": "currency"
+   "options": "currency",
+   "precision": "0"
   },
   {
    "allow_on_submit": 1,
@@ -953,7 +959,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-05-31 18:51:32.651562",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Delivery Note Item",

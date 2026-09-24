@@ -30,11 +30,11 @@ from erpnext.einvoice.payload import amount_in_words_for, compute_tax_groups
 
 FEI = "Fast EInvoice Document"
 
-# Loại tiền không có đơn vị lẻ trong thanh toán — Tổng thanh toán phải là số nguyên.
+# Loại tiền không có đơn vị lẻ — mọi khoản tiền (thành tiền từng dòng, tiền thuế,
+# tổng) đều là số nguyên.
 _ZERO_DECIMAL_CURRENCIES = frozenset({"VND", "JPY"})
 
-# Các khoản thành phần (tiền hàng, tiền thuế, chiết khấu, khuyến mại) luôn giữ
-# hai số lẻ, kể cả VND.
+# Số lẻ của các khoản tiền khi loại tiền có đơn vị lẻ (USD, EUR...).
 COMPONENT_PRECISION = 2
 
 # Bốn ô nhóm thuế của Phần I.
@@ -63,25 +63,23 @@ COMPUTED_LINE_FIELDS = ("discount_amount", "amount", "tax_amount")
 
 
 def amount_precision(currency=None):
-	"""Số chữ số thập phân của các khoản **thành phần** — luôn là hai.
+	"""Số chữ số thập phân của các khoản **thành phần** (thành tiền, tiền thuế,
+	chiết khấu, khuyến mại) — cùng độ chính xác với Tổng thanh toán.
 
-	Tiền hàng chưa thuế và Tiền thuế GTGT không được làm tròn về đồng nguyên:
-	làm tròn ở đây là làm tròn hai lần (một lần ở thành phần, một lần ở tổng),
-	và mỗi lần lại đẩy sai số vào số tiền phải thu. Chỉ Tổng thanh toán mới lấy
-	số nguyên — xem `total_precision`.
-
-	Giữ tham số ``currency`` để nơi gọi không phải nhớ khoản nào theo loại tiền
-	và khoản nào không; nếu sau này có loại tiền cần khác hai số lẻ thì đây là
-	chỗ duy nhất phải sửa.
+	VND làm tròn đồng nguyên **ngay ở từng dòng**, như HĐĐT in ra: thành tiền và
+	tiền thuế mỗi dòng là số nguyên, Tiền hàng và Tiền thuế GTGT chỉ là tổng các
+	số nguyên đó, nên Tổng thanh toán cộng lại khớp tuyệt đối với từng dòng. Chứng
+	từ gốc (hóa đơn, phiếu giao) cũng làm tròn như vậy — `precision = 0` trên các
+	trường tiền và `round_row_wise_tax` bật trong Accounts Settings.
 	"""
-	return COMPONENT_PRECISION
+	return total_precision(currency)
 
 
 def total_precision(currency):
 	"""Số chữ số thập phân của **Tổng thanh toán**.
 
 	VND và JPY không có đơn vị nhỏ hơn đồng/yên trong thanh toán, nên số tiền
-	cuối cùng phải tròn. Ngoại tệ có xu thì giữ nguyên hai số lẻ.
+	phải tròn. Ngoại tệ có xu thì giữ hai số lẻ.
 	"""
 	return 0 if (currency or "VND").upper() in _ZERO_DECIMAL_CURRENCIES else COMPONENT_PRECISION
 

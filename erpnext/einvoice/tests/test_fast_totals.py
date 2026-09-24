@@ -285,38 +285,41 @@ class TestArithmeticInvariants(FrappeTestCase):
 				label,
 			)
 
-	def test_only_the_grand_total_is_rounded_to_whole_dong(self):
-		"""VND: Tiền hàng và Tiền thuế giữ hai số lẻ, chỉ Tổng thanh toán mới tròn."""
-		for label, _lines, totals in self._each_case():
-			self.assertEqual(
-				totals["total_amount"],
-				int(totals["total_amount"]),
-				f"{label} · total_amount = {totals['total_amount']}",
-			)
+	def test_every_vnd_amount_is_whole_dong(self):
+		"""VND: thành tiền, tiền thuế từng dòng và mọi ô tổng hợp đều là đồng nguyên."""
+		for label, lines, totals in self._each_case():
+			for row in lines:
+				for field in ("amount", "tax_amount", "discount_amount"):
+					value = row.get(field)
+					self.assertEqual(value, int(value), f"{label} · dòng {field} = {value}")
 			for field, value in totals.items():
-				if field in ("tax_rate", "total_amount"):
+				if field == "tax_rate":
 					continue
-				self.assertEqual(value, flt(value, 2), f"{label} · {field} quá hai số lẻ = {value}")
+				self.assertEqual(value, int(value), f"{label} · {field} = {value}")
 
-	def test_components_keep_two_decimals_and_the_total_rounds_once(self):
-		"""Đơn giá lẻ: thành phần giữ số lẻ, chỉ số phải thu cuối cùng mới làm tròn."""
+	def test_each_line_rounds_before_the_totals_add_up(self):
+		"""Làm tròn ở từng dòng như HĐĐT in ra, tổng chỉ cộng các số đã tròn."""
 		lines = [line(qty=1, price=1000.4, tax_rate="10") for _ in range(10)]
 		totals = totals_of(lines)
-		self.assertEqual([row.amount for row in lines], [1000.4] * 10)
-		self.assertEqual([row.tax_amount for row in lines], [100.04] * 10)
-		self.assertEqual(totals["amount"], 10_004)
-		self.assertEqual(totals["tax_amount"], 1000.4)
-		# 10.004 + 1.000,40 = 11.004,40 → số phải thu là 11.004 đồng chẵn.
-		self.assertEqual(totals["total_amount"], 11_004)
+		self.assertEqual([row.amount for row in lines], [1000] * 10)
+		self.assertEqual([row.tax_amount for row in lines], [100] * 10)
+		self.assertEqual(totals["amount"], 10_000)
+		self.assertEqual(totals["tax_amount"], 1_000)
+		self.assertEqual(totals["total_amount"], 11_000)
 
-	def test_grand_total_absorbs_at_most_half_a_dong(self):
-		"""Chênh lệch làm tròn không bao giờ vượt nửa đồng — làm tròn đúng một lần."""
-		lines = [line(qty=1, price=1234.56, tax_rate="8")]
+	def test_grand_total_is_exactly_net_plus_tax(self):
+		"""Thành phần đã tròn thì Tổng thanh toán không còn chênh lệch làm tròn nào."""
+		for label, _lines, totals in self._each_case():
+			self.assertEqual(totals["total_amount"], totals["amount"] + totals["tax_amount"], label)
+
+	def test_half_a_dong_rounds_up(self):
+		"""Nửa đồng làm tròn lên như HĐĐT và Excel (Commercial Rounding), không về số chẵn."""
+		lines = [line(qty=1, price=1234.5, tax_rate="10")]
 		totals = totals_of(lines)
-		self.assertEqual(totals["amount"], 1234.56)
-		self.assertEqual(totals["tax_amount"], 98.76)
-		self.assertEqual(totals["total_amount"], 1333)
-		self.assertLessEqual(abs(totals["amount"] + totals["tax_amount"] - totals["total_amount"]), 0.5)
+		self.assertEqual(lines[0].amount, 1235)
+		# 1.235 x 10% = 123,5 → 124
+		self.assertEqual(lines[0].tax_amount, 124)
+		self.assertEqual(totals["total_amount"], 1359)
 
 	def test_foreign_currency_keeps_two_decimals(self):
 		"""Ngoại tệ giữ hai số lẻ — không bị làm tròn về đồng nguyên như VND."""

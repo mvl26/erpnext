@@ -260,6 +260,7 @@
    "fieldtype": "Currency",
    "label": "Dư đầu kỳ — gốc",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -268,7 +269,8 @@
    "fieldtype": "Currency",
    "label": "Dư đầu kỳ — lãi quá hạn",
    "non_negative": 1,
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   },
   {
    "default": "Bằng 0",
@@ -288,6 +290,7 @@
    "fieldtype": "Currency",
    "label": "Phát sinh Nợ — gốc",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -295,6 +298,7 @@
    "fieldtype": "Currency",
    "label": "Phát sinh Có — gốc",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -303,7 +307,8 @@
    "fieldtype": "Currency",
    "label": "Lãi quá hạn phát sinh",
    "non_negative": 1,
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   },
   {
    "fieldname": "column_break_figures_2",
@@ -316,6 +321,7 @@
    "in_list_view": 1,
    "label": "Dư cuối kỳ",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -464,6 +470,7 @@
    "label": "Số theo đối tác",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -489,7 +496,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-21 10:00:00.000000",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Debt Reconciliation",
  "name": "Debt Reconciliation Statement",

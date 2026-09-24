@@ -371,6 +371,7 @@
    "fieldname": "write_off_limit",
    "fieldtype": "Currency",
    "label": "Write Off Limit",
+   "precision": "0",
    "reqd": 1
   },
   {
@@ -432,7 +433,7 @@
    "link_fieldname": "pos_profile"
   }
  ],
- "modified": "2025-04-14 15:58:20.497426",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "POS Profile",

@@ -202,7 +202,8 @@
    "fieldname": "opportunity_amount",
    "fieldtype": "Currency",
    "label": "Opportunity Amount",
-   "options": "currency"
+   "options": "currency",
+   "precision": "0"
   },
   {
    "fieldname": "column_break_17",
@@ -403,6 +404,7 @@
    "fieldtype": "Currency",
    "label": "Opportunity Amount (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -416,6 +418,7 @@
    "fieldtype": "Currency",
    "label": "Total (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -424,6 +427,7 @@
    "fieldtype": "Currency",
    "label": "Total",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -470,7 +474,8 @@
   {
    "fieldname": "annual_revenue",
    "fieldtype": "Currency",
-   "label": "Annual Revenue"
+   "label": "Annual Revenue",
+   "precision": "0"
   },
   {
    "fieldname": "industry",
@@ -625,7 +630,7 @@
  "icon": "fa fa-info-sign",
  "idx": 195,
  "links": [],
- "modified": "2025-06-26 11:16:13.665866",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "CRM",
  "name": "Opportunity",

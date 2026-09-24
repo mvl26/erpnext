@@ -204,6 +204,7 @@
    "fieldtype": "Currency",
    "label": "Total Costing Amount",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -218,6 +219,7 @@
    "fieldtype": "Currency",
    "label": "T\u1ed5ng s\u1ed1 ti\u1ec1n t\u00ednh ph\u00ed (VND)",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -226,6 +228,7 @@
    "fieldtype": "Currency",
    "label": "Total Billed Amount",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -282,6 +285,7 @@
    "fieldname": "base_total_costing_amount",
    "fieldtype": "Currency",
    "label": "Base Total Costing Amount",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -289,6 +293,7 @@
    "fieldname": "base_total_billable_amount",
    "fieldtype": "Currency",
    "label": "Base Total Billable Amount",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -296,6 +301,7 @@
    "fieldname": "base_total_billed_amount",
    "fieldtype": "Currency",
    "label": "Base Total Billed Amount",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -310,7 +316,7 @@
  "idx": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-10-24 12:01:31.170716",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "buiviet9802@gmail.com",
  "module": "Projects",
  "name": "Timesheet",
