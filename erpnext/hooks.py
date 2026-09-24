@@ -31,7 +31,10 @@ email_css = "email_erpnext.bundle.css"
 
 doctype_js = {
 	"Address": "public/js/address.js",
-	"Delivery Note": ["public/js/einvoice/delivery_note.js", "public/js/warehouse_operations/delivery_note.js"],
+	"Delivery Note": [
+		"public/js/einvoice/delivery_note.js",
+		"public/js/warehouse_operations/delivery_note.js",
+	],
 	"Communication": "public/js/communication.js",
 	"Event": "public/js/event.js",
 	"Newsletter": "public/js/newsletter.js",
@@ -366,11 +369,20 @@ period_closing_doctypes = [
 ]
 
 doc_events = {
+	# Thông báo chuỗi cung ứng: BỐN móc duy nhất cho mọi chứng từ. Điểm thông báo
+	# nay là dữ liệu cấu hình, nên danh sách DocType không còn nằm trong code —
+	# `registry.has_points` (một lần đọc cache) cho bộ máy thoát ngay với DocType
+	# không có điểm. `on_change` chứ không phải `on_update`: ERPNext ghi các trường
+	# trạng thái bằng `db_set`, mà `db_set` chỉ chạy `on_change`.
 	"*": {
 		"validate": [
 			"erpnext.support.doctype.service_level_agreement.service_level_agreement.apply",
 			"erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.check_for_running_deletion_job",
 		],
+		"after_insert": "erpnext.supply_notification.events.after_insert",
+		"on_submit": "erpnext.supply_notification.events.on_submit",
+		"on_cancel": "erpnext.supply_notification.events.on_cancel",
+		"on_change": "erpnext.supply_notification.events.on_change",
 	},
 	"Item": {
 		"validate": [
@@ -464,13 +476,9 @@ doc_events = {
 			"erpnext.regional.united_arab_emirates.utils.update_grand_total_for_rcm",
 			"erpnext.regional.united_arab_emirates.utils.validate_returns",
 		],
-		"on_submit": "erpnext.supply_notification.events.on_submit",
 	},
 	"Payment Entry": {
-		"on_submit": [
-			"erpnext.regional.create_transaction_log",
-			"erpnext.supply_notification.events.on_submit",
-		],
+		"on_submit": "erpnext.regional.create_transaction_log",
 		"on_trash": "erpnext.regional.check_deletion_permission",
 	},
 	"Address": {
@@ -497,18 +505,6 @@ doc_events = {
 		"on_submit": "erpnext.warehouse_operations.vitri.lay_hang.ghi_cot_vi_tri_khi_duyet",
 		"before_cancel": "erpnext.einvoice.builder.before_delivery_note_cancel",
 		"on_cancel": "erpnext.einvoice.builder.on_delivery_note_cancel",
-	},
-	# Thông báo chuỗi cung ứng: sáu chứng từ còn lại chưa có on_submit riêng.
-	# Purchase Invoice và Payment Entry đã được nối ở khối của chúng phía trên.
-	(
-		"Sales Order",
-		"Material Request",
-		"Purchase Order",
-		"Purchase Receipt",
-		"Delivery Note",
-		"Payment Request",
-	): {
-		"on_submit": "erpnext.supply_notification.events.on_submit",
 	},
 }
 
@@ -539,10 +535,14 @@ scheduler_events = {
 		"0/30 * * * *": [
 			"erpnext.utilities.doctype.video.video.update_youtube_data",
 		],
-		# Thông báo chuỗi cung ứng: nhắc hạn thanh toán và thu tiền (mục 10).
 		"0 8 * * *": [
-			"erpnext.supply_notification.reminders.send_due_reminders",
 			"erpnext.debt_reconciliation.tasks.send_due_reminders",
+		],
+		# Thông báo chuỗi cung ứng: nhắc theo ngày. Cron chạy MỖI GIỜ, hàm tự so với
+		# "Giờ chạy hằng ngày" trong Cài đặt thông báo — đổi giờ nhắc là việc của
+		# nghiệp vụ trên giao diện, không phải sửa file này rồi deploy (D31).
+		"0 * * * *": [
+			"erpnext.supply_notification.reminders.run_hourly",
 		],
 		# HĐĐT: tự tải PDF chính thức khi Fast ký số xong (~1 phút sau phát hành, mục E5 nhánh 7a).
 		"* * * * *": [
@@ -788,6 +788,7 @@ additional_timeline_content = {"*": ["erpnext.telephony.doctype.call_log.call_lo
 extend_bootinfo = [
 	"erpnext.support.doctype.service_level_agreement.service_level_agreement.add_sla_doctypes",
 	"erpnext.startup.boot.bootinfo",
+	"erpnext.supply_notification.boot.bootinfo",
 ]
 
 

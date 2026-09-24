@@ -1,0 +1,219 @@
+{
+ "charts": [],
+ "content": "[{\"id\": \"snHdr001\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Thông báo</b></span>\", \"col\": 12}}, {\"id\": \"snSc00001\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Điểm thông báo\", \"col\": 3}}, {\"id\": \"snSc00002\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Nhật ký gửi\", \"col\": 3}}, {\"id\": \"snSc00003\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Thư chưa gửi\", \"col\": 3}}, {\"id\": \"snSc00004\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cài đặt thông báo\", \"col\": 3}}, {\"id\": \"snSpc001\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"snHdr002\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Tự thiết lập</span>\", \"col\": 12}}, {\"id\": \"snSc00005\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Nhóm người nhận\", \"col\": 3}}, {\"id\": \"snSc00006\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Mẫu nội dung dùng chung\", \"col\": 3}}, {\"id\": \"snSc00007\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Thông báo của tôi\", \"col\": 3}}, {\"id\": \"snSc00008\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Hướng dẫn thiết lập thông báo\", \"col\": 3}}, {\"id\": \"snSpc002\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"snCrd001\", \"type\": \"card\", \"data\": {\"card_name\": \"Cấu hình\", \"col\": 4}}, {\"id\": \"snCrd002\", \"type\": \"card\", \"data\": {\"card_name\": \"Theo dõi\", \"col\": 4}}, {\"id\": \"snCrd003\", \"type\": \"card\", \"data\": {\"card_name\": \"Dữ liệu cần chuẩn hoá\", \"col\": 4}}]",
+ "creation": "2026-09-23 09:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "notification",
+ "idx": 0,
+ "indicator_color": "",
+ "is_hidden": 0,
+ "label": "Thong Bao",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cấu hình",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Điểm thông báo",
+   "link_count": 0,
+   "link_to": "Supply Notification Point",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Nhóm người nhận",
+   "link_count": 0,
+   "link_to": "Supply Notification Recipient Group",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Mẫu nội dung dùng chung",
+   "link_count": 0,
+   "link_to": "Supply Notification Snippet",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cài đặt thông báo",
+   "link_count": 0,
+   "link_to": "Supply Notification Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Theo dõi",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Nhật ký gửi",
+   "link_count": 0,
+   "link_to": "Supply Notification Dispatch Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Thông báo của tôi",
+   "link_count": 0,
+   "link_to": "thong_bao_cua_toi",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Hướng dẫn thiết lập thông báo",
+   "link_count": 0,
+   "link_to": "huong_dan_thong_bao",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Dữ liệu cần chuẩn hoá",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Địa chỉ giao hàng thiếu người nhận",
+   "link_count": 0,
+   "link_to": "Dia Chi Giao Hang Thieu Nguoi Nhan",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Đối tác thiếu email liên hệ",
+   "link_count": 0,
+   "link_to": "Doi Tac Thieu Email Lien He",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-09-23 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Supply Notification",
+ "name": "Thong Bao",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 30.0,
+ "shortcuts": [
+  {
+   "color": "Green",
+   "doc_view": "",
+   "label": "Điểm thông báo",
+   "link_to": "Supply Notification Point",
+   "type": "DocType",
+   "stats_filter": "{\"enabled\": 1}",
+   "format": "{} đang bật"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "",
+   "label": "Nhật ký gửi",
+   "link_to": "Supply Notification Dispatch Log",
+   "type": "DocType",
+   "stats_filter": "{\"status\": \"Failed\"}",
+   "format": "{} lỗi"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "",
+   "label": "Thư chưa gửi",
+   "link_to": "Email Queue",
+   "type": "DocType",
+   "stats_filter": "{\"status\": \"Not Sent\"}",
+   "format": "{} chờ gửi"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Cài đặt thông báo",
+   "link_to": "Supply Notification Settings",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Nhóm người nhận",
+   "link_to": "Supply Notification Recipient Group",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Mẫu nội dung dùng chung",
+   "link_to": "Supply Notification Snippet",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Thông báo của tôi",
+   "link_to": "thong_bao_cua_toi",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Hướng dẫn thiết lập thông báo",
+   "link_to": "huong_dan_thong_bao",
+   "type": "Page"
+  }
+ ],
+ "title": "Thông báo"
+}

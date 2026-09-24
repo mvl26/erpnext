@@ -1,0 +1,210 @@
+{
+ "actions": [],
+ "creation": "2026-09-23 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "global_section",
+  "enabled",
+  "test_mode",
+  "column_break_global",
+  "test_email",
+  "email_section",
+  "default_subject_prefix",
+  "max_item_rows",
+  "column_break_email",
+  "internal_footer_snippet",
+  "external_footer_snippet",
+  "inapp_section",
+  "sound",
+  "toast_seconds",
+  "column_break_inapp",
+  "sound_debounce_seconds",
+  "reminder_section",
+  "reminder_hour",
+  "safety_section",
+  "hourly_email_cap",
+  "column_break_safety",
+  "auto_log_retention_days",
+  "manual_log_retention_days"
+ ],
+ "fields": [
+  {
+   "fieldname": "global_section",
+   "fieldtype": "Section Break",
+   "label": "Toàn cục"
+  },
+  {
+   "default": "1",
+   "description": "Tắt công tắc này thì không điểm nào gửi gì, kể cả nút Thủ công.",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Bật tính năng thông báo"
+  },
+  {
+   "default": "0",
+   "description": "Khi bật, MỌI email (nội bộ và gửi NCC/khách) chuyển về địa chỉ thử bên cạnh, tiêu đề ghi rõ email gốc. Dùng khi nghiệm thu để không gửi nhầm đối tác thật.",
+   "fieldname": "test_mode",
+   "fieldtype": "Check",
+   "label": "Chế độ thử"
+  },
+  {
+   "fieldname": "column_break_global",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "test_mode",
+   "description": "Mọi thư trong chế độ thử về địa chỉ này.",
+   "fieldname": "test_email",
+   "fieldtype": "Data",
+   "label": "Email nhận thư thử",
+   "options": "Email"
+  },
+  {
+   "fieldname": "email_section",
+   "fieldtype": "Section Break",
+   "label": "Email"
+  },
+  {
+   "default": "[SupplyCore]",
+   "description": "Điền sẵn vào điểm thông báo mới. Sửa ở đây không đổi các điểm đã tạo.",
+   "fieldname": "default_subject_prefix",
+   "fieldtype": "Data",
+   "label": "Tiền tố tiêu đề mặc định"
+  },
+  {
+   "default": "50",
+   "description": "Bảng mặt hàng trong email chỉ liệt kê tối đa số dòng này, phần còn lại ghi chú \"và N dòng nữa\".",
+   "fieldname": "max_item_rows",
+   "fieldtype": "Int",
+   "label": "Số dòng tối đa của bảng mặt hàng"
+  },
+  {
+   "fieldname": "column_break_email",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Mẫu dùng chung được chèn vào cuối mọi email nội bộ.",
+   "fieldname": "internal_footer_snippet",
+   "fieldtype": "Link",
+   "label": "Chân email nội bộ",
+   "options": "Supply Notification Snippet"
+  },
+  {
+   "description": "Mẫu dùng chung được chèn vào cuối mọi email gửi NCC/khách.",
+   "fieldname": "external_footer_snippet",
+   "fieldtype": "Link",
+   "label": "Chân email gửi ra ngoài",
+   "options": "Supply Notification Snippet"
+  },
+  {
+   "fieldname": "inapp_section",
+   "fieldtype": "Section Break",
+   "label": "Thông báo trong hệ thống"
+  },
+  {
+   "default": "alert",
+   "description": "Âm báo khi có thông báo mới. Người dùng bật \"Tắt tiếng\" trong hồ sơ thì vẫn im lặng.",
+   "fieldname": "sound",
+   "fieldtype": "Select",
+   "label": "Âm báo",
+   "options": "alert\nchime\nclick\nemail\nsubmit\nerror\ncancel\ndelete"
+  },
+  {
+   "default": "10",
+   "fieldname": "toast_seconds",
+   "fieldtype": "Int",
+   "label": "Thời gian hiện thông báo nổi (giây)"
+  },
+  {
+   "fieldname": "column_break_inapp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "3",
+   "description": "Nhiều thông báo liên tiếp chỉ kêu một lần trong khoảng này.",
+   "fieldname": "sound_debounce_seconds",
+   "fieldtype": "Int",
+   "label": "Khoảng chống dội âm báo (giây)"
+  },
+  {
+   "fieldname": "reminder_section",
+   "fieldtype": "Section Break",
+   "label": "Nhắc theo ngày"
+  },
+  {
+   "default": "8",
+   "description": "Giờ chạy hằng ngày, dùng chung cho mọi điểm nhắc theo ngày (0–23). Đổi giờ có hiệu lực ngay, không cần deploy.",
+   "fieldname": "reminder_hour",
+   "fieldtype": "Int",
+   "label": "Giờ chạy hằng ngày"
+  },
+  {
+   "fieldname": "safety_section",
+   "fieldtype": "Section Break",
+   "label": "An toàn và nhật ký"
+  },
+  {
+   "default": "200",
+   "description": "Một điểm gửi vượt số thư này trong một giờ thì tự tạm dừng và báo quản trị. Để 0 nếu không giới hạn.",
+   "fieldname": "hourly_email_cap",
+   "fieldtype": "Int",
+   "label": "Trần số thư mỗi điểm mỗi giờ"
+  },
+  {
+   "fieldname": "column_break_safety",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "180",
+   "description": "Nhật ký của các điểm tự động giữ bao nhiêu ngày.",
+   "fieldname": "auto_log_retention_days",
+   "fieldtype": "Int",
+   "label": "Giữ nhật ký tự động (ngày)"
+  },
+  {
+   "default": "0",
+   "description": "Nhật ký của các lần bấm nút Thủ công. Để 0 là giữ vĩnh viễn.",
+   "fieldname": "manual_log_retention_days",
+   "fieldtype": "Int",
+   "label": "Giữ nhật ký thủ công (ngày)"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-23 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Supply Notification",
+ "name": "Supply Notification Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Quản trị thông báo",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "All"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

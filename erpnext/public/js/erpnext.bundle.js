@@ -23,6 +23,7 @@ import "./utils/ledger_preview.js";
 import "./utils/unreconcile.js";
 import "./utils/barcode_scanner";
 import "./utils/supply_notification_toast";
+import "./utils/supply_notification_manual";
 import "./telephony";
 import "./templates/call_link.html";
 import "./bulk_transaction_processing";
