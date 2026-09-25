@@ -35,7 +35,8 @@
    "fieldname": "dunning_fee",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Dunning Fee"
+   "label": "Dunning Fee",
+   "precision": "0"
   },
   {
    "description": "This section allows the user to set the Body and Closing text of the Dunning Letter for the Dunning Type based on language, which can be used in Print.",
@@ -107,7 +108,7 @@
    "link_fieldname": "dunning_type"
   }
  ],
- "modified": "2021-11-13 00:25:35.659283",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Dunning Type",

@@ -295,6 +295,7 @@
    "fieldtype": "Currency",
    "label": "Total",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -354,6 +355,7 @@
    "fieldtype": "Currency",
    "label": "Total Additional Costs",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide_if_no_value": 1,
    "read_only": 1
   },
@@ -465,7 +467,7 @@
  "icon": "fa fa-file-text",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-12-06 15:21:49.924146",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Subcontracting",
  "name": "Subcontracting Order",

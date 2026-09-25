@@ -39,13 +39,14 @@
    "fieldname": "allocated_amount",
    "fieldtype": "Currency",
    "label": "Allocated Amount",
-   "options": "party_account_currency"
+   "options": "party_account_currency",
+   "precision": "0"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2021-11-25 10:27:51.712286",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Advance Tax",

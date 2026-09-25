@@ -1,0 +1,54 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-09-23 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "fieldname",
+  "operator",
+  "value"
+ ],
+ "fields": [
+  {
+   "fieldname": "fieldname",
+   "fieldtype": "Autocomplete",
+   "in_list_view": 1,
+   "columns": 4,
+   "label": "Trường",
+   "reqd": 1,
+   "description": "Trường của chứng từ. Trường trong bảng con ghi dạng items.item_group."
+  },
+  {
+   "fieldname": "operator",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "columns": 3,
+   "label": "Toán tử",
+   "options": "=\n≠\n>\n≥\n<\n≤\nTrong danh sách\nKhông trong danh sách\nCó giá trị\nTrống\nChứa",
+   "default": "=",
+   "reqd": 1
+  },
+  {
+   "fieldname": "value",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "columns": 4,
+   "label": "Giá trị",
+   "description": "Với \"Trong danh sách\" thì ngăn cách bằng dấu phẩy. Bỏ trống với \"Có giá trị\" và \"Trống\"."
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-23 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Supply Notification",
+ "name": "Supply Notification Condition",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "istable": 1
+}

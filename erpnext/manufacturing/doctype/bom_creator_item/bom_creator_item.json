@@ -163,6 +163,7 @@
    "fieldname": "amount",
    "fieldtype": "Currency",
    "label": "Amount",
+   "precision": "0",
    "read_only": 1,
    "options": "currency"
   },
@@ -187,7 +188,8 @@
    "fieldtype": "Currency",
    "hidden": 1,
    "label": "Base Amount",
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   },
   {
    "fieldname": "base_rate",
@@ -242,7 +244,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-02-19 13:25:15.732496",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM Creator Item",

@@ -583,6 +583,7 @@
    "fieldtype": "Currency",
    "label": "Total (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -593,6 +594,7 @@
    "oldfieldname": "net_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "print_width": "150px",
    "read_only": 1,
@@ -607,6 +609,7 @@
    "fieldtype": "Currency",
    "label": "Total",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -614,6 +617,7 @@
    "fieldtype": "Currency",
    "label": "Net Total",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -700,6 +704,7 @@
    "oldfieldname": "other_charges_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "print_width": "150px",
    "read_only": 1,
@@ -714,6 +719,7 @@
    "fieldtype": "Currency",
    "label": "Total Taxes and Charges",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -736,6 +742,7 @@
    "fieldtype": "Currency",
    "label": "Additional Discount Amount (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -754,6 +761,7 @@
    "fieldtype": "Currency",
    "label": "Additional Discount Amount",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1
   },
   {
@@ -770,6 +778,7 @@
    "oldfieldname": "grand_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "print_width": "150px",
    "read_only": 1,
@@ -782,6 +791,7 @@
    "label": "Rounding Adjustment (Company Currency)",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -793,6 +803,7 @@
    "oldfieldname": "rounded_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "print_width": "150px",
    "read_only": 1,
@@ -824,6 +835,7 @@
    "oldfieldname": "grand_total_export",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "print_width": "150px",
    "read_only": 1,
    "width": "150px"
@@ -835,6 +847,7 @@
    "label": "Rounding Adjustment",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -847,6 +860,7 @@
    "oldfieldname": "rounded_total_export",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "print_width": "150px",
    "read_only": 1,
    "width": "150px"
@@ -1199,6 +1213,7 @@
    "oldfieldname": "total_commission",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1
   },
   {
@@ -1291,6 +1306,7 @@
    "fieldname": "amount_eligible_for_commission",
    "fieldtype": "Currency",
    "label": "Amount Eligible for Commission",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -1404,7 +1420,7 @@
  "idx": 146,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-04 19:20:47.724218",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Delivery Note",

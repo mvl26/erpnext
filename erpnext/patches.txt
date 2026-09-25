@@ -443,3 +443,5 @@ erpnext.warehouse_operations.patches.v1_0.them_thong_so_tem_cho_item
 erpnext.warehouse_operations.patches.v1_0.them_phan_bo_vi_tri
 erpnext.warehouse_operations.patches.v1_0.them_cot_vi_tri_lay
 erpnext.warehouse_operations.patches.v1_0.gan_nhieu_vi_tri
+erpnext.patches.v15_0.migrate_supply_notification_v2
+erpnext.patches.v15_0.set_vnd_rounding_settings

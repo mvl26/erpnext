@@ -99,7 +99,8 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Amount",
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   },
   {
    "fieldname": "account_currency",
@@ -111,7 +112,8 @@
    "fieldname": "amount_in_account_currency",
    "fieldtype": "Currency",
    "label": "Amount in Account Currency",
-   "options": "account_currency"
+   "options": "account_currency",
+   "precision": "0"
   },
   {
    "default": "0",
@@ -159,7 +161,7 @@
  "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-11-03 16:39:58.904113",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Payment Ledger Entry",

@@ -200,6 +200,7 @@
    "fieldtype": "Currency",
    "label": "Basic Amount",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -208,6 +209,7 @@
    "fieldtype": "Currency",
    "label": "Additional Cost",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -218,6 +220,7 @@
    "oldfieldname": "amount",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -617,7 +620,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-10-14 15:10:38.373099",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Stock Entry Detail",

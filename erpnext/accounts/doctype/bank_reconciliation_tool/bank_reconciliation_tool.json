@@ -62,6 +62,7 @@
    "fieldtype": "Currency",
    "label": "Account Opening Balance",
    "options": "account_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -69,7 +70,8 @@
    "fieldname": "bank_statement_closing_balance",
    "fieldtype": "Currency",
    "label": "Closing Balance",
-   "options": "account_currency"
+   "options": "account_currency",
+   "precision": "0"
   },
   {
    "fieldname": "section_break_1",
@@ -119,7 +121,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-04-28 14:40:50.910884",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Bank Reconciliation Tool",

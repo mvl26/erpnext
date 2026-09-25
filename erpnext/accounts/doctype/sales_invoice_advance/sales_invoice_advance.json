@@ -81,6 +81,7 @@
    "oldfieldname": "advance_amount",
    "oldfieldtype": "Currency",
    "options": "party_account_currency",
+   "precision": "0",
    "print_width": "120px",
    "read_only": 1,
    "width": "120px"
@@ -95,6 +96,7 @@
    "oldfieldname": "allocated_amount",
    "oldfieldtype": "Currency",
    "options": "party_account_currency",
+   "precision": "0",
    "print_width": "120px",
    "width": "120px"
   },
@@ -104,6 +106,7 @@
    "fieldtype": "Currency",
    "label": "Exchange Gain/Loss",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -126,7 +129,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-12-20 11:58:28.962370",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice Advance",

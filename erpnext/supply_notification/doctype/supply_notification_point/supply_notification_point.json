@@ -7,200 +7,164 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "tab_general",
+  "help_general",
   "code",
   "title",
+  "function_group",
   "column_break_head",
   "enabled",
+  "is_seed",
+  "paused_reason",
+  "notes_section",
+  "notes",
+  "tab_when",
+  "help_when",
   "reference_doctype",
   "trigger_event",
-  "filter_note",
-  "channel_section",
-  "send_email",
-  "send_inapp",
-  "column_break_channel",
-  "notify_owner",
-  "notify_external",
-  "attach_pdf",
-  "print_format",
-  "recipient_section",
+  "column_break_when",
+  "watch_field",
+  "watch_value",
+  "workflow_state",
+  "date_field",
+  "reminder_offsets",
+  "manual_section",
+  "button_label",
+  "button_color",
+  "column_break_manual",
+  "manual_docstatus",
+  "button_role",
+  "condition_section",
+  "condition_logic",
+  "conditions",
+  "tab_recipients",
+  "help_recipients",
+  "internal_section",
   "departments",
   "users",
-  "content_section",
-  "subject_template",
-  "intro_template",
-  "action_template",
+  "recipient_groups",
+  "user_fields",
+  "column_break_internal",
+  "notify_owner",
+  "notify_triggering_user",
+  "allow_opt_out",
   "external_section",
+  "external_party_contact",
+  "external_email_fields",
+  "column_break_external",
+  "external_fixed_emails",
+  "external_groups",
+  "cc_section",
+  "cc_owner",
+  "cc_triggering_user",
+  "cc_emails",
+  "column_break_cc",
+  "bcc_emails",
+  "reply_to_mode",
+  "reply_to_email",
+  "tab_channels",
+  "help_channels",
+  "send_email",
+  "send_inapp",
+  "column_break_channels",
+  "notify_external",
+  "tab_content",
+  "help_content",
+  "subject_prefix",
+  "subject_template",
+  "body_template",
+  "inapp_template",
+  "variable_section",
+  "party_field",
+  "amount_field",
+  "column_break_variable",
+  "main_date_field",
+  "block_section",
+  "item_table_field",
+  "item_columns",
+  "fact_rows",
+  "column_break_block",
+  "address_field",
+  "contact_field",
+  "signature_person",
+  "tab_external",
+  "help_external",
   "external_subject_template",
-  "external_intro_template",
-  "external_closing",
-  "notes_section",
-  "notes"
+  "external_body_template",
+  "attachment_section",
+  "attach_pdf",
+  "print_format",
+  "column_break_attach",
+  "attach_document_files",
+  "require_pdf",
+  "tab_check",
+  "help_check",
+  "preview_reference",
+  "stats_html"
  ],
  "fields": [
   {
+   "fieldname": "tab_general",
+   "fieldtype": "Tab Break",
+   "label": "1. Chung"
+  },
+  {
+   "fieldname": "help_general",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-info\">Mỗi điểm là một loại thông báo. <b>Tắt</b> thay vì xoá để giữ lịch sử gửi.</div>"
+  },
+  {
    "fieldname": "code",
    "fieldtype": "Data",
+   "label": "Mã điểm",
+   "reqd": 1,
+   "unique": 1,
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Mã điểm",
-   "read_only": 1,
-   "reqd": 1,
-   "unique": 1
+   "description": "Ví dụ NTF-14. Không đổi được sau khi lưu."
   },
   {
    "fieldname": "title",
    "fieldtype": "Data",
-   "in_list_view": 1,
    "label": "Tên điểm thông báo",
-   "reqd": 1
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "function_group",
+   "fieldtype": "Select",
+   "label": "Nhóm chức năng",
+   "options": "\nMua hàng\nBán hàng\nKho\nKế toán\nKhác",
+   "in_standard_filter": 1,
+   "in_list_view": 1
   },
   {
    "fieldname": "column_break_head",
    "fieldtype": "Column Break"
   },
   {
-   "default": "1",
    "fieldname": "enabled",
    "fieldtype": "Check",
+   "label": "Đang bật",
+   "default": "1",
    "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Đang bật"
+   "in_standard_filter": 1
   },
   {
-   "fieldname": "reference_doctype",
-   "fieldtype": "Link",
-   "in_standard_filter": 1,
-   "label": "Chứng từ nguồn",
-   "options": "DocType",
+   "fieldname": "is_seed",
+   "fieldtype": "Check",
+   "label": "Điểm hạt giống",
+   "default": "0",
    "read_only": 1,
-   "reqd": 1
+   "hidden": 1,
+   "description": "Điểm mặc định của hệ thống: tắt được, không xoá được."
   },
   {
-   "fieldname": "trigger_event",
-   "fieldtype": "Select",
-   "label": "Cách kích hoạt",
-   "options": "Submit\nDue Reminder",
+   "fieldname": "paused_reason",
+   "fieldtype": "Small Text",
+   "label": "Lý do tạm dừng",
    "read_only": 1,
-   "reqd": 1
-  },
-  {
-   "description": "Điều kiện lọc thật nằm trong mã nguồn, dòng này chỉ để đọc hiểu.",
-   "fieldname": "filter_note",
-   "fieldtype": "Small Text",
-   "label": "Điều kiện bắn",
-   "read_only": 1
-  },
-  {
-   "fieldname": "channel_section",
-   "fieldtype": "Section Break",
-   "label": "Kênh gửi"
-  },
-  {
-   "default": "1",
-   "fieldname": "send_email",
-   "fieldtype": "Check",
-   "label": "Gửi email nội bộ"
-  },
-  {
-   "default": "1",
-   "fieldname": "send_inapp",
-   "fieldtype": "Check",
-   "label": "Gửi thông báo in-app"
-  },
-  {
-   "fieldname": "column_break_channel",
-   "fieldtype": "Column Break"
-  },
-  {
-   "default": "0",
-   "description": "Gửi thêm cho người lập chứng từ.",
-   "fieldname": "notify_owner",
-   "fieldtype": "Check",
-   "label": "Gửi cho người tạo"
-  },
-  {
-   "default": "0",
-   "description": "Gửi email cho nhà cung cấp hoặc khách hàng trên chứng từ.",
-   "fieldname": "notify_external",
-   "fieldtype": "Check",
-   "label": "Gửi ra ngoài (NCC/khách)"
-  },
-  {
-   "default": "0",
-   "depends_on": "notify_external",
-   "fieldname": "attach_pdf",
-   "fieldtype": "Check",
-   "label": "Đính PDF chứng từ"
-  },
-  {
-   "depends_on": "attach_pdf",
-   "fieldname": "print_format",
-   "fieldtype": "Link",
-   "label": "Mẫu in",
-   "options": "Print Format"
-  },
-  {
-   "fieldname": "recipient_section",
-   "fieldtype": "Section Break",
-   "label": "Người nhận nội bộ"
-  },
-  {
-   "description": "Mọi nhân viên đang làm việc thuộc các phòng ban này (kể cả phòng con) sẽ nhận.",
-   "fieldname": "departments",
-   "fieldtype": "Table",
-   "label": "Theo phòng ban",
-   "options": "Supply Notification Department"
-  },
-  {
-   "description": "Người nhận đích danh, cộng thêm vào danh sách theo phòng ban.",
-   "fieldname": "users",
-   "fieldtype": "Table",
-   "label": "Theo người cụ thể",
-   "options": "Supply Notification User"
-  },
-  {
-   "fieldname": "content_section",
-   "fieldtype": "Section Break",
-   "label": "Nội dung email nội bộ"
-  },
-  {
-   "description": "Dùng được: doc, party_name, owner_name, amount, outstanding, date, due, days_left.",
-   "fieldname": "subject_template",
-   "fieldtype": "Data",
-   "label": "Tiêu đề",
-   "reqd": 1
-  },
-  {
-   "fieldname": "intro_template",
-   "fieldtype": "Small Text",
-   "label": "Câu nêu sự việc"
-  },
-  {
-   "fieldname": "action_template",
-   "fieldtype": "Small Text",
-   "label": "Việc cần làm tiếp"
-  },
-  {
-   "depends_on": "notify_external",
-   "fieldname": "external_section",
-   "fieldtype": "Section Break",
-   "label": "Nội dung email gửi NCC/khách"
-  },
-  {
-   "fieldname": "external_subject_template",
-   "fieldtype": "Data",
-   "label": "Tiêu đề (ngoài)"
-  },
-  {
-   "fieldname": "external_intro_template",
-   "fieldtype": "Small Text",
-   "label": "Nội dung (ngoài)"
-  },
-  {
-   "description": "Thông tin liên hệ Miyano, đặt ở cuối email gửi ra ngoài.",
-   "fieldname": "external_closing",
-   "fieldtype": "Small Text",
-   "label": "Chữ ký / liên hệ"
+   "depends_on": "paused_reason"
   },
   {
    "fieldname": "notes_section",
@@ -211,11 +175,506 @@
    "fieldname": "notes",
    "fieldtype": "Small Text",
    "label": "Ghi chú nội bộ"
+  },
+  {
+   "fieldname": "tab_when",
+   "fieldtype": "Tab Break",
+   "label": "2. Khi nào gửi"
+  },
+  {
+   "fieldname": "help_when",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-info\">Chọn chứng từ, thời điểm bắn và điều kiện. Ví dụ: <b>Yêu cầu vật tư · Ghi sổ · Loại yêu cầu = Purchase</b>.</div>"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Chứng từ nguồn",
+   "options": "DocType",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "trigger_event",
+   "fieldtype": "Select",
+   "label": "Thời điểm bắn",
+   "options": "New\nSubmit\nCancel\nValue Change\nWorkflow Transition\nDate Reminder\nManual",
+   "default": "Submit",
+   "reqd": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_when",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "watch_field",
+   "fieldtype": "Autocomplete",
+   "label": "Trường theo dõi",
+   "depends_on": "eval:doc.trigger_event=='Value Change'",
+   "mandatory_depends_on": "eval:doc.trigger_event=='Value Change'",
+   "description": "Chỉ bắn khi trường này thực sự đổi giá trị."
+  },
+  {
+   "fieldname": "watch_value",
+   "fieldtype": "Data",
+   "label": "Chỉ khi đổi thành giá trị",
+   "depends_on": "eval:doc.trigger_event=='Value Change'",
+   "description": "Bỏ trống nghĩa là đổi sang giá trị nào cũng bắn."
+  },
+  {
+   "fieldname": "workflow_state",
+   "fieldtype": "Autocomplete",
+   "label": "Trạng thái duyệt đích",
+   "depends_on": "eval:doc.trigger_event=='Workflow Transition'",
+   "mandatory_depends_on": "eval:doc.trigger_event=='Workflow Transition'"
+  },
+  {
+   "fieldname": "date_field",
+   "fieldtype": "Autocomplete",
+   "label": "Trường ngày để nhắc",
+   "depends_on": "eval:doc.trigger_event=='Date Reminder'",
+   "mandatory_depends_on": "eval:doc.trigger_event=='Date Reminder'"
+  },
+  {
+   "fieldname": "reminder_offsets",
+   "fieldtype": "Data",
+   "label": "Mốc nhắc",
+   "depends_on": "eval:doc.trigger_event=='Date Reminder'",
+   "mandatory_depends_on": "eval:doc.trigger_event=='Date Reminder'",
+   "default": "-7, -3, -1",
+   "description": "Số âm là trước ngày (−7 là trước 7 ngày), số dương là quá hạn (+1 là sau 1 ngày)."
+  },
+  {
+   "fieldname": "manual_section",
+   "fieldtype": "Section Break",
+   "label": "Nút trên chứng từ",
+   "depends_on": "eval:doc.trigger_event=='Manual'"
+  },
+  {
+   "fieldname": "button_label",
+   "fieldtype": "Data",
+   "label": "Nhãn nút",
+   "mandatory_depends_on": "eval:doc.trigger_event=='Manual'",
+   "description": "Ví dụ: Gửi cho NCC."
+  },
+  {
+   "fieldname": "button_color",
+   "fieldtype": "Select",
+   "label": "Màu nút",
+   "options": "Mặc định\nChính (xanh)\nCảnh báo (vàng)\nNguy hiểm (đỏ)",
+   "default": "Mặc định"
+  },
+  {
+   "fieldname": "column_break_manual",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "manual_docstatus",
+   "fieldtype": "Select",
+   "label": "Trạng thái chứng từ cho phép bấm",
+   "options": "Đã ghi sổ\nNháp\nCả hai",
+   "default": "Đã ghi sổ"
+  },
+  {
+   "fieldname": "button_role",
+   "fieldtype": "Link",
+   "label": "Vai trò được bấm",
+   "options": "Role",
+   "description": "Bỏ trống: ai có quyền sửa chứng từ thì bấm được."
+  },
+  {
+   "fieldname": "condition_section",
+   "fieldtype": "Section Break",
+   "label": "Điều kiện bắn"
+  },
+  {
+   "fieldname": "condition_logic",
+   "fieldtype": "Select",
+   "label": "Nối các dòng bằng",
+   "options": "VÀ\nHOẶC",
+   "default": "VÀ"
+  },
+  {
+   "fieldname": "conditions",
+   "fieldtype": "Table",
+   "label": "Bảng điều kiện",
+   "options": "Supply Notification Condition",
+   "description": "Bỏ trống là mọi chứng từ đều thoả. Trường trong bảng con ghi dạng items.item_group và thoả khi ít nhất một dòng thoả."
+  },
+  {
+   "fieldname": "tab_recipients",
+   "fieldtype": "Tab Break",
+   "label": "3. Gửi cho ai"
+  },
+  {
+   "fieldname": "help_recipients",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-info\">Dùng nút <b>Xem trước người nhận</b> ở thanh công cụ để thấy danh sách thật và cảnh báo trước khi bật điểm.</div>"
+  },
+  {
+   "fieldname": "internal_section",
+   "fieldtype": "Section Break",
+   "label": "Người nhận nội bộ"
+  },
+  {
+   "fieldname": "departments",
+   "fieldtype": "Table",
+   "label": "Theo phòng ban",
+   "options": "Supply Notification Department",
+   "description": "Mọi nhân viên đang làm việc thuộc các phòng ban này (kể cả phòng con) sẽ nhận."
+  },
+  {
+   "fieldname": "users",
+   "fieldtype": "Table",
+   "label": "Theo người cụ thể",
+   "options": "Supply Notification User"
+  },
+  {
+   "fieldname": "recipient_groups",
+   "fieldtype": "Table MultiSelect",
+   "label": "Theo nhóm người nhận",
+   "options": "Supply Notification Group Link"
+  },
+  {
+   "fieldname": "user_fields",
+   "fieldtype": "Table",
+   "label": "Theo người ghi trong chứng từ",
+   "options": "Supply Notification Field Ref",
+   "description": "Trường kiểu Người dùng trên chứng từ, ví dụ Người phụ trách, Người duyệt."
+  },
+  {
+   "fieldname": "column_break_internal",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "notify_owner",
+   "fieldtype": "Check",
+   "label": "Gửi cho người tạo chứng từ",
+   "default": "0"
+  },
+  {
+   "fieldname": "notify_triggering_user",
+   "fieldtype": "Check",
+   "label": "Gửi cho người bấm gửi",
+   "default": "0"
+  },
+  {
+   "fieldname": "allow_opt_out",
+   "fieldtype": "Check",
+   "label": "Cho phép người nhận tự tắt",
+   "default": "0",
+   "description": "Người nhận tắt/bật ở trang Thông báo của tôi. Đừng bật với thông báo bắt buộc xử lý."
+  },
+  {
+   "fieldname": "external_section",
+   "fieldtype": "Section Break",
+   "label": "Người nhận ngoài (NCC/khách)",
+   "depends_on": "notify_external"
+  },
+  {
+   "fieldname": "external_party_contact",
+   "fieldtype": "Check",
+   "default": "1",
+   "label": "Đầu mối liên hệ của đối tác trên chứng từ"
+  },
+  {
+   "fieldname": "external_email_fields",
+   "fieldtype": "Table",
+   "label": "Email ghi trong trường của chứng từ",
+   "options": "Supply Notification Field Ref"
+  },
+  {
+   "fieldname": "column_break_external",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "external_fixed_emails",
+   "fieldtype": "Small Text",
+   "label": "Email cố định"
+  },
+  {
+   "fieldname": "external_groups",
+   "fieldtype": "Table MultiSelect",
+   "label": "Nhóm người nhận ngoài",
+   "options": "Supply Notification Group Link",
+   "description": "Dùng email cố định của nhóm."
+  },
+  {
+   "fieldname": "cc_section",
+   "fieldtype": "Section Break",
+   "label": "CC, BCC và trả lời về"
+  },
+  {
+   "fieldname": "cc_owner",
+   "fieldtype": "Check",
+   "label": "CC người tạo chứng từ",
+   "default": "0"
+  },
+  {
+   "fieldname": "cc_triggering_user",
+   "fieldtype": "Check",
+   "label": "CC người bấm gửi",
+   "default": "0"
+  },
+  {
+   "fieldname": "cc_emails",
+   "fieldtype": "Small Text",
+   "label": "CC email cố định"
+  },
+  {
+   "fieldname": "column_break_cc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bcc_emails",
+   "fieldtype": "Small Text",
+   "label": "BCC email cố định"
+  },
+  {
+   "fieldname": "reply_to_mode",
+   "fieldtype": "Select",
+   "label": "Trả lời về",
+   "options": "Không đặt\nNgười tạo chứng từ\nNgười bấm gửi\nEmail cố định",
+   "default": "Không đặt"
+  },
+  {
+   "fieldname": "reply_to_email",
+   "fieldtype": "Data",
+   "label": "Email nhận thư trả lời",
+   "depends_on": "eval:doc.reply_to_mode=='Email cố định'",
+   "mandatory_depends_on": "eval:doc.reply_to_mode=='Email cố định'"
+  },
+  {
+   "fieldname": "tab_channels",
+   "fieldtype": "Tab Break",
+   "label": "4. Kênh"
+  },
+  {
+   "fieldname": "help_channels",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-info\">Email gửi ra ngoài không bao giờ chứa đường dẫn vào hệ thống, và luôn gửi tách riêng khỏi email nội bộ.</div>"
+  },
+  {
+   "fieldname": "send_email",
+   "fieldtype": "Check",
+   "label": "Email nội bộ",
+   "default": "1"
+  },
+  {
+   "fieldname": "send_inapp",
+   "fieldtype": "Check",
+   "label": "Thông báo trong hệ thống (có âm báo)",
+   "default": "1"
+  },
+  {
+   "fieldname": "column_break_channels",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "notify_external",
+   "fieldtype": "Check",
+   "label": "Email ra ngoài (NCC/khách)",
+   "default": "0"
+  },
+  {
+   "fieldname": "tab_content",
+   "fieldtype": "Tab Break",
+   "label": "5. Nội dung nội bộ"
+  },
+  {
+   "fieldname": "help_content",
+   "fieldtype": "HTML",
+   "options": ""
+  },
+  {
+   "fieldname": "subject_prefix",
+   "fieldtype": "Data",
+   "label": "Tiền tố tiêu đề"
+  },
+  {
+   "fieldname": "subject_template",
+   "fieldtype": "Small Text",
+   "label": "Tiêu đề",
+   "mandatory_depends_on": "eval:doc.send_email || doc.send_inapp",
+   "description": "Bắt buộc khi có kênh nội bộ. Dùng nút Chèn trường để chèn biến."
+  },
+  {
+   "fieldname": "body_template",
+   "fieldtype": "Text Editor",
+   "label": "Thân email"
+  },
+  {
+   "fieldname": "inapp_template",
+   "fieldtype": "Small Text",
+   "label": "Câu thông báo trong hệ thống",
+   "description": "Bỏ trống là dùng đúng tiêu đề."
+  },
+  {
+   "fieldname": "variable_section",
+   "fieldtype": "Section Break",
+   "label": "Biến dựng sẵn"
+  },
+  {
+   "fieldname": "party_field",
+   "fieldtype": "Autocomplete",
+   "label": "Trường tên đối tác",
+   "description": "Nguồn của biến ten_doi_tac."
+  },
+  {
+   "fieldname": "amount_field",
+   "fieldtype": "Autocomplete",
+   "label": "Trường số tiền",
+   "description": "Nguồn của biến so_tien."
+  },
+  {
+   "fieldname": "column_break_variable",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "main_date_field",
+   "fieldtype": "Autocomplete",
+   "label": "Trường ngày",
+   "description": "Nguồn của biến ngay."
+  },
+  {
+   "fieldname": "block_section",
+   "fieldtype": "Section Break",
+   "label": "Cấu hình khối nội dung"
+  },
+  {
+   "fieldname": "item_table_field",
+   "fieldtype": "Autocomplete",
+   "label": "Bảng mặt hàng lấy từ",
+   "default": "items",
+   "description": "Tên bảng con dùng cho khối bang_mat_hang."
+  },
+  {
+   "fieldname": "item_columns",
+   "fieldtype": "Table",
+   "label": "Cột của bảng mặt hàng",
+   "options": "Supply Notification Block Column",
+   "description": "Bỏ trống là dùng bộ cột mặc định: Mã vật tư, Tên hàng, Số lượng, ĐVT. Ghi stt để thêm cột số thứ tự."
+  },
+  {
+   "fieldname": "fact_rows",
+   "fieldtype": "Table",
+   "label": "Dòng của khối số liệu",
+   "options": "Supply Notification Block Column"
+  },
+  {
+   "fieldname": "column_break_block",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "address_field",
+   "fieldtype": "Autocomplete",
+   "label": "Trường địa chỉ",
+   "description": "Địa chỉ dùng cho khối dia_chi_giao_hang."
+  },
+  {
+   "fieldname": "contact_field",
+   "fieldtype": "Autocomplete",
+   "label": "Trường liên hệ",
+   "description": "Người nhận hàng lấy từ liên hệ này trước, không có thì tra theo địa chỉ."
+  },
+  {
+   "fieldname": "signature_person",
+   "fieldtype": "Select",
+   "label": "Chữ ký của",
+   "options": "Người tạo\nNgười bấm gửi",
+   "default": "Người tạo"
+  },
+  {
+   "fieldname": "tab_external",
+   "fieldtype": "Tab Break",
+   "label": "6. Nội dung gửi ra ngoài"
+  },
+  {
+   "fieldname": "help_external",
+   "fieldtype": "HTML",
+   "options": ""
+  },
+  {
+   "fieldname": "external_subject_template",
+   "fieldtype": "Small Text",
+   "label": "Tiêu đề (ngoài)",
+   "mandatory_depends_on": "notify_external"
+  },
+  {
+   "fieldname": "external_body_template",
+   "fieldtype": "Text Editor",
+   "label": "Thân email (ngoài)"
+  },
+  {
+   "fieldname": "attachment_section",
+   "fieldtype": "Section Break",
+   "label": "Đính kèm"
+  },
+  {
+   "fieldname": "attach_pdf",
+   "fieldtype": "Check",
+   "label": "Đính PDF theo mẫu in",
+   "default": "0"
+  },
+  {
+   "fieldname": "print_format",
+   "fieldtype": "Link",
+   "label": "Mẫu in",
+   "options": "Print Format",
+   "depends_on": "attach_pdf",
+   "mandatory_depends_on": "attach_pdf"
+  },
+  {
+   "fieldname": "column_break_attach",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "attach_document_files",
+   "fieldtype": "Check",
+   "default": "0",
+   "label": "Đính các tệp đã gắn trên chứng từ"
+  },
+  {
+   "fieldname": "require_pdf",
+   "fieldtype": "Check",
+   "default": "0",
+   "depends_on": "attach_pdf",
+   "label": "Bắt buộc có PDF",
+   "description": "Không tạo được PDF thì không gửi, ghi nhật ký lỗi."
+  },
+  {
+   "fieldname": "tab_check",
+   "fieldtype": "Tab Break",
+   "label": "7. Kiểm tra"
+  },
+  {
+   "fieldname": "help_check",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-info\">Luôn <b>xem trước với một chứng từ thật</b> và <b>gửi thử cho tôi</b> trước khi bật điểm.</div>"
+  },
+  {
+   "fieldname": "preview_reference",
+   "fieldtype": "Dynamic Link",
+   "label": "Chứng từ mẫu để xem trước",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "stats_html",
+   "fieldtype": "HTML",
+   "label": "Thống kê 30 ngày"
   }
  ],
  "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2026-09-08 09:00:00.000000",
+ "links": [
+  {
+   "group": "Nhật ký",
+   "link_doctype": "Supply Notification Dispatch Log",
+   "link_fieldname": "point"
+  }
+ ],
+ "modified": "2026-09-23 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Supply Notification",
  "name": "Supply Notification Point",
@@ -234,6 +693,8 @@
    "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
    "email": 1,
    "export": 1,
    "print": 1,
@@ -242,6 +703,13 @@
    "role": "Quản trị thông báo",
    "share": 1,
    "write": 1
+  },
+  {
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All"
   }
  ],
  "show_title_field_in_link": 1,

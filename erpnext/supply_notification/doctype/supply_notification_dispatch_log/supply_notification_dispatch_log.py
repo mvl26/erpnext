@@ -1,13 +1,14 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-import frappe
+"""Một dòng cho mỗi lần gửi — vết đối chiếu của cả tính năng.
+
+Dọn nhật ký nay theo hai hạn khác nhau và do `reminders.clear_old_dispatch_logs`
+lo (quyết định D30: thủ công giữ vĩnh viễn, tự động 180 ngày, chỉnh được trong
+Cài đặt thông báo).
+"""
+
 from frappe.model.document import Document
-from frappe.query_builder import Interval
-from frappe.query_builder.functions import Now
 
 
 class SupplyNotificationDispatchLog(Document):
-	@staticmethod
-	def clear_old_logs(days=180):
-		table = frappe.qb.DocType("Supply Notification Dispatch Log")
-		frappe.db.delete(table, filters=(table.creation < (Now() - Interval(days=days))))
+	pass

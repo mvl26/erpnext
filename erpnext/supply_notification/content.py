@@ -1,210 +1,83 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Dựng chủ đề và thân bài email từ chứng từ.
+"""Dựng tiêu đề, thân email và câu thông báo trong hệ thống.
 
-Ranh giới cố ý (quyết định D7): sáu trường chữ trong cấu hình do nghiệp vụ sửa và
-được render bằng Jinja **hộp cát** — không đụng được `frappe` hay hàm tuỳ ý. Bảng
-mặt hàng, khối số liệu, định dạng tiền/ngày và bố cục HTML do mã nguồn dựng.
+Toàn bộ bố cục thư nay nằm trong **cấu hình**: thân email là một ô do nghiệp vụ
+soạn, trong đó chèn biến, khối và mẫu dùng chung. File này chỉ còn là chỗ ghép
+các mảnh lại và gắn chân thư mặc định của Cài đặt.
 
-Tham chiếu: docs/05c_Spec_KyThuat_Plan_Thong_Bao.md muc 8.
+`compose_body` là khuôn ghép ba ô câu chữ của bản build 05c (mở đầu · bảng ·
+việc cần làm) thành một thân email — dùng chung cho hạt giống site mới và cho
+patch chuyển đổi, nhờ vậy hai đường cho ra cùng một kết quả.
+
+Tham chiếu: docs/superpowers/specs/2026-09-23-thong-bao-tu-thiet-lap-design.md muc 4.6.
 """
 
 import frappe
-from frappe import _
-from frappe.utils import cint, flt, fmt_money, formatdate, get_url, get_url_to_form, strip_html
-from jinja2.sandbox import SandboxedEnvironment
 
-from erpnext.supply_notification.constants import POINTS_BY_CODE, PREFIX
+from erpnext.supply_notification import context as ctx
+from erpnext.supply_notification.doctype.supply_notification_settings.supply_notification_settings import (
+	get_settings,
+)
 
-#: Số dòng mặt hàng tối đa liệt kê trong email, tránh thư dài vô hạn.
-MAX_ITEM_ROWS = 50
-
-STOCK_REPORT_PATH = "/app/query-report/Stock Balance"
-
-_JINJA = SandboxedEnvironment(autoescape=False)
+STOCK_REPORT = "Stock Balance"
 
 
-def _render(template: str, context: dict, fallback: str = "") -> str:
-	"""Render một mẩu chữ của cấu hình; hỏng thì lùi về bản mặc định, không chặn gửi."""
-	for candidate in (template, fallback):
-		if not candidate:
-			continue
-		try:
-			return _JINJA.from_string(candidate).render(**context).strip()
-		except Exception:
-			frappe.log_error(
-				title="Supply Notification: mẫu câu chữ lỗi",
-				message=f"{candidate}\n\n{frappe.get_traceback()}",
-			)
-	return ""
+def compose_body(intro: str, action: str = "", *, show_stock_report: int = 0, external: bool = False) -> str:
+	"""Ghép câu chữ + khối thành thân email, đúng bố cục mà 05c dựng bằng template."""
+	parts = []
+	if intro:
+		parts.append(f"<p>{intro}</p>")
+
+	parts.append("{{ khoi_so_lieu() }}")
+
+	if external:
+		if action:
+			parts.append(f"<p>{action}</p>")
+		return "\n".join(parts)
+
+	parts.append("{{ bang_mat_hang() }}")
+
+	links = ["{{ nut_mo_chung_tu() }}"]
+	if show_stock_report:
+		links.append('{{ link_bao_cao("' + STOCK_REPORT + '") }}')
+	parts.append("<p>" + " &nbsp;·&nbsp; ".join(links) + "</p>")
+
+	if action:
+		parts.append(f"<p>{action}</p>")
+
+	return "\n".join(parts)
 
 
-def _clean(value) -> str:
-	"""Bỏ thẻ HTML lẫn trong dữ liệu chủ, giữ nguyên HTML do mẫu tự viết."""
-	if value is None:
-		return ""
-	return strip_html(str(value)).strip()
-
-
-def _currency_of(doc) -> str | None:
-	if doc.meta.has_field("currency") and doc.get("currency"):
-		return doc.get("currency")
-	if doc.get("company"):
-		return frappe.get_cached_value("Company", doc.get("company"), "default_currency")
-	return None
-
-
-def _money(doc, value) -> str:
-	if value is None:
-		return ""
-	return fmt_money(flt(value), currency=_currency_of(doc))
-
-
-def _owner_name(doc) -> str:
-	if not doc.owner:
-		return ""
-	return frappe.db.get_value("User", doc.owner, "full_name") or doc.owner
-
-
-def _party_name(doc, spec: dict) -> str:
-	for fieldname in (spec.get("party_field"), "party_name", "customer_name", "supplier_name"):
-		if fieldname and doc.meta.has_field(fieldname) and doc.get(fieldname):
-			return _clean(doc.get(fieldname))
-	return ""
-
-
-def _due_date(doc) -> str:
-	"""Hạn thanh toán của chứng từ, tra sang chứng từ gốc khi cần (quyết định D9).
-
-	`Payment Request` không có trường hạn — hạn nằm ở hoá đơn mà nó dẫn chiếu.
-	"""
-	if doc.meta.has_field("due_date") and doc.get("due_date"):
-		return formatdate(doc.get("due_date"))
-
-	reference_doctype = doc.get("reference_doctype")
-	reference_name = doc.get("reference_name")
-	if not reference_doctype or not reference_name:
-		return ""
-
-	if not frappe.get_meta(reference_doctype).has_field("due_date"):
-		return ""
-
-	due = frappe.db.get_value(reference_doctype, reference_name, "due_date")
-	return formatdate(due) if due else ""
-
-
-def spec_of(point) -> dict:
-	return POINTS_BY_CODE.get(point.code, {})
-
-
-def build_context(point, doc, milestone: str | None = None) -> dict:
-	"""Ngữ cảnh hạn chế trao cho Jinja hộp cát."""
-	spec = spec_of(point)
-
-	amount_field = spec.get("amount_field")
-	date_field = spec.get("date_field")
-
-	amount = None
-	if amount_field and doc.meta.has_field(amount_field):
-		amount = doc.get(amount_field)
-
-	date_value = None
-	if date_field and doc.meta.has_field(date_field):
-		date_value = doc.get(date_field)
-
-	outstanding = None
-	if doc.meta.has_field("outstanding_amount"):
-		outstanding = doc.get("outstanding_amount")
-
-	return {
-		"prefix": PREFIX,
-		"doc": doc,
-		"party_name": _party_name(doc, spec),
-		"owner_name": _clean(_owner_name(doc)),
-		"amount": _money(doc, amount),
-		"outstanding": _money(doc, outstanding),
-		"date": formatdate(date_value) if date_value else "",
-		"due": _due_date(doc),
-		"days_left": cint(milestone[1:]) if milestone and milestone.startswith("d") else "",
-	}
-
-
-def _fallback(point, key: str) -> str:
-	return spec_of(point).get(key, "")
-
-
-def subject(point, context: dict) -> str:
-	return _render(point.subject_template, context, _fallback(point, "subject_template"))
-
-
-def external_subject(point, context: dict) -> str:
-	rendered = _render(
-		point.external_subject_template, context, _fallback(point, "external_subject_template")
+def _footer(scope: str) -> str:
+	settings = get_settings()
+	name = (
+		settings.external_footer_snippet if scope == ctx.SCOPE_EXTERNAL else settings.internal_footer_snippet
 	)
-	return rendered or subject(point, context)
+	return str(ctx.snippet(name, scope)) if name else ""
 
 
-def _item_rows(doc) -> list[dict]:
-	if not doc.meta.has_field("items"):
-		return []
+def build(point, doc, *, scope=ctx.SCOPE_INTERNAL, milestone=None, triggered_by=None) -> frappe._dict:
+	"""Tiêu đề, thân và câu in-app của một lần gửi."""
+	context = ctx.build(point, doc, scope=scope, milestone=milestone, triggered_by=triggered_by)
 
-	rows = []
-	for item in (doc.get("items") or [])[:MAX_ITEM_ROWS]:
-		rows.append(
-			{
-				"item_code": _clean(item.get("item_code")),
-				"item_name": _clean(item.get("item_name")),
-				"qty": flt(item.get("qty")),
-				"uom": _clean(item.get("uom") or item.get("stock_uom")),
-			}
-		)
-	return rows
+	if scope == ctx.SCOPE_EXTERNAL:
+		subject_template = point.external_subject_template or point.subject_template
+		body_template = point.external_body_template
+	else:
+		subject_template = point.subject_template
+		body_template = point.body_template
 
+	subject = ctx.render_text(subject_template, context)
+	prefix = (point.subject_prefix or "").strip()
+	if prefix and not subject.startswith(prefix):
+		subject = f"{prefix} {subject}".strip()
 
-def _facts(point, doc, context: dict) -> list[dict]:
-	"""Khối số liệu thay cho bảng mặt hàng ở chứng từ tiền."""
-	spec = spec_of(point)
-	facts = []
+	body = ctx.render(body_template, context)
+	footer = _footer(scope)
+	if footer:
+		body = f"{body}\n{footer}" if body else footer
 
-	if context["amount"]:
-		label = _("Số còn nợ") if spec.get("amount_field") == "outstanding_amount" else _("Giá trị")
-		facts.append({"label": label, "value": context["amount"]})
+	inapp = ctx.render_text(point.inapp_template, context) if point.inapp_template else subject
 
-	if context["due"]:
-		facts.append({"label": _("Hạn thanh toán"), "value": context["due"]})
-	elif context["date"]:
-		facts.append({"label": _("Ngày"), "value": context["date"]})
-
-	if context["days_left"] != "":
-		facts.append({"label": _("Còn lại"), "value": _("{0} ngày").format(context["days_left"])})
-
-	return facts
-
-
-def internal_body(point, doc, context: dict) -> str:
-	items = _item_rows(doc)
-	return frappe.render_template(
-		"erpnext/supply_notification/templates/internal_email.html",
-		{
-			"intro": _render(point.intro_template, context, _fallback(point, "intro_template")),
-			"action": _render(point.action_template, context, _fallback(point, "action_template")),
-			"items": items,
-			"hidden_items": max(len(doc.get("items") or []) - len(items), 0),
-			"facts": _facts(point, doc, context),
-			"doc_url": get_url_to_form(doc.doctype, doc.name),
-			"doc_label": f"{_(doc.doctype)} {doc.name}",
-			"stock_url": get_url(STOCK_REPORT_PATH) if spec_of(point).get("show_stock_report") else None,
-		},
-	)
-
-
-def external_body(point, doc, context: dict) -> str:
-	intro = _render(point.external_intro_template, context, _fallback(point, "external_intro_template"))
-	return frappe.render_template(
-		"erpnext/supply_notification/templates/external_email.html",
-		{
-			"intro": intro,
-			"facts": _facts(point, doc, context),
-			"closing": point.external_closing or "",
-		},
-	)
+	return frappe._dict(subject=subject, body=body, inapp=inapp)

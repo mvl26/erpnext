@@ -448,6 +448,7 @@
    "fieldtype": "Currency",
    "label": "Tiền hàng (chưa thuế)",
    "options": "currency",
+   "precision": "0",
    "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
@@ -455,6 +456,7 @@
    "fieldtype": "Currency",
    "label": "Tổng thanh toán",
    "options": "currency",
+   "precision": "0",
    "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
@@ -475,6 +477,7 @@
    "fieldtype": "Currency",
    "label": "Tiền thuế GTGT",
    "options": "currency",
+   "precision": "0",
    "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
@@ -486,6 +489,7 @@
    "fieldtype": "Currency",
    "label": "Tiền thuế: không chịu thuế",
    "options": "currency",
+   "precision": "0",
    "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
@@ -493,6 +497,7 @@
    "fieldtype": "Currency",
    "label": "Tiền thuế: 0%",
    "options": "currency",
+   "precision": "0",
    "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
@@ -500,6 +505,7 @@
    "fieldtype": "Currency",
    "label": "Tiền thuế: 5%",
    "options": "currency",
+   "precision": "0",
    "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
@@ -507,6 +513,7 @@
    "fieldtype": "Currency",
    "label": "Tiền thuế: 10%",
    "options": "currency",
+   "precision": "0",
    "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
@@ -520,6 +527,7 @@
    "fieldtype": "Currency",
    "label": "Tiền chiết khấu",
    "options": "currency",
+   "precision": "0",
    "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
@@ -527,6 +535,7 @@
    "fieldtype": "Currency",
    "label": "Tiền khuyến mại",
    "options": "currency",
+   "precision": "0",
    "read_only_depends_on": "eval:doc.is_edit_locked || !doc.totals_manual_override"
   },
   {
@@ -538,6 +547,7 @@
    "fieldtype": "Currency",
    "label": "Giảm trừ không chịu thuế",
    "options": "currency",
+   "precision": "0",
    "read_only_depends_on": "eval:doc.is_edit_locked"
   },
   {
@@ -545,6 +555,7 @@
    "fieldtype": "Currency",
    "label": "Giảm trừ khác",
    "options": "currency",
+   "precision": "0",
    "read_only_depends_on": "eval:doc.is_edit_locked"
   },
   {
@@ -910,7 +921,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 0,
  "links": [],
- "modified": "2026-09-22 12:30:00.000000",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Einvoice",
  "name": "Fast EInvoice Document",

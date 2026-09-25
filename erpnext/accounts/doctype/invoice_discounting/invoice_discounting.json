@@ -95,6 +95,7 @@
    "fieldtype": "Currency",
    "label": "Total Amount",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -105,7 +106,8 @@
    "fieldname": "bank_charges",
    "fieldtype": "Currency",
    "label": "Bank Charges",
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   },
   {
    "fieldname": "section_break_6",
@@ -168,7 +170,7 @@
   }
  ],
  "is_submittable": 1,
- "modified": "2019-05-30 19:08:21.199759",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Invoice Discounting",
