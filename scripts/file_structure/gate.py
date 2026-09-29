@@ -71,6 +71,12 @@ RULES: list[tuple[str, str]] = [
 	("doc", r"docs/.+"),
 	("script", r"scripts/.+"),
 	("claude-config", r"\.claude/.+"),
+	# Vỏ app PDA (Capacitor) — spec 2026-09-23. Mã nguồn app nằm trong kho này theo
+	# quyết định của chủ đầu tư: một nhánh, một PR, không lạc khỏi nghiệp vụ nó phục vụ.
+	(
+		"pda-app",
+		r"pda_app/(package\.json|package-lock\.json|capacitor\.config\.json|README\.md|\.gitignore|www/.+|android/.+)",
+	),
 	(
 		"repo-root",
 		r"(README|CLAUDE|NOTICE)\.md|package\.json|pyproject\.toml|yarn\.lock"

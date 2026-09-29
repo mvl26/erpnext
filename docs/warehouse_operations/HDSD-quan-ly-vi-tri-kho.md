@@ -1308,6 +1308,58 @@ nói gì về phiếu đó.
 
 ---
 
+## 17. App PDA (từ 23/09/2026)
+
+Các mục 12–15 mô tả các màn hình PDA (tra cứu, xếp hàng, lấy hàng, đặt ô hàng loạt) khi mở bằng
+trình duyệt di động. Từ 23/09/2026, các màn hình đó còn mở được qua một **app Android** riêng
+(`pda_app/`) — một vỏ WebView khoá cứng chỉ trỏ vào máy chủ Miyano ERP, đỡ việc thủ kho phải mở
+trình duyệt và gõ địa chỉ mỗi ca.
+
+App **không** thêm nghiệp vụ mới: bốn việc bên trong app (tra cứu, xếp hàng, lấy hàng, đặt ô
+hàng loạt) là ĐÚNG nghiệp vụ ở mục 12–15, cộng thêm một lớp đăng nhập bằng **thẻ PDA** (mã vạch
+quét được, phiên sống 12 tiếng) thay cho gõ tài khoản/mật khẩu bằng súng quét.
+
+**Từ Task 6 (23–24/09/2026): app dùng giao diện RIÊNG ở `/kho`, không còn mở trực tiếp bốn
+trang Desk ở mục 12–15 nữa.** `/kho` là một khung app tách biệt (`erpnext/public/js/kho_pda/`)
+— không thanh công cụ Desk, không tải lại trang giữa các màn — nhưng đọc CÙNG một lớp quyết định
+nghiệp vụ (`erpnext/public/js/warehouse_operations/luong/`) mà bốn trang Desk ở mục 12–15 cũng
+dùng, nên hai bên KHÔNG lệch luật nhau. **Bốn trang Desk giữ nguyên, không bị xoá** — ai dùng
+máy tính (bàn phím, màn hình lớn, đăng nhập tài khoản thường qua trình duyệt, không quét thẻ)
+vẫn mở được y như trước, ví dụ "Đặt ô hàng loạt" — việc vốn thiết kế cho máy tính (bảng rộng,
+không hợp màn 4 inch).
+
+Toàn bộ hướng dẫn cấp thẻ, thu hồi thẻ, cài app, dùng hằng ngày và bảng kiểm tay nằm ở
+`HDSD-app-pda.md`. Tài liệu dựng lại file APK (môi trường, khoá ký, lệnh build) nằm ở
+`pda_app/README.md`.
+
+**Lối vào từ workspace Quản lý kho** (thẻ *App PDA*):
+
+| Ô bấm | Dẫn tới | Ai dùng |
+|---|---|---|
+| **Thẻ PDA** | danh sách `PDA Badge` — cấp, thu hồi, in thẻ | trưởng kho |
+| **Cài app PDA** | trang đưa bản cài lên + hướng dẫn cài từng máy | trưởng kho |
+| **Màn hình PDA** | menu bốn việc (`pda-home`), mở thử được trên máy tính | ai có vai trò kho |
+
+Máy quét mới lấy bản cài bằng cách mở trình duyệt vào **`<địa chỉ kho>/tai-app`** — trang công
+khai, không cần đăng nhập (máy chưa cài app thì chưa có phiên nào để đăng nhập). Trang **Cài app
+PDA** in sẵn đúng địa chỉ đó để khỏi phải nhớ.
+
+**Ai làm gì với thẻ:**
+
+| Việc | Ai làm | Ở đâu |
+|---|---|---|
+| Cấp thẻ mới (2 bước: tạo bản ghi rồi mới "Cấp thẻ & in") | Trưởng kho (`Stock Manager`/`System Manager`) | `PDA Badge` trên web |
+| Thu hồi thẻ (mất, nghi lộ, hoặc người nghỉ việc) | Trưởng kho | `PDA Badge` trên web |
+| Quét thẻ, dùng app hằng ngày | Thủ kho có vai trò kho (`Stock User` trở lên) | App PDA trên máy quét |
+| Cài/gỡ app trên máy quét mới | Trưởng kho hoặc kỹ thuật | Trực tiếp trên máy PDA |
+| Dựng lại file APK khi đổi máy chủ hoặc sửa vỏ app | Kỹ thuật | `pda_app/README.md` |
+
+**Sự thật cần nhớ:** thẻ quét được là một chiếc chìa khoá — ai chụp lại được mã vạch trên thẻ là
+vào được hệ thống với quyền của chủ thẻ. Nghi mất thẻ thì thu hồi ngay, đừng đợi xác minh chắc
+chắn (chi tiết ở `HDSD-app-pda.md` mục 8 "Sự thật về bảo mật").
+
+---
+
 ## Phụ lục A. Một lần chạy thật, từ mua hàng tới tồn theo ô
 
 Chạy ngày 13/09/2026 trên `erptest.local`, mặt hàng `MYN-IMP-NEP-8` (Nẹp khoá 8 lỗ titan,
@@ -1443,3 +1495,5 @@ Cây vị trí:             lft 1..428, 214 nút, 0 nút chưa hội tụ
 | `BAN-GIAO-nen-tang-vi-tri-kho.md` | kỹ thuật — kiến trúc, cách bảo trì, cách merge ERPNext bản mới |
 | `../superpowers/specs/2026-09-15-gan-vi-tri-co-dinh-theo-mat-hang-design.md` | kỹ thuật — thiết kế phần gán vị trí cố định (mục 10) và những chỗ cố ý KHÔNG làm |
 | `QUYET-DINH-thi-cong-cay-vi-tri.md` | chủ dự án — những chỗ tự chốt trong lúc làm và cái giá nếu chốt sai |
+| `HDSD-app-pda.md` | trưởng kho, thủ kho — cấp/thu hồi thẻ, cài app, dùng hằng ngày, bảng kiểm tay |
+| `../../pda_app/README.md` | kỹ thuật — dựng lại file APK, khoá ký, đổi máy chủ mặc định |

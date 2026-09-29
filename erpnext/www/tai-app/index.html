@@ -1,0 +1,50 @@
+{% extends "templates/web.html" %}
+
+{% block page_content %}
+<div class="tai-app">
+	<h1>{{ _("Miyano PDA") }}</h1>
+
+	{% if ban %}
+	<a class="tai-nut" href="{{ ban.duong_dan }}" download>{{ _("Tải bản cài") }}</a>
+	<div class="tai-mo">
+		{{ ban.ten }} · {{ ban.dung_luong_mb }} MB<br />
+		{{ _("Đưa lên lúc") }} {{ frappe.utils.format_datetime(ban.tai_len_luc) }}
+	</div>
+
+	<ol class="tai-buoc">
+		<li>{{ _("Tải xong, mở file vừa tải để cài. Máy hỏi thì cho phép cài từ nguồn này.") }}</li>
+		<li>{{ _("Mở app Miyano PDA, khai địa chỉ máy chủ:") }}
+			<b class="tai-may-chu" id="tai-may-chu"></b></li>
+		<li>{{ _("Quét thẻ nhân viên để vào việc.") }}</li>
+	</ol>
+	{% else %}
+	<div class="tai-chua-co">
+		{{ _("Chưa có bản cài nào trên hệ thống.") }}<br />
+		{{ _("Trưởng kho vào Quản lý kho › Cài app PDA để đưa bản cài lên.") }}
+	</div>
+	{% endif %}
+</div>
+
+<style>
+	.tai-app { max-width: 520px; margin: 8vh auto; padding: 0 16px; text-align: center; }
+	.tai-app h1 { font-size: 24px; margin-bottom: 20px; }
+	.tai-nut {
+		display: block; padding: 18px; font-size: 20px; font-weight: 700;
+		background: var(--primary); color: #fff; border-radius: 12px; text-decoration: none;
+	}
+	.tai-nut:hover { color: #fff; }
+	.tai-mo { margin-top: 10px; color: var(--text-muted); font-size: 13px; }
+	.tai-buoc { text-align: left; margin-top: 28px; line-height: 1.9; }
+	.tai-may-chu { font-family: var(--font-stack-monospace, monospace); }
+	.tai-chua-co { padding: 24px; background: var(--control-bg); border-radius: 12px; line-height: 1.8; }
+</style>
+
+<script>
+	// Địa chỉ máy chủ lấy từ CHÍNH trang đang mở, không viết cứng: người cài gõ
+	// đúng cái họ vừa gõ để vào đây, và khi đổi máy chủ thì câu này tự đúng theo.
+	(function () {
+		var o = document.getElementById("tai-may-chu");
+		if (o) o.textContent = window.location.origin;
+	})();
+</script>
+{% endblock %}

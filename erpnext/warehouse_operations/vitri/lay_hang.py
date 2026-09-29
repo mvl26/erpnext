@@ -297,10 +297,16 @@ def chan_duyet_chua_lay(doc, method=None) -> None:
 
 	da_in, tong = dem_kien(doc)
 	if da_in < tong:
+		# VÌ SAO không nói "bấm In tem kiện": app PDA KHÔNG có nút đó — máy in tem
+		# nối với MÁY TÍNH, tem in từ form Phiếu giao hàng. Lớp luồng của app đã
+		# nói đúng chỗ in (`public/js/warehouse_operations/luong/lay_hang.js:155`);
+		# câu ở máy chủ này là câu duy nhất còn trỏ tới một nút không tồn tại, và
+		# nó hiện ra đúng lúc thủ kho đang bế tắc giữa kho.
 		frappe.throw(
-			_("Còn {0}/{1} kiện chưa in tem — bấm In tem kiện, dán tem lên hàng rồi duyệt.").format(
-				tong - da_in, tong
-			),
+			_(
+				"Còn {0}/{1} kiện chưa in tem — in ở máy tính (form Phiếu giao hàng › In tem kiện), "
+				"dán tem lên hàng rồi duyệt."
+			).format(tong - da_in, tong),
 			title=_("Chưa in đủ tem kiện"),
 		)
 
