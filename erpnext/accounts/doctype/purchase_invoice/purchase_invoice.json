@@ -667,6 +667,7 @@
    "fieldtype": "Currency",
    "label": "Total (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -677,6 +678,7 @@
    "oldfieldname": "net_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -689,6 +691,7 @@
    "fieldtype": "Currency",
    "label": "Total",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -698,6 +701,7 @@
    "oldfieldname": "net_total_import",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -785,6 +789,7 @@
    "oldfieldname": "other_charges_added",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -795,6 +800,7 @@
    "oldfieldname": "other_charges_deducted",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -805,6 +811,7 @@
    "oldfieldname": "total_tax",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -819,6 +826,7 @@
    "oldfieldname": "other_charges_added_import",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -829,6 +837,7 @@
    "oldfieldname": "other_charges_deducted_import",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -837,6 +846,7 @@
    "fieldtype": "Currency",
    "label": "Total Taxes and Charges",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -859,6 +869,7 @@
    "fieldtype": "Currency",
    "label": "Additional Discount Amount (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -877,6 +888,7 @@
    "fieldtype": "Currency",
    "label": "Additional Discount Amount",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1
   },
   {
@@ -891,6 +903,7 @@
    "oldfieldname": "grand_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -901,6 +914,7 @@
    "label": "Rounding Adjustment (Company Currency)",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -911,6 +925,7 @@
    "label": "Rounded Total (Company Currency)",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -939,6 +954,7 @@
    "oldfieldname": "grand_total_import",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -948,6 +964,7 @@
    "label": "Rounding Adjustment",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -958,6 +975,7 @@
    "label": "Rounded Total",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -979,6 +997,7 @@
    "oldfieldname": "total_advance",
    "oldfieldtype": "Currency",
    "options": "party_account_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -990,6 +1009,7 @@
    "oldfieldname": "outstanding_amount",
    "oldfieldtype": "Currency",
    "options": "party_account_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1041,6 +1061,7 @@
    "label": "Paid Amount",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "print_hide": 1
   },
   {
@@ -1049,6 +1070,7 @@
    "label": "Paid Amount (Company Currency)",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1064,6 +1086,7 @@
    "label": "Write Off Amount",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "print_hide": 1
   },
   {
@@ -1072,6 +1095,7 @@
    "label": "Write Off Amount (Company Currency)",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1482,6 +1506,7 @@
    "label": "Tax Withholding Net Total",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -1492,6 +1517,7 @@
    "label": "Base Tax Withholding Net Total",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1659,7 +1685,7 @@
  "idx": 204,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-04 19:19:11.380664",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Purchase Invoice",

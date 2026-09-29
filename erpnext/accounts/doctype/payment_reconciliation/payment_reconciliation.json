@@ -139,7 +139,8 @@
   {
    "fieldname": "minimum_invoice_amount",
    "fieldtype": "Currency",
-   "label": "Minimum Invoice Amount"
+   "label": "Minimum Invoice Amount",
+   "precision": "0"
   },
   {
    "default": "50",
@@ -165,12 +166,14 @@
   {
    "fieldname": "minimum_payment_amount",
    "fieldtype": "Currency",
-   "label": "Minimum Payment Amount"
+   "label": "Minimum Payment Amount",
+   "precision": "0"
   },
   {
    "fieldname": "maximum_payment_amount",
    "fieldtype": "Currency",
-   "label": "Maximum Payment Amount"
+   "label": "Maximum Payment Amount",
+   "precision": "0"
   },
   {
    "default": "50",
@@ -182,7 +185,8 @@
   {
    "fieldname": "maximum_invoice_amount",
    "fieldtype": "Currency",
-   "label": "Maximum Invoice Amount"
+   "label": "Maximum Invoice Amount",
+   "precision": "0"
   },
   {
    "fieldname": "column_break_11",
@@ -238,7 +242,7 @@
  "is_virtual": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-04-23 12:38:29.557315",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Payment Reconciliation",

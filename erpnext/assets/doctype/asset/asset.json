@@ -230,7 +230,8 @@
    "fieldtype": "Currency",
    "label": "Net Purchase Amount",
    "mandatory_depends_on": "eval:(!doc.is_composite_asset || doc.docstatus==1)",
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   },
   {
    "fieldname": "available_for_use_date",
@@ -257,7 +258,8 @@
    "fieldname": "opening_accumulated_depreciation",
    "fieldtype": "Currency",
    "label": "Opening Accumulated Depreciation",
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   },
   {
    "collapsible": 1,
@@ -290,6 +292,7 @@
    "hidden": 1,
    "label": "Value After Depreciation",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -516,6 +519,7 @@
    "label": "Total Asset Cost",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -525,6 +529,7 @@
    "label": "Additional Asset Cost",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -533,6 +538,7 @@
    "hidden": 1,
    "label": "Purchase Amount",
    "no_copy": 1,
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -597,7 +603,7 @@
    "link_fieldname": "target_asset"
   }
  ],
- "modified": "2026-03-31 13:56:18.923417",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "hieu.cv2@miyano.com.vn",
  "module": "Assets",
  "name": "Asset",

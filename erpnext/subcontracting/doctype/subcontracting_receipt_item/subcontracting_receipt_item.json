@@ -221,6 +221,7 @@
    "in_list_view": 1,
    "label": "Amount",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -387,6 +388,7 @@
    "label": "Raw Materials Supplied Cost",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "print_width": "150px",
    "read_only": 1,
@@ -598,7 +600,7 @@
  "idx": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-09-26 12:00:38.877638",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Subcontracting",
  "name": "Subcontracting Receipt Item",

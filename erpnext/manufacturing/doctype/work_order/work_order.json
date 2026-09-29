@@ -363,6 +363,7 @@
    "fieldtype": "Currency",
    "label": "Planned Operating Cost",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -371,6 +372,7 @@
    "label": "Actual Operating Cost",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -378,7 +380,8 @@
    "fieldtype": "Currency",
    "label": "Additional Operating Cost",
    "no_copy": 1,
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   },
   {
    "fieldname": "column_break_24",
@@ -390,6 +393,7 @@
    "label": "Total Operating Cost",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -549,6 +553,7 @@
    "fieldtype": "Currency",
    "label": "Corrective Operation Cost",
    "no_copy": 1,
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -603,7 +608,7 @@
  "image_field": "image",
  "is_submittable": 1,
  "links": [],
- "modified": "2025-06-21 00:55:45.916224",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "Work Order",
