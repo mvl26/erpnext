@@ -1,30 +1,42 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Dựng vai trò, phòng ban còn thiếu và 12 điểm thông báo mặc định.
+"""Dựng vai trò, cài đặt, mẫu dùng chung, phòng ban còn thiếu và 13 điểm mặc định.
 
 Phòng ban tra theo danh mục chuẩn `erpnext.setup.department_catalog` (khớp bí danh),
 nên phòng đã có dưới tên khác được dùng lại thay vì tạo trùng.
 
 Chạy được nhiều lần: gọi lại không nhân đôi bản ghi và **không** ghi đè điểm
-thông báo đã tồn tại — nghiệp vụ có thể đã sửa người nhận hoặc câu chữ.
+thông báo, mẫu hay cài đặt đã tồn tại — nghiệp vụ có thể đã sửa người nhận hoặc
+câu chữ (NF6).
 
-Tham chiếu: docs/05c_Spec_KyThuat_Plan_Thong_Bao.md muc 3.2 va Phu luc C.
+Quyết định 23/09/2026: hàm này **không** tạo Custom Field trên `Address` và
+**không** gán vai trò *Quản trị thông báo* cho tài khoản nào — việc gán quyền do
+PO tự làm trên Desk.
+
+Tham chiếu: docs/superpowers/specs/2026-09-23-thong-bao-tu-thiet-lap-design.md muc 4.12.
 """
 
 import frappe
 
 from erpnext.setup.department_catalog import ensure_departments
-from erpnext.supply_notification.constants import ADMIN_ROLE, POINTS
+from erpnext.supply_notification import constants, content, registry
 
 POINT_DOCTYPE = "Supply Notification Point"
+SNIPPET_DOCTYPE = "Supply Notification Snippet"
+SETTINGS_DOCTYPE = "Supply Notification Settings"
 
 
 def setup_supply_notification():
 	"""Điểm vào duy nhất, gọi từ patch và từ `after_migrate`."""
 	make_admin_role()
+	ensure_settings()
+	seed_snippets()
+
 	company = default_company()
 	departments = ensure_departments(company, needed_departments()) if company else {}
 	seed_points(departments)
+
+	registry.clear_cache()
 
 
 def default_company() -> str | None:
@@ -37,16 +49,56 @@ def default_company() -> str | None:
 
 
 def make_admin_role():
-	if frappe.db.exists("Role", ADMIN_ROLE):
+	if frappe.db.exists("Role", constants.ADMIN_ROLE):
 		return
 
 	frappe.get_doc(
 		{
 			"doctype": "Role",
-			"role_name": ADMIN_ROLE,
+			"role_name": constants.ADMIN_ROLE,
 			"desk_access": 1,
 		}
 	).insert(ignore_permissions=True)
+
+
+def ensure_settings():
+	"""Điền mặc định cho bản ghi cài đặt, chỉ khi ô còn trống."""
+	settings = frappe.get_single(SETTINGS_DOCTYPE)
+	defaults = {
+		"enabled": 1,
+		"default_subject_prefix": constants.DEFAULT_PREFIX,
+		"max_item_rows": 50,
+		"sound": "alert",
+		"toast_seconds": 10,
+		"sound_debounce_seconds": 3,
+		"reminder_hour": 8,
+		"hourly_email_cap": 200,
+		"auto_log_retention_days": 180,
+		"manual_log_retention_days": 0,
+	}
+
+	changed = False
+	for fieldname, value in defaults.items():
+		if settings.get(fieldname) in (None, ""):
+			settings.set(fieldname, value)
+			changed = True
+
+	if changed:
+		settings.flags.ignore_permissions = True
+		settings.save(ignore_permissions=True)
+
+
+def seed_snippets() -> list[str]:
+	created = []
+	for spec in constants.SEED_SNIPPETS:
+		if frappe.db.exists(SNIPPET_DOCTYPE, spec["snippet_name"]):
+			continue
+
+		doc = frappe.new_doc(SNIPPET_DOCTYPE)
+		doc.update(spec)
+		doc.insert(ignore_permissions=True)
+		created.append(doc.name)
+	return created
 
 
 def root_department() -> str | None:
@@ -69,12 +121,16 @@ def root_department() -> str | None:
 
 
 def needed_departments() -> list[str]:
-	"""Mã phòng ban mà 12 điểm mặc định dùng, giữ thứ tự xuất hiện."""
-	return list(dict.fromkeys(key for spec in POINTS for key in spec["departments"]))
+	"""Mã phòng ban mà các điểm mặc định dùng, giữ thứ tự xuất hiện."""
+	return list(dict.fromkeys(key for spec in constants.SEED_POINTS for key in spec.get("departments", ())))
+
+
+def all_seed_specs() -> tuple[dict, ...]:
+	return constants.SEED_POINTS + constants.SEED_MANUAL_POINTS
 
 
 def seed_points(departments: dict[str, str] | None = None) -> list[str]:
-	"""Gieo các điểm thông báo còn thiếu. Trả về mã các điểm vừa tạo.
+	"""Gieo các điểm còn thiếu. Trả về mã các điểm vừa tạo.
 
 	`departments` là {mã danh mục: tên Department} do `ensure_departments` trả về;
 	mã không có trong đó thì bỏ dòng khỏi bảng con, không nổ.
@@ -82,37 +138,98 @@ def seed_points(departments: dict[str, str] | None = None) -> list[str]:
 	departments = departments or {}
 	created = []
 
-	for spec in POINTS:
+	for spec in all_seed_specs():
 		if frappe.db.exists(POINT_DOCTYPE, spec["code"]):
 			continue
 
-		doc = frappe.new_doc(POINT_DOCTYPE)
-		doc.code = spec["code"]
-		doc.title = spec["title"]
-		doc.enabled = 1
-		doc.reference_doctype = spec["reference_doctype"]
-		doc.trigger_event = spec["trigger_event"]
-		doc.filter_note = spec["filter_note"]
-		doc.send_email = 1
-		doc.send_inapp = 1
-		doc.notify_owner = spec["notify_owner"]
-		doc.notify_external = spec["notify_external"]
-		doc.attach_pdf = spec["attach_pdf"] if _print_format_ok(spec) else 0
-		doc.print_format = spec["print_format"] if doc.attach_pdf else None
-		doc.subject_template = spec["subject_template"]
-		doc.intro_template = spec["intro_template"]
-		doc.action_template = spec["action_template"]
-		doc.external_subject_template = spec["external_subject_template"]
-		doc.external_intro_template = spec["external_intro_template"]
-
-		for key in spec["departments"]:
-			if departments.get(key):
-				doc.append("departments", {"department": departments[key]})
-
+		doc = build_point(spec, departments)
 		doc.insert(ignore_permissions=True)
 		created.append(doc.code)
 
 	return created
+
+
+def build_point(spec: dict, departments: dict[str, str] | None = None) -> "frappe.Document":
+	"""Dựng (chưa lưu) một điểm từ dữ liệu hạt giống."""
+	departments = departments or {}
+
+	doc = frappe.new_doc(POINT_DOCTYPE)
+	doc.code = spec["code"]
+	doc.title = spec["title"]
+	doc.is_seed = 1
+	doc.enabled = 1
+	doc.function_group = spec.get("function_group")
+	doc.reference_doctype = spec["reference_doctype"]
+	doc.trigger_event = spec["trigger_event"]
+	doc.notes = spec.get("notes")
+	doc.subject_prefix = spec.get("subject_prefix", constants.DEFAULT_PREFIX)
+
+	doc.send_email = spec.get("send_email", 1)
+	doc.send_inapp = spec.get("send_inapp", 1)
+	doc.notify_owner = spec.get("notify_owner", 0)
+	doc.notify_external = spec.get("notify_external", 0)
+	doc.external_party_contact = spec.get("external_party_contact", 1 if spec.get("notify_external") else 0)
+	doc.cc_owner = spec.get("cc_owner", 0)
+	doc.reply_to_mode = spec.get("reply_to_mode", "Không đặt")
+	doc.allow_opt_out = spec.get("allow_opt_out", 0)
+
+	doc.attach_pdf = spec.get("attach_pdf", 0) if _print_format_ok(spec) else 0
+	doc.print_format = spec.get("print_format") if doc.attach_pdf else None
+
+	doc.party_field = spec.get("party_field")
+	doc.amount_field = spec.get("amount_field")
+	doc.main_date_field = spec.get("main_date_field")
+	doc.item_table_field = spec.get("item_table_field", "items")
+	doc.address_field = spec.get("address_field")
+	doc.contact_field = spec.get("contact_field")
+	doc.signature_person = spec.get("signature_person", "Người tạo")
+
+	doc.date_field = spec.get("date_field")
+	doc.reminder_offsets = spec.get("reminder_offsets", "")
+	doc.button_label = spec.get("button_label")
+	doc.button_color = spec.get("button_color", "Mặc định")
+	doc.manual_docstatus = spec.get("manual_docstatus", "Đã ghi sổ")
+
+	doc.subject_template = spec.get("subject_template", "")
+	doc.body_template = spec.get("body_template") or (
+		content.compose_body(
+			spec.get("intro", ""),
+			spec.get("action", ""),
+			show_stock_report=spec.get("show_stock_report", 0),
+		)
+		if spec.get("intro")
+		else ""
+	)
+	doc.external_subject_template = spec.get("external_subject_template", "")
+	doc.external_body_template = spec.get("external_body_template") or (
+		content.compose_body(spec.get("external_intro", ""), external=True)
+		if spec.get("external_intro")
+		else ""
+	)
+
+	for key in spec.get("departments", ()):
+		if departments.get(key):
+			doc.append("departments", {"department": departments[key]})
+
+	for fieldname, operator, value in spec.get("conditions", ()):
+		doc.append("conditions", {"fieldname": fieldname, "operator": operator, "value": value})
+
+	for fieldname, label in spec.get("item_columns", ()):
+		doc.append("item_columns", {"fieldname": fieldname, "label": label})
+
+	for fieldname, label, only_if_previous_empty in spec.get(
+		"fact_rows", constants.default_fact_rows(spec.get("amount_label", "Giá trị"))
+	):
+		doc.append(
+			"fact_rows",
+			{
+				"fieldname": fieldname,
+				"label": label,
+				"only_if_previous_empty": only_if_previous_empty,
+			},
+		)
+
+	return doc
 
 
 def _print_format_ok(spec: dict) -> bool:
@@ -120,6 +237,6 @@ def _print_format_ok(spec: dict) -> bool:
 
 	Site khác chưa có mẫu in tiếng Việt vẫn cài được, chỉ là không đính file.
 	"""
-	if not spec["attach_pdf"]:
+	if not spec.get("attach_pdf"):
 		return False
-	return bool(spec["print_format"] and frappe.db.exists("Print Format", spec["print_format"]))
+	return bool(spec.get("print_format") and frappe.db.exists("Print Format", spec["print_format"]))

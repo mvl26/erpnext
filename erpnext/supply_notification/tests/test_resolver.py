@@ -5,6 +5,7 @@ from frappe.tests.utils import FrappeTestCase
 
 from erpnext.supply_notification import resolver
 from erpnext.supply_notification.setup import default_company, root_department
+from erpnext.supply_notification.tests import fixtures
 
 
 def make_user(enabled=1) -> str:
@@ -47,22 +48,8 @@ def make_employee(department, user_id=None, status="Active") -> str:
 	return doc.name
 
 
-def make_point(**kwargs) -> "frappe.Document":
-	doc = frappe.new_doc("Supply Notification Point")
-	doc.code = f"NTF-T-{frappe.generate_hash(length=6)}"
-	doc.title = "Điểm thử"
-	doc.reference_doctype = "Sales Order"
-	doc.trigger_event = "Submit"
-	doc.subject_template = "Thử {{ doc.name }}"
-	doc.send_email = 1
-	doc.send_inapp = 1
-	for department in kwargs.pop("departments", []):
-		doc.append("departments", {"department": department})
-	for user in kwargs.pop("users", []):
-		doc.append("users", {"user": user})
-	doc.update(kwargs)
-	doc.insert(ignore_permissions=True)
-	return doc
+def make_point(**kwargs):
+	return fixtures.make_point(**kwargs)
 
 
 class TestResolverDepartments(FrappeTestCase):
@@ -114,7 +101,7 @@ class TestResolverRecipients(FrappeTestCase):
 		named = make_user()
 		point = make_point(departments=[department], users=[named])
 
-		names = {row.name for row in resolver.resolve(point)}
+		names = {row.name for row in resolver.resolve(point).users}
 
 		self.assertEqual(names, {from_department, named})
 
@@ -124,7 +111,7 @@ class TestResolverRecipients(FrappeTestCase):
 		make_employee(department, user_id=user)
 		point = make_point(departments=[department], users=[user])
 
-		self.assertEqual([row.name for row in resolver.resolve(point)], [user])
+		self.assertEqual([row.name for row in resolver.resolve(point).users], [user])
 
 	def test_resolve_adds_document_owner_only_when_flagged(self):
 		named = make_user()
@@ -133,10 +120,10 @@ class TestResolverRecipients(FrappeTestCase):
 		doc.owner = owner
 
 		without = make_point(users=[named], notify_owner=0)
-		self.assertEqual({row.name for row in resolver.resolve(without, doc)}, {named})
+		self.assertEqual({row.name for row in resolver.resolve(without, doc).users}, {named})
 
 		with_owner = make_point(users=[named], notify_owner=1)
-		self.assertEqual({row.name for row in resolver.resolve(with_owner, doc)}, {named, owner})
+		self.assertEqual({row.name for row in resolver.resolve(with_owner, doc).users}, {named, owner})
 
 
 class TestResolverPreview(FrappeTestCase):
@@ -149,7 +136,9 @@ class TestResolverPreview(FrappeTestCase):
 		result = resolver.preview(point.name)
 
 		self.assertEqual([row["user"] for row in result["recipients"]], [user])
-		self.assertEqual(result["recipients"][0]["sources"], [resolver.SOURCE_DEPARTMENT])
+		self.assertEqual(
+			result["recipients"][0]["sources"], [resolver.SOURCE_LABELS[resolver.SOURCE_DEPARTMENT]]
+		)
 
 	def test_preview_warns_when_employees_have_no_account(self):
 		department = make_department()
@@ -166,18 +155,84 @@ class TestResolverPreview(FrappeTestCase):
 		self.assertTrue(any("đang tắt" in w for w in resolver.preview(point.name)["warnings"]))
 
 
+class TestResolverGroupsAndOptOut(FrappeTestCase):
+	def test_group_members_are_added_to_the_point(self):
+		"""AC-08: thêm người vào nhóm thì mọi điểm dùng nhóm gửi thêm người đó."""
+		member = make_user()
+		group = fixtures.make_group(users=[member])
+		point = make_point(recipient_groups=[group])
+
+		self.assertEqual({row.name for row in resolver.resolve(point).users}, {member})
+
+	def test_group_fixed_emails_reach_the_mail_channel(self):
+		group = fixtures.make_group(users=[make_user()], fixed_emails="kho@miyano.com.vn")
+		point = make_point(recipient_groups=[group])
+
+		self.assertIn("kho@miyano.com.vn", resolver.resolve(point).emails)
+
+	def test_disabled_group_contributes_nobody(self):
+		group = fixtures.make_group(users=[make_user()])
+		frappe.db.set_value("Supply Notification Recipient Group", group, "disabled", 1)
+		point = make_point(recipient_groups=[group], users=[make_user()])
+
+		self.assertEqual(len(resolver.resolve(point).users), 1)
+
+	def test_user_field_on_the_document_becomes_a_recipient(self):
+		user = make_user()
+		point = make_point(users=[], notify_owner=1, user_fields=["modified_by"])
+		doc = frappe.new_doc("Sales Order")
+		doc.owner = make_user()
+		doc.modified_by = user
+
+		self.assertIn(user, {row.name for row in resolver.resolve(point, doc).users})
+
+	def test_opted_out_user_stops_receiving(self):
+		"""AC-14: người nhận tự tắt một điểm thì không nhận điểm đó nữa."""
+		user = make_user()
+		point = make_point(users=[user], allow_opt_out=1)
+
+		frappe.get_doc({"doctype": "Supply Notification Opt Out", "user": user, "point": point.name}).insert(
+			ignore_permissions=True
+		)
+
+		self.assertEqual(resolver.resolve(point).users, [])
+
+
+class TestResolverCcAndReplyTo(FrappeTestCase):
+	def test_cc_and_reply_to_follow_the_configuration(self):
+		creator = make_user()
+		point = make_point(
+			users=[make_user()],
+			cc_owner=1,
+			reply_to_mode="Email cố định",
+			reply_to_email="mua-hang@miyano.com.vn",
+		)
+		doc = frappe.new_doc("Sales Order")
+		doc.owner = creator
+
+		resolved = resolver.resolve(point, doc)
+
+		self.assertEqual(resolved.cc, [frappe.db.get_value("User", creator, "email")])
+		self.assertEqual(resolved.reply_to, "mua-hang@miyano.com.vn")
+
+	def test_invalid_fixed_emails_are_dropped_instead_of_breaking_the_send(self):
+		point = make_point(users=[make_user()], cc_emails="khong-phai-email, ok@miyano.com.vn")
+
+		self.assertEqual(resolver.resolve(point).cc, ["ok@miyano.com.vn"])
+
+
 class TestResolverExternalEmail(FrappeTestCase):
 	def test_prefers_contact_email_on_document(self):
 		doc = frappe.new_doc("Purchase Order")
 		doc.contact_email = "ncc@example.com"
 
-		self.assertEqual(resolver.external_email(doc), "ncc@example.com")
+		self.assertEqual(resolver.party_email(doc), "ncc@example.com")
 
 	def test_uses_email_to_for_payment_request(self):
 		doc = frappe.new_doc("Payment Request")
 		doc.email_to = "khach@example.com"
 
-		self.assertEqual(resolver.external_email(doc), "khach@example.com")
+		self.assertEqual(resolver.party_email(doc), "khach@example.com")
 
 	def test_falls_back_to_primary_contact_of_party(self):
 		supplier = frappe.new_doc("Supplier")
@@ -194,7 +249,7 @@ class TestResolverExternalEmail(FrappeTestCase):
 		doc = frappe.new_doc("Purchase Order")
 		doc.supplier = supplier.name
 
-		self.assertEqual(resolver.external_email(doc), "primary@example.com")
+		self.assertEqual(resolver.party_email(doc), "primary@example.com")
 
 	def test_returns_none_when_nothing_is_configured(self):
 		supplier = frappe.new_doc("Supplier")
@@ -204,4 +259,4 @@ class TestResolverExternalEmail(FrappeTestCase):
 		doc = frappe.new_doc("Purchase Order")
 		doc.supplier = supplier.name
 
-		self.assertIsNone(resolver.external_email(doc))
+		self.assertIsNone(resolver.party_email(doc))

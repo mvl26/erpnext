@@ -202,6 +202,7 @@
    "in_list_view": 1,
    "label": "Amount",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1,
    "reqd": 1
   },
@@ -413,7 +414,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-03-02 17:05:28.386492",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Subcontracting",
  "name": "Subcontracting Order Item",

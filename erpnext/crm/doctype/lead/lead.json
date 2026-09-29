@@ -432,7 +432,8 @@
   {
    "fieldname": "annual_revenue",
    "fieldtype": "Currency",
-   "label": "Annual Revenue"
+   "label": "Annual Revenue",
+   "precision": "0"
   },
   {
    "depends_on": "eval:!doc.__islocal",
@@ -519,7 +520,7 @@
  "idx": 5,
  "image_field": "image",
  "links": [],
- "modified": "2025-11-11 13:44:13.398595",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "chuvanhieu357@gmail.com",
  "module": "CRM",
  "name": "Lead",

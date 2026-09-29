@@ -121,7 +121,7 @@
    "fieldtype": "Currency",
    "label": "Dunning Fee",
    "options": "currency",
-   "precision": "2"
+   "precision": "0"
   },
   {
    "fieldname": "section_break_12",
@@ -230,7 +230,7 @@
    "fieldtype": "Currency",
    "label": "Grand Total",
    "options": "currency",
-   "precision": "2",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -268,7 +268,7 @@
    "fieldtype": "Currency",
    "label": "Total Interest",
    "options": "currency",
-   "precision": "2",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -276,6 +276,7 @@
    "fieldtype": "Currency",
    "label": "Total Outstanding",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -298,6 +299,7 @@
    "fieldtype": "Currency",
    "label": "Dunning Amount",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -374,6 +376,7 @@
    "fieldtype": "Currency",
    "label": "Dunning Amount (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -400,7 +403,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2024-11-26 13:46:07.760867",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Dunning",

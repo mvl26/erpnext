@@ -79,6 +79,7 @@
    "fieldname": "value",
    "fieldtype": "Currency",
    "label": "Stock Value",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -99,7 +100,7 @@
  ],
  "hide_toolbar": 1,
  "issingle": 1,
- "modified": "2019-10-04 21:59:48.597497",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Quick Stock Balance",

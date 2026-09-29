@@ -383,6 +383,7 @@
    "fieldtype": "Currency",
    "label": "Total Incoming Value (Receipt)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -395,6 +396,7 @@
    "fieldtype": "Currency",
    "label": "Total Outgoing Value (Consumption)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -403,6 +405,7 @@
    "fieldtype": "Currency",
    "label": "Total Value Difference (Incoming - Outgoing)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide_if_no_value": 1,
    "read_only": 1
   },
@@ -424,6 +427,7 @@
    "fieldtype": "Currency",
    "label": "Total Additional Costs",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide_if_no_value": 1,
    "read_only": 1
   },
@@ -542,6 +546,7 @@
    "fieldtype": "Currency",
    "label": "Total Amount",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide_if_no_value": 1,
    "read_only": 1
   },
@@ -706,7 +711,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-04 19:21:03.338958",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Stock Entry",

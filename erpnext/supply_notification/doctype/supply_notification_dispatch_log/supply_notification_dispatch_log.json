@@ -12,15 +12,25 @@
   "reference_name",
   "column_break_head",
   "milestone",
+  "trigger_event",
   "sent_on",
   "status",
   "channel_section",
   "channel_email",
   "channel_inapp",
   "channel_external",
+  "column_break_channel",
+  "is_manual",
+  "test_mode",
+  "triggered_by",
   "recipient_section",
+  "subject",
   "recipients",
   "external_recipients",
+  "cc",
+  "bcc",
+  "attachments",
+  "reason",
   "remark"
  ],
  "fields": [
@@ -54,13 +64,18 @@
   },
   {
    "default": "submit",
-   "description": "submit, d7, d3 hoặc d1.",
+   "description": "submit, new, cancel, d7/d3/d1 (trước hạn), q1 (quá hạn), change:<trường>:<giá trị>, wf:<trạng thái>, manual.",
    "fieldname": "milestone",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Mốc",
-   "length": 16,
    "reqd": 1
+  },
+  {
+   "fieldname": "trigger_event",
+   "fieldtype": "Data",
+   "label": "Thời điểm bắn",
+   "read_only": 1
   },
   {
    "fieldname": "sent_on",
@@ -100,9 +115,42 @@
    "label": "Email ra ngoài"
   },
   {
+   "fieldname": "column_break_channel",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "is_manual",
+   "fieldtype": "Check",
+   "label": "Gửi thủ công",
+   "default": "0",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "test_mode",
+   "fieldtype": "Check",
+   "label": "Gửi trong chế độ thử",
+   "default": "0",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "triggered_by",
+   "fieldtype": "Link",
+   "label": "Người bấm gửi",
+   "options": "User",
+   "read_only": 1
+  },
+  {
    "fieldname": "recipient_section",
    "fieldtype": "Section Break",
    "label": "Người nhận"
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Small Text",
+   "label": "Tiêu đề đã gửi",
+   "read_only": 1
   },
   {
    "fieldname": "recipients",
@@ -115,6 +163,30 @@
    "label": "Người nhận ngoài"
   },
   {
+   "fieldname": "cc",
+   "fieldtype": "Small Text",
+   "label": "CC",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bcc",
+   "fieldtype": "Small Text",
+   "label": "BCC",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attachments",
+   "fieldtype": "Small Text",
+   "label": "Tệp đính kèm",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Lý do bỏ qua / lỗi",
+   "read_only": 1
+  },
+  {
    "fieldname": "remark",
    "fieldtype": "Small Text",
    "label": "Ghi chú"
@@ -123,7 +195,7 @@
  "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-08 09:00:00.000000",
+ "modified": "2026-09-23 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Supply Notification",
  "name": "Supply Notification Dispatch Log",

@@ -139,6 +139,7 @@
    "label": "Total Cost",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -290,7 +291,7 @@
    "link_fieldname": "bom_creator"
   }
  ],
- "modified": "2024-09-21 09:05:52.945112",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM Creator",
