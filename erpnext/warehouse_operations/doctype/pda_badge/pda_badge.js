@@ -66,16 +66,44 @@ function thu_hoi(frm) {
 		primary_action_label: __("Thu hồi"),
 		primary_action: () => {
 			d.hide();
-			frappe.xcall("erpnext.warehouse_operations.vitri.the_pda.thu_hoi", { nguoi_dung: frm.doc.nguoi_dung }).then(() => {
-				frappe.show_alert({ message: __("Đã thu hồi thẻ và đóng phiên đang mở."), indicator: "orange" });
+			frappe.xcall("erpnext.warehouse_operations.vitri.the_pda.thu_hoi", { nguoi_dung: frm.doc.nguoi_dung }).then((kq) => {
+				frappe.show_alert({
+					message: kq && kq.khoa_da_xoa
+						? __("Đã thu hồi thẻ, đóng phiên, xoá khoá máy và thu hồi {0} máy PDA.", [
+							kq.so_may_da_thu_hoi || 0,
+						])
+						: __("Đã thu hồi thẻ, đóng phiên và thu hồi {0} máy PDA.", [
+							(kq && kq.so_may_da_thu_hoi) || 0,
+						]),
+					indicator: "orange",
+				});
+				// Xem chú thích cùng nhánh này trong `pda_thiet_bi.js`: câu "khoá không do
+				// PDA cấp nên không bị xoá" là thứ phải ĐỌC, không phải dải báo thoáng qua.
+				if (kq && kq.ly_do_giu_khoa) {
+					frappe.msgprint({
+						title: __("Khoá API vẫn còn"),
+						message: kq.ly_do_giu_khoa,
+						indicator: "orange",
+					});
+				}
 				frm.reload_doc();
 			});
 		},
 		secondary_action_label: __("Không"),
 		secondary_action: () => d.hide(),
 	});
+	// Câu này phải nói ĐỦ hậu quả, không nói ít đi: từ Task 3 nút này còn XOÁ KHOÁ MÁY
+	// của người đó (`the_pda.thu_hoi` gọi `xoa_khoa_api`) và thu hồi mọi chiếc PDA họ
+	// đang cầm. Spec §7 đòi trưởng kho biết nút nào giết được máy — một câu nói thiếu
+	// khiến người ta đi tìm thêm một nút nữa không tồn tại, hoặc ngược lại bấm nút này
+	// để "tạm khoá thẻ" rồi bất ngờ vì máy trên tay thủ kho chết theo.
 	d.$body.append(
-		`<p>${__("Thẻ hiện tại sẽ ngừng hoạt động ngay và phiên đang mở trên PDA bị đóng.")}</p>`
+		`<p>${__(
+			"Thẻ hiện tại sẽ ngừng hoạt động ngay, phiên đang mở trên PDA bị đóng, và "
+				+ "KHOÁ MÁY của người này bị xoá — mọi chiếc PDA họ đang cầm sẽ không gọi "
+				+ "được máy chủ nữa. Muốn thu hồi đúng MỘT máy thì dùng nút 'Thu hồi máy' "
+				+ "trên PDA Thiet Bi."
+		)}</p>`
 	);
 	d.show();
 }

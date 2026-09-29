@@ -2,23 +2,27 @@
 //
 // Chủ đầu tư, 17/09/2026: "giao diện xếp hàng cũng là pda … quét mã lô thì hiển
 // thị ra mặt hàng và thực hiện xác nhận xếp, có thể xếp nhiều hàng trên 1 phiếu
-// xếp Location Transfer". Chốt cùng ngày: xác nhận bằng QUÉT TEM Ô trên kệ (hệ
-// biết thủ kho thật sự đặt hàng ở đâu, không phải bấm "đồng ý" theo gợi ý), số
-// lượng mặc định cả phần đang chờ ở ô nguồn và sửa được, và quét lô đã nằm ở ô
-// khác thì thành dòng CHUYỂN Ô.
+// xếp Location Transfer". Chốt thêm cùng ngày: xác nhận bằng QUÉT TEM Ô trên kệ,
+// số lượng mặc định cả phần đang chờ ở ô nguồn và sửa được. Luật 19/09/2026: lô
+// CHỈ xếp được vào đúng ô in trên tem — tem chưa có ô thì đòi đặt ô trước
+// (20/09/2026, thủ kho tự đặt ngay tại kệ).
 //
-// Hai bước lặp lại:  ① quét tem LÔ  →  ② quét tem Ô  →  dòng lưu ngay lên phiếu nháp.
+// PHẦN QUYẾT ĐỊNH ("hai bước lô→ô", "ô có khớp ô trên tem không", "số lượng mặc
+// định", nhãn và câu báo) KHÔNG còn nằm ở đây (Task 3, Bước 6 của brief app PDA
+// `/kho`) — đã chuyển sang `luong/xep_hang.js`, CÙNG một file mà màn "Xếp hàng"
+// của app PDA (`kho_pda/man_xep_hang.js`) dùng, để hai nơi không lệch luật. File
+// này chỉ còn giữ TOÀN BỘ phần VẼ + hộp thoại xác nhận riêng của Desk (không nghe
+// phím, cùng lý do `kho_pda/hop_thoai.js` — súng quét gửi Enter sau mỗi lần bắn).
 //
-// Máy chủ là `vitri/xep.py` (khối "Xếp hàng trên PDA") — lý do dòng lưu ngay, phiếu
-// nháp theo từng người, và phép kiểm dòng nằm ở controller đều ghi ở đó. Trang
-// này KHÔNG tự kiểm ô nhóm / nhánh ngừng dùng / sai kho: gửi lên và để câu báo của
-// máy chủ hiện ra, một chỗ duy nhất giữ luật.
+// Máy chủ: `vitri/xep.py` + `vitri/o_tem.py` — lý do dòng lưu ngay, phiếu nháp
+// theo từng người, và phép kiểm dòng nằm ở đó, xem docstring hai file.
+//
+// Ô quét dùng chung `public/js/warehouse_operations/o_quet.js`.
 //
 // Bọc IIFE: script trang Frappe chạy ở phạm vi toàn cục — xem `quet_ma_tra_cuu.js`.
 (function () {
 	const O_QUET = ["/assets/erpnext/js/warehouse_operations/o_quet.js", "/assets/erpnext/js/warehouse_operations/o_quet.css"];
-	const API = "erpnext.warehouse_operations.vitri.xep.";
-	const API_O_TEM = "erpnext.warehouse_operations.vitri.o_tem.";
+	const LUONG_XEP_HANG = "/assets/erpnext/js/warehouse_operations/luong/xep_hang.js";
 
 	frappe.pages["xep-hang-pda"].on_page_load = function (wrapper) {
 		const page = frappe.ui.make_app_page({
@@ -26,31 +30,46 @@
 			title: __("Xếp hàng vào ô"),
 			single_column: true,
 		});
-		frappe.require(O_QUET, () => {
-			wrapper.xep = new XepHangPda(page);
+		// Nạp lớp LUỒNG trước — constructor bên dưới gọi
+		// `erpnext.warehouse_operations.luong.xep_hang.tao(...)` ngay lập tức, đúng
+		// tinh thần `quet_ma_tra_cuu.js` (Task 2, Bước 6).
+		frappe.require(LUONG_XEP_HANG, () => {
+			frappe.require(O_QUET, () => {
+				wrapper.xep = new XepHangPda(page);
+			});
 		});
 	};
 
 	frappe.pages["xep-hang-pda"].on_page_show = function (wrapper) {
 		// Quay lại trang (vd. vừa mở phiếu trên form rồi bấm Back): nạp lại phiếu —
-		// có thể đã bị sửa hay duyệt ở nơi khác.
+		// có thể đã bị sửa hay duyệt ở nơi khác. `nap_lai()` KHÔNG đụng lô đang chờ
+		// (`_luong.lam_moi()` chỉ đọc lại phiếu của đúng kho hiện tại).
 		if (wrapper.xep) wrapper.xep.nap_lai();
 	};
 
 	class XepHangPda {
 		constructor(page) {
 			this.page = page;
-			this.kho = null;
-			this.kho_ds = [];
-			this.phieu = null;
-			// Lô đang chờ quét tem ô. `null` = đang ở bước ① (chờ quét lô).
-			this.cho = null;
 			this.dang_gui = false;
-			// Lô vừa quét mà CHƯA có ô trên tem — chờ người dùng bấm "Đặt ô trên tem".
-			this.dat_o = null;
-			this.cho_quet_dat_o = false;
+			// Phần QUYẾT ĐỊNH — CÙNG một luồng mà màn "Xếp hàng" của app PDA dùng
+			// (xem đầu file). `goi: frappe.xcall`: đúng nguyên văn Bước 6 của brief —
+			// `frappe.xcall` đã tự hiện câu báo máy chủ cho lỗi quyền/mất mạng/ghi bị
+			// từ chối, nên trang này không cần tự đọc `.message` của lỗi bị từ chối,
+			// chỉ cần biết là ĐÃ hỏng để dừng đúng chỗ (giống hệt cách trang GỐC dùng
+			// `frappe.xcall` trước khi tách lớp).
+			this._luong = erpnext.warehouse_operations.luong.xep_hang.tao({ goi: frappe.xcall });
+			// Bản sao ĐỌC của trạng thái luồng — làm mới bằng `_dong_bo()` ngay sau
+			// MỌI lời gọi luồng, trước khi `ve()` đọc nó. Không đọc thẳng
+			// `this._luong.trang_thai()` rải rác trong từng hàm vẽ vì `ve()` được gọi
+			// nhiều lần trong một lượt xử lý (vd. sau khi cập nhật số lượng) — một bản
+			// chụp duy nhất tránh vẽ hai lần với hai trạng thái khác nhau giữa chừng.
+			this.st = this._luong.trang_thai();
 			this.dung();
 			this.nap_lai();
+		}
+
+		_dong_bo() {
+			this.st = this._luong.trang_thai();
 		}
 
 		dung() {
@@ -59,6 +78,7 @@
 					<div class="xh-dau-trang"></div>
 					<div class="xh-cho-o-quet"></div>
 					<div class="xh-thong-bao"></div>
+					<div class="xh-dat-o"></div>
 					<div class="xh-lo-dang-cho"></div>
 					<div class="xh-danh-sach"></div>
 					<div class="xh-chan-trang"></div>
@@ -77,11 +97,20 @@
 			this.$goc.on("click", ".xh-nguon", (ev) => this.chon_nguon($(ev.currentTarget).attr("data-o")));
 			this.$goc.on("click", ".xh-bo-lo", () => this.bo_lo());
 			this.$goc.on("click", ".xh-dat-o-tem", () => this.bat_dau_dat_o());
+			this.$goc.on("click", ".xh-huy-dat-o", () => this.huy_dat_o());
 			this.$goc.on("click", ".xh-xoa-dong", (ev) => this.xoa_dong($(ev.currentTarget).attr("data-dong")));
 			this.$goc.on("click", ".xh-hoan-tat", () => this.hoan_tat());
 			this.$goc.on("click", ".xh-cong-tru", (ev) => this.cong_tru(Number($(ev.currentTarget).attr("data-buoc"))));
-			this.$goc.on("input change", ".xh-so-luong", (ev) => {
-				if (this.cho) this.cho.so_luong = flt(ev.currentTarget.value);
+			this.$goc.on("input", ".xh-so-luong", (ev) => {
+				// KHÔNG vẽ lại khi đang gõ (mất vị trí con trỏ) — chỉ cập nhật trạng
+				// thái; `change` bên dưới vẽ lại lúc gõ xong để hiện giá trị đã kẹp.
+				this._luong.dat_so_luong(ev.currentTarget.value);
+				this._dong_bo();
+			});
+			this.$goc.on("change", ".xh-so-luong", (ev) => {
+				this._luong.dat_so_luong(ev.currentTarget.value);
+				this._dong_bo();
+				this.ve();
 			});
 			// Enter trên ô số lượng: xong sửa số, trả focus cho súng quét.
 			this.$goc.on("keydown", ".xh-so-luong", (ev) => {
@@ -95,167 +124,50 @@
 		// ------------------------------------------------------------ trạng thái
 
 		nap_lai() {
-			return frappe.xcall(API + "phieu_xep_dang_lam", { kho: this.kho }).then((r) => {
-				this.kho_ds = r.kho_ds || [];
-				this.kho = r.kho;
-				this.phieu = r.phieu;
+			// Kho ĐÃ chọn: chỉ đọc lại phiếu của kho đó (`lam_moi()`, không đụng lô
+			// đang chờ — đúng hành vi GỐC của `nap_lai()`, xem đầu file). Chưa chọn
+			// kho (lần mở trang đầu tiên): để máy chủ tự chọn (`mo()`).
+			const p = this.st.kho ? this._luong.lam_moi() : this._luong.mo(this.st.kho);
+			return p.then((st) => {
+				this.st = st;
 				this.ve();
 				this.o_quet.giu_focus();
 			});
 		}
 
 		chon_kho(kho) {
-			this.cho = null;
 			this.bao();
 			if (!kho) {
 				// Nút "Đổi": về màn chọn kho. KHÔNG nạp lại — không truyền kho thì máy
 				// chủ tự chọn lại đúng kho vừa rời (kho của phiếu nháp gần nhất).
-				this.kho = null;
-				this.phieu = null;
+				this.st = this._luong.doi_kho();
 				this.ve();
 				return;
 			}
-			this.kho = kho;
-			this.nap_lai();
-		}
-
-		quet(ma) {
-			if (!this.kho) {
-				this.bao(__("Chọn kho trước khi quét."), "cam");
-				return;
-			}
-			if (this.dang_gui) return;
-			frappe.xcall(API + "quet_de_xep", { kho: this.kho, ma: ma }).then((d) => {
-				d = d || { loai: null };
-				if (d.loai === "lo") return this.nhan_lo(d);
-				if (d.loai === "o") return this.nhan_o(d);
-				rung([80, 60, 80]);
-				if (d.loai === "can_quet_lo") {
-					return this.bao(
-						__("{0} có quản lý lô — quét tem LÔ trên thùng, không quét mã hàng.", [
-							e(d.ten_hang || d.vat_tu),
-						]),
-						"cam"
-					);
-				}
-				this.bao(__("Không nhận ra mã <b>{0}</b>.", [e(ma)]), "xam");
+			this._luong.mo(kho).then((st) => {
+				this.st = st;
+				this.ve();
+				this.o_quet.giu_focus();
 			});
 		}
 
-		nhan_lo(d) {
-			if (!d.nguon.length) {
-				rung([80, 60, 80]);
-				this.bao(
-					__("Lô <b>{0}</b> không còn hàng nào để xếp ở kho này (hoặc đã lên hết phiếu).", [
-						e(d.so_lo || d.vat_tu),
-					]),
-					"cam"
-				);
-				return;
-			}
-			// Luật 19/09/2026: lô chỉ xếp vào đúng ô in trên tem. Lô chưa có ô / ô
-			// trên tem hỏng thì dừng NGAY ở đây — chờ tới lúc quét ô mới báo là để
-			// thủ kho ôm thùng đi tới kệ rồi mới biết phải quay về in tem.
-			const t = d.o_tem || {};
-			if (t.kiem && t.loi) {
-				rung([80, 60, 80, 60, 80]);
-				this.cho = null;
-				// Lô CHƯA có ô trên tem: thủ kho đặt được ngay tại kệ (chủ đầu tư
-				// 20/09/2026) — nút bên dưới chuyển sang chờ quét tem ô. Ô trên tem
-				// HỎNG thì KHÔNG có nút: đổi ô đã có là quyền trưởng kho, làm trên
-				// máy tính, có lý do (xem `o_tem.doi_o_tren_tem`).
-				this.dat_o = t.chua_co_o ? { vat_tu: d.vat_tu, so_lo: d.so_lo, ten_hang: d.ten_hang } : null;
-				this.cho_quet_dat_o = false;
-				const nut = t.chua_co_o
-					? `<button type="button" class="xh-nut-trong-bao xh-dat-o-tem">${__("Đặt ô trên tem")}</button>`
-					: "";
-				this.bao(e(t.loi) + nut, "do");
-				this.ve();
-				return;
-			}
-			if (t.kiem) {
-				d.goi_y = { den_o: t.o, ma_in_nhan: t.ma_in_nhan, theo_tem: true };
-			}
-			rung([40]);
-			// Quét lô mới khi đang chờ ô cho lô cũ: THAY lô cũ. Chưa có gì được ghi,
-			// và đó là điều người cầm súng quét muốn — họ vừa đổi ý cầm thùng khác.
-			this.cho = { ...d, tu_o: d.tu_o_mac_dinh, so_luong: 0 };
-			this.dat_so_luong_theo_nguon();
-			this.bao();
-			this.ve();
-		}
-
-		nhan_o(o) {
-			// Đang chờ quét ô để ĐẶT lên tem lô (không phải để xếp).
-			if (this.cho_quet_dat_o && this.dat_o) return this.dat_o_tem(o);
-			if (!this.cho) {
-				rung([80, 60, 80]);
-				this.bao(
-					__("Đây là tem vị trí <b>{0}</b>. Quét tem LÔ trước, rồi mới quét tem ô.", [
-						e(o.ma_in_nhan || o.ma_o),
-					]),
-					"cam"
-				);
-				return;
-			}
-			if (!this.cho.tu_o) {
-				rung([80, 60, 80]);
-				this.bao(__("Lô này đang nằm ở nhiều ô — chạm chọn ô LẤY hàng ra trước."), "cam");
-				return;
-			}
-			if (!(flt(this.cho.so_luong) > 0)) {
-				this.bao(__("Số lượng phải lớn hơn 0."), "cam");
-				return;
-			}
-			// Luật 19/09/2026 (thay lối "quét lại lần hai để xếp ô khác" của 17/09):
-			// lô có tem thì CHỈ đúng ô trên tem. Máy chủ cũng chặn (`o_tem.py`) —
-			// chặn ở đây để báo ngay, không tốn một lượt gọi.
-			const g = this.cho.goi_y || {};
-			if (g.theo_tem && o.ma_o !== g.den_o) {
-				rung([80, 60, 80, 60, 80]);
-				this.bao(
-					__("SAI Ô. Ô {0} không phải ô in trên tem lô {1} — tem ghi ô <b>{2}</b>.", [
-						e(o.ma_in_nhan || o.ma_o),
-						e(this.cho.so_lo),
-						e(g.ma_in_nhan || g.den_o),
-					]),
-					"do"
-				);
-				return;
-			}
-			this.them_dong(o);
-		}
-
-		them_dong(o) {
-			const c = this.cho;
+		quet(ma) {
+			if (this.dang_gui) return;
 			this.dang_gui = true;
-			frappe
-				.xcall(API + "them_dong_xep", {
-					kho: this.kho,
-					vat_tu: c.vat_tu,
-					so_lo: c.so_lo,
-					tu_o: c.tu_o,
-					den_o: o.ma_o,
-					so_luong: c.so_luong,
-				})
-				.then((phieu) => {
-					rung([40, 40, 40]);
-					this.phieu = phieu;
-					this.cho = null;
-					this.bao(
-						__("Đã xếp <b>{0}</b> {1} {2} → <b>{3}</b>", [
-							so(c.so_luong),
-							e(c.don_vi || ""),
-							e(c.so_lo || c.ten_hang),
-							e(o.ma_in_nhan || o.ma_o),
-						]),
-						"xanh"
-					);
+			this._luong
+				.quet(ma)
+				.then((kq) => {
+					this._dong_bo();
+					rung(kq.buoc === "da_ghi" ? [40, 40, 40] : kq.muc === "do" ? [80, 60, 80, 60, 80] : [80, 60, 80]);
+					if (kq.bao) this.bao(kq.bao, kq.muc);
+					else this.bao();
 					this.ve();
 				})
 				.catch(() => {
-					// Câu báo của máy chủ (ô nhóm, ngừng dùng, không đủ hàng…) đã hiện
-					// qua `frappe.xcall`. Giữ nguyên lô đang chờ để quét lại ô khác.
+					// Máy chủ từ chối ghi (`them_dong_xep`/`doi_o_tren_tem` — ô nhóm,
+					// ngừng dùng, không đủ hàng…): `frappe.xcall` đã tự hiện câu báo.
+					// Trạng thái của luồng KHÔNG đổi khi lời gọi ghi thất bại (xem
+					// `luong/xep_hang.js`), nên không cần đọc lại — chỉ báo rung.
 					rung([80, 60, 80]);
 				})
 				.finally(() => {
@@ -265,94 +177,39 @@
 		}
 
 		bo_lo() {
-			this.cho = null;
+			this.st = this._luong.bo_lo();
 			this.bao();
 			this.ve();
 			this.o_quet.giu_focus();
 		}
 
 		chon_nguon(o) {
-			if (!this.cho) return;
-			this.cho.tu_o = o;
-			this.dat_so_luong_theo_nguon();
+			this.st = this._luong.chon_nguon(o);
 			this.ve();
 			this.o_quet.giu_focus();
-		}
-
-		// Mặc định số lượng = phần còn xếp được ở ĐÚNG ô nguồn đang chọn — không phải
-		// tổng của lô: một lô nằm ở hai ô thì chỉ lấy được từ một ô mỗi dòng.
-		dat_so_luong_theo_nguon() {
-			const n = this.nguon_dang_chon();
-			this.cho.so_luong = n ? flt(n.con_xep_duoc) : 0;
-		}
-
-		nguon_dang_chon() {
-			return this.cho && (this.cho.nguon || []).find((n) => n.o === this.cho.tu_o);
 		}
 
 		cong_tru(buoc) {
-			if (!this.cho) return;
-			const n = this.nguon_dang_chon();
-			const toi_da = n ? flt(n.con_xep_duoc) : Infinity;
-			this.cho.so_luong = Math.min(toi_da, Math.max(0, flt(this.cho.so_luong) + buoc));
-			this.$goc.find(".xh-so-luong").val(this.cho.so_luong);
+			if (!this.st.cho) return;
+			this.st = this._luong.dat_so_luong(flt(this.st.cho.so_luong) + buoc);
+			this.$goc.find(".xh-so-luong").val(this.st.cho.so_luong);
 		}
 
-		// Bấm "Đặt ô trên tem": chuyển sang chờ quét tem ô. KHÔNG dùng hộp thoại —
-		// súng quét gửi Enter sau mỗi lần quét (xem `hoi()` cuối file).
 		bat_dau_dat_o() {
-			if (!this.dat_o) return;
-			this.cho_quet_dat_o = true;
-			this.bao(
-				__("Quét tem Ô muốn đặt làm ô trên tem của lô <b>{0}</b>.", [e(this.dat_o.so_lo)]),
-				"cam"
-			);
+			this.st = this._luong.bat_dau_dat_o();
 			this.ve();
 			this.o_quet.giu_focus();
 		}
 
-		dat_o_tem(o) {
-			const lo = this.dat_o;
-			this.dang_gui = true;
-			frappe
-				.xcall(API_O_TEM + "doi_o_tren_tem", { so_lo: lo.so_lo, o_moi: o.ma_o })
-				.then((kq) => {
-					rung([40, 40, 40]);
-					this.cho_quet_dat_o = false;
-					this.dat_o = null;
-					this.bao(
-						__(
-							"Ô trên tem lô <b>{0}</b> giờ là <b>{1}</b>. NHỚ IN LẠI TEM trên máy tính và dán lên thùng. Quét tem ô đó lần nữa để xếp hàng vào.",
-							[e(lo.so_lo), e(kq.ma_in_nhan || kq.o)]
-						),
-						"xanh"
-					);
-					// Nạp lại thẻ lô: giờ đã có ô trên tem nên xếp được.
-					return frappe.xcall(API + "quet_de_xep", { kho: this.kho, ma: lo.so_lo }).then((d) => {
-						if (d && d.loai === "lo") {
-							const t = d.o_tem || {};
-							if (t.kiem && !t.loi) {
-								d.goi_y = { den_o: t.o, ma_in_nhan: t.ma_in_nhan, theo_tem: true };
-							}
-							this.cho = { ...d, tu_o: d.tu_o_mac_dinh, so_luong: 0 };
-							this.dat_so_luong_theo_nguon();
-						}
-						this.ve();
-					});
-				})
-				.catch(() => {
-					// Máy chủ đã hiện câu báo (ô đang chứa hàng khác, ô ngừng dùng…).
-					rung([80, 60, 80]);
-					this.ve();
-				})
-				.finally(() => {
-					this.dang_gui = false;
-					this.o_quet.giu_focus();
-				});
+		huy_dat_o() {
+			this.st = this._luong.huy_dat_o();
+			this.bao();
+			this.ve();
+			this.o_quet.giu_focus();
 		}
 
 		xoa_dong(ten_dong) {
-			const d = ((this.phieu && this.phieu.dong) || []).find((x) => x.name === ten_dong);
+			const d = (this.st.dong || []).find((x) => x.name === ten_dong);
 			if (!d) return;
 			hoi({
 				noi_dung: __("Bỏ dòng <b>{0}</b> · {1} → {2} khỏi phiếu?", [
@@ -362,12 +219,20 @@
 				]),
 				nhan: __("Bỏ dòng"),
 				khi_dong_y: () =>
-					frappe
-						.xcall(API + "xoa_dong_xep", { phieu: this.phieu.name, dong: ten_dong })
-						.then((phieu) => {
-							this.phieu = phieu;
-							this.bao(__("Đã bỏ một dòng."), "xam");
+					this._luong
+						.xoa_dong(ten_dong)
+						.then((st) => {
+							this.st = st;
+							// Soát xét vòng 1, mục 5: câu + mức màu là quyết định CỦA LUỒNG
+							// (`st.bao`/`st.muc`), không phải lớp vẽ tự gõ riêng nữa.
+							this.bao(st.bao, st.muc);
 							this.ve();
+						})
+						.catch(() => {
+							// `frappe.xcall` đã hiện lỗi của máy chủ — nạp lại để chắc chắn
+							// đúng trạng thái (Desk gốc KHÔNG có `.catch()` ở đây, một lỗ hổng
+							// nhỏ đã sửa: không bắt thì promise bị từ chối không ai xử lý).
+							this.nap_lai();
 						})
 						.finally(() => this.o_quet.giu_focus()),
 				khi_dong: () => this.o_quet.giu_focus(),
@@ -375,9 +240,9 @@
 		}
 
 		hoan_tat() {
-			if (!this.phieu || !this.phieu.dong.length) return;
-			const ten = this.phieu.name;
-			const so_dong = this.phieu.dong.length;
+			if (!this.st.phieu || !this.st.phieu.dong.length) return;
+			const ten = this.st.phieu.name;
+			const so_dong = this.st.phieu.dong.length;
 			hoi({
 				noi_dung: __("Ghi phiếu <b>{0}</b> ({1} dòng) vào sổ vị trí? Sau khi ghi, tồn theo ô đổi ngay.", [
 					e(ten),
@@ -386,19 +251,24 @@
 				nhan: __("Ghi phiếu"),
 				khi_dong_y: () => {
 					this.dang_gui = true;
-					frappe
-						.xcall(API + "duyet_phieu_xep", { phieu: ten })
-						.then(() => {
+					this._luong
+						.duyet()
+						.then((kq) => {
 							rung([40, 40, 40]);
-							this.phieu = null;
-							this.cho = null;
-							this.bao(
-								__("Đã ghi phiếu <a href='{0}'>{1}</a> — {2} dòng. Quét tem lô để bắt đầu phiếu mới.", [
-									`/app/location-transfer/${encodeURIComponent(ten)}`,
-									e(ten),
-									so_dong,
-								]),
-								"xanh"
+							this._dong_bo();
+							// SOÁT XÉT VÒNG 1 (Task 3, mục 4): liên kết "Xem phiếu" TRẢ LẠI —
+							// bỏ nó ở vòng trước là một lần cắt giảm lén một tính năng đang
+							// chạy trên Desk, không phải hệ quả bắt buộc của việc gộp lớp.
+							// KHÔNG đi qua `bao()` chung (nó escape TOÀN BỘ `chu`, sẽ biến thẻ
+							// `<a>` thành chữ): `_bao_voi_lien_ket()` tự tô đậm `kq.bao` (quy
+							// ước `**…**`, xem `_dam()`) rồi TỰ ghép thêm một liên kết do
+							// CHÍNH TA dựng (href từ `kq.ten` — tên tài liệu do máy chủ sinh,
+							// vẫn escape phòng hờ) — không phải nhét thẳng HTML của `kq.bao`.
+							this._bao_voi_lien_ket(
+								kq.bao,
+								kq.muc,
+								`/app/location-transfer/${encodeURIComponent(kq.ten)}`,
+								__("Xem phiếu")
 							);
 							this.ve();
 						})
@@ -417,71 +287,108 @@
 			});
 		}
 
+		giu_focus() {
+			this.o_quet && this.o_quet.giu_focus();
+		}
+
 		// ------------------------------------------------------------------ vẽ
 
-		bao(html, muc) {
+		// `chu` là CHỮ THƯỜNG có quy ước `**…**` (không phải HTML thô) — kể từ Task 3,
+		// `bao()` LUÔN escape TRƯỚC, CÙNG hợp đồng với `KhoApp.bao()` của app PDA
+		// (`vo.js`). SOÁT XÉT VÒNG 1 (mục 3): trả lại tô đậm bằng `_dam()` — escape
+		// toàn bộ `chu` RỒI MỚI đổi `**x**` (do lớp luồng tự đánh dấu) thành
+		// `<b>x</b>` CỦA RIÊNG hàm này; máy chủ không có cách nào nhét được một thẻ
+		// HTML thật qua `chu` (mọi `<`/`>` trong dữ liệu đã bị escape trước khi ta
+		// tự thêm `<b>` của mình).
+		bao(chu, muc) {
 			const $tb = this.$goc.find(".xh-thong-bao");
-			if (!html) return $tb.empty();
-			$tb.html(`<div class="xh-bao muc-${muc || "xam"}">${html}</div>`);
+			if (!chu) return $tb.empty();
+			$tb.html(`<div class="xh-bao muc-${muc || "xam"}">${_dam(chu)}</div>`);
+		}
+
+		// Ca DUY NHẤT `bao()` không đủ: banner thành công sau `duyet()` cần thêm một
+		// liên kết THẬT (`<a>`) — không phải chữ tô đậm. `href`/`nhan` do CHÍNH
+		// PHƯƠNG THỨC NÀY dựng (không lấy nguyên văn từ `kq.bao`), vẫn escape phòng
+		// hờ trước khi ghép.
+		_bao_voi_lien_ket(chu, muc, href, nhan) {
+			const $tb = this.$goc.find(".xh-thong-bao");
+			$tb.html(
+				`<div class="xh-bao muc-${muc || "xam"}">${_dam(chu)} <a href="${e(href)}">${e(nhan)}</a></div>`
+			);
 		}
 
 		ve() {
 			this.ve_dau_trang();
+			this.ve_dat_o();
 			this.ve_lo_dang_cho();
 			this.ve_danh_sach();
 			this.ve_chan_trang();
-			if (!this.kho) {
-				this.o_quet.dat_goi_y(__("Chọn kho để bắt đầu"));
-			} else if (this.cho_quet_dat_o && this.dat_o) {
-				this.o_quet.dat_goi_y(__("Quét tem Ô để đặt lên tem lô {0}", [this.dat_o.so_lo]), "nhan-manh");
-			} else if (this.cho) {
-				const g = this.cho.goi_y || {};
-				this.o_quet.dat_goi_y(
-					g.theo_tem
-						? __("② Quét tem ô {0} (ô trên tem lô)", [g.ma_in_nhan || g.den_o])
-						: __("② Quét tem Ô trên kệ để xếp {0}", [this.cho.so_lo || this.cho.ten_hang]),
-					"nhan-manh"
-				);
-			} else {
-				this.o_quet.dat_goi_y(__("① Quét tem LÔ cần xếp"));
-			}
+			const g = this.st.goi_y_o_quet;
+			this.o_quet.dat_goi_y(g.chu, g.nhan_manh ? "nhan-manh" : undefined);
 		}
 
 		ve_dau_trang() {
 			const $d = this.$goc.find(".xh-dau-trang");
-			if (!this.kho_ds.length) {
+			if (!this.st.kho_ds.length) {
 				$d.html(`<div class="xh-bao muc-cam">${__("Chưa kho nào bật quản lý vị trí.")}</div>`);
 				return;
 			}
-			if (!this.kho) {
+			if (!this.st.kho) {
 				$d.html(`
 					<div class="xh-tieu-de-muc">${__("Chọn kho")}</div>
 					<div class="xh-chon-kho-ds">
-						${this.kho_ds
+						${this.st.kho_ds
 							.map((k) => `<button type="button" class="xh-chon-kho" data-kho="${e(k)}">${e(k)}</button>`)
 							.join("")}
 					</div>`);
 				return;
 			}
 			const doi_kho =
-				this.kho_ds.length > 1 && !this.cho
+				this.st.kho_ds.length > 1 && !this.st.cho
 					? `<button type="button" class="xh-lien-ket-nho xh-chon-kho" data-kho="">${__("Đổi")}</button>`
 					: "";
-			const phieu = this.phieu
-				? `<a class="xh-ma-phieu" href="/app/location-transfer/${encodeURIComponent(this.phieu.name)}">${e(
-						this.phieu.name
-				  )}</a>`
+			const phieu = this.st.phieu
+				? `<a class="xh-ma-phieu" href="/app/location-transfer/${encodeURIComponent(
+						this.st.phieu.name
+				  )}">${e(this.st.phieu.name)}</a>`
 				: `<span class="xh-mo">${__("phiếu mới")}</span>`;
 			$d.html(`
 				<div class="xh-kho">
-					<span class="xh-mo">${__("Kho")}</span> <b>${e(this.kho)}</b> ${doi_kho}
+					<span class="xh-mo">${__("Kho")}</span> <b>${e(this.st.kho)}</b> ${doi_kho}
 					<span class="xh-cham">·</span> ${phieu}
+				</div>`);
+		}
+
+		// Thẻ RIÊNG cho "chờ đặt ô trên tem" — TÁCH khỏi `bao()` (soát xét Task 3):
+		// nút "Đặt ô trên tem" từng ghép thẳng vào chuỗi `bao()` (`t.loi + nut`) khi
+		// lớp vẽ tự quyết cả câu lẫn nút cùng lúc; nay lớp luồng chỉ trả CHỮ THƯỜNG
+		// (`kq.bao`) và một cờ RIÊNG (`can_xac_nhan`/`trang_thai().o_tren_tem`) —
+		// ghép chúng lại thành một chuỗi HTML là việc của lớp vẽ, không phải luồng.
+		ve_dat_o() {
+			const $k = this.$goc.find(".xh-dat-o");
+			const o = this.st.o_tren_tem;
+			if (!o) return $k.empty();
+			if (o.dang_cho_quet) {
+				$k.html(`
+					<div class="xh-the xh-the-dat-o">
+						<span class="xh-nhan-loai loai-o">${__("Đang chờ quét ô")}</span>
+						<div class="xh-ma-to">${e(o.so_lo || o.ten_hang)}</div>
+						<div class="xh-mo">${__("Quét tem Ô muốn đặt lên tem lô này.")}</div>
+						<button type="button" class="xh-lien-ket-nho xh-huy-dat-o">${__("Huỷ")}</button>
+					</div>`);
+				return;
+			}
+			$k.html(`
+				<div class="xh-the xh-the-dat-o">
+					<span class="xh-nhan-loai loai-o">${__("Chưa có ô trên tem")}</span>
+					<div class="xh-ma-to">${e(o.so_lo || o.ten_hang)}</div>
+					<button type="button" class="xh-nut-trong-bao xh-dat-o-tem">${__("Đặt ô trên tem")}</button>
 				</div>`);
 		}
 
 		ve_lo_dang_cho() {
 			const $c = this.$goc.find(".xh-lo-dang-cho");
-			const c = this.cho;
+			const c = this.st.cho;
 			if (!c) return $c.empty();
 
 			const nguon = c.nguon
@@ -505,7 +412,7 @@
 						<div class="xh-nhan">${__("Chưa có ô gợi ý — quét tem ô định xếp")}</div>
 						${g.ly_do ? `<div class="xh-mo">${e(g.ly_do)}</div>` : ""}
 					</div>`;
-			const n = this.nguon_dang_chon();
+			const n = (c.nguon || []).find((x) => x.o === c.tu_o);
 			$c.html(`
 				<div class="xh-the">
 					<div class="xh-the-dau">
@@ -544,7 +451,7 @@
 
 		ve_danh_sach() {
 			const $ds = this.$goc.find(".xh-danh-sach");
-			const dong = (this.phieu && this.phieu.dong) || [];
+			const dong = this.st.dong || [];
 			if (!dong.length) return $ds.empty();
 			$ds.html(`
 				<div class="xh-tieu-de-muc xh-tieu-de-ds">${__("Trên phiếu · {0} dòng", [dong.length])}</div>
@@ -572,7 +479,7 @@
 
 		ve_chan_trang() {
 			const $c = this.$goc.find(".xh-chan-trang");
-			const so_dong = ((this.phieu && this.phieu.dong) || []).length;
+			const so_dong = (this.st.dong || []).length;
 			if (!so_dong) return $c.empty();
 			$c.html(`
 				<button type="button" class="btn btn-primary xh-hoan-tat">
@@ -617,6 +524,14 @@
 
 	function e(gia_tri) {
 		return frappe.utils.escape_html(String(gia_tri == null ? "" : gia_tri));
+	}
+
+	// Mirror của `vo.js::_dam()` (app PDA) — Desk không dùng `KhoApp`, nên giữ một
+	// bản riêng, cùng khuôn: escape TOÀN BỘ trước, RỒI MỚI đổi `**x**` (quy ước lớp
+	// luồng tự đánh dấu) thành `<b>x</b>` CỦA RIÊNG hàm này. Xem lý do đầy đủ ở
+	// `vo.js`.
+	function _dam(chu) {
+		return e(chu).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
 	}
 
 	function rung(mau) {

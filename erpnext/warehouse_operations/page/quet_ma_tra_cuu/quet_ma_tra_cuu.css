@@ -47,6 +47,20 @@
 	padding: 28px 20px;
 }
 
+/* Vòng sửa 1 (mục 1): dải cảnh báo cho `kq.bao` khi lớp luồng gắn một câu báo đi
+ * kèm một kết quả ĐÃ nhận diện được (ca hôm nay không xảy ra ở Tra cứu — `bao` chỉ
+ * có khi `loai` không nhận ra, và ca đó tự có thẻ riêng, không cần dải này — nhưng
+ * phán quyết `bao` không được phép im lặng biến mất nếu lớp luồng một ngày nào đó
+ * gắn thêm cảnh báo cho dữ liệu ĐÃ biết). */
+.qmtc-canh-bao {
+	margin: 0 0 12px;
+	padding: 10px 14px;
+	border-radius: 10px;
+	background: var(--bg-orange);
+	color: var(--text-on-orange);
+	font-weight: 600;
+}
+
 .qmtc-cho-hinh {
 	--icon-stroke: currentColor;
 	display: inline-flex;

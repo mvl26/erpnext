@@ -1,0 +1,18 @@
+/* Trang này mở trên máy tính của trưởng kho (không phải màn PDA), nhưng vẫn giữ
+   khuôn một cột hẹp cho dễ đọc. */
+.cap { max-width: 640px; margin: 0 auto; padding: 8px 12px 32px; }
+.cap-nhan { font-size: 12px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.4px; }
+.cap-ban, .cap-trong, .cap-muc, .cap-canh-bao {
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	padding: 14px 16px;
+	margin-bottom: 14px;
+}
+.cap-ten { font-size: 18px; font-weight: 700; margin-top: 4px; }
+.cap-mo { color: var(--text-muted); font-size: 13px; }
+.cap-lien-ket { display: inline-block; margin-top: 8px; }
+.cap-tai-len { display: block; width: 100%; min-height: 44px; margin-bottom: 18px; }
+.cap-buoc { padding-left: 20px; line-height: 2; }
+.cap-ma { font-family: var(--font-stack-monospace, monospace); }
+.cap-canh-bao { background: var(--yellow-highlight-color); }
+.cap-canh-bao ul { margin: 8px 0 0; padding-left: 20px; line-height: 1.7; }

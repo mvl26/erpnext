@@ -9,3 +9,18 @@ android/app/release/
 *.jks
 key.properties
 keystore.properties
+
+# Bản dựng giao diện /kho do `scripts/pda/dong-goi.sh` CHÉP vào đây. Không theo dõi:
+# đây là sản phẩm build của `bench build --app erpnext`, mã nguồn của nó nằm ở
+# `erpnext/public/js/kho_pda*`. Theo dõi bản chép là tạo ra bản giao diện thứ hai
+# trong kho, đúng thứ rủi ro §12 của spec cấm.
+www/kho_pda.bundle.js
+www/kho_pda.bundle.css
+# Địa chỉ máy chủ của bản đóng gói, cũng do `dong-goi.sh` sinh. Không theo dõi để
+# một lượt dựng của người phát hành không ghi địa chỉ ngrok THẬT vào kho mã nguồn;
+# giá trị thử sống ở `scripts/pda/cau-hinh-may-chu.json`.
+www/cau-hinh.js
+
+# CỐ Ý KHÔNG bị bỏ qua (nêu ra để không ai thêm nhầm): `www/shim.js` và
+# `www/vendor/jquery.min.js` là SẢN PHẨM của Task 1, phải nằm trong git — thiếu
+# chúng thì `dong-goi.sh` chép bundle vào một vỏ không chạy được.

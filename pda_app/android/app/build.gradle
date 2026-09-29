@@ -13,9 +13,19 @@ android {
         applicationId "vn.com.miyano.pda"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // TÊN FILE APK PHẢI MANG CHỮ "pda". Trang "Cài app PDA" trong ERP tìm bản cài
+    // theo mẫu tên đó (`vitri/cai_app.py: MAU_TEN`) — để một file .apk lạ ai đó tải
+    // lên cho việc khác không bị nhận nhầm là bản cài của kho. Gradle mặc định đặt
+    // `app-release.apk`, không có chữ nào để nhận ra.
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "miyano-pda-${variant.versionName}-${variant.buildType.name}.apk"
+        }
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61

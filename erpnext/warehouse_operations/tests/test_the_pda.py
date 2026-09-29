@@ -24,11 +24,48 @@ def _nguoi(email: str, vai_tro: list[str]) -> str:
 				"enabled": 1,
 			}
 		).insert(ignore_permissions=True)
+	# KHÔNG `save()` VÔ ĐIỀU KIỆN (soát tổng, V5). Module này đỏ chập chờn (5 lượt: 2
+	# xanh, 3 đỏ) vì một lệnh ghi không cần thiết lên một tài khoản ĐÃ COMMIT và DÙNG
+	# CHUNG với `test_khoa_may`: `frappe.db.rollback(save_point=…)` lùi được CSDL nhưng
+	# KHÔNG dọn bộ đệm tài liệu, nên `save()` ném `TimestampMismatchError` ngay trong
+	# `setUp` — đỏ mà chẳng bài nào sai; và bench còn có scheduler/worker chạy nền trên
+	# cùng CSDL. Ở trạng thái ổn định hàm này nay **không ghi một lần nào**.
+	#
+	# ĐỌC SỰ THẬT TỪ CSDL, KHÔNG TỪ ĐỐI TƯỢNG TÀI LIỆU — và đây là chỗ bản sửa đầu tiên
+	# của tôi SAI, ghi ra để không ai đi lại: lần đầu tôi lấy `{r.role for r in u.roles}`
+	# rồi mới quyết có ghi hay không, và cả module đỏ 11 lỗi. Lý do: bên trong một lượt
+	# chạy, có bài xoá sạch `tabHas Role` của tài khoản này (`test_mat_vai_tro_kho...`),
+	# nhưng đối tượng `User` lấy qua `get_doc` vẫn còn vai trò trong bộ nhớ. Lệnh
+	# `save()` VÔ ĐIỀU KIỆN của bản cũ vô tình chèn lại hàng con ấy mỗi lần — nó đang
+	# che một sự lệch giữa CSDL và bộ đệm. Bỏ lệnh ghi mà vẫn hỏi bộ đệm thì phát hiện
+	# "đã có vai trò" trong khi CSDL thì không. Hỏi thẳng bảng con là hết mơ hồ.
+	co_trong_db = set(
+		frappe.get_all("Has Role", filters={"parent": email, "parenttype": "User"}, pluck="role")
+	)
+	thieu = [r for r in vai_tro if r not in co_trong_db]
+
+	# THỨ THẬT SỰ CHE LỖI LÀ BỘ ĐỆM VAI TRÒ, không phải bộ đệm tài liệu — tìm ra sau hai
+	# bản sửa hụt, ghi lại đủ để không ai dò lại. `test_mat_vai_tro_kho_thi_the_cu_het_tac_dung`
+	# xoá sạch vai trò rồi `save()`; `rollback(save_point=…)` trả lại HÀNG trong
+	# `tabHas Role` nhưng KHÔNG trả lại bộ đệm mà `frappe.get_roles()` đọc. Mọi bài chạy
+	# sau đó thấy người này "không có vai trò kho nào" và `PDA Badge.validate` chặn —
+	# 11 lỗi, không bài nào sai. Lệnh `u.save()` VÔ ĐIỀU KIỆN của bản cũ vô tình dọn bộ
+	# đệm ấy (`User.on_update` gọi `frappe.clear_cache(user=…)`), nên nó che lỗi bằng một
+	# TÁC DỤNG PHỤ chứ không phải bằng việc nó làm. Bỏ lệnh ghi thì phải làm lấy đúng
+	# việc đó — và dọn bộ đệm KHÔNG phải một lệnh ghi, nên vẫn giữ được "không ghi gì ở
+	# trạng thái ổn định".
+	frappe.clear_cache(user=email)
+
+	if not thieu and frappe.db.get_value("User", email, "enabled"):
+		return email
+
+	# Chỉ tới đây mới ghi — và nạp lại tài liệu cho khớp CSDL trước khi ghi.
+	frappe.clear_document_cache("User", email)
 	u = frappe.get_doc("User", email)
 	u.enabled = 1
-	co = {r.role for r in u.roles}
-	for r in vai_tro:
-		if r not in co:
+	co_tren_doc = {r.role for r in u.roles}
+	for r in thieu:
+		if r not in co_tren_doc:
 			u.append("roles", {"role": r})
 	u.save(ignore_permissions=True)
 	return email
@@ -72,6 +109,32 @@ class TestCapThe(FrappeTestCase):
 		self.assertNotEqual(muoi_cu, muoi_moi, "cấp lại phải sinh MUỐI mới, không giữ muối cũ")
 		self.assertEqual(
 			frappe.db.get_value("PDA Badge", NGUOI_KHO, "ma_bam"), bam(muoi_moi, ma_moi)
+		)
+
+	def test_muoi_the_phai_NGAU_NHIEN_va_thuc_su_di_vao_phep_bam(self):
+		"""VÒNG SỬA 3 (N2) — cùng lỗ hổng vừa tìm ra ở `PDA Thiet Bi.muoi_khoa`, bên này
+		cũng hở y như vậy, và tôi đo trước khi viết bài này.
+
+		Đo được: sửa `bam()` thành `sha256(ma_chuan)` (bỏ qua `muoi`) thì cả module này
+		vẫn **20/20 OK**. `test_chi_luu_ban_bam_khong_luu_ma_goc` không bắt được vì nó so
+		`doc.ma_bam == bam(doc.muoi, ma)` — hai vế cùng chạy qua hàm đã hỏng nên vẫn khớp.
+
+		Mất muối thì `ma_bam` là SHA-256 TRẦN của một mã 12 ký tự trên bảng chữ 32 ký tự:
+		lộ CSDL là dò được HÀNG LOẠT thẻ bằng MỘT bảng tra cứu dựng sẵn — đúng thứ mà
+		quyết định "mỗi thẻ một muối riêng" (23/09, mục 8) sinh ra để chặn.
+		"""
+		from erpnext.warehouse_operations.vitri.the_pda import bam, cap_the
+
+		cap_the(NGUOI_KHO)
+		m1 = frappe.db.get_value("PDA Badge", NGUOI_KHO, "muoi")
+		cap_the(NGUOI_KHO)
+		m2 = frappe.db.get_value("PDA Badge", NGUOI_KHO, "muoi")
+		self.assertTrue(m1 and m2, "thiếu muối thì băm là SHA-256 trần")
+		self.assertNotEqual(m1, m2, "mỗi lần cấp phải sinh MUỐI mới, không dùng một hằng số")
+		self.assertNotEqual(
+			bam(m1, "ABCDEFGHJKLM"),
+			bam(m2, "ABCDEFGHJKLM"),
+			"muối phải THẬT SỰ đi vào phép băm — cùng mã thẻ, khác muối phải ra khác băm",
 		)
 
 	def test_thu_hoi_tat_hieu_luc(self):
@@ -392,7 +455,7 @@ class TestDangNhapBangThe(FrappeTestCase):
 
 		Sáu bài trên đều gọi `_gia_lap_request()` trước MỖI lần quét, mà hàm đó tự xoá khoá
 		Redis của `@rate_limit` để mô phỏng đúng một request độc lập — nên không bài nào trong
-		số đó từng thật sự chạm ngưỡng `limit=10, seconds=60`. Bài này CỐ Ý gọi
+		số đó từng thật sự chạm ngưỡng của `@rate_limit`. Bài này CỐ Ý gọi
 		`_gia_lap_request()` đúng MỘT lần (chỉ để có bối cảnh request + khoá Redis sạch ban
 		đầu), rồi gọi thẳng `dang_nhap_bang_the` liên tiếp KHÔNG xoá khoá giữa các lần — đúng
 		như súng quét thật gửi nhiều lần liên tiếp từ cùng một IP. Toàn bộ 11 lần đều dùng mã
@@ -400,7 +463,14 @@ class TestDangNhapBangThe(FrappeTestCase):
 		COMMIT) — nhánh `except` dọn rác trong `tearDown` không bị kích hoạt, `tearDown` dọn
 		sạch bằng savepoint như bình thường.
 		"""
-		from erpnext.warehouse_operations.vitri.the_pda import dang_nhap_bang_the
+		# LẤY TRẦN TỪ HẰNG SỐ, KHÔNG GÕ CỨNG SỐ 10 (soát tổng, V9): trần vừa được nâng lên
+		# cỡ một ca kho vì cả kho đi qua MỘT IP NAT khi dùng ngrok. Bài này canh ranh giới
+		# ĐÚNG BẰNG TRẦN ĐANG KHAI, nên vẫn bắt được ca khoá Redis rò từ lần chạy trước (nổ
+		# sớm hơn trần) mà không phải sửa lại mỗi lần ai đổi con số.
+		from erpnext.warehouse_operations.vitri.the_pda import (
+			SO_LAN_MOI_PHUT_CHO_KHACH,
+			dang_nhap_bang_the,
+		)
 
 		cmd = "erpnext.warehouse_operations.vitri.the_pda.dang_nhap_bang_the"
 		khoa = f"rl:{cmd}:127.0.0.1"
@@ -409,7 +479,7 @@ class TestDangNhapBangThe(FrappeTestCase):
 		try:
 			so_lan_ma_sai = 0
 			lan_vuot_nguong = None
-			for lan in range(1, 12):
+			for lan in range(1, SO_LAN_MOI_PHUT_CHO_KHACH + 2):
 				try:
 					dang_nhap_bang_the("MA_SAI_KHONG_TON_TAI")
 				except frappe.RateLimitExceededError:
@@ -422,11 +492,130 @@ class TestDangNhapBangThe(FrappeTestCase):
 			# lần gọi thứ 11 — `assertTrue` đơn thuần sẽ KHÔNG bắt được ca đó vì vẫn có ngoại lệ
 			# nào đó được ném ra. Khẳng định đúng 10 lần đầu là mã sai bình thường, và chính lần
 			# gọi thứ 11 mới vượt ngưỡng.
-			self.assertEqual(so_lan_ma_sai, 10, "phải đúng 10 lần đầu là mã sai bình thường")
-			self.assertEqual(lan_vuot_nguong, 11, "phải vượt ngưỡng đúng ở lần gọi thứ 11")
+			self.assertEqual(
+				so_lan_ma_sai,
+				SO_LAN_MOI_PHUT_CHO_KHACH,
+				f"phải đúng {SO_LAN_MOI_PHUT_CHO_KHACH} lần đầu là mã sai bình thường",
+			)
+			self.assertEqual(
+				lan_vuot_nguong,
+				SO_LAN_MOI_PHUT_CHO_KHACH + 1,
+				f"phải vượt ngưỡng đúng ở lần gọi thứ {SO_LAN_MOI_PHUT_CHO_KHACH + 1}",
+			)
+			# Và trần phải đủ rộng cho MỘT CA KHO sau NAT — 10 (trần cũ) là chạm ngay khi 10
+			# thủ kho mở máy đầu ca. Khoá luôn con số sàn, không để ai hạ lại lặng lẽ.
+			self.assertGreaterEqual(
+				SO_LAN_MOI_PHUT_CHO_KHACH,
+				20,
+				"cả kho ra internet qua MỘT IP NAT khi đi ngrok — trần cỡ một người là sự cố ca",
+			)
 		finally:
 			# Dọn khoá Redis của CHÍNH bài test này — không nằm trong giao dịch DB nên
 			# `tearDown`/savepoint không đụng tới được, và nếu để lại thì bài chạy kế tiếp
 			# (trong cùng lần `bench run-tests` này hay lần sau, trong vòng 60 giây) có thể ăn
 			# `RateLimitExceededError` oan trên máy dev thật.
 			frappe.cache.delete_value(khoa)
+
+
+class TestGioMayChu(FrappeTestCase):
+	"""Task 5, spec §8 — máy Android trong kho KHÔNG đảm bảo đúng giờ (không SIM,
+	không NTP, pin yếu là trôi). `gio_may_chu()` là NGUỒN DUY NHẤT vỏ app dùng để
+	đồng bộ đồng hồ MỘT LẦN lúc mở app, rồi tiêm kết quả vào lớp luồng qua
+	`tao({ngay, gio})` (`luong/tra_cuu.js::trang_thai_han` — phán quyết HẾT HẠN của
+	một lô vật tư y tế). Hàm này KHÔNG ghi gì xuống CSDL (thuần đọc đồng hồ site),
+	nên không cần savepoint/rollback như các bài khác trong file — `set_user`
+	không để lại rác nào sống ngoài tiến trình test."""
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+
+	def test_khong_can_dang_nhap(self):
+		"""`allow_guest=True` là CÓ CHỦ Ý: vỏ app gọi hàm này NGAY LÚC MỞ, trước khi
+		biết có khoá máy hay không (thiết bị mới nhận máy còn đứng ở màn quét thẻ).
+		Mất `allow_guest` là mất luôn khả năng đồng bộ giờ ở đúng ca cần nó nhất."""
+		from erpnext.warehouse_operations.vitri.the_pda import gio_may_chu
+
+		frappe.set_user("Guest")
+		kq = gio_may_chu()
+		self.assertIn("ngay", kq)
+		self.assertIn("gio", kq)
+		self.assertIn("moc_epoch_ms", kq)
+
+	def test_khop_dinh_dang_va_dung_gio_site(self):
+		"""So với CHÍNH `nowdate()`/`nowtime()` của site — không phải một chuỗi viết
+		tay trong bài test — để một lần site đổi múi giờ không làm bài này giả-đỏ
+		hoặc giả-xanh vì hai vế tình cờ cùng sai một kiểu."""
+		from frappe.utils import nowdate, nowtime
+
+		from erpnext.warehouse_operations.vitri.the_pda import gio_may_chu
+
+		frappe.set_user("Guest")
+		kq = gio_may_chu()
+		self.assertRegex(kq["ngay"], r"^\d{4}-\d{2}-\d{2}$")
+		self.assertRegex(kq["gio"], r"^\d{2}:\d{2}:\d{2}$")
+		self.assertEqual(kq["ngay"], nowdate(), "ngay không khớp frappe.utils.nowdate() của site")
+		# Chỉ so tới PHÚT (bỏ giây): hai lời gọi (bài test và hàm) không chạy cùng
+		# một khắc, so tới giây là một bài test chập chờn theo đúng nghĩa xấu.
+		self.assertEqual(
+			kq["gio"][:5], nowtime()[:5], "gio không khớp giờ site (frappe.utils.nowtime()) — sai múi giờ?"
+		)
+
+	def test_moc_epoch_la_mot_moc_unix_hop_ly(self):
+		"""`moc_epoch_ms` CHỈ dùng để đo ĐỘ LỆCH đồng hồ (một phép trừ UTC-với-UTC,
+		không múi giờ nào cả) — kẹp nó giữa hai lần đọc `time.time()` của CHÍNH bài
+		test để chứng minh nó là một mốc UNIX thật, không phải một con số bịa."""
+		import time
+
+		from erpnext.warehouse_operations.vitri.the_pda import gio_may_chu
+
+		frappe.set_user("Guest")
+		truoc = int(time.time() * 1000)
+		kq = gio_may_chu()
+		sau = int(time.time() * 1000)
+		self.assertGreaterEqual(kq["moc_epoch_ms"], truoc - 1000)
+		self.assertLessEqual(kq["moc_epoch_ms"], sau + 1000)
+
+	def test_chi_nhan_post(self):
+		"""`methods=["POST"]` — GET/HEAD/OPTIONS không đi qua cầu HTTP native của
+		Capacitor (Ruling 16 của đợt /kho — `native-bridge.js` đẩy chúng sang một
+		URL proxy nội bộ, một đường chưa ai đo). Bài này khoá phần KHAI BÁO (đọc mã
+		nguồn); phép đo HÀNH VI thật (GET → 403, POST → 200) nằm ở
+		`scripts/kiem_giao_dien/kiem_goi_mang.js` — cùng khuôn với `dang_nhap_bang_the`/
+		`cap_khoa_may`, không có bài Python nào trong kho kiểm việc này bằng cách
+		gọi thẳng hàm (gọi thẳng bỏ qua toàn bộ tầng định tuyến HTTP quyết định
+		phương thức).
+
+		VÒNG SỬA 1: đọc MỘT KHỐI vài dòng phía trên `def`, không chỉ "dòng ngay
+		trước" — thêm `@rate_limit(...)` (soát xét, mục 5) chen giữa
+		`@frappe.whitelist(...)` và `def gio_may_chu` làm phép đọc "một dòng" cũ
+		đỏ oan (nó khoá đúng `@rate_limit(...)`, không phải decorator cần kiểm).
+		Nhiều decorator xếp chồng là chuyện bình thường của Python, bài test không
+		được giả định đúng một dòng."""
+		from erpnext.warehouse_operations.vitri import the_pda
+
+		# `inspect.getsource(the_pda.gio_may_chu)` không đáng tin ở đây: hàm đã bị
+		# `@rate_limit` bọc bằng một `wrapper` khác, và tuỳ phiên bản Python việc
+		# theo `__wrapped__` khi tìm nguồn không nhất quán. Đọc thẳng TOÀN VĂN
+		# module rồi lấy khối NGAY TRÊN `def gio_may_chu` — tất định, không phụ
+		# thuộc cơ chế `inspect` với hàm đã trang trí nhiều lớp.
+		import inspect
+
+		toan_van = inspect.getsource(the_pda)
+		i = toan_van.index("def gio_may_chu")
+		cac_dong_truoc = toan_van[:i].rstrip().splitlines()
+		# Khối trang trí: mọi dòng liên tục bắt đầu bằng `@` ngay phía trên `def`.
+		khoi_trang_tri = []
+		for dong in reversed(cac_dong_truoc):
+			if not dong.strip().startswith("@"):
+				break
+			khoi_trang_tri.insert(0, dong)
+		khoi = "\n".join(khoi_trang_tri)
+		self.assertIn("methods=", khoi, f"không thấy methods= trong khối trang trí: {khoi!r}")
+		self.assertIn('"POST"', khoi)
+		self.assertIn("allow_guest=True", khoi)
+		self.assertIn(
+			"rate_limit(",
+			khoi,
+			"vòng sửa 1 (soát xét mục 5) đòi thêm @rate_limit cho đối xứng với "
+			"dang_nhap_bang_the/cap_khoa_may — đã mất khỏi khối trang trí",
+		)

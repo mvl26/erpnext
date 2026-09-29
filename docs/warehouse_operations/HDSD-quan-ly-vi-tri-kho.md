@@ -1315,13 +1315,34 @@ trình duyệt di động. Từ 23/09/2026, các màn hình đó còn mở đư�
 (`pda_app/`) — một vỏ WebView khoá cứng chỉ trỏ vào máy chủ Miyano ERP, đỡ việc thủ kho phải mở
 trình duyệt và gõ địa chỉ mỗi ca.
 
-App **không** thêm nghiệp vụ mới: mọi màn hình bên trong app chính là các trang ở mục 12–15,
-cộng thêm một lớp đăng nhập bằng **thẻ PDA** (mã vạch quét được, phiên sống 12 tiếng) thay cho
-gõ tài khoản/mật khẩu bằng súng quét.
+App **không** thêm nghiệp vụ mới: bốn việc bên trong app (tra cứu, xếp hàng, lấy hàng, đặt ô
+hàng loạt) là ĐÚNG nghiệp vụ ở mục 12–15, cộng thêm một lớp đăng nhập bằng **thẻ PDA** (mã vạch
+quét được, phiên sống 12 tiếng) thay cho gõ tài khoản/mật khẩu bằng súng quét.
+
+**Từ Task 6 (23–24/09/2026): app dùng giao diện RIÊNG ở `/kho`, không còn mở trực tiếp bốn
+trang Desk ở mục 12–15 nữa.** `/kho` là một khung app tách biệt (`erpnext/public/js/kho_pda/`)
+— không thanh công cụ Desk, không tải lại trang giữa các màn — nhưng đọc CÙNG một lớp quyết định
+nghiệp vụ (`erpnext/public/js/warehouse_operations/luong/`) mà bốn trang Desk ở mục 12–15 cũng
+dùng, nên hai bên KHÔNG lệch luật nhau. **Bốn trang Desk giữ nguyên, không bị xoá** — ai dùng
+máy tính (bàn phím, màn hình lớn, đăng nhập tài khoản thường qua trình duyệt, không quét thẻ)
+vẫn mở được y như trước, ví dụ "Đặt ô hàng loạt" — việc vốn thiết kế cho máy tính (bảng rộng,
+không hợp màn 4 inch).
 
 Toàn bộ hướng dẫn cấp thẻ, thu hồi thẻ, cài app, dùng hằng ngày và bảng kiểm tay nằm ở
 `HDSD-app-pda.md`. Tài liệu dựng lại file APK (môi trường, khoá ký, lệnh build) nằm ở
 `pda_app/README.md`.
+
+**Lối vào từ workspace Quản lý kho** (thẻ *App PDA*):
+
+| Ô bấm | Dẫn tới | Ai dùng |
+|---|---|---|
+| **Thẻ PDA** | danh sách `PDA Badge` — cấp, thu hồi, in thẻ | trưởng kho |
+| **Cài app PDA** | trang đưa bản cài lên + hướng dẫn cài từng máy | trưởng kho |
+| **Màn hình PDA** | menu bốn việc (`pda-home`), mở thử được trên máy tính | ai có vai trò kho |
+
+Máy quét mới lấy bản cài bằng cách mở trình duyệt vào **`<địa chỉ kho>/tai-app`** — trang công
+khai, không cần đăng nhập (máy chưa cài app thì chưa có phiên nào để đăng nhập). Trang **Cài app
+PDA** in sẵn đúng địa chỉ đó để khỏi phải nhớ.
 
 **Ai làm gì với thẻ:**
 
@@ -1335,7 +1356,7 @@ Toàn bộ hướng dẫn cấp thẻ, thu hồi thẻ, cài app, dùng hằng n
 
 **Sự thật cần nhớ:** thẻ quét được là một chiếc chìa khoá — ai chụp lại được mã vạch trên thẻ là
 vào được hệ thống với quyền của chủ thẻ. Nghi mất thẻ thì thu hồi ngay, đừng đợi xác minh chắc
-chắn (chi tiết ở `HDSD-app-pda.md` mục 6).
+chắn (chi tiết ở `HDSD-app-pda.md` mục 8 "Sự thật về bảo mật").
 
 ---
 

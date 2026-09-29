@@ -111,6 +111,15 @@ additional_print_settings = "erpnext.controllers.print_settings.get_print_settin
 
 on_session_creation = "erpnext.portal.utils.create_customer_or_supplier"
 
+# Chạy trong `frappe/auth.py:626 validate_auth_via_hooks`, NGAY SAU khi Frappe đã
+# nhận khoá API và gán danh tính — tức trước khi request chạm hàm nghiệp vụ nào.
+# Bắt buộc phải là một hook cấp request, không phải một phép kiểm trong từng hàm:
+# khoá máy PDA mở được MỌI hàm whitelist dưới tên chủ thẻ, nên chỗ duy nhất kiểm
+# được "khoá này đang dùng từ đúng chiếc máy nào" là ở cửa vào. Hàm tự thoát ngay
+# khi request không mang `Authorization: token …` (phiên cookie của Desk/web không
+# bị đụng tới) — xem docstring của nó.
+auth_hooks = ["erpnext.warehouse_operations.vitri.the_pda.kiem_khoa_may"]
+
 treeviews = [
 	"Account",
 	"Cost Center",
@@ -366,6 +375,19 @@ period_closing_doctypes = [
 ]
 
 doc_events = {
+	# VÒNG SỬA CUỐI Task 6 (soát tổng, T6-1) — BUỘC HỢP ĐỒNG NGẦM LỘ RA.
+	#
+	# Tên file bản cài APK mang SỐ HIỆU, và app trong máy quét đọc số hiệu từ chính
+	# tên đó để biết mình có phải bản mới nhất không. Trước đây đó chỉ là một dòng
+	# chữ trong `pda_app/README.md`; phá nó thì dải nhắc nâng cấp IM LẶNG trên mọi
+	# máy và không ai biết — hậu quả lộ ra hàng tuần sau, ngoài kho.
+	#
+	# Hàm này TỰ LỌC RẤT HẸP (chỉ tên có "pda" và đuôi `.apk` — đúng tập mà
+	# `cai_app._ban_moi_nhat()` nhặt) rồi mới nói; mọi `File` khác của cả hệ thống
+	# đi qua không một lời nào. Xem docstring của `chan_ten_ban_cai_sai`.
+	"File": {
+		"validate": "erpnext.warehouse_operations.vitri.cai_app.chan_ten_ban_cai_sai",
+	},
 	"*": {
 		"validate": [
 			"erpnext.support.doctype.service_level_agreement.service_level_agreement.apply",
