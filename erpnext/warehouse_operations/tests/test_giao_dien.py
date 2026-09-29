@@ -450,3 +450,57 @@ class TestTrangLayHang(TestTrangQuetMa):
 		from erpnext.warehouse_operations.vitri.lay_hang import VAI_TRO_DUOC_LAY
 
 		return VAI_TRO_DUOC_LAY
+
+
+DUONG_DAN_JS_PHIEU_XEP = "warehouse_operations/doctype/location_transfer/location_transfer.js"
+DUONG_DAN_JS_PHIEU_NHAP_LO = "warehouse_operations/doctype/batch_entry/batch_entry.js"
+#: Cờ trong trang nối nút "Xếp hàng lên kệ" (phiếu nhập) với chỗ tự đổ dòng
+#: (phiếu xếp). Hai file JS khác nhau giữ CÙNG một chuỗi này.
+CO_TU_LAY = "tu_lay_hang_chua_xep"
+
+
+class TestNoiLuongNhapKho(FrappeTestCase):
+	"""Các mối nối của luồng nhập kho (23/09/2026): phiếu nhập → phiếu nhập lô →
+	duyệt → xếp lên kệ.
+
+	Mọi thứ ở đây đứt theo kiểu KHÔNG ném lỗi — đúng hạng hỏng mà cả file này sinh
+	ra để bắt: đổi tên một hàm máy chủ thì nút vẫn vẽ ra, bấm vào mới im; đổi tên
+	cờ ở một file thì file kia vẫn chạy, chỉ là không bao giờ tự đổ dòng nữa.
+	"""
+
+	def _ma_js(self, tuong_doi):
+		with open(frappe.get_app_path("erpnext", *tuong_doi.split("/")), encoding="utf-8") as f:
+			return f.read()
+
+	def test_duong_goi_may_chu_co_that_va_duoc_whitelist(self):
+		import re
+
+		ma = self._ma_js(DUONG_DAN_JS_PHIEU_NHAP) + self._ma_js(DUONG_DAN_JS_LO)
+		duong = set(re.findall(r"erpnext\.warehouse_operations\.vitri\.luong_nhap\.\w+", ma))
+		self.assertTrue(duong, "JS không còn gọi `luong_nhap` — mất thanh tiến trình và nút xếp kệ.")
+		for d in duong:
+			ham = frappe.get_attr(d)
+			self.assertIn(
+				ham,
+				frappe.whitelisted,
+				f"{d} không còn `@frappe.whitelist()` — nút bấm vào sẽ im lặng không làm gì.",
+			)
+
+	def test_nhan_nut_xep_hang_len_ke(self):
+		self.assertIn('"Xếp hàng lên kệ"', self._ma_js(DUONG_DAN_JS_PHIEU_NHAP))
+
+	def test_nut_ve_phieu_nhap_tren_phieu_nhap_lo(self):
+		"""Khai lô xong, bước kế tiếp là duyệt phiếu nhập — mất nút này thì thủ kho
+		lại phải gõ tên phiếu trên thanh tìm kiếm, đúng điều chủ đầu tư bỏ đi."""
+		ma = self._ma_js(DUONG_DAN_JS_PHIEU_NHAP_LO)
+		self.assertIn("Duyệt phiếu nhập kho", ma)
+		self.assertIn("Xem phiếu nhập kho", ma)
+
+	def test_co_tu_lay_hang_chua_xep_khop_giua_hai_file(self):
+		for tuong_doi in (DUONG_DAN_JS_PHIEU_NHAP, DUONG_DAN_JS_PHIEU_XEP):
+			self.assertIn(CO_TU_LAY, self._ma_js(tuong_doi), f"{tuong_doi} mất cờ {CO_TU_LAY}")
+
+	def test_ba_file_js_co_that(self):
+		for tuong_doi in (DUONG_DAN_JS_PHIEU_XEP, DUONG_DAN_JS_PHIEU_NHAP_LO, DUONG_DAN_JS_LO):
+			duong_dan = frappe.get_app_path("erpnext", *tuong_doi.split("/"))
+			self.assertTrue(os.path.exists(duong_dan), f"thiếu file {duong_dan}")

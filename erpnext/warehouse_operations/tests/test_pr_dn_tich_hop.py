@@ -31,6 +31,7 @@ from frappe.utils import flt
 
 from erpnext.warehouse_operations.tests.test_hook_nhap import _bat_kho_tho, _nhap_kho, _tao_item, _tat_kho_tho
 from erpnext.warehouse_operations.tests.test_huy_chung_tu import _o, _seed_o
+from erpnext.warehouse_operations.tests.test_lay_hang import bo_bat_buoc_lay_hang
 from erpnext.warehouse_operations.vitri import kho as vk
 from erpnext.warehouse_operations.vitri import so
 
@@ -134,6 +135,9 @@ class TestDeliveryNoteTichHop(FrappeTestCase):
 	và vị trí nào" — đi qua ĐÚNG Delivery Note."""
 
 	def setUp(self):
+		# Bài về đường FEFO tự trừ khi duyệt thẳng — đường mà luật bắt buộc lấy hàng
+		# (22/09/2026) đóng lại với nghiệp vụ thật; giữ nó chạy được cho test.
+		self.enterContext(bo_bat_buoc_lay_hang())
 		_bat_kho_tho(KHO)
 		self.o_gan = _o("9Z23010101", thu_tu=1)
 

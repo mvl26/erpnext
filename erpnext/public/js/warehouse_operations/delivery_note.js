@@ -6,7 +6,8 @@
 // việc lấy hàng đã tới đâu.
 //
 // Hai thứ ở đây: dòng tiến độ ở đầu form (đọc `lay_hang.tien_do_lay_hang`, đếm
-// bằng CÙNG luật với trang PDA), và nút "Lấy hàng trên PDA" mở thẳng phiếu này.
+// bằng CÙNG luật với trang PDA), nút "Lấy hàng" (hộp thoại, `lay_hang_dialog.js`),
+// nút "Lấy hàng trên PDA" mở thẳng phiếu này, và nút "In tem kiện" (`tem_kien.js`).
 // Ô đã lấy của từng dòng nằm ở cột "Vị trí lấy" (máy chủ ghi); sổ vị trí nằm ở
 // tab Connections › Vị trí kho (`delivery_note_dashboard.py`).
 //
@@ -24,11 +25,40 @@
 				if (!t || frm.doc.name !== frm.docname || frm.is_new()) return;
 				hien_tien_do(frm, t);
 				if (t.lay_duoc) {
+					frm.add_custom_button(__("Lấy hàng"), () => mo_hop_lay_hang(frm));
 					frm.add_custom_button(__("Lấy hàng trên PDA"), () => mo_pda(frm));
+				}
+				// Tem kiện: in được cả sau khi duyệt (in lại tem rách/mất).
+				if (t.tong_kien && frm.doc.docstatus < 2) {
+					const du = t.so_kien_da_in >= t.tong_kien;
+					frm.add_custom_button(du ? __("In lại tem kiện") : __("In tem kiện"), () =>
+						in_tem_kien(frm, du ? 0 : 1)
+					);
 				}
 			});
 		},
 	});
+
+	function in_tem_kien(frm, chi_chua_in) {
+		const chay = () =>
+			erpnext.warehouse_operations.tem_kien.in_tem(frm.doc.name, chi_chua_in).then((kq) => {
+				// `danh_dau_da_in` không đổi `modified` — tải lại chỉ để lấy số kiện đã in mới.
+				if (kq) frm.reload_doc();
+			});
+		frappe.require("/assets/erpnext/js/warehouse_operations/tem_kien.js", chay);
+	}
+
+	// Hộp thoại lấy hàng ngay trên form (bàn đóng gói, súng quét USB) — cùng máy
+	// chủ với trang PDA (`lay_hang_dialog.js`). Đóng hộp thì tải lại phiếu: bảng
+	// phân bổ, số lượng (chốt thiếu) hay trạng thái duyệt đều có thể đã đổi.
+	function mo_hop_lay_hang(frm) {
+		const mo = () =>
+			frappe.require("/assets/erpnext/js/warehouse_operations/lay_hang_dialog.js", () =>
+				erpnext.warehouse_operations.lay_hang_dialog.mo(frm.doc.name, () => frm.reload_doc())
+			);
+		if (frm.is_dirty()) frm.save().then(mo);
+		else mo();
+	}
 
 	function mo_pda(frm) {
 		const di = () => frappe.set_route("lay-hang-pda", frm.doc.name);
@@ -73,6 +103,7 @@
 		const phu = [];
 		if (t.so_dong_chot_thieu) phu.push(__("{0} dòng chốt thiếu", [t.so_dong_chot_thieu]));
 		if (t.so_dong_khong_quet) phu.push(__("{0} dòng lấy tay (không quét)", [t.so_dong_khong_quet]));
+		if (t.tong_kien) phu.push(__("{0}/{1} kiện đã in tem", [t.so_kien_da_in, t.tong_kien]));
 		if (t.nguoi_lay && t.nguoi_lay.length) phu.push(__("người lấy: {0}", [t.nguoi_lay.map(e).join(", ")]));
 		const them = phu.length ? " · " + phu.join(" · ") : "";
 
@@ -86,7 +117,8 @@
 		switch (t.trang_thai) {
 			case "chua_lay":
 				chu =
-					__("Chưa quét dòng nào. Duyệt ngay thì hệ thống tự chọn ô theo hạn dùng (FEFO).") + them;
+					__("Chưa lấy dòng nào — bấm Lấy hàng. Phải lấy đủ và in tem kiện mới duyệt được phiếu.") +
+					them;
 				break;
 			case "dang_lay":
 				chu =
@@ -99,12 +131,20 @@
 				mau = "orange";
 				break;
 			case "du":
-				chu =
-					__("Đã lấy xong {0}/{1} dòng — sẵn sàng duyệt (bấm Hoàn tất trên PDA).", [
-						xong,
-						t.so_dong_quet,
-					]) + them;
-				mau = "green";
+				if (t.so_kien_da_in < t.tong_kien) {
+					chu =
+						__("Đã lấy xong {0}/{1} dòng — còn {2} kiện chưa in tem, bấm In tem kiện.", [
+							xong,
+							t.so_dong_quet,
+							t.tong_kien - t.so_kien_da_in,
+						]) + them;
+					mau = "orange";
+				} else {
+					chu =
+						__("Đã lấy xong {0}/{1} dòng, đủ tem kiện — sẵn sàng duyệt.", [xong, t.so_dong_quet]) +
+						them;
+					mau = "green";
+				}
 				break;
 			case "da_duyet_quet":
 				chu = __("Đã trừ sổ vị trí theo đúng ô thủ kho quét — xem cột Vị trí lấy.") + them;

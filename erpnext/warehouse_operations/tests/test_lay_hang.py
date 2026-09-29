@@ -38,6 +38,21 @@ def bo_kiem_o_tem():
 		frappe.flags[CO_BO_KIEM_TEST] = cu
 
 
+@contextmanager
+def bo_bat_buoc_lay_hang():
+	"""Duyệt thẳng phiếu giao mà không qua bước lấy hàng / in tem kiện — thứ luật
+	"bắt buộc lấy hàng" (22/09/2026, `lay_hang.chan_duyet_chua_lay`) cấm ở nghiệp vụ
+	thật. Chỉ dùng cho các bài KHÔNG nói về luật đó (FEFO tự trừ, cột vị trí…)."""
+	from erpnext.warehouse_operations.vitri.lay_hang import CO_BO_BAT_BUOC
+
+	cu = frappe.flags.get(CO_BO_BAT_BUOC)
+	frappe.flags[CO_BO_BAT_BUOC] = True
+	try:
+		yield
+	finally:
+		frappe.flags[CO_BO_BAT_BUOC] = cu
+
+
 def _o(ma_o, thu_tu=None):
 	"""Tạo ô nếu chưa có; CẬP NHẬT `thu_tu_lay_hang` dù ô đã tồn tại từ lần chạy
 	trước — nếu chỉ bỏ qua khi đã tồn tại, một site đã có ô này với thứ tự khác
@@ -300,6 +315,9 @@ def _phieu_giao(so_luong, phan_bo=None):
 
 class TestGhiSoTheoPhanBo(FrappeTestCase):
 	def setUp(self):
+		# Bài về sổ/phân bổ/FEFO, không về luật bắt buộc lấy hàng + tem kiện
+		# (luật đó có bộ riêng: `test_lay_hang_don_vi.TestChanDuyet`).
+		self.enterContext(bo_bat_buoc_lay_hang())
 		frappe.set_user("Administrator")
 		frappe.db.savepoint(DIEM_TEST)
 		_vat_tu()
@@ -525,6 +543,9 @@ class TestKiemSom(FrappeTestCase):
 	"""
 
 	def setUp(self):
+		# Bài về sổ/phân bổ/FEFO, không về luật bắt buộc lấy hàng + tem kiện
+		# (luật đó có bộ riêng: `test_lay_hang_don_vi.TestChanDuyet`).
+		self.enterContext(bo_bat_buoc_lay_hang())
 		frappe.set_user("Administrator")
 		frappe.db.savepoint(DIEM_TEST)
 		_vat_tu()
@@ -738,6 +759,9 @@ class TestKiemSom(FrappeTestCase):
 
 class TestDocChoTrang(FrappeTestCase):
 	def setUp(self):
+		# Bài về sổ/phân bổ/FEFO, không về luật bắt buộc lấy hàng + tem kiện
+		# (luật đó có bộ riêng: `test_lay_hang_don_vi.TestChanDuyet`).
+		self.enterContext(bo_bat_buoc_lay_hang())
 		frappe.set_user("Administrator")
 		frappe.db.savepoint(DIEM_TEST)
 		for ma in (LO, O_GAN, O_XA):
@@ -1441,6 +1465,9 @@ class TestDocChoTrang(FrappeTestCase):
 
 class TestGhiChoTrang(FrappeTestCase):
 	def setUp(self):
+		# Bài về sổ/phân bổ/FEFO, không về luật bắt buộc lấy hàng + tem kiện
+		# (luật đó có bộ riêng: `test_lay_hang_don_vi.TestChanDuyet`).
+		self.enterContext(bo_bat_buoc_lay_hang())
 		from erpnext.warehouse_operations.vitri.lay_hang import _khoa_chot_thieu
 
 		frappe.set_user("Administrator")
@@ -1475,12 +1502,17 @@ class TestGhiChoTrang(FrappeTestCase):
 		self.assertEqual(doc.custom_phan_bo_vi_tri[0].nguoi_lay, frappe.session.user)
 
 	def test_quet_lai_cung_o_thi_cong_don(self):
+		"""Cộng dồn khi mỗi kiện chứa cùng số lượng (4 + 4 → một lượt 8, 2 kiện).
+		Khác số mỗi kiện (5 + 3) thì là hai kiện khác nhau, hai tem khác nhau → hai
+		lượt (tem kiện, 22/09/2026)."""
 		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay
 
-		ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 5)
+		ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 4)
+		p = ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 4)
+		self.assertEqual([(x["so_luong"], x["so_kien"]) for x in p["dong"][0]["da_lay_o"]], [(8.0, 2)])
 		p = ghi_da_lay(self.dn.name, self.dong, LO, O_GAN, 3)
-		self.assertEqual(len(p["dong"][0]["da_lay_o"]), 1)
-		self.assertEqual(p["dong"][0]["da_lay"], 8.0)
+		self.assertEqual(len(p["dong"][0]["da_lay_o"]), 2)
+		self.assertEqual(p["dong"][0]["da_lay"], 11.0)
 
 	def test_ghi_da_lay_toi_da_theo_o_cat_theo_ton_khi_bat_co(self):
 		"""Bài test BẮT BUỘC (sửa lỗi "số lượng mặc định không tự cắt theo tồn
@@ -2379,6 +2411,9 @@ class TestDongKhongPhaiHangTonKho(FrappeTestCase):
 	"""
 
 	def setUp(self):
+		# Bài về sổ/phân bổ/FEFO, không về luật bắt buộc lấy hàng + tem kiện
+		# (luật đó có bộ riêng: `test_lay_hang_don_vi.TestChanDuyet`).
+		self.enterContext(bo_bat_buoc_lay_hang())
 		frappe.set_user("Administrator")
 		frappe.db.savepoint(DIEM_TEST)
 		_vat_tu()
@@ -2440,6 +2475,9 @@ class TestDongDaDonVi(FrappeTestCase):
 	không quy đổi toàn hệ (việc đó rộng, cần bộ test đa đơn vị riêng)."""
 
 	def setUp(self):
+		# Bài về sổ/phân bổ/FEFO, không về luật bắt buộc lấy hàng + tem kiện
+		# (luật đó có bộ riêng: `test_lay_hang_don_vi.TestChanDuyet`).
+		self.enterContext(bo_bat_buoc_lay_hang())
 		frappe.set_user("Administrator")
 		frappe.db.savepoint(DIEM_TEST)
 		_vat_tu_da_don_vi()
@@ -2483,20 +2521,18 @@ class TestDongDaDonVi(FrappeTestCase):
 		frappe.set_user("Administrator")
 		frappe.db.rollback(save_point=DIEM_TEST)
 
-	def test_dong_da_don_vi_khong_can_quet_va_bi_hoan_tat_bo_qua(self):
-		"""Bài test bắt buộc: `can_quet=False`, có `ly_do_khong_quet`, và
-		`hoan_tat` bỏ qua đúng dòng đó (không đòi quét, vẫn duyệt được)."""
-		from erpnext.warehouse_operations.vitri.lay_hang import hoan_tat, mo_phieu_giao
+	def test_dong_da_don_vi_gio_quet_duoc_va_do_bang_don_vi_ton(self):
+		"""ĐỔI HÀNH VI 22/09/2026 (chủ đầu tư: "chuyển đổi linh hoạt… tùy chuyển đổi
+		đã setup sẵn trong item"): dòng bán theo Hộp KHÔNG còn bị chặn. `can_lay`
+		theo đơn vị của dòng (2 Hộp), `can_lay_ton` theo đơn vị tồn (20). Chi tiết
+		quy đổi, số kiện, chốt thiếu tròn Hộp: `test_lay_hang_don_vi.TestDonVi`."""
+		from erpnext.warehouse_operations.vitri.lay_hang import mo_phieu_giao
 
-		p = mo_phieu_giao(self.dn.name)
-		dong = p["dong"][0]
-		self.assertFalse(dong["can_quet"])
-		self.assertIsNotNone(dong["ly_do_khong_quet"])
-		self.assertIn(UOM_HOP, dong["ly_do_khong_quet"])
-
-		kq = hoan_tat(self.dn.name)
-		self.assertEqual(frappe.db.get_value("Delivery Note", self.dn.name, "docstatus"), 1)
-		self.assertEqual(kq["so_dong"], 0, "hoan_tat phải bỏ qua đúng dòng đa đơn vị")
+		dong = mo_phieu_giao(self.dn.name)["dong"][0]
+		self.assertTrue(dong["can_quet"], dong["ly_do_khong_quet"])
+		self.assertIsNone(dong["ly_do_khong_quet"])
+		self.assertEqual((dong["can_lay"], dong["don_vi"]), (2, UOM_HOP))
+		self.assertEqual(dong["can_lay_ton"], 20)
 
 
 class TestQuetMaHangKhongLo(FrappeTestCase):
@@ -2514,6 +2550,9 @@ class TestQuetMaHangKhongLo(FrappeTestCase):
 	BARCODE_CO_LO = "9L-BARCODE-CO-LO-001"
 
 	def setUp(self):
+		# Bài về sổ/phân bổ/FEFO, không về luật bắt buộc lấy hàng + tem kiện
+		# (luật đó có bộ riêng: `test_lay_hang_don_vi.TestChanDuyet`).
+		self.enterContext(bo_bat_buoc_lay_hang())
 		frappe.set_user("Administrator")
 		frappe.db.savepoint(DIEM_TEST)
 		for ma in (ITEM, ITEM_KHONG_LO, O_GAN, self.BARCODE_KHONG_LO, self.BARCODE_CO_LO):

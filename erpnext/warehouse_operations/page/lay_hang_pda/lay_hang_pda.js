@@ -126,6 +126,10 @@
 			this.$goc.on("click", ".lh-hoan-tat", () => this.hoan_tat());
 			this.$goc.on("click", ".lh-xac-nhan-lo-khac", () => this.nhan_lo_khac());
 			this.$goc.on("click", ".lh-cong-tru", (ev) => this.cong_tru(Number($(ev.currentTarget).attr("data-buoc"))));
+			this.$goc.on("click", ".lh-chon-don-vi", (ev) => this.chon_don_vi($(ev.currentTarget).attr("data-uom")));
+			this.$goc.on("click", ".lh-kien-cong-tru", (ev) =>
+				this.kien_cong_tru(Number($(ev.currentTarget).attr("data-buoc")))
+			);
 			this.$goc.on("input change", ".lh-so-luong", (ev) => {
 				if (!this.cho) return;
 				this.cho.so_luong = flt(ev.currentTarget.value);
@@ -248,7 +252,7 @@
 				return;
 			}
 			const con_can = flt(dong.can_lay) - flt(dong.da_lay);
-			if (con_can <= 0) {
+			if (flt(dong.can_lay_ton) - flt(dong.da_lay_ton) <= 1e-9) {
 				this.bao(__("Dòng này đã lấy đủ."), "xam");
 				return;
 			}
@@ -270,9 +274,53 @@
 				// listener "input change"/`cong_tru`) — từ đó KHÔNG được tự ý cắt số
 				// người dùng đã tự gõ, đổi ý định của họ.
 				da_sua_so_luong: false,
+				// Đơn vị lấy (22/09/2026): mặc định đơn vị của dòng; đổi bằng hàng nút
+				// `don_vi_chon`. `so_kien` = số tem kiện; người dùng chưa chạm thì để
+				// máy chủ tự tính (`ghi_da_lay`) theo số THẬT đã ghi.
+				don_vi: dong.don_vi_dong,
+				he_so: flt(dong.he_so_dong) || 1,
+				so_kien: null,
 			};
+			// Dòng bán theo đơn vị đóng gói: gợi ý phần NGUYÊN (5,8 Hộp → 5 Hộp), còn
+			// thiếu dưới một đơn vị (80 Cái) thì gợi ý theo đơn vị tồn.
+			if (flt(this.cho.he_so) !== 1) {
+				this.chon_don_vi(dong.don_vi_dong, true);
+				if (!(flt(this.cho.so_luong) > 0)) this.chon_don_vi(dong.don_vi_ton, true);
+			}
 			this.bao();
 			this.ve();
+		}
+
+		/** Đổi đơn vị lấy: số lượng mặc định = phần còn thiếu quy theo đơn vị mới
+		 * (đơn vị đóng gói lấy phần NGUYÊN — phần lẻ lấy tiếp bằng đơn vị nhỏ hơn). */
+		chon_don_vi(uom, khong_ve) {
+			const c = this.cho;
+			const dong = c && this.phieu.dong.find((x) => x.dong_hang === c.dong_hang);
+			if (!dong) return;
+			const dv = (dong.don_vi_chon || []).find((x) => x.uom === uom);
+			if (!dv) return;
+			const con_ton = Math.max(0, flt(dong.can_lay_ton) - flt(dong.da_lay_ton));
+			c.don_vi = dv.uom;
+			c.he_so = flt(dv.he_so) || 1;
+			c.so_luong = c.he_so === 1 ? flt(con_ton, 6) : Math.floor(con_ton / c.he_so + 1e-9);
+			c.da_sua_so_luong = false;
+			c.so_kien = null;
+			if (khong_ve) return;
+			this.ve();
+			this.o_quet.giu_focus();
+		}
+
+		/** Số kiện mặc định khi người dùng chưa sửa — CÙNG luật `ghi_da_lay`. */
+		so_kien_mac_dinh() {
+			const c = this.cho;
+			return flt(c.he_so) !== 1 ? Math.max(1, Math.round(flt(c.so_luong))) : 1;
+		}
+
+		kien_cong_tru(buoc) {
+			if (!this.cho) return;
+			const hien = this.cho.so_kien != null ? this.cho.so_kien : this.so_kien_mac_dinh();
+			this.cho.so_kien = Math.max(1, hien + buoc);
+			this.$goc.find(".lh-so-kien").text(this.cho.so_kien);
 		}
 
 		hoi_doi_lo(d) {
@@ -333,15 +381,20 @@
 			// dùng ĐÃ TỰ gõ số thì gọi như cũ — không được âm thầm đổi ý định họ.
 			const yeu_cau = flt(c.so_luong);
 			const theo_ton_o = !c.da_sua_so_luong;
+			const doi_so = {
+				phieu: this.phieu.name,
+				dong_hang: c.dong_hang,
+				so_lo: c.so_lo,
+				o: o.ma_o,
+				so_luong: c.so_luong,
+				lay_toi_da_theo_o: theo_ton_o ? 1 : 0,
+				don_vi: c.don_vi,
+			};
+			// Chỉ gửi số kiện khi người dùng ĐÃ sửa: số lượng có thể bị cắt theo tồn
+			// của ô, và máy chủ tính số kiện mặc định theo số THẬT đã ghi.
+			if (c.so_kien != null) doi_so.so_kien = c.so_kien;
 			frappe
-				.xcall(API + "ghi_da_lay", {
-					phieu: this.phieu.name,
-					dong_hang: c.dong_hang,
-					so_lo: c.so_lo,
-					o: o.ma_o,
-					so_luong: c.so_luong,
-					lay_toi_da_theo_o: theo_ton_o ? 1 : 0,
-				})
+				.xcall(API + "ghi_da_lay", doi_so)
 				.then((p) => {
 					rung([40, 40, 40]);
 					this.phieu = p;
@@ -352,7 +405,11 @@
 					// nhất, và một lượt ghi khác (tab/thiết bị khác) có thể đã đổi
 					// `da_lay` của dòng ngay giữa lúc này.
 					const dong_moi = (p.dong || []).find((x) => x.dong_hang === c.dong_hang);
-					const con_lai_dong = dong_moi ? flt(dong_moi.can_lay) - flt(dong_moi.da_lay) : 0;
+					// Theo ĐƠN VỊ ĐANG CHỌN (có thể khác đơn vị của dòng).
+					const con_lai_dong = dong_moi
+						? (flt(dong_moi.can_lay_ton) - flt(dong_moi.da_lay_ton)) / (flt(c.he_so) || 1)
+						: 0;
+					const dv_ghi = p.don_vi_da_ghi || c.don_vi || "";
 					if (bi_cat && con_lai_dong > 1e-9) {
 						// VÒNG SỬA (review độc lập, model mạnh): TRƯỚC bản vá này,
 						// `this.cho = null` ở đây bắt thủ kho quét LẠI tem lô trước khi
@@ -369,22 +426,27 @@
 							so_lo: c.so_lo,
 							vat_tu: c.vat_tu,
 							ten_hang: c.ten_hang,
-							so_luong: con_lai_dong,
+							so_luong: flt(c.he_so) === 1 ? flt(con_lai_dong, 6) : Math.floor(con_lai_dong + 1e-9),
 							lo_khac: null,
 							da_sua_so_luong: false,
+							don_vi: c.don_vi,
+							he_so: c.he_so,
+							so_kien: null,
 						};
 						this.bao(
-							__("Ô <b>{0}</b> chỉ còn <b>{1}</b> — đã lấy {1}, quét ô khác cho phần còn lại.", [
+							__("Ô <b>{0}</b> chỉ còn <b>{1}</b> {2} — đã lấy {1}, quét ô khác cho phần còn lại.", [
 								e(o.ma_in_nhan || o.ma_o),
 								so(da_ghi),
+								e(dv_ghi),
 							]),
 							"cam"
 						);
 					} else {
 						this.cho = null;
 						this.bao(
-							__("Đã lấy <b>{0}</b> {1} ở <b>{2}</b>", [
+							__("Đã lấy <b>{0} {1}</b> {2} ở <b>{3}</b>", [
 								so(da_ghi),
+								e(dv_ghi),
 								e(c.so_lo || c.ten_hang || c.vat_tu || ""),
 								e(o.ma_in_nhan || o.ma_o),
 							]),
@@ -624,14 +686,46 @@
 								: `<div class="lh-ten-hang">${e(c.ten_hang || c.vat_tu)}</div>`
 						}
 					</div>
+					${this.html_chon_don_vi()}
 					<div class="lh-muc">
-						<div class="lh-tieu-de-muc">${__("Số lượng lấy")}</div>
+						<div class="lh-tieu-de-muc">${__("Số lượng lấy")}${c.don_vi ? ` · ${e(c.don_vi)}` : ""}</div>
 						<div class="lh-so-luong-hang">
 							<button type="button" class="lh-cong-tru" data-buoc="-1">−</button>
 							<input type="number" class="lh-so-luong" inputmode="decimal" min="0" step="any"
 								value="${flt(c.so_luong)}" />
 							<button type="button" class="lh-cong-tru" data-buoc="1">+</button>
 						</div>
+					</div>
+					<div class="lh-muc">
+						<div class="lh-tieu-de-muc">${__("Số kiện (số tem)")}</div>
+						<div class="lh-so-luong-hang">
+							<button type="button" class="lh-kien-cong-tru" data-buoc="-1">−</button>
+							<span class="lh-so-kien">${c.so_kien != null ? c.so_kien : this.so_kien_mac_dinh()}</span>
+							<button type="button" class="lh-kien-cong-tru" data-buoc="1">+</button>
+						</div>
+					</div>
+				</div>`;
+		}
+
+		// Hàng nút đơn vị theo quy đổi khai trên mặt hàng (`Item.uoms`). Chỉ một đơn
+		// vị thì không vẽ — không có gì để chọn.
+		html_chon_don_vi() {
+			const c = this.cho;
+			const dong = this.phieu.dong.find((x) => x.dong_hang === c.dong_hang);
+			const ds = (dong && dong.don_vi_chon) || [];
+			if (ds.length < 2) return "";
+			return `
+				<div class="lh-muc">
+					<div class="lh-tieu-de-muc">${__("Đơn vị")}</div>
+					<div class="lh-chon-don-vi-ds">
+						${ds
+							.map(
+								(x) => `<button type="button" class="lh-chon-don-vi ${x.uom === c.don_vi ? "dang-chon" : ""}"
+									data-uom="${e(x.uom)}">${e(x.uom)}${
+									flt(x.he_so) !== 1 ? `<small> = ${so(x.he_so)} ${e(dong.don_vi_ton)}</small>` : ""
+								}</button>`
+							)
+							.join("")}
 					</div>
 				</div>`;
 		}
@@ -663,7 +757,7 @@
 					</div>`;
 			}
 
-			const du = flt(d.da_lay) >= flt(d.can_lay) - 1e-9;
+			const du = flt(d.da_lay_ton) >= flt(d.can_lay_ton) - 1e-9;
 			const chot = d.da_chot_thieu
 				? `<div class="lh-chot-banner">
 						<div>${__("Đã chốt thiếu bởi <b>{0}</b> lúc {1}.", [
@@ -682,7 +776,7 @@
 								(g) =>
 									`<span class="lh-goi-y-o"><span class="lh-ma">${e(g.ma_in_nhan || g.o)}</span> <b>${so(
 										g.so_luong
-									)}</b></span>`
+									)}</b> ${e(d.don_vi_ton)}</span>`
 							)
 							.join("")}
 					</div>`
@@ -700,12 +794,13 @@
 							d.so_lo
 								? __("Lô {0} chỉ còn {1} — lấy hết rồi quét tem lô khác cho phần còn lại {2}.", [
 										e(d.so_lo),
-										so(flt(d.can_lay) - flt(d.da_lay) - flt(d.thieu_trong_lo)),
-										so(d.thieu_trong_lo),
+										// `thieu_trong_lo` đo bằng đơn vị TỒN — so với `*_ton`, không với `can_lay`.
+										so(flt(d.can_lay_ton) - flt(d.da_lay_ton) - flt(d.thieu_trong_lo)) + " " + e(d.don_vi_ton),
+										so(d.thieu_trong_lo) + " " + e(d.don_vi_ton),
 								  ])
 								: __("Kho chỉ còn {0} — lấy hết rồi báo thủ kho phần còn thiếu {1}.", [
-										so(flt(d.can_lay) - flt(d.da_lay) - flt(d.thieu_trong_lo)),
-										so(d.thieu_trong_lo),
+										so(flt(d.can_lay_ton) - flt(d.da_lay_ton) - flt(d.thieu_trong_lo)) + " " + e(d.don_vi_ton),
+										so(d.thieu_trong_lo) + " " + e(d.don_vi_ton),
 								  ])
 					  }</div>`
 					: "";
@@ -716,8 +811,10 @@
 							.map(
 								(p) => `
 							<div class="lh-da-lay-dong">
-								<span class="lh-ma">${e(p.o)}</span>
-								<span class="lh-da-lay-sl">${so(p.so_luong)}</span>
+								<span class="lh-ma">${e(p.ma_in_nhan || p.o)}</span>
+								<span class="lh-da-lay-sl">${so(p.so_luong_lay)} ${e(p.don_vi_lay)} · ${__("{0} kiện", [
+									p.so_kien,
+								])}${p.so_kien_da_in >= p.so_kien ? " ✓" : ""}</span>
 								<button type="button" class="lh-bo-luot" data-luot="${e(p.name)}" title="${__("Bỏ lượt")}">×</button>
 							</div>`
 							)
@@ -725,8 +822,23 @@
 					</div>`
 				: "";
 
+			// Lô NÊN lấy theo hạn dùng — chỉ gợi ý; lô trên phiếu vẫn là lô sẽ lấy.
+			const lo_nen =
+				d.lo_nen_lay && d.lo_nen_lay !== d.so_lo
+					? `<div class="lh-mo">${__("Nên lấy lô {0}", [e(d.lo_nen_lay)])}${
+							d.lo_nen_lay_hsd ? " · HSD " + e(frappe.datetime.str_to_user(d.lo_nen_lay_hsd)) : ""
+					  }</div>${
+							d.lo_tren_phieu_muon_hon
+								? `<div class="lh-canh-bao-han">${__("Lô trên phiếu hết hạn muộn hơn lô {0}", [
+										e(d.lo_nen_lay),
+								  ])}</div>`
+								: ""
+					  }`
+					: "";
+			const khac_dv = d.don_vi_dong && d.don_vi_ton && d.don_vi_dong !== d.don_vi_ton;
+
 			const nut_chot_thieu =
-				!d.da_chot_thieu && flt(d.da_lay) > 0 && flt(d.da_lay) < flt(d.can_lay)
+				!d.da_chot_thieu && flt(d.da_lay_ton) > 0 && flt(d.da_lay_ton) < flt(d.can_lay_ton) - 1e-9
 					? `<button type="button" class="lh-chot-thieu" data-dong="${e(d.dong_hang)}">${__("Chốt thiếu")}</button>`
 					: "";
 
@@ -734,11 +846,14 @@
 				<div class="lh-dong ${du ? "lh-dong-du" : ""}">
 					<div class="lh-dong-dau">
 						<div class="lh-dong-ten">${e(d.ten_hang)}</div>
-						<div class="lh-dong-sl">${so(d.da_lay)}/${so(d.can_lay)}<small>${e(d.don_vi || "")}</small></div>
+						<div class="lh-dong-sl">${so(d.da_lay)}/${so(d.can_lay)}<small>${e(d.don_vi || "")}</small>${
+				khac_dv ? `<div class="lh-mo">${so(d.da_lay_ton)}/${so(d.can_lay_ton)} ${e(d.don_vi_ton)}</div>` : ""
+			}</div>
 					</div>
 					<div class="lh-mo">${e(d.vat_tu)}${d.so_lo ? " · lô " + e(d.so_lo) : ""}${
 				d.hsd ? " · HSD " + e(frappe.datetime.str_to_user(d.hsd)) : ""
 			}</div>
+					${lo_nen}
 					${chot}
 					${goi_y}
 					${thieu_lo}
@@ -752,7 +867,17 @@
 			const dong = (this.phieu && this.phieu.dong) || [];
 			const co_luot = dong.some((d) => flt(d.da_lay) > 0);
 			if (!this.phieu || !co_luot) return $c.empty();
-			$c.html(`<button type="button" class="btn btn-primary lh-hoan-tat">${__("Hoàn tất phiếu")}</button>`);
+			// Máy in tem nối với máy tính — PDA chỉ báo trạng thái; thiếu tem thì
+			// `hoan_tat` bị chặn (`lay_hang.chan_duyet_chua_lay`) với câu nói rõ.
+			const tong = flt(this.phieu.tong_kien);
+			const da_in = flt(this.phieu.so_kien_da_in);
+			const tem = tong
+				? `<div class="lh-trang-thai-tem ${da_in < tong ? "thieu" : ""}">${__("{0}/{1} kiện đã in tem", [
+						da_in,
+						tong,
+				  ])}${da_in < tong ? " — " + __("in ở máy tính (form phiếu giao › In tem kiện)") : ""}</div>`
+				: "";
+			$c.html(`${tem}<button type="button" class="btn btn-primary lh-hoan-tat">${__("Hoàn tất phiếu")}</button>`);
 		}
 	}
 
