@@ -248,7 +248,7 @@ def ghi_cot_vi_tri_khi_duyet(doc, method=None) -> None:
 
 
 def chan_duyet_chua_lay(doc, method=None) -> None:
-	"""`doc_events` before_submit của Delivery Note: BẮT BUỘC lấy hàng + in tem kiện.
+	"""`doc_events` before_submit của Delivery Note: đã quét thì phải lấy đủ + in tem kiện.
 
 	Chủ đầu tư 22/09/2026 chốt "Bắt buộc" và "Chặn duyệt": dòng ở kho quản lý vị
 	trí phải được lấy (quét lô, quét ô) đủ số theo đơn vị tồn, và mọi kiện đã lấy
@@ -263,8 +263,20 @@ def chan_duyet_chua_lay(doc, method=None) -> None:
 	Bỏ qua: phiếu trả hàng (`is_return` — hàng vào, không lấy), và cờ trong tiến
 	trình `CO_BO_BAT_BUOC` dành cho test dựng dữ liệu (`frappe.flags` sống theo
 	request, không đặt được qua HTTP).
+
+	NỚI 30/09/2026 — chủ đầu tư: *"vẫn giữ luồng nghiệp vụ bình thường của ERP,
+	nếu không xếp hàng lên kệ thì vẫn cho xuất kho tại vị trí chưa xếp, không
+	ràng buộc phải xếp vị trí hay có lô mới được làm Delivery Note"*. Phiếu CHƯA
+	AI BẮT ĐẦU LẤY (không một dòng phân bổ, không dòng nào chốt thiếu) được duyệt
+	thẳng như ERPNext gốc: `hook_sle` tự trừ ô theo FEFO — gồm cả ô "Chưa xếp vị
+	trí" đang giữ hàng chưa lên kệ — và lô do ERPNext tự chọn theo hạn dùng
+	(Stock Settings). Luật "lấy đủ + in đủ tem" CHỈ còn áp khi thủ kho ĐÃ quét
+	trên PDA: lúc đó bảng phân bổ là lời khai của người đi lấy, duyệt khi nó còn
+	dở thì sổ vị trí ghi lệch với hàng thật đã rời kệ.
 	"""
 	if doc.is_return or frappe.flags.get(CO_BO_BAT_BUOC):
+		return
+	if not doc.get(TEN_BANG_PHAN_BO) and not _doc_chot_thieu(doc.name):
 		return
 	da = _da_lay_theo_dong(doc)
 	thieu = _doc_chot_thieu(doc.name)

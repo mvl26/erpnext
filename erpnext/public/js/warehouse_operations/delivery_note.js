@@ -117,7 +117,7 @@
 		switch (t.trang_thai) {
 			case "chua_lay":
 				chu =
-					__("Chưa lấy dòng nào — bấm Lấy hàng. Phải lấy đủ và in tem kiện mới duyệt được phiếu.") +
+					__("Chưa lấy dòng nào — có thể duyệt thẳng, hệ thống tự trừ vị trí theo hạn dùng (kể cả hàng chưa xếp lên kệ). Đã bắt đầu Lấy hàng trên PDA thì phải lấy đủ và in tem kiện mới duyệt được.") +
 					them;
 				break;
 			case "dang_lay":
