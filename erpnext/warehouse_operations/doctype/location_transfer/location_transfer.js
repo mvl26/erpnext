@@ -19,6 +19,7 @@ frappe.ui.form.on("Location Transfer", {
 		frm.__cho_o = null;
 		if (frm.doc.docstatus !== 0) return;
 		frm.add_custom_button(__("Xếp trên PDA"), () => frappe.set_route("xep-hang-pda"));
+		tu_dong_lay_neu_can(frm);
 		if (!frm.doc.kho) return;
 		frm.add_custom_button(__("Lấy hàng chưa xếp"), () => lay_hang_chua_xep(frm));
 	},
@@ -43,10 +44,40 @@ frappe.ui.form.on("Location Transfer", {
 			frm.refresh_field("items");
 			frappe.show_alert({ message: __("Đã xoá các dòng vì đổi kho."), indicator: "orange" });
 		}
+		// Đến từ nút "Xếp hàng lên kệ": kho được điền SAU `refresh` (Frappe áp
+		// `route_options` rồi mới chạy trigger), nên chỗ đổ dòng thật nằm ở đây.
+		tu_dong_lay_neu_can(frm);
 	},
 });
 
-function lay_hang_chua_xep(frm) {
+// Nút "Xếp hàng lên kệ" trên phiếu nhập kho (`public/js/warehouse_operations/
+// purchase_receipt.js`) mở phiếu xếp mới với kho điền sẵn và đặt cờ này; ở đây
+// bấm "Lấy hàng chưa xếp" hộ người dùng.
+//
+// Cờ là biến trong trang (không phải localStorage): nó chỉ có nghĩa cho ĐÚNG
+// lần mở ngay sau cú bấm. Một cờ sống qua lần tải trang sau sẽ tự đổ dòng vào
+// một phiếu xếp mà người dùng mở cho việc khác — hàng chưa xếp của cả kho đổ
+// vào một phiếu không ai định lập là một phiếu dễ bấm Submit nhầm.
+//
+// XOÁ CỜ TRƯỚC khi gọi: `lay_hang_chua_xep` gọi máy chủ rồi mới đổ dòng, mà
+// `refresh` chạy lại nhiều lần trong một lần mở form (nạp xong, vẽ lại…) —
+// không xoá trước thì hai lượt gọi chồng nhau, lượt sau xoá bảng của lượt trước.
+function tu_dong_lay_neu_can(frm) {
+	const kho = (erpnext.warehouse_operations || {}).tu_lay_hang_chua_xep;
+	if (!kho || !frm.is_new() || frm.doc.kho !== kho) return;
+	if (frm.doc.items && frm.doc.items.length) return;
+	erpnext.warehouse_operations.tu_lay_hang_chua_xep = null;
+	// `chi_dong_xep_duoc`: đường TỰ ĐỘNG chỉ đổ những dòng có ô đến. Đo được trên
+	// erptest 23/09/2026 — kho thật còn 57 dòng chờ ở ô Chưa xếp, quá nửa là mặt
+	// hàng chưa gán vị trí nên không có ô đến; đổ cả vào thì phiếu mở ra đã không
+	// Submit được ("Đến ô is required in rows 4-8, 10-15, …"), và người dùng vừa
+	// bấm một nút tên là "Xếp hàng lên kệ". Nút "Lấy hàng chưa xếp" bấm tay vẫn
+	// giữ nguyên nết cũ: giữ lại dòng trống ô để người đứng trước kệ tự điền.
+	lay_hang_chua_xep(frm, { chi_dong_xep_duoc: true });
+}
+
+function lay_hang_chua_xep(frm, tuy_chon) {
+	const chi_dong_xep_duoc = !!(tuy_chon || {}).chi_dong_xep_duoc;
 	frappe.call({
 		method: "erpnext.warehouse_operations.vitri.xep.hang_chua_xep",
 		args: { kho: frm.doc.kho },
@@ -80,7 +111,26 @@ function lay_hang_chua_xep(frm) {
 						"</ul>",
 				});
 			}
-			if (!dong.length) return;
+			// Đường TỰ ĐỘNG: để lại các dòng chưa có ô đến (xem `tu_dong_lay_neu_can`)
+			// — chúng làm phiếu không Submit được, mà người dùng vừa bấm "Xếp hàng lên
+			// kệ" chứ không phải "mở một phiếu để điền tay".
+			const bo_qua = chi_dong_xep_duoc ? dong.filter((d) => !d.den_o) : [];
+			if (chi_dong_xep_duoc) dong = dong.filter((d) => d.den_o);
+			if (!dong.length) {
+				if (bo_qua.length) {
+					frappe.msgprint({
+						title: __("Chưa xếp tự động được dòng nào"),
+						indicator: "orange",
+						message: __(
+							"Kho {0} còn {1} dòng chờ xếp, nhưng chưa dòng nào có ô đến (mặt hàng chưa "
+								+ "gán vị trí, hoặc lô chưa có ô trên tem). Gán vị trí cho mặt hàng, hoặc "
+								+ "bấm 'Lấy hàng chưa xếp' rồi điền ô bằng tay.",
+							[frm.doc.kho, bo_qua.length]
+						),
+					});
+				}
+				return;
+			}
 			frm.clear_table("items");
 			dong.forEach((d) => {
 				const r = frm.add_child("items");
@@ -100,7 +150,7 @@ function lay_hang_chua_xep(frm) {
 			// Dòng còn trống ô đến (hàng KHÔNG lô chưa gán vị trí) — gộp theo lý do
 			// thật (Ruling O: "chưa gán" / "vùng đã đầy" / lỗi dữ liệu cần ba việc
 			// khác nhau). Lô thì không bao giờ tới đây trống ô: đã bị tách ra ở trên.
-			const chua_co_goi_y = dong.filter((d) => !d.den_o);
+			const chua_co_goi_y = chi_dong_xep_duoc ? bo_qua : dong.filter((d) => !d.den_o);
 
 			const tom_tat_theo_ly_do = (ds) => {
 				const theo_ly_do = {};
@@ -115,10 +165,15 @@ function lay_hang_chua_xep(frm) {
 
 			if (chua_co_goi_y.length) {
 				frappe.show_alert({
-					message: __("{0} dòng chưa có gợi ý: {1}.", [
-						chua_co_goi_y.length,
-						tom_tat_theo_ly_do(chua_co_goi_y),
-					]),
+					message: chi_dong_xep_duoc
+						? __("Bỏ qua {0} dòng chưa có ô đến: {1}. Thêm tay nếu cần xếp luôn.", [
+								chua_co_goi_y.length,
+								tom_tat_theo_ly_do(chua_co_goi_y),
+						  ])
+						: __("{0} dòng chưa có gợi ý: {1}.", [
+								chua_co_goi_y.length,
+								tom_tat_theo_ly_do(chua_co_goi_y),
+						  ]),
 					indicator: "orange",
 				});
 			}

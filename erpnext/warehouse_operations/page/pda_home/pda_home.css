@@ -1,0 +1,45 @@
+/* Trang này chạy trên màn PDA 4 inch: nút cao 72px, chạm bằng ngón cái có găng. */
+
+/* Frappe chia đầu trang 7/12 cho tiêu đề, 5/12 cho nút hành động. Trang này
+ * không có nút nào, nên trên màn 400px tiêu đề bị cắt còn "Kho — P…" trong khi
+ * nửa phải trống trơn — nhường hết bề ngang cho tiêu đề. */
+.page-container[data-page-route="pda-home"] .page-title {
+	flex: 1 1 auto;
+	max-width: none;
+}
+.page-container[data-page-route="pda-home"] .page-title .title-text {
+	max-width: none;
+}
+.page-container[data-page-route="pda-home"] .page-head .page-actions {
+	flex: 0 0 auto;
+	max-width: none;
+	width: auto;
+}
+
+.ph { max-width: 560px; margin: 0 auto; padding: 8px 12px 24px; }
+.ph-nguoi { text-align: center; color: var(--text-muted); margin-bottom: 12px; }
+.ph-ds { display: flex; flex-direction: column; gap: 12px; }
+.ph-nut {
+	min-height: 72px;
+	border: 1px solid var(--border-color);
+	border-radius: 14px;
+	background: var(--control-bg);
+	color: var(--text-color);
+	text-align: left;
+	padding: 10px 16px;
+}
+.ph-nhan { display: block; font-size: 18px; font-weight: 700; }
+.ph-mo { display: block; font-size: 13px; color: var(--text-muted); }
+.ph-thoat {
+	display: block;
+	width: 100%;
+	margin-top: 24px;
+	min-height: 48px;
+	border: 0;
+	border-radius: 12px;
+	background: var(--control-bg);
+	color: var(--text-muted);
+}
+/* Chữ nhỏ, mờ, không chiếm chỗ của nút — chỉ để không ai nhầm site đang nối
+ * (ví dụ site thử erptest.local với máy chủ thật), xem mục 3b đợt sửa cuối. */
+.ph-may-chu { text-align: center; margin-top: 10px; font-size: 11px; color: var(--text-muted); opacity: 0.6; }

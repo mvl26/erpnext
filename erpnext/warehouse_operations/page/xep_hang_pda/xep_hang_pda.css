@@ -457,3 +457,13 @@
 	font-size: 15px;
 	font-weight: 600;
 }
+
+/* Task 3 (soát xét): "Đặt ô trên tem" đổi từ một nút GHÉP VÀO chuỗi `bao()`
+   (đo ở vòng trước, `t.loi + nut`) sang một THẺ RIÊNG — kể từ khi lớp luồng chỉ
+   còn trả CHỮ THƯỜNG (không HTML, vì `KhoApp.bao()` của app luôn escape), nút
+   không còn ghép được vào câu báo nữa. Thẻ dùng lại đúng khung `.xh-the` + nút
+   `.xh-nut-trong-bao` sẵn có — chỉ thêm viền đỏ nhạt để nổi bật ca "chưa có ô". */
+.xh-the-dat-o {
+	border-color: var(--border-red, #f5c6cb);
+	background: var(--bg-red, #fff8f8);
+}

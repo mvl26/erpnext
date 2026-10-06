@@ -1070,7 +1070,7 @@ bấm **Xếp hàng vào ô** đầu trang **Vị trí kho**.
 
 ---
 
-## 14. Lấy hàng (trên PDA)
+## 14. Lấy hàng (PDA và máy tính)
 
 Trang để **cầm PDA đi lấy hàng giao khách**: mở đúng phiếu giao, quét tem lô trên thùng, quét tem
 ô nơi lấy — hệ ghi lại **đúng ô đã lấy**, không tự đoán theo hạn dùng như trước. Vào từ ô bấm
@@ -1168,14 +1168,15 @@ nhiêu, không cố quét cho đủ số không có:
 
 ![Đã duyệt — sổ vị trí đã trừ đúng các ô vừa quét](anh-luong/lay-hang-05-da-duyet.png)
 
-### 14.6 Phiếu có phân bổ dở dang mà duyệt thẳng trên máy tính
+### 14.6 Bấm Submit thẳng trên form khi chưa lấy xong
 
-Một phiếu đang quét dở (có bảng phân bổ nhưng chưa đủ số lượng dòng) mà bấm **Submit** thẳng trên
-form Phiếu giao hàng ở máy tính — **KHÔNG qua trang Lấy hàng** — sẽ **bị chặn lúc ghi sổ**, phiếu
-tự trở lại nháp (không kẹt ở trạng thái nửa vời). Bảng phân bổ hiện **chỉ đọc** trên form (không
-tự xoá dòng ở đó được), nên đường thoát là quay lại trang **Lấy hàng**: bỏ bớt lượt bằng nút **×**
-cạnh mỗi lượt đã lấy nếu cần sửa, hoặc quét cho đủ / bấm **Chốt thiếu** cho dòng còn thiếu rồi bấm
-**Hoàn tất phiếu** đúng cách — đừng Submit thẳng trên form.
+Từ 22/09/2026, **mọi** đường duyệt phiếu giao (nút **Submit** trên form, **Hoàn tất** trên PDA hay
+trong hộp thoại) đều bị chặn nếu dòng ở kho quản lý vị trí **chưa lấy đủ** hoặc **còn kiện chưa in
+tem** (mục 14.8). Câu báo nói đúng dòng nào, thiếu gì. Phiếu vẫn ở trạng thái nháp.
+
+Dòng đã **chốt thiếu** mà bấm Submit trên form cũng bị chặn: chỉ **Hoàn tất** (PDA hoặc hộp thoại)
+mới hạ số lượng dòng xuống đúng số đã lấy trước khi duyệt. Bảng phân bổ hiện **chỉ đọc** trên form;
+muốn sửa lượt đã lấy thì bỏ lượt bằng nút **×** trên màn hình lấy hàng.
 
 ### 14.7 Những điều cần biết
 
@@ -1191,6 +1192,49 @@ cạnh mỗi lượt đã lấy nếu cần sửa, hoặc quét cho đủ / bấ
   không cần quét", và không tính vào điều kiện Hoàn tất.
 - Mặt hàng **không quản lý lô** thì quét **mã hàng** thay cho tem lô ở bước ①; các bước còn lại
   giống hệt.
+
+### 14.8 Đơn vị lấy, số kiện, tem kiện (từ 22/09/2026)
+
+**Lấy theo đơn vị nào cũng được** — mọi đơn vị khai trong bảng quy đổi của mặt hàng (*Item › UOMs*),
+ví dụ tồn theo Cái, khai 1 Hộp = 100 Cái, 1 Thùng = 2.000 Cái. Sổ vị trí luôn trừ theo **đơn vị
+tồn** (Cái): lấy 5 Hộp là trừ 500 Cái ở ô đó.
+
+- Trên **PDA**: sau khi quét lô, hàng nút **Đơn vị** hiện ra (mặc định đơn vị của dòng phiếu
+  giao). Chạm đơn vị khác thì số lượng tự đổi theo phần còn thiếu — đơn vị đóng gói lấy **phần
+  nguyên** (còn 580 Cái → gợi ý 5 Hộp), phần lẻ lấy tiếp bằng Cái. Dòng *"Nên lấy lô …"* hiện lô
+  hết hạn sớm nhất còn trong kho, kèm cảnh báo nếu lô trên phiếu hết hạn **muộn hơn**.
+- **Số kiện (số tem)**: mặc định mỗi Hộp/Thùng là một kiện (5 Hộp → 5 kiện), lấy theo Cái là một
+  kiện. Sửa bằng − / + (ví dụ 300 Cái chia 3 túi → 3 kiện).
+- Dòng bán theo Hộp mà chốt thiếu thì số thực lấy phải **tròn Hộp** nếu đơn vị Hộp khai "phải là
+  số nguyên" (*UOM › Must be Whole Number*) — lấy thêm hoặc bỏ bớt cho tròn.
+
+![PDA: chọn đơn vị, số lượng, số kiện](anh-luong/lay-hang-07-pda-chon-don-vi.png)
+
+**Tem kiện — mỗi kiện một tem.** Máy in tem nối với máy tính, nên in ở **form phiếu giao** (nút
+**In tem kiện**) hoặc trong **hộp thoại Lấy hàng**. Tem cùng khổ 50×30 với tem lô: mã và tên hàng,
+số lượng trong kiện (*1 Hộp*, *80 Cái*), HSD, lô, **tên khách**, số phiếu giao, số kiện **i/N**
+chữ to (đánh số trên cả phiếu cho mỗi mặt hàng + lô), mã vạch = số lô. Lần bấm sau chỉ in các kiện
+**chưa in**; in đủ rồi thì nút đổi thành **In lại tem kiện** (in lại cả phiếu, cả khi phiếu đã
+duyệt — tem rách, mất). PDA chỉ hiện *"x/y kiện đã in tem"*.
+
+![Tem kiện: 5 kiện 1 Hộp, một kiện 20 Cái, một kiện 80 Cái](anh-luong/lay-hang-08-tem-kien.png)
+
+> Hai lượt cùng ô, cùng lô, cùng đơn vị chỉ **gộp** khi mỗi kiện chứa cùng số lượng (2 Hộp + 1
+> Hộp). 20 Cái rồi 80 Cái là hai kiện khác nhau → hai lượt, hai tem.
+
+### 14.9 Lấy hàng trên máy tính (hộp thoại trên form phiếu giao)
+
+Ở bàn đóng gói có súng quét USB: mở phiếu giao nháp → nút **Lấy hàng** (nút **Lấy hàng trên PDA**
+vẫn còn). Hộp thoại dùng **cùng luật** với PDA:
+
+1. Quét tem **lô** → hệ chọn dòng, điền đơn vị + số lượng + số kiện mặc định.
+2. Quét tem **ô** nơi lấy → con trỏ nhảy vào ô số lượng.
+3. Sửa đơn vị / số lượng / số kiện nếu cần → **Ghi** (hoặc Enter ở ô số).
+4. Bảng dưới hiện từng dòng: đã lấy/cần (theo đơn vị của dòng và đơn vị tồn), lô nên lấy, ô nên
+   lấy, các lượt đã lấy (nút **×** để bỏ), nút **Chốt thiếu**.
+5. **In tem kiện** → dán tem → **Hoàn tất (duyệt)**.
+
+![Hộp thoại Lấy hàng trên máy tính: 5 Hộp (5 kiện) + 20 Cái (1 kiện)](anh-luong/lay-hang-06-hop-thoai-may-tinh.png)
 
 ---
 
@@ -1211,6 +1255,108 @@ từng form Lô. Vào từ ô bấm **Đặt ô trên tem hàng loạt** đầu 
 
 > Trang này **chỉ đặt cho lô chưa có ô**, không đổi ô đã có. Một màn hình đổi hàng loạt chính là
 > cửa sau mà luật này sinh ra để đóng — đổi ô là việc của trưởng kho, từng lô, có lý do.
+
+---
+
+## 16. Nối luồng nhập kho và tab Connections (từ 23/09/2026)
+
+Trước mục này, mỗi bước của luồng nhập là một màn hình rời: khai lô xong phải tự gõ tên phiếu
+nhập trên thanh tìm kiếm để quay lại duyệt, duyệt xong lại tự đi tìm trang xếp hàng. Nay mỗi màn
+hình chỉ ra bước kế tiếp và có nút đi thẳng.
+
+### 16.1 Thanh "Luồng nhập kho" trên phiếu nhập
+
+Vẽ ngay trên bảng dòng hàng, đọc trạng thái thật của phiếu:
+
+| Thanh nói | Nút phải bấm |
+|---|---|
+| Còn N dòng chưa khai lô | **Nhập lô & in nhãn** |
+| Đã khai lô đủ các dòng | **Submit** |
+| Còn X đang ở ô Chưa xếp vị trí | **Xếp hàng lên kệ** |
+| Đã xếp hết lên kệ | — xong |
+
+Phiếu không có dòng nào thuộc kho quản lý vị trí thì **không hiện thanh nào** — luồng này không
+nói gì về phiếu đó.
+
+> Con số "còn X ở ô Chưa xếp" là tồn của đúng các (kho, mặt hàng, lô) **có trên phiếu này**. Ô
+> Chưa xếp là ô dùng chung của cả kho, nên nếu cùng một lô còn hàng của phiếu nhập khác thì con
+> số đó tính chung — sổ vị trí ghi theo (ô, mặt hàng, lô), không ghi theo chứng từ đã đưa vào.
+
+### 16.2 Các nút nối bước
+
+- **Phiếu nhập lô đã duyệt → "Duyệt phiếu nhập kho"**: mở lại đúng phiếu nhập để bấm Submit (phiếu
+  nhập đã duyệt rồi thì nút đổi thành "Xem phiếu nhập kho"). Nút chỉ MỞ phiếu — duyệt một chứng từ
+  ghi sổ kho và sổ kế toán vẫn là việc người dùng nhìn rồi tự bấm.
+- **Phiếu nhập đã duyệt → "Xếp hàng lên kệ"**: mở phiếu xếp nháp, điền sẵn kho, tự đổ các dòng
+  đang chờ ở ô Chưa xếp kèm ô đến theo tem lô. Lấy **cả kho**, và **bỏ qua** dòng chưa có ô đến
+  (mặt hàng chưa gán vị trí, lô chưa có ô trên tem) kèm câu báo nêu rõ số lượng và lý do — những
+  dòng đó xếp bằng nút **Lấy hàng chưa xếp** rồi điền ô tay, hoặc gán vị trí trước (mục 10).
+- **Form lô → "Xem phiếu nhập lô"**: đi ngược từ số lô về phiếu đã khai ra nó.
+
+### 16.3 Tab Connections
+
+| Mở phiếu nào | Tab Connections thấy gì |
+|---|---|
+| Phiếu nhập kho | nhóm **Vị trí kho**: Phiếu nhập lô, Sổ vị trí |
+| Phiếu nhập lô | Phiếu nhập kho gốc, các Lô đã tạo |
+| Phiếu xếp / chuyển vị trí | Sổ vị trí của phiếu |
+| Lô | Sổ vị trí của lô |
+
+> Lô **không** có mục "Phiếu nhập lô" trong Connections: tab này chỉ tìm được trường Link nằm trên
+> chính doctype đích, mà phiếu nhập lô giữ số lô ở bảng con. Đường đi ngược đó là nút **Xem phiếu
+> nhập lô** ở mục 16.2.
+
+---
+
+## 17. App PDA (từ 23/09/2026)
+
+Các mục 12–15 mô tả các màn hình PDA (tra cứu, xếp hàng, lấy hàng, đặt ô hàng loạt) khi mở bằng
+trình duyệt di động. Từ 23/09/2026, các màn hình đó còn mở được qua một **app Android** riêng
+(`pda_app/`) — một vỏ WebView khoá cứng chỉ trỏ vào máy chủ Miyano ERP, đỡ việc thủ kho phải mở
+trình duyệt và gõ địa chỉ mỗi ca.
+
+App **không** thêm nghiệp vụ mới: bốn việc bên trong app (tra cứu, xếp hàng, lấy hàng, đặt ô
+hàng loạt) là ĐÚNG nghiệp vụ ở mục 12–15, cộng thêm một lớp đăng nhập bằng **thẻ PDA** (mã vạch
+quét được, phiên sống 12 tiếng) thay cho gõ tài khoản/mật khẩu bằng súng quét.
+
+**Từ Task 6 (23–24/09/2026): app dùng giao diện RIÊNG ở `/kho`, không còn mở trực tiếp bốn
+trang Desk ở mục 12–15 nữa.** `/kho` là một khung app tách biệt (`erpnext/public/js/kho_pda/`)
+— không thanh công cụ Desk, không tải lại trang giữa các màn — nhưng đọc CÙNG một lớp quyết định
+nghiệp vụ (`erpnext/public/js/warehouse_operations/luong/`) mà bốn trang Desk ở mục 12–15 cũng
+dùng, nên hai bên KHÔNG lệch luật nhau. **Bốn trang Desk giữ nguyên, không bị xoá** — ai dùng
+máy tính (bàn phím, màn hình lớn, đăng nhập tài khoản thường qua trình duyệt, không quét thẻ)
+vẫn mở được y như trước, ví dụ "Đặt ô hàng loạt" — việc vốn thiết kế cho máy tính (bảng rộng,
+không hợp màn 4 inch).
+
+Toàn bộ hướng dẫn cấp thẻ, thu hồi thẻ, cài app, dùng hằng ngày và bảng kiểm tay nằm ở
+`HDSD-app-pda.md`. Tài liệu dựng lại file APK (môi trường, khoá ký, lệnh build) nằm ở
+`pda_app/README.md`.
+
+**Lối vào từ workspace Quản lý kho** (thẻ *App PDA*):
+
+| Ô bấm | Dẫn tới | Ai dùng |
+|---|---|---|
+| **Thẻ PDA** | danh sách `PDA Badge` — cấp, thu hồi, in thẻ | trưởng kho |
+| **Cài app PDA** | trang đưa bản cài lên + hướng dẫn cài từng máy | trưởng kho |
+| **Màn hình PDA** | menu bốn việc (`pda-home`), mở thử được trên máy tính | ai có vai trò kho |
+
+Máy quét mới lấy bản cài bằng cách mở trình duyệt vào **`<địa chỉ kho>/tai-app`** — trang công
+khai, không cần đăng nhập (máy chưa cài app thì chưa có phiên nào để đăng nhập). Trang **Cài app
+PDA** in sẵn đúng địa chỉ đó để khỏi phải nhớ.
+
+**Ai làm gì với thẻ:**
+
+| Việc | Ai làm | Ở đâu |
+|---|---|---|
+| Cấp thẻ mới (2 bước: tạo bản ghi rồi mới "Cấp thẻ & in") | Trưởng kho (`Stock Manager`/`System Manager`) | `PDA Badge` trên web |
+| Thu hồi thẻ (mất, nghi lộ, hoặc người nghỉ việc) | Trưởng kho | `PDA Badge` trên web |
+| Quét thẻ, dùng app hằng ngày | Thủ kho có vai trò kho (`Stock User` trở lên) | App PDA trên máy quét |
+| Cài/gỡ app trên máy quét mới | Trưởng kho hoặc kỹ thuật | Trực tiếp trên máy PDA |
+| Dựng lại file APK khi đổi máy chủ hoặc sửa vỏ app | Kỹ thuật | `pda_app/README.md` |
+
+**Sự thật cần nhớ:** thẻ quét được là một chiếc chìa khoá — ai chụp lại được mã vạch trên thẻ là
+vào được hệ thống với quyền của chủ thẻ. Nghi mất thẻ thì thu hồi ngay, đừng đợi xác minh chắc
+chắn (chi tiết ở `HDSD-app-pda.md` mục 8 "Sự thật về bảo mật").
 
 ---
 
@@ -1349,3 +1495,5 @@ Cây vị trí:             lft 1..428, 214 nút, 0 nút chưa hội tụ
 | `BAN-GIAO-nen-tang-vi-tri-kho.md` | kỹ thuật — kiến trúc, cách bảo trì, cách merge ERPNext bản mới |
 | `../superpowers/specs/2026-09-15-gan-vi-tri-co-dinh-theo-mat-hang-design.md` | kỹ thuật — thiết kế phần gán vị trí cố định (mục 10) và những chỗ cố ý KHÔNG làm |
 | `QUYET-DINH-thi-cong-cay-vi-tri.md` | chủ dự án — những chỗ tự chốt trong lúc làm và cái giá nếu chốt sai |
+| `HDSD-app-pda.md` | trưởng kho, thủ kho — cấp/thu hồi thẻ, cài app, dùng hằng ngày, bảng kiểm tay |
+| `../../pda_app/README.md` | kỹ thuật — dựng lại file APK, khoá ký, đổi máy chủ mặc định |

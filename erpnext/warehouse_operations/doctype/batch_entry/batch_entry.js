@@ -53,6 +53,7 @@ frappe.ui.form.on("Batch Entry", {
 		if (frm.doc.docstatus === 1) {
 			frm.add_custom_button(__("In nhãn cả phiếu"), () => in_nhan_ca_phieu(frm));
 			frm.add_custom_button(__("Quét mã tra cứu"), () => frappe.set_route("quet-ma-tra-cuu"));
+			nut_ve_phieu_nhap(frm);
 		}
 	},
 
@@ -217,6 +218,33 @@ frappe.ui.form.on("Batch Entry Item", {
 			});
 	},
 });
+
+// NỐI LUỒNG (chủ đầu tư 23/09/2026: "không phải tìm lại trên thanh tìm kiếm"):
+// khai lô xong thì bước kế tiếp là DUYỆT PHIẾU NHẬP, mà trước bản vá này màn hình
+// không nói ra điều đó và cũng không có lối sang. Nút chỉ MỞ phiếu — duyệt một
+// chứng từ ghi sổ kho và sổ kế toán là việc người dùng nhìn rồi tự bấm.
+//
+// Nhãn nút đổi theo trạng thái phiếu nhập: phiếu còn nháp thì nói "Duyệt phiếu
+// nhập kho" (đó là việc phải làm tiếp), đã duyệt rồi thì chỉ còn là đường "Xem".
+// Một nhãn cứng cho cả hai ca sẽ bảo thủ kho đi duyệt một phiếu đã duyệt.
+function nut_ve_phieu_nhap(frm) {
+	if (!frm.doc.phieu_nhap) return;
+	frappe.db.get_value("Purchase Receipt", frm.doc.phieu_nhap, "docstatus").then((r) => {
+		const ds = r && r.message ? r.message.docstatus : null;
+		if (ds === null) return;
+		const nhan = ds === 0 ? __("Duyệt phiếu nhập kho") : __("Xem phiếu nhập kho");
+		frm.add_custom_button(nhan, () => {
+			// XOÁ BẢN ĐỆM TRƯỚC KHI SANG (đo được trên erptest 23/09/2026): phiếu nhập
+			// thường đã được mở ở tab này TRƯỚC khi khai lô, nên Frappe còn giữ bản cũ
+			// trong `locals`; mà `BatchEntry.on_submit` vừa ghi `batch_no` lên chính các
+			// dòng của nó. Sang thẳng là form hiện bản cũ, và cú bấm Submit ngay sau đó
+			// chết với "Document has been modified after you have opened it" — đúng cú
+			// bấm mà nút này sinh ra để dẫn tới.
+			frappe.model.clear_doc("Purchase Receipt", frm.doc.phieu_nhap);
+			frappe.set_route("Form", "Purchase Receipt", frm.doc.phieu_nhap);
+		});
+	});
+}
 
 function lay_dong(frm) {
 	if (!frm.doc.phieu_nhap) {

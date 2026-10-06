@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="vi">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+	<title>Miyano PDA</title>
+	<link rel="stylesheet" href="kho_pda.bundle.css" />
+</head>
+<body>
+	<div id="kho-app" data-la_khach="1" data-nguoi_dung=""></div>
+	<script>
+		// Vỏ app khai môi trường TRƯỚC khi bundle chạy. Cùng một bundle phục vụ cả
+		// trang /kho trên web lẫn app; nó phân biệt bằng biến này chứ KHÔNG bằng hai
+		// bản mã — một bản mã là điều kiện để hai nơi không trôi khỏi nhau.
+		//
+		// `data-la_khach="1"` cứng ở đây (trên web, `www/kho/index.py` tính từ phiên):
+		// bản đóng gói không có phiên nào để hỏi. Từ Task 4 đây là giá trị MẶC ĐỊNH,
+		// không phải câu trả lời cuối: `vo.js::khoi_dong()` đọc khoá máy đã cất trong
+		// `localStorage` và hạ cờ này xuống khi có khoá — chạm icon là vào thẳng menu,
+		// chỉ máy CHƯA nhận (hoặc vừa bị thu hồi) mới thấy màn quét thẻ. Cố ý KHÔNG
+		// đọc kho lưu ngay tại đây: một chỗ duy nhất biết luật là `vo.js`, vỏ chỉ khai
+		// môi trường.
+		window.KHO_LA_APP = true;
+	</script>
+	<!-- `KHO_MAY_CHU` nằm ở file RIÊNG do `scripts/pda/dong-goi.sh` sinh ra (và bị
+	     gitignore), không viết thẳng vào đây: file này được git theo dõi, nên một
+	     lượt đóng gói của người phát hành sẽ ghi địa chỉ máy chủ thật vào kho mã
+	     nguồn. Thiếu `cau-hinh.js` thì `KHO_MAY_CHU` là `undefined` — Task 2 đọc nó
+	     qua `window.KHO_MAY_CHU || ""`, tức rơi về đường dẫn tương đối, không ném lỗi. -->
+	<script src="cau-hinh.js"></script>
+	<script src="vendor/jquery.min.js"></script>
+	<script src="shim.js"></script>
+	<script src="kho_pda.bundle.js"></script>
+</body>
+</html>
