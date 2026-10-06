@@ -237,8 +237,8 @@ SEED_POINTS = (
 		"function_group": GROUP_PURCHASE,
 		"reference_doctype": "Purchase Receipt",
 		"trigger_event": SUBMIT,
-		"conditions": (),
-		"notes": "Mọi phiếu nhập mua đã ghi sổ.",
+		"conditions": (("is_return", "=", "0"),),
+		"notes": "Phiếu nhập mua đã ghi sổ. Phiếu trả hàng NCC không bắn (việc cần làm khác hẳn).",
 		"departments": (DEPT_PURCHASE, DEPT_ACCOUNTS),
 		"notify_owner": 0,
 		"notify_external": 0,
@@ -267,8 +267,8 @@ SEED_POINTS = (
 		"function_group": GROUP_ACCOUNTS,
 		"reference_doctype": "Purchase Invoice",
 		"trigger_event": SUBMIT,
-		"conditions": (),
-		"notes": "Mọi hoá đơn mua đã ghi sổ.",
+		"conditions": (("is_return", "=", "0"),),
+		"notes": "Hoá đơn mua đã ghi sổ. Hoá đơn trả hàng không bắn (không phát sinh công nợ phải trả).",
 		"departments": (DEPT_ACCOUNTS,),
 		"notify_owner": 0,
 		"notify_external": 0,
@@ -296,8 +296,10 @@ SEED_POINTS = (
 		"trigger_event": DATE_REMINDER,
 		"date_field": "due_date",
 		"reminder_offsets": "-7, -3, -1",
-		"conditions": (("outstanding_amount", ">", "0"),),
-		"notes": "Hoá đơn mua đã ghi sổ, còn nợ > 0, đến hạn sau 7 / 3 / 1 ngày.",
+		"conditions": (("outstanding_amount", ">", "0"), ("on_hold", "=", "0")),
+		"notes": (
+			"Hoá đơn mua đã ghi sổ, còn nợ > 0, chưa bị tạm giữ thanh toán," " đến hạn sau 7 / 3 / 1 ngày."
+		),
 		"departments": (DEPT_ACCOUNTS, DEPT_PURCHASE),
 		"notify_owner": 0,
 		"notify_external": 0,
@@ -324,8 +326,11 @@ SEED_POINTS = (
 		"function_group": GROUP_SALES,
 		"reference_doctype": "Delivery Note",
 		"trigger_event": SUBMIT,
-		"conditions": (),
-		"notes": "Mọi phiếu giao hàng đã ghi sổ.",
+		"conditions": (("is_return", "=", "0"),),
+		"notes": (
+			"Phiếu giao hàng đã ghi sổ. Phiếu nhận lại hàng trả KHÔNG bắn — điểm này"
+			" gửi thư cho khách, nói 'đơn hàng đang giao' cho một phiếu trả hàng là sai."
+		),
 		"departments": (DEPT_SALES,),
 		"notify_owner": 0,
 		"notify_external": 1,
@@ -418,8 +423,15 @@ SEED_POINTS = (
 		"function_group": GROUP_ACCOUNTS,
 		"reference_doctype": "Payment Entry",
 		"trigger_event": SUBMIT,
-		"conditions": (("payment_type", "=", "Pay"),),
-		"notes": "Chỉ phiếu chi (Pay). Phiếu chuyển nội bộ không bắn.",
+		"conditions": (
+			("payment_type", "=", "Pay"),
+			("references.reference_doctype", "=", "Purchase Invoice"),
+		),
+		"notes": (
+			"Chi trả NCC theo hoá đơn mua (quyết định PO 06/10/2026). Hoá đơn mua là chứng từ"
+			" nguồn ĐỘC QUYỀN của NCC nên điều kiện này tự loại phiếu chi cho nhân viên,"
+			" cổ đông và phiếu chuyển nội bộ. Tạm ứng NCC và chi theo bút toán tay là điểm riêng."
+		),
 		"departments": (DEPT_PURCHASE, DEPT_ACCOUNTS),
 		"notify_owner": 0,
 		"notify_external": 1,
@@ -487,8 +499,15 @@ SEED_POINTS = (
 		"function_group": GROUP_ACCOUNTS,
 		"reference_doctype": "Payment Entry",
 		"trigger_event": SUBMIT,
-		"conditions": (("payment_type", "=", "Receive"),),
-		"notes": "Chỉ phiếu thu (Receive). Phiếu chuyển nội bộ không bắn.",
+		"conditions": (
+			("payment_type", "=", "Receive"),
+			("references.reference_doctype", "=", "Sales Invoice"),
+		),
+		"notes": (
+			"Thu tiền khách theo hoá đơn bán (quyết định PO 06/10/2026). Hoá đơn bán là chứng từ"
+			" nguồn ĐỘC QUYỀN của khách nên điều kiện này tự loại phiếu thu từ nhân viên,"
+			" cổ đông và phiếu chuyển nội bộ. Khách đặt cọc là điểm riêng."
+		),
 		"departments": (DEPT_SALES, DEPT_ACCOUNTS),
 		"notify_owner": 0,
 		"notify_external": 1,

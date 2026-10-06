@@ -15,6 +15,10 @@ from erpnext.supply_notification.tests.test_resolver import make_user
 LOG_FIELDS = [
 	"name",
 	"status",
+	"body",
+	"external_subject",
+	"external_body",
+	"inapp_message",
 	"channel_email",
 	"channel_inapp",
 	"channel_external",
@@ -195,6 +199,43 @@ class TestExternal(FrappeTestCase):
 		self.assertTrue(to_staff)
 		self.assertFalse(to_supplier & to_staff)
 
+	def test_partner_address_is_visible_in_the_copy_the_cc_person_receives(self):
+		"""Người được CC mở thư phải thấy thư gửi tới NCC nào.
+
+		Mặc định Frappe gửi mỗi người một bản, ô "Tới" chỉ ghi chính người đó — bản
+		của người CC không hề hiện địa chỉ NCC, trông như NCC không được gửi.
+		"""
+		import email as email_lib
+
+		supplier = fixtures.make_supplier(email="ncc-hien@example.com")
+		creator = make_user()
+		fixtures.make_point(
+			reference_doctype="Purchase Invoice",
+			users=[make_user()],
+			send_email=0,
+			send_inapp=0,
+			notify_external=1,
+			external_party_contact=1,
+			cc_owner=1,
+			external_subject_template="Hoá đơn {{ doc.name }}",
+			external_body_template="<p>Kính gửi {{ ten_doi_tac }}</p>",
+		)
+
+		invoice = fixtures.make_purchase_invoice(submit=False, supplier=supplier)
+		invoice.db_set("owner", creator)
+		invoice.submit()
+
+		creator_email = frappe.db.get_value("User", creator, "email")
+		# Các điểm của test khác trong lớp cũng gửi cho hoá đơn này — lấy đúng thư
+		# có cả NCC lẫn người CC.
+		mine = queue_rows_to(invoice, "ncc-hien@example.com") & queue_rows_to(invoice, creator_email)
+		self.assertEqual(len(mine), 1)
+
+		message = frappe.db.get_value("Email Queue", mine.pop(), "message")
+		headers = email_lib.message_from_string(message)
+		self.assertIn("ncc-hien@example.com", headers["To"])
+		self.assertIn(creator_email, headers["CC"])
+
 	def test_external_mail_never_carries_an_internal_link(self):
 		supplier = fixtures.make_supplier(email="ncc2@example.com")
 		fixtures.make_point(
@@ -225,9 +266,195 @@ class TestExternal(FrappeTestCase):
 
 		rows = logs_for(invoice, point)
 		self.assertEqual(invoice.docstatus, 1)
-		self.assertEqual(rows[0].status, "Sent")
+		# Thư nội bộ đi được, nhưng NCC không nhận được -> Partial, không phải Sent.
+		self.assertEqual(rows[0].status, "Partial")
 		self.assertEqual(rows[0].channel_external, 0)
 		self.assertIn("chưa có email", rows[0].reason)
+
+
+class TestContentSnapshot(FrappeTestCase):
+	"""Nhật ký giữ BẢN CHỤP nội dung đã gửi, để đối chiếu khi đối tác hỏi lại."""
+
+	def test_internal_mail_body_is_stored(self):
+		point = fixtures.make_point(
+			users=[make_user()],
+			party_field="customer_name",
+			body_template="<p>Khách {{ ten_doi_tac }}</p>{{ bang_mat_hang() }}",
+		)
+
+		order = fixtures.make_sales_order()
+
+		row = logs_for(order, point)[0]
+		self.assertIn(fixtures.CUSTOMER, row.body)
+		self.assertIn(fixtures.ITEM_CODE, row.body)
+		self.assertTrue(row.subject)
+		self.assertTrue(row.inapp_message)
+
+	def test_partner_mail_is_stored_separately_from_the_internal_one(self):
+		supplier = fixtures.make_supplier(email="ncc-luu@example.com")
+		point = fixtures.make_point(
+			reference_doctype="Purchase Invoice",
+			users=[make_user()],
+			notify_external=1,
+			external_party_contact=1,
+			party_field="supplier_name",
+			body_template="<p>Kế toán đối chiếu công nợ</p>",
+			external_subject_template="Hoá đơn {{ doc.name }}",
+			external_body_template="<p>Kính gửi {{ ten_doi_tac }}</p>",
+		)
+
+		invoice = fixtures.make_purchase_invoice(supplier=supplier)
+
+		row = logs_for(invoice, point)[0]
+		self.assertIn("Kế toán đối chiếu", row.body)
+		self.assertIn("Kính gửi", row.external_body)
+		self.assertIn(invoice.name, row.external_subject)
+		self.assertNotIn("Kính gửi", row.body)
+
+	def test_nothing_is_stored_for_a_mail_that_never_went_out(self):
+		"""Đối tác thiếu email: không được ghi nội dung như thể đã gửi."""
+		point = fixtures.make_point(
+			reference_doctype="Purchase Invoice",
+			users=[make_user()],
+			notify_external=1,
+			external_party_contact=1,
+			body_template="<p>Kế toán theo dõi</p>",
+			external_subject_template="Hoá đơn {{ doc.name }}",
+			external_body_template="<p>Kính gửi {{ ten_doi_tac }}</p>",
+		)
+
+		invoice = fixtures.make_purchase_invoice(supplier=fixtures.make_supplier())
+
+		row = logs_for(invoice, point)[0]
+		self.assertEqual(row.status, "Partial")
+		self.assertFalse(row.external_body)
+		self.assertFalse(row.external_subject)
+		self.assertIn("Kế toán theo dõi", row.body)
+
+	def test_the_snapshot_does_not_change_when_the_template_is_edited_later(self):
+		point = fixtures.make_point(users=[make_user()], body_template="<p>Câu chữ lúc gửi</p>")
+
+		order = fixtures.make_sales_order()
+		point.db_set("body_template", "<p>Câu chữ đã sửa về sau</p>")
+
+		self.assertIn("Câu chữ lúc gửi", logs_for(order, point)[0].body)
+
+
+class TestCcBelongsToThePartnerMail(FrappeTestCase):
+	"""BA F10: CC và Trả lời về là của thư gửi đối tác, không phải thư nội bộ."""
+
+	def test_internal_mail_does_not_carry_the_partner_cc(self):
+		supplier = fixtures.make_supplier(email="ncc-cc@example.com")
+		staff = make_user()
+		creator = make_user()
+		fixtures.make_point(
+			reference_doctype="Purchase Invoice",
+			users=[staff],
+			notify_external=1,
+			external_party_contact=1,
+			cc_owner=1,
+			external_subject_template="Hoá đơn {{ doc.name }}",
+			external_body_template="<p>Kính gửi {{ ten_doi_tac }}</p>",
+		)
+
+		invoice = fixtures.make_purchase_invoice(submit=False, supplier=supplier)
+		invoice.db_set("owner", creator)
+		invoice.submit()
+
+		creator_email = frappe.db.get_value("User", creator, "email")
+		staff_email = frappe.db.get_value("User", staff, "email")
+
+		to_staff = queue_rows_to(invoice, staff_email)
+		to_creator = queue_rows_to(invoice, creator_email)
+		to_supplier = queue_rows_to(invoice, "ncc-cc@example.com")
+
+		self.assertTrue(to_staff, "thư nội bộ phải tới nhân viên")
+		self.assertTrue(to_supplier, "thư ngoài phải tới NCC")
+		# Người tạo được CC — nhưng CHỈ trên thư gửi NCC.
+		self.assertEqual(to_creator, to_supplier)
+		self.assertFalse(to_creator & to_staff)
+
+	def test_point_without_an_external_channel_keeps_cc_on_the_internal_mail(self):
+		staff = make_user()
+		creator = make_user()
+		point = fixtures.make_point(users=[staff], cc_owner=1)
+
+		order = fixtures.make_sales_order(submit=False)
+		order.db_set("owner", creator)
+		order.submit()
+
+		creator_email = frappe.db.get_value("User", creator, "email")
+		staff_email = frappe.db.get_value("User", staff, "email")
+
+		# NTF-01 hạt giống cũng gửi cho người tạo, nên chỉ xét đúng thư của điểm này.
+		own_mail = queue_rows_to(order, staff_email)
+		self.assertEqual(len(own_mail), 1)
+		self.assertTrue(own_mail <= queue_rows_to(order, creator_email))
+		self.assertEqual(logs_for(order, point)[0].cc, creator_email)
+
+
+class TestPartnerMissedTheMail(FrappeTestCase):
+	"""Đối tác thiếu email thì nhật ký phải nói thật, không ghi Sent."""
+
+	def test_status_is_partial_when_only_the_internal_mail_went_out(self):
+		supplier = fixtures.make_supplier()
+		point = fixtures.make_point(
+			reference_doctype="Purchase Invoice",
+			users=[make_user()],
+			notify_external=1,
+			external_party_contact=1,
+			external_subject_template="Hoá đơn {{ doc.name }}",
+			external_body_template="<p>x</p>",
+		)
+
+		invoice = fixtures.make_purchase_invoice(supplier=supplier)
+
+		row = logs_for(invoice, point)[0]
+		self.assertEqual(row.status, "Partial")
+		self.assertEqual(row.channel_email, 1)
+		self.assertEqual(row.channel_external, 0)
+		self.assertIn("chưa có email", row.reason)
+
+	def test_a_partial_dispatch_is_not_sent_twice_by_the_retry(self):
+		supplier = fixtures.make_supplier()
+		point = fixtures.make_point(
+			reference_doctype="Purchase Invoice",
+			users=[make_user()],
+			notify_external=1,
+			external_party_contact=1,
+			external_subject_template="Hoá đơn {{ doc.name }}",
+			external_body_template="<p>x</p>",
+		)
+
+		invoice = fixtures.make_purchase_invoice(supplier=supplier)
+		dispatch(point.name, "Purchase Invoice", invoice.name)
+
+		self.assertEqual(len(logs_for(invoice, point)), 1)
+
+	def test_resending_after_the_email_is_filled_reaches_the_partner(self):
+		"""Đúng luồng "khách bị miss": bổ sung email rồi Gửi lại từ nhật ký."""
+		supplier = fixtures.make_supplier()
+		point = fixtures.make_point(
+			reference_doctype="Purchase Invoice",
+			users=[make_user()],
+			notify_external=1,
+			external_party_contact=1,
+			external_subject_template="Hoá đơn {{ doc.name }}",
+			external_body_template="<p>Kính gửi {{ ten_doi_tac }}</p>",
+		)
+
+		invoice = fixtures.make_purchase_invoice(supplier=supplier)
+		partial = logs_for(invoice, point)[0]
+		self.assertEqual(partial.status, "Partial")
+
+		frappe.db.set_value("Supplier", supplier, "email_id", "ncc-bo-sung@example.com")
+		new_log = dispatch_module.resend(partial.name)
+
+		self.assertEqual(frappe.db.get_value(LOG_DOCTYPE, new_log, "status"), "Sent")
+		self.assertEqual(
+			frappe.db.get_value(LOG_DOCTYPE, new_log, "external_recipients"), "ncc-bo-sung@example.com"
+		)
+		self.assertTrue(queue_rows_to(invoice, "ncc-bo-sung@example.com"))
 
 
 class TestTestMode(FrappeTestCase):

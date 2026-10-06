@@ -307,6 +307,14 @@ def party_email(doc) -> str | None:
 			if value:
 				return value
 
+	# Đầu mối đã chọn trên chứng từ nhưng ô email chưa kéo về (liên hệ mới bổ sung
+	# email sau, hoặc chứng từ tạo bằng API): lấy email hiện tại của đúng người đó,
+	# không nhảy sang một liên hệ khác của đối tác.
+	if meta.has_field("contact_person") and doc.get("contact_person"):
+		email = frappe.db.get_value("Contact", doc.get("contact_person"), "email_id")
+		if email:
+			return email
+
 	party_type, party = _party_of(doc)
 	if not party_type or not party:
 		return None
@@ -340,7 +348,8 @@ def external_emails(point, doc=None) -> tuple[list[str], str]:
 		if point.get("external_party_contact") and not emails:
 			found = party_email(data)
 			if found:
-				emails.append(found)
+				# `contact_email` của PO/PI là Small Text, có thể ghi nhiều địa chỉ.
+				emails.extend(split_emails(found))
 
 	emails.extend(split_emails(point.get("external_fixed_emails") or ""))
 	emails.extend(emails_in_groups(group_names(point.get("external_groups"))))

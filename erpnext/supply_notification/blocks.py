@@ -14,6 +14,8 @@ vào ngữ cảnh của email gửi NCC/khách (BR5), nên dù mẫu có gọi c
 Tham chiếu: docs/superpowers/specs/2026-09-23-thong-bao-tu-thiet-lap-design.md muc 4.5.
 """
 
+import unicodedata
+
 import frappe
 from frappe import _
 from frappe.utils import cint, get_url, get_url_to_form
@@ -188,6 +190,71 @@ def _contact_name(contact: frappe._dict | None) -> str:
 	return " ".join(part for part in (contact.get("first_name"), contact.get("last_name")) if part).strip()
 
 
+def _slug(value: str) -> str:
+	"""Chuẩn hoá để so trùng: bỏ dấu, bỏ khoảng trắng, hạ chữ thường."""
+	stripped = unicodedata.normalize("NFD", str(value or ""))
+	return "".join(ch for ch in stripped if ch.isalnum()).casefold()
+
+
+def _unique_parts(values) -> list[str]:
+	"""Giữ thứ tự, bỏ phần trùng nghĩa.
+
+	Dữ liệu thật hay có `state = "Việt Nam"` trong khi `country = "Vietnam"`; so
+	trùng mà phân biệt dấu thì địa chỉ in ra "Hà Nội, Việt Nam, Vietnam".
+	"""
+	parts: list[str] = []
+	seen: set[str] = set()
+	for value in values:
+		text = (value or "").strip()
+		if not text or _slug(text) in seen:
+			continue
+		seen.add(_slug(text))
+		parts.append(text)
+	return parts
+
+
+def address_lines(address: str) -> list[str]:
+	"""Địa chỉ tách thành từng dòng, theo nếp đọc của người Việt.
+
+	KHÔNG dùng `get_address_display`: hàm đó render theo *Address Template* nên trả
+	về HTML có `<br>` **và kèm luôn dòng Phone / Email**. Bỏ thẻ đi thì các phần
+	dính liền nhau ("Hà Nội11813Vietnam") và điện thoại bị in hai lần — đúng lỗi
+	đã gặp ngày 06/10/2026. Ở đây tự ghép từ từng trường, điện thoại để khối bên
+	dưới lo.
+	"""
+	row = frappe.db.get_value(
+		"Address",
+		address,
+		["address_line1", "address_line2", "city", "county", "state", "pincode", "country"],
+		as_dict=True,
+	)
+	if not row:
+		return []
+
+	lines = _unique_parts([row.address_line1, row.address_line2])
+
+	locality = _unique_parts([row.city, row.county, row.state])
+	if row.pincode:
+		# Mã bưu chính đi liền sau tên thành phố, không đứng cuối dòng.
+		if locality:
+			locality[0] = f"{locality[0]} {row.pincode}".strip()
+		else:
+			locality = [str(row.pincode)]
+
+	seen = {_slug(part) for part in locality}
+	locality += [part for part in _unique_parts([row.country]) if _slug(part) not in seen]
+
+	if locality:
+		lines.append(", ".join(locality))
+
+	return lines
+
+
+def address_text(address: str) -> str:
+	"""Địa chỉ gói trong một dòng — cho báo cáo và hộp xác nhận."""
+	return ", ".join(address_lines(address))
+
+
 def delivery_address(point, doc, truong: str | None = None) -> Markup:
 	"""Địa chỉ giao + người nhận + điện thoại, lấy từ Address chứng từ đang trỏ tới.
 
@@ -201,7 +268,8 @@ def delivery_address(point, doc, truong: str | None = None) -> Markup:
 	if not address or not frappe.db.exists("Address", address):
 		return Markup("")
 
-	lines = [f"<strong>{escape(_('Địa chỉ giao hàng:'))}</strong> {escape(address_text(address))}"]
+	lines = [f"<strong>{escape(_('Địa chỉ giao hàng:'))}</strong>"]
+	lines.extend(str(escape(line)) for line in address_lines(address))
 
 	contact = _contact_of_address(doc, point, address)
 	# Tên người nhận chỉ lấy từ Liên hệ. KHÔNG lấy `address_title`: đó là nhãn của
@@ -221,46 +289,28 @@ def delivery_address(point, doc, truong: str | None = None) -> Markup:
 	return Markup("<p>" + "<br>".join(lines) + "</p>")
 
 
-def address_text(address: str) -> str:
-	"""Địa chỉ một dòng, không kèm thẻ HTML của Frappe."""
-	from frappe.contacts.doctype.address.address import get_address_display
-
-	try:
-		display = get_address_display(address)
-	except Exception:
-		return address
-
-	return frappe.utils.strip_html(display or "").replace("\n", ", ").strip(", ").strip()
-
-
 # --- Chữ ký, phản hồi, liên kết -------------------------------------------
 
 
 def signature(point, doc, triggered_by: str | None = None) -> Markup:
-	"""Họ tên — công ty / điện thoại / email của người tạo hoặc người bấm gửi."""
+	"""Chữ ký người phụ trách — mỗi thông tin một dòng, như chữ ký thư thật."""
 	source = point.get("signature_person") or "Người tạo"
 	user = triggered_by if source == "Người bấm gửi" and triggered_by else doc.get("owner")
 	if not user or not frappe.db.exists("User", user):
 		return Markup("")
 
 	row = frappe.db.get_value("User", user, ["full_name", "mobile_no", "phone", "email"], as_dict=True)
-	company = doc.get("company") or ""
+	phone = row.mobile_no or row.phone
 
-	name_line = " – ".join(part for part in (row.full_name, company) if part)
-	contact_line = " | ".join(
-		part
-		for part in (
-			_("Điện thoại: {0}").format(row.mobile_no or row.phone) if (row.mobile_no or row.phone) else "",
-			_("Email: {0}").format(row.email) if row.email else "",
-		)
-		if part
-	)
+	lines = [
+		row.full_name,
+		doc.get("company") or "",
+		_("Điện thoại: {0}").format(phone) if phone else "",
+		_("Email: {0}").format(row.email) if row.email else "",
+	]
 
-	lines = [escape(name_line)]
-	if contact_line:
-		lines.append(escape(contact_line))
-
-	return Markup("<p>" + "<br>".join(str(line) for line in lines) + "</p>")
+	body = "<br>".join(str(escape(line)) for line in lines if line)
+	return Markup(f"<p>{body}</p>") if body else Markup("")
 
 
 def feedback_block(cau: str | None = None) -> Markup:

@@ -181,6 +181,18 @@ def _missing_address_warnings(point, doc) -> list[str]:
 
 	from erpnext.supply_notification import blocks
 
+	# Địa chỉ của chính công ty (giao về kho Miyano): form Company và Address không
+	# có chỗ khai người nhận, người liên hệ phía Miyano đã nằm ở khối chữ ký. Chỉ
+	# cần điện thoại của địa chỉ — đòi người nhận thì cảnh báo bật mãi, thành nhiễu.
+	if frappe.db.get_value("Address", address, "is_your_company_address"):
+		if frappe.db.get_value("Address", address, "phone"):
+			return []
+		return [
+			_("Địa chỉ giao hàng {0} của công ty chưa có điện thoại — email sẽ không có số liên hệ.").format(
+				address
+			)
+		]
+
 	rendered = str(blocks.delivery_address(point, doc.as_dict()))
 	if _("Người nhận:") in rendered:
 		return []

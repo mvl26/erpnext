@@ -79,8 +79,21 @@ Lưu ý:
 
 ## 5. Theo dõi sau khi bật
 
-- **Nhật ký gửi**: mỗi lần gửi một dòng — gửi cho ai, kênh nào, kết quả, lý do bỏ qua/lỗi.
-- Dòng **Failed** có nút **Gửi lại** (dùng sau khi đã sửa dữ liệu).
+**Nhật ký gửi** — mỗi lần gửi một dòng: gửi cho ai, kênh nào, kết quả, lý do, **và nội dung
+thư đã gửi**.
+
+| Kết quả | Nghĩa là |
+| --- | --- |
+| `Sent` | Đã gửi đủ các kênh đã bật |
+| `Partial` | Thư nội bộ đi được nhưng **đối tác (NCC/khách) không nhận được** — thường do thiếu email liên hệ. Lọc cột này để ra đúng danh sách cần xử lý |
+| `Skipped` | Không gửi gì, xem ô *Lý do* |
+| `Failed` | Lỗi hệ thống khi gửi |
+
+- Mở một dòng → phần **Nội dung đã gửi** giữ nguyên tiêu đề và thân thư của **đúng lần gửi đó**.
+  Sửa mẫu về sau không làm đổi bản chụp này, nên khi đối tác hỏi "các anh gửi gì cho tôi" thì
+  có bằng chứng để đối chiếu.
+- Nút **Xem thư như người nhận thấy** mở đúng thư đã gửi (thư đối tác và thư nội bộ tách riêng).
+- Nút **Gửi lại** có ở mọi dòng. Dòng `Sent` sẽ hỏi lại rõ vì gửi lại là tạo thêm một thư nữa.
 - Trên form điểm, thẻ **7. Kiểm tra** hiện số lần gửi và tỉ lệ lỗi 30 ngày qua.
 
 ---
