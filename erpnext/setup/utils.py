@@ -1,6 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
 import frappe
 from frappe import _
 from frappe.utils import add_days, flt, get_datetime_str, nowdate
@@ -30,7 +27,7 @@ def before_tests():
 				"fy_end_date": f"{current_year}-12-31",
 				"language": "english",
 				"company_tagline": "Testing",
-				"email": "test@erpnext.com",
+				"email": "test@miyano.com.vn",
 				"password": "test",
 				"chart_of_accounts": "Standard",
 			}

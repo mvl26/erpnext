@@ -1,0 +1,163 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"drHdr0001\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Đối chiếu công nợ</b></span>\",\"col\":12}},{\"id\":\"drCard0000\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"DCCN Tong Bien Ban Ky\",\"col\":4}},{\"id\":\"drCard0001\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"DCCN Da Gui\",\"col\":4}},{\"id\":\"drCard0002\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"DCCN Da Xac Nhan\",\"col\":4}},{\"id\":\"drCard0003\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"DCCN Chenh Lech\",\"col\":6}},{\"id\":\"drCard0004\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"DCCN Qua Han\",\"col\":6}},{\"id\":\"drSpc0001\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"drHdr0002\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Phím tắt</span>\",\"col\":12}},{\"id\":\"drSc00001\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Biên bản đối chiếu công nợ\",\"col\":3}},{\"id\":\"drSc00002\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tình trạng đối chiếu\",\"col\":3}},{\"id\":\"drSc00003\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Đối chiếu tổng vs sổ\",\"col\":3}},{\"id\":\"drSc00004\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cài đặt đối chiếu\",\"col\":3}},{\"id\":\"drSpc0002\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"drCrd0001\",\"type\":\"card\",\"data\":{\"card_name\":\"Biên bản\",\"col\":4}},{\"id\":\"drCrd0002\",\"type\":\"card\",\"data\":{\"card_name\":\"Báo cáo\",\"col\":4}}]",
+ "creation": "2026-09-21 10:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "file",
+ "idx": 0,
+ "indicator_color": "",
+ "is_hidden": 0,
+ "label": "Doi Chieu Cong No",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Biên bản",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Biên bản đối chiếu công nợ",
+   "link_count": 0,
+   "link_to": "Debt Reconciliation Statement",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cài đặt đối chiếu công nợ",
+   "link_count": 0,
+   "link_to": "Debt Reconciliation Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Báo cáo",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Tình trạng đối chiếu công nợ",
+   "link_count": 0,
+   "link_to": "Tinh Trang Doi Chieu Cong No",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Đối chiếu tổng biên bản vs số dư TK",
+   "link_count": 0,
+   "link_to": "Doi Chieu Tong Cong No",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Sổ chi tiết công nợ",
+   "link_count": 0,
+   "link_to": "So Chi Tiet Cong No",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-09-21 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Debt Reconciliation",
+ "name": "Doi Chieu Cong No",
+ "number_cards": [
+  {
+   "label": "Biên bản kỳ trước",
+   "number_card_name": "DCCN Tong Bien Ban Ky"
+  },
+  {
+   "label": "Đã gửi (chờ phản hồi)",
+   "number_card_name": "DCCN Da Gui"
+  },
+  {
+   "label": "Đã xác nhận",
+   "number_card_name": "DCCN Da Xac Nhan"
+  },
+  {
+   "label": "Chênh lệch",
+   "number_card_name": "DCCN Chenh Lech"
+  },
+  {
+   "label": "Quá hạn phản hồi",
+   "number_card_name": "DCCN Qua Han"
+  }
+ ],
+ "owner": "Administrator",
+ "parent_page": "Accounting",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [
+  {
+   "role": "Accounts Manager"
+  },
+  {
+   "role": "Accounts User"
+  }
+ ],
+ "sequence_id": 19.5,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Biên bản đối chiếu công nợ",
+   "link_to": "Debt Reconciliation Statement",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Tình trạng đối chiếu",
+   "link_to": "Tinh Trang Doi Chieu Cong No",
+   "report_ref_doctype": "Debt Reconciliation Statement",
+   "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Đối chiếu tổng vs sổ",
+   "link_to": "Doi Chieu Tong Cong No",
+   "report_ref_doctype": "Debt Reconciliation Statement",
+   "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Cài đặt đối chiếu",
+   "link_to": "Debt Reconciliation Settings",
+   "type": "DocType"
+  }
+ ],
+ "title": "Đối chiếu công nợ"
+}

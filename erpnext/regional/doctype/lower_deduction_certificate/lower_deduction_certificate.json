@@ -81,6 +81,7 @@
    "fieldname": "certificate_limit",
    "fieldtype": "Currency",
    "label": "Certificate Limit",
+   "precision": "0",
    "reqd": 1
   },
   {
@@ -135,7 +136,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-04-18 15:25:25.808355",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Regional",
  "name": "Lower Deduction Certificate",

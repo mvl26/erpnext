@@ -1,6 +1,3 @@
-# Copyright (c) 2013, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
 import json
 from datetime import date
 from itertools import groupby

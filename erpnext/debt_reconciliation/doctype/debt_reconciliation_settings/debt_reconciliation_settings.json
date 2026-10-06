@@ -1,0 +1,221 @@
+{
+ "actions": [],
+ "creation": "2026-09-21 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_generation",
+  "auto_generate",
+  "generation_day",
+  "generation_hour",
+  "column_break_generation",
+  "response_deadline_day",
+  "payable_account_number",
+  "receivable_account_number",
+  "section_company",
+  "company_legal_name",
+  "company_address",
+  "company_phone",
+  "company_tax_id",
+  "company_representative",
+  "company_representative_title",
+  "contact_line",
+  "column_break_company",
+  "hard_copy_address",
+  "company_email",
+  "section_email",
+  "sender_email_account",
+  "email_template",
+  "column_break_email",
+  "cc_emails",
+  "reminder_recipients"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_generation",
+   "fieldtype": "Section Break",
+   "label": "Sinh biên bản"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_generate",
+   "fieldtype": "Check",
+   "label": "Tự động sinh đầu tháng"
+  },
+  {
+   "default": "1",
+   "description": "1–28",
+   "fieldname": "generation_day",
+   "fieldtype": "Int",
+   "label": "Ngày sinh"
+  },
+  {
+   "default": "10",
+   "description": "0–23; job chạy trong khung giờ này",
+   "fieldname": "generation_hour",
+   "fieldtype": "Int",
+   "label": "Giờ sinh"
+  },
+  {
+   "fieldname": "column_break_generation",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "default": "6",
+   "description": "Ngày của tháng liền sau kỳ đối chiếu (D10)",
+   "fieldname": "response_deadline_day",
+   "fieldtype": "Int",
+   "label": "Ngày hạn phản hồi & nhận bản ký"
+  },
+  {
+   "default": "331",
+   "fieldname": "payable_account_number",
+   "fieldtype": "Data",
+   "label": "Số TK phải trả"
+  },
+  {
+   "default": "131",
+   "fieldname": "receivable_account_number",
+   "fieldtype": "Data",
+   "label": "Số TK phải thu"
+  },
+  {
+   "fieldname": "section_company",
+   "fieldtype": "Section Break",
+   "label": "Thông tin Miyano trên biên bản"
+  },
+  {
+   "default": "CÔNG TY TNHH MIYANO VIỆT NAM",
+   "fieldname": "company_legal_name",
+   "fieldtype": "Data",
+   "label": "Tên công ty in trên biên bản"
+  },
+  {
+   "default": "Số 20, Khu C17, ngõ 264/63, đường Ngọc Thụy, Phường Bồ Đề, Thành phố Hà Nội, Việt Nam",
+   "fieldname": "company_address",
+   "fieldtype": "Small Text",
+   "label": "Địa chỉ trụ sở"
+  },
+  {
+   "default": "0988806848",
+   "fieldname": "company_phone",
+   "fieldtype": "Data",
+   "label": "Điện thoại"
+  },
+  {
+   "default": "0109529507",
+   "description": "Dùng khi Company chưa khai báo MST",
+   "fieldname": "company_tax_id",
+   "fieldtype": "Data",
+   "label": "Mã số thuế"
+  },
+  {
+   "default": "Bà Đoàn Ngọc Anh",
+   "fieldname": "company_representative",
+   "fieldtype": "Data",
+   "label": "Đại diện Miyano"
+  },
+  {
+   "default": "Giám đốc vận hành",
+   "fieldname": "company_representative_title",
+   "fieldtype": "Data",
+   "label": "Chức vụ"
+  },
+  {
+   "default": "Ms Hà 0949.723.444",
+   "fieldname": "contact_line",
+   "fieldtype": "Data",
+   "label": "Dòng liên hệ"
+  },
+  {
+   "fieldname": "column_break_company",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "default": "LK21. N03 Ngõ 1 Phố Lâm Hạ, Phường Bồ Đề, Thành phố Hà Nội, Việt Nam",
+   "fieldname": "hard_copy_address",
+   "fieldtype": "Small Text",
+   "label": "Địa chỉ nhận bản cứng (VPGD)"
+  },
+  {
+   "default": "mvl.invoices2024@gmail.com",
+   "fieldname": "company_email",
+   "fieldtype": "Data",
+   "label": "Email in trên biên bản",
+   "options": "Email"
+  },
+  {
+   "fieldname": "section_email",
+   "fieldtype": "Section Break",
+   "label": "Email"
+  },
+  {
+   "description": "Để trống = hộp thư gửi mặc định của hệ thống",
+   "fieldname": "sender_email_account",
+   "fieldtype": "Link",
+   "label": "Hộp thư gửi",
+   "options": "Email Account"
+  },
+  {
+   "fieldname": "email_template",
+   "fieldtype": "Link",
+   "label": "Mẫu email",
+   "options": "Email Template"
+  },
+  {
+   "fieldname": "column_break_email",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "description": "Mỗi dòng một địa chỉ",
+   "fieldname": "cc_emails",
+   "fieldtype": "Small Text",
+   "label": "Email CC nội bộ"
+  },
+  {
+   "description": "Mỗi dòng một địa chỉ email",
+   "fieldname": "reminder_recipients",
+   "fieldtype": "Small Text",
+   "label": "Người nhận nhắc hạn & tóm tắt"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-21 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Debt Reconciliation",
+ "name": "Debt Reconciliation Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Accounts User"
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

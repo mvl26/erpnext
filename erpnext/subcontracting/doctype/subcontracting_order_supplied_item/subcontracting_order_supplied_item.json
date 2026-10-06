@@ -109,6 +109,7 @@
             "fieldtype": "Currency",
             "label": "Amount",
             "options": "Company:company:default_currency",
+            "precision": "0",
             "read_only": 1
         },
         {

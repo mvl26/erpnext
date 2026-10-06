@@ -1,5 +1,3 @@
-// Copyright (c) 2016, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
 frappe.provide("erpnext.accounts.dimensions");
 
 cur_frm.cscript.tax_table = "Advance Taxes and Charges";

@@ -1,8 +1,5 @@
-﻿Column1,Column2
-Column1,Column2
 Column1,Column2
 Column1,Cột 1
-Column1,“Mặt hàng do khách hàng cung cấp” không thể đồng thời là mặt hàng mua
 """Customer Provided Item"" cannot have Valuation Rate",“Mặt hàng do khách hàng cung cấp” không được có giá trị định giá
 """Is Fixed Asset"" cannot be unchecked, as Asset record exists against the item",Không thể bỏ chọn “Là tài sản cố định” vì đã tồn tại bản ghi tài sản cho mặt hàng này
 'Based On' and 'Group By' can not be same,“Dựa trên” và “Nhóm theo” không được giống nhau
@@ -3175,7 +3172,7 @@ Email not sent to {0} (unsubscribed / disabled),Email không được gửi đ�
 Error Message,Thông báo lỗi
 Fieldtype,Kiểu trường
 Help Articles,Bài viết trợ giúp
-ID,ID
+"ID","ID"
 Import,Nhập dữ liệu
 Language,Ngôn ngữ
 Likes,Lượt thích

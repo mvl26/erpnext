@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"WKeeHLcyXI\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Stock Value\",\"col\":4}},{\"id\":\"6nVoOHuy5w\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Warehouses\",\"col\":4}},{\"id\":\"OUex5VED7d\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Active Items\",\"col\":4}},{\"id\":\"wwAoBx30p3\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"LkqrpJHM9X\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h3\\\">Truy c\u1eadp nhanh</span>\",\"col\":12}},{\"id\":\"OR8PYiYspy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"KP1A22WjDl\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"0EYKOrx6U1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Entry\",\"col\":3}},{\"id\":\"cqotiphmhZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Receipt\",\"col\":3}},{\"id\":\"Xhjqnm-JxZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Delivery Note\",\"col\":3}},{\"id\":\"yxCx6Tay4Z\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Ledger\",\"col\":3}},{\"id\":\"o3sdEnNy34\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"9AmAh9LnPI\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"OAGNH9njt7\",\"type\":\"card\",\"data\":{\"card_name\":\"Items Catalogue\",\"col\":4}},{\"id\":\"jF9eKz0qr0\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock Transactions\",\"col\":4}},{\"id\":\"tyTnQo-MIS\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock Reports\",\"col\":4}},{\"id\":\"rQf5vK4N_T\",\"type\":\"card\",\"data\":{\"card_name\":\"Serial No and Batch\",\"col\":4}},{\"id\":\"7oM7hFL4v8\",\"type\":\"card\",\"data\":{\"card_name\":\"Tools\",\"col\":4}},{\"id\":\"ve3L6ZifkB\",\"type\":\"card\",\"data\":{\"card_name\":\"Key Reports\",\"col\":4}},{\"id\":\"8Kfvu3umw7\",\"type\":\"card\",\"data\":{\"card_name\":\"Other Reports\",\"col\":4}}]",
+ "content": "[{\"id\":\"WKeeHLcyXI\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Stock Value\",\"col\":4}},{\"id\":\"6nVoOHuy5w\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Warehouses\",\"col\":4}},{\"id\":\"OUex5VED7d\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Active Items\",\"col\":4}},{\"id\":\"wwAoBx30p3\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"LkqrpJHM9X\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h3\\\">Truy c\u1eadp nhanh</span>\",\"col\":12}},{\"id\":\"OR8PYiYspy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"KP1A22WjDl\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"0EYKOrx6U1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Entry\",\"col\":3}},{\"id\":\"cqotiphmhZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Receipt\",\"col\":3}},{\"id\":\"Xhjqnm-JxZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Delivery Note\",\"col\":3}},{\"id\":\"yxCx6Tay4Z\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Ledger\",\"col\":3}},{\"id\":\"o3sdEnNy34\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"9AmAh9LnPI\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"OAGNH9njt7\",\"type\":\"card\",\"data\":{\"card_name\":\"Items Catalogue\",\"col\":4}},{\"id\":\"jF9eKz0qr0\",\"type\":\"card\",\"data\":{\"card_name\":\"Giao d\u1ecbch t\u1ed3n kho\",\"col\":4}},{\"id\":\"tyTnQo-MIS\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock Reports\",\"col\":4}},{\"id\":\"rQf5vK4N_T\",\"type\":\"card\",\"data\":{\"card_name\":\"S\u1ed1 s\u00ea-ri v\u00e0 l\u00f4\",\"col\":4}},{\"id\":\"7oM7hFL4v8\",\"type\":\"card\",\"data\":{\"card_name\":\"Tools\",\"col\":4}},{\"id\":\"ve3L6ZifkB\",\"type\":\"card\",\"data\":{\"card_name\":\"Key Reports\",\"col\":4}},{\"id\":\"8Kfvu3umw7\",\"type\":\"card\",\"data\":{\"card_name\":\"Other Reports\",\"col\":4}}]",
  "creation": "2020-03-02 15:43:10.096528",
  "custom_blocks": [],
  "docstatus": 0,
@@ -122,14 +122,6 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Stock Transactions",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
   },
   {
    "dependencies": "Item",
@@ -273,14 +265,6 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Serial No and Batch",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
   },
   {
    "dependencies": "Item",
@@ -753,10 +737,240 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Giao d\u1ecbch t\u1ed3n kho",
+   "link_count": 13,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "Item",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Y\u00eau c\u1ea7u g\u1ecdi h\u00e0ng",
+   "link_count": 0,
+   "link_to": "Material Request",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "Item",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "B\u00fat to\u00e1n kho",
+   "link_count": 0,
+   "link_to": "Stock Entry",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "Item, Customer",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Phi\u1ebfu giao h\u00e0ng",
+   "link_count": 0,
+   "link_to": "Delivery Note",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "Item, Supplier",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Phi\u1ebfu nh\u1eadp mua",
+   "link_count": 0,
+   "link_to": "Purchase Receipt",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "Item",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Danh s\u00e1ch l\u1ea5y h\u00e0ng",
+   "link_count": 0,
+   "link_to": "Pick List",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Chuy\u1ebfn giao h\u00e0ng",
+   "link_count": 0,
+   "link_to": "Delivery Trip",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Thi\u1ebft l\u1eadp kho",
+   "link_count": 0,
+   "link_to": "Stock Settings",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Kho",
+   "link_count": 0,
+   "link_to": "Warehouse",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "\u0110\u01a1n v\u1ecb t\u00ednh (UOM)",
+   "link_count": 0,
+   "link_to": "UOM",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "C\u00e0i \u0111\u1eb7t bi\u1ebfn th\u1ec3 m\u1eb7t h\u00e0ng",
+   "link_count": 0,
+   "link_to": "Item Variant Settings",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Th\u01b0\u01a1ng hi\u1ec7u",
+   "link_count": 0,
+   "link_to": "Brand",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Thu\u1ed9c t\u00ednh m\u1eb7t h\u00e0ng",
+   "link_count": 0,
+   "link_to": "Item Attribute",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "H\u1ec7 s\u1ed1 chuy\u1ec3n \u0111\u1ed5i \u0111\u01a1n v\u1ecb t\u00ednh",
+   "link_count": 0,
+   "link_to": "UOM Conversion Factor",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "S\u1ed1 s\u00ea-ri v\u00e0 l\u00f4",
+   "link_count": 6,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "Item",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "S\u1ed1 s\u00ea-ri",
+   "link_count": 0,
+   "link_to": "Serial No",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "Item",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "L\u00f4",
+   "link_count": 0,
+   "link_to": "Batch",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "Item",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Bi\u00ean b\u1ea3n l\u1eafp \u0111\u1eb7t",
+   "link_count": 0,
+   "link_to": "Installation Note",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "Serial No",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "H\u1ebft h\u1ea1n h\u1ee3p \u0111\u1ed3ng d\u1ecbch v\u1ee5 theo s\u1ed1 s\u00ea-ri",
+   "link_count": 0,
+   "link_to": "Serial No Service Contract Expiry",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Serial No",
+   "type": "Link"
+  },
+  {
+   "dependencies": "Serial No",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Tr\u1ea1ng th\u00e1i s\u1ed1 s\u00ea-ri",
+   "link_count": 0,
+   "link_to": "Serial No Status",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Serial No",
+   "type": "Link"
+  },
+  {
+   "dependencies": "Serial No",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "H\u1ebft h\u1ea1n b\u1ea3o h\u00e0nh theo s\u1ed1 s\u00ea-ri",
+   "link_count": 0,
+   "link_to": "Serial No Warranty Expiry",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Serial No",
+   "type": "Link"
   }
  ],
- "modified": "2026-03-13 08:30:59.353721",
- "modified_by": "quanghuy020901@gmail.com",
+ "modified": "2026-07-23 10:36:50.014342",
+ "modified_by": "anh.doan@medcons.vn",
  "module": "Stock",
  "name": "Stock",
  "number_cards": [

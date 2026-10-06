@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import json
 
 import frappe
@@ -424,6 +420,13 @@ class PurchaseReceipt(BuyingController):
 			"Stock Ledger Entry",
 			"Repost Item Valuation",
 			"Serial and Batch Bundle",
+			# `Batch Entry` (module Warehouse Operations) là chứng từ khai lô — nó TRỎ TỚI
+			# phiếu nhập qua Link `phieu_nhap`, chứ không phải ngược lại, nên
+			# không được phép khoá việc huỷ phiếu nhập. Thiếu dòng này thì một
+			# `Batch Entry` đã duyệt làm `check_no_back_links_exist` ném
+			# `LinkExistsError`, và NCC giao sai không huỷ nổi cả hai chứng từ
+			# (spec khối C, vòng sửa 1 — khoá chết đã đo thật trên erptest.local).
+			"Batch Entry",
 		)
 		self.delete_auto_created_batches()
 		self.set_consumed_qty_in_subcontract_order()

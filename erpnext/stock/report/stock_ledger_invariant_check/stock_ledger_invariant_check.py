@@ -1,6 +1,3 @@
-# Copyright (c) 2021, Frappe Technologies Pvt. Ltd. and contributors
-# License: GNU GPL v3. See LICENSE
-
 import json
 
 import frappe

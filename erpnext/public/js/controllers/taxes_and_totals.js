@@ -1,6 +1,3 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
 erpnext.taxes_and_totals = class TaxesAndTotals extends erpnext.payments {
 	setup() {
 		this.fetch_round_off_accounts();

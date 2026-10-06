@@ -1,6 +1,3 @@
-// Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Delivery Trip", {
 	setup: function (frm) {
 		frm.set_indicator_formatter("customer", (stop) => (stop.visited ? "green" : "orange"));

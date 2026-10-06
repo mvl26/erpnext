@@ -1,6 +1,3 @@
-# Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
 import frappe
 from frappe import _
 from frappe.utils import add_months, cint, flt, get_link_to_form, getdate, time_diff_in_hours

@@ -1,7 +1,7 @@
 {
  "action": "Watch Video",
  "creation": "2020-05-15 02:47:17.958806",
- "description": "# Introduction to Stock Entry\nThis video will give a quick introduction to [**Stock Entry**](https://docs.erpnext.com/docs/user/manual/en/stock/stock-entry).",
+ "description": "# Introduction to Stock Entry\nThis video will give a quick introduction to **Stock Entry**.",
  "docstatus": 0,
  "doctype": "Onboarding Step",
  "idx": 0,

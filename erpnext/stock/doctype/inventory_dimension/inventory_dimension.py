@@ -1,6 +1,3 @@
-# Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
 import frappe
 from frappe import _, bold, scrub
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields

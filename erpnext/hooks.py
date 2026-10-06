@@ -1,20 +1,21 @@
+# `app_name` is the bench/site install key — it is written into `installed_apps`,
+# module paths and fixtures. Renaming it would break site `miyano`, so it stays.
 app_name = "erpnext"
-app_title = "ERPNext"
-app_publisher = "Frappe Technologies Pvt. Ltd."
-app_description = """ERP made simple"""
+app_title = "Miyano ERP"
+app_publisher = "Công ty TNHH Miyano Việt Nam"
+app_description = """Hệ thống ERP nội bộ Miyano — thiết bị & vật tư y tế, kế toán VN (TT99)"""
 app_icon = "fa fa-th"
 app_color = "#e74c3c"
-app_email = "hello@frappe.io"
-app_license = "GNU General Public License (v3)"
-source_link = "https://github.com/frappe/erpnext"
-app_logo_url = "/assets/erpnext/images/erpnext-logo.svg"
+app_email = "info@miyano.com.vn"
+app_license = "Nội bộ — Công ty TNHH Miyano Việt Nam, không phát hành công khai"
+app_logo_url = "/assets/erpnext/images/miyano-logo.png"
 
 
 add_to_apps_screen = [
 	{
 		"name": "erpnext",
-		"logo": "/assets/erpnext/images/erpnext-logo-blue.png",
-		"title": "ERPNext",
+		"logo": "/assets/erpnext/images/miyano-logo.png",
+		"title": "Miyano ERP",
 		"route": "/app/home",
 		"has_permission": "erpnext.check_app_permission",
 	}
@@ -30,10 +31,36 @@ email_css = "email_erpnext.bundle.css"
 
 doctype_js = {
 	"Address": "public/js/address.js",
+	"Delivery Note": [
+		"public/js/einvoice/delivery_note.js",
+		"public/js/warehouse_operations/delivery_note.js",
+	],
 	"Communication": "public/js/communication.js",
 	"Event": "public/js/event.js",
 	"Newsletter": "public/js/newsletter.js",
 	"Contact": "public/js/contact.js",
+	# Mở rộng Warehouse theo vị trí — thêm nút vào phiếu kho mà không phải sửa
+	# `stock/doctype/warehouse/warehouse.js` của upstream (bớt một điểm xung đột
+	# mỗi lần merge). Mất dòng này thì phiếu kho trông vẫn bình thường, chỉ là
+	# không còn đường vào quản lý vị trí — `warehouse_operations/tests/test_giao_dien.py`
+	# khoá việc đó.
+	"Warehouse": "public/js/warehouse_operations/warehouse.js",
+	# Nút "In nhãn" trên form lô (khối C §6.5) — in LẠI con tem của một lô khi
+	# tem rách hoặc thùng bị tách. Mất dòng này thì form `Batch` trông vẫn bình
+	# thường, chỉ là không còn nút In nhãn, và KHÔNG GÌ BÁO —
+	# `warehouse_operations/tests/test_giao_dien.py::TestNutTrenPhieuLo` khoá việc đó.
+	#
+	# Đây là khoá "Batch" trong `doctype_js`. `doc_events` bên dưới CŨNG có một
+	# khoá "Batch" (móc NCC + kiểm ký tự lô) — hai dict KHÁC NHAU, đừng nhầm, và
+	# đừng tạo khoá "Batch" thứ hai trong bất kỳ dict nào: khoá sau nuốt khoá
+	# trước trong im lặng, dự án đã dính đúng việc này.
+	"Batch": "public/js/warehouse_operations/batch.js",
+	# Hai lối vào chủ đầu tư đòi sau khi thử luồng thật 17/09/2026: nút "Nhập lô &
+	# in nhãn" trên phiếu nhập, và chỗ gán vị trí ngay trên form mặt hàng. Mất một
+	# trong hai dòng này thì form vẫn trông bình thường, chỉ là mất đường vào —
+	# `warehouse_operations/tests/test_giao_dien.py` khoá việc đó.
+	"Purchase Receipt": "public/js/warehouse_operations/purchase_receipt.js",
+	"Item": "public/js/warehouse_operations/item.js",
 }
 doctype_list_js = {
 	"Code List": [
@@ -61,6 +88,23 @@ before_install = [
 ]
 after_install = "erpnext.setup.install.after_install"
 
+# Tích hợp HĐĐT Fast dựng lại cấu hình sau mỗi lần migrate. Hàm này chạy lại
+# được nhiều lần, và để ở đây thì thêm trường/mẫu email mới không cần patch mới.
+after_migrate = [
+	"erpnext.einvoice.setup.setup_einvoice",
+	"erpnext.supply_notification.setup.setup_supply_notification",
+	# Dựng lại lft/rgt của Storage Location nếu còn bản ghi thiếu toạ độ và an
+	# toàn để làm (không ô nào đang `disabled`). MẤT DÒNG NÀY: patch
+	# `v15_0.dung_lai_cay_vi_tri` (chạy đúng MỘT LẦN, patches.txt) vẫn còn,
+	# nhưng nếu patch đó gặp `disabled=1` và bỏ qua, sẽ KHÔNG BAO GIỜ tự thử
+	# lại — cây vĩnh viễn thiếu toạ độ, "thừa kế disabled xuống cả nhánh" và
+	# "lấy hàng theo phạm vi" nằm im mãi mãi, âm thầm, không ai biết. Dòng này
+	# là cơ chế HỘI TỤ LẠI ở mọi lần migrate sau — mất nó thì mất luôn khả năng
+	# tự phục hồi đó. `erpnext.warehouse_operations.tests.test_app_khoi_dong` khoá việc
+	# này còn trong danh sách.
+	"erpnext.warehouse_operations.vitri.cay.dam_bao_cay_da_dung",
+]
+
 boot_session = "erpnext.startup.boot.boot_session"
 notification_config = "erpnext.startup.notifications.get_notification_config"
 get_help_messages = "erpnext.utilities.activation.get_help_messages"
@@ -69,6 +113,15 @@ filters_config = "erpnext.startup.filters.get_filters_config"
 additional_print_settings = "erpnext.controllers.print_settings.get_print_settings"
 
 on_session_creation = "erpnext.portal.utils.create_customer_or_supplier"
+
+# Chạy trong `frappe/auth.py:626 validate_auth_via_hooks`, NGAY SAU khi Frappe đã
+# nhận khoá API và gán danh tính — tức trước khi request chạm hàm nghiệp vụ nào.
+# Bắt buộc phải là một hook cấp request, không phải một phép kiểm trong từng hàm:
+# khoá máy PDA mở được MỌI hàm whitelist dưới tên chủ thẻ, nên chỗ duy nhất kiểm
+# được "khoá này đang dùng từ đúng chiếc máy nào" là ở cửa vào. Hàm tự thoát ngay
+# khi request không mang `Authorization: token …` (phiên cookie của Desk/web không
+# bị đụng tới) — xem docstring của nó.
+auth_hooks = ["erpnext.warehouse_operations.vitri.the_pda.kiem_khoa_may"]
 
 treeviews = [
 	"Account",
@@ -98,6 +151,7 @@ demo_transaction_doctypes = [
 jinja = {
 	"methods": [
 		"erpnext.stock.serial_batch_bundle.get_serial_or_batch_nos",
+		"erpnext.regional.vietnam.utils.so_thanh_chu",
 	],
 }
 
@@ -109,8 +163,8 @@ calendars = ["Task", "Work Order", "Sales Order", "Holiday List", "ToDo"]
 website_generators = ["BOM", "Sales Partner"]
 
 website_context = {
-	"favicon": "/assets/erpnext/images/erpnext-favicon.svg",
-	"splash_image": "/assets/erpnext/images/erpnext-logo.svg",
+	"favicon": "/assets/erpnext/images/miyano-favicon.png",
+	"splash_image": "/assets/erpnext/images/miyano-logo.png",
 }
 
 # nosemgrep
@@ -324,14 +378,81 @@ period_closing_doctypes = [
 ]
 
 doc_events = {
+	# VÒNG SỬA CUỐI Task 6 (soát tổng, T6-1) — BUỘC HỢP ĐỒNG NGẦM LỘ RA.
+	#
+	# Tên file bản cài APK mang SỐ HIỆU, và app trong máy quét đọc số hiệu từ chính
+	# tên đó để biết mình có phải bản mới nhất không. Trước đây đó chỉ là một dòng
+	# chữ trong `pda_app/README.md`; phá nó thì dải nhắc nâng cấp IM LẶNG trên mọi
+	# máy và không ai biết — hậu quả lộ ra hàng tuần sau, ngoài kho.
+	#
+	# Hàm này TỰ LỌC RẤT HẸP (chỉ tên có "pda" và đuôi `.apk` — đúng tập mà
+	# `cai_app._ban_moi_nhat()` nhặt) rồi mới nói; mọi `File` khác của cả hệ thống
+	# đi qua không một lời nào. Xem docstring của `chan_ten_ban_cai_sai`.
+	"File": {
+		"validate": "erpnext.warehouse_operations.vitri.cai_app.chan_ten_ban_cai_sai",
+	},
+	# Thông báo chuỗi cung ứng: BỐN móc duy nhất cho mọi chứng từ. Điểm thông báo
+	# nay là dữ liệu cấu hình, nên danh sách DocType không còn nằm trong code —
+	# `registry.has_points` (một lần đọc cache) cho bộ máy thoát ngay với DocType
+	# không có điểm. `on_change` chứ không phải `on_update`: ERPNext ghi các trường
+	# trạng thái bằng `db_set`, mà `db_set` chỉ chạy `on_change`.
 	"*": {
 		"validate": [
 			"erpnext.support.doctype.service_level_agreement.service_level_agreement.apply",
 			"erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.check_for_running_deletion_job",
 		],
+		"after_insert": "erpnext.supply_notification.events.after_insert",
+		"on_submit": "erpnext.supply_notification.events.on_submit",
+		"on_cancel": "erpnext.supply_notification.events.on_cancel",
+		"on_change": "erpnext.supply_notification.events.on_change",
+	},
+	"Item": {
+		"validate": [
+			"erpnext.tbyt.item_hooks.require_authorization_for_medical_item",
+			"erpnext.tbyt.item_hooks.warn_about_missing_documents",
+		],
+		# Đổi mã một Item phải kéo theo `name` của bản ghi gán vị trí, vì doctype
+		# đó dùng `autoname: field:vat_tu` — `name` là nguồn sự thật, không phải
+		# trường. Mất dòng này thì đổi mã mặt hàng làm gán vị trí ÂM THẦM trỏ về mã
+		# cũ ở lần lưu kế tiếp (`_sync_autoname_field`, base_document.py:1027):
+		# không lỗi, không dấu vết, chỉ là gợi ý xếp hàng biến mất.
+		# `warehouse_operations/tests/test_app_khoi_dong.py` khoá việc này.
+		"after_rename": "erpnext.warehouse_operations.vitri.gan.doi_ten_theo_mat_hang",
 	},
 	tuple(period_closing_doctypes): {
 		"validate": "erpnext.accounts.doctype.accounting_period.accounting_period.validate_accounting_period_on_doc_save",
+	},
+	# Mở rộng Warehouse theo vị trí (module "Warehouse Operations"). MỘT móc duy nhất cho
+	# cả tầng vị trí: `stock_ledger.py` tạo mọi Stock Ledger Entry qua
+	# `make_entry()` -> `sle.submit()`, kể cả đường huỷ chứng từ (ERPNext ghi
+	# thêm dòng đảo dấu rồi mới cờ dòng cũ). Nhờ vậy không phải móc vào 8 doctype
+	# chứng từ, và doctype nào ERPNext thêm về sau cũng tự động được bắt.
+	#
+	# ĐÂY LÀ DÒNG DỄ MẤT NHẤT khi merge ERPNext bản mới. Giải xung đột sai ở đây
+	# thì hệ vẫn chạy, chứng từ vẫn ghi được, chỉ là không ô nào được ghi sổ nữa
+	# — hỏng trong im lặng. `warehouse_operations/tests/test_app_khoi_dong.py` khoá việc này.
+	"Stock Ledger Entry": {
+		"on_submit": "erpnext.warehouse_operations.vitri.hook_sle.ghi_so_vi_tri",
+	},
+	# Lô sinh từ hộp thoại lô sẵn có của ERPNext không mang NCC. Spec khối C §4.3
+	# chọn vá dữ liệu thay vì chặn đường đó, vì `Batch` dùng chung với nhiều luồng
+	# kho khác. `warehouse_operations/tests/test_lo_ncc.py` khoá việc này.
+	"Batch": {
+		"before_insert": "erpnext.warehouse_operations.vitri.lo_ncc.dien_ncc_tu_chung_tu",
+		# Thêm vào ĐÚNG dict con đã có ở trên, KHÔNG tạo khoá "Batch" thứ hai:
+		# khoá sau nuốt khoá trước trong im lặng và móc NCC sẽ biến mất mà
+		# không ai thấy.
+		"validate": "erpnext.warehouse_operations.vitri.ma_vach.kiem_ky_tu_lo",
+	},
+	# Kho đã bật quản lý vị trí: số lô phải đến từ phiếu nhập lô, không gõ tay trên
+	# phiếu nhập. Chủ đầu tư chốt 17/09/2026 sau khi phiếu MAT-PRE-2026-00008 được
+	# duyệt với số lô `17/09/2026` gõ thẳng vào ô lô chuẩn — mất số lô NCC, không có
+	# tem. Đây là khoá CHUỖI "Purchase Receipt"; khối cuối `doc_events` có một khoá
+	# TUPLE chứa "Purchase Receipt" (thông báo chuỗi cung ứng) — Python coi là hai
+	# khoá khác nhau và `frappe.get_doc_hooks()` gộp cả hai, nên không đè nhau.
+	# `warehouse_operations/tests/test_loi_vao_nhap_lo.py` khoá việc này.
+	"Purchase Receipt": {
+		"before_submit": "erpnext.warehouse_operations.vitri.phieu_nhap.chan_lo_go_tay_khi_duyet",
 	},
 	"Stock Entry": {
 		"on_submit": "erpnext.stock.doctype.material_request.material_request.update_completed_and_requested_qty",
@@ -345,7 +466,11 @@ doc_events = {
 			"erpnext.portal.utils.set_default_role",
 		],
 	},
+	"Email Queue": {
+		"before_insert": "erpnext.utilities.email_guard.block_unsubscribed_recipients",
+	},
 	"Communication": {
+		"before_insert": "erpnext.utilities.email_guard.handle_bounce",
 		"on_update": [
 			"erpnext.support.doctype.service_level_agreement.service_level_agreement.on_communication_update",
 			"erpnext.support.doctype.issue.issue.set_first_response_time",
@@ -372,12 +497,10 @@ doc_events = {
 		"validate": [
 			"erpnext.regional.united_arab_emirates.utils.update_grand_total_for_rcm",
 			"erpnext.regional.united_arab_emirates.utils.validate_returns",
-		]
+		],
 	},
 	"Payment Entry": {
-		"on_submit": [
-			"erpnext.regional.create_transaction_log",
-		],
+		"on_submit": "erpnext.regional.create_transaction_log",
 		"on_trash": "erpnext.regional.check_deletion_permission",
 	},
 	"Address": {
@@ -396,7 +519,24 @@ doc_events = {
 	"Integration Request": {
 		"validate": "erpnext.accounts.doctype.payment_request.payment_request.validate_payment"
 	},
+	# Chứng từ HĐĐT trỏ tới phiếu giao bằng một Link, nên mặc định Frappe từ chối
+	# hủy phiếu giao khi còn bất kỳ chứng từ nào trỏ tới — kể cả bản nháp. Hook này
+	# chỉ chặn khi hóa đơn đã thật sự tiêu số, và nói rõ vì sao.
+	"Delivery Note": {
+		"validate": "erpnext.warehouse_operations.vitri.lay_hang.kiem_phan_bo_khi_luu",
+		"before_submit": "erpnext.warehouse_operations.vitri.lay_hang.chan_duyet_chua_lay",
+		"on_submit": "erpnext.warehouse_operations.vitri.lay_hang.ghi_cot_vi_tri_khi_duyet",
+		"before_cancel": "erpnext.einvoice.builder.before_delivery_note_cancel",
+		"on_cancel": "erpnext.einvoice.builder.on_delivery_note_cancel",
+	},
 }
+
+# Nhật ký HĐĐT là vết kiểm toán, không phải quan hệ nghiệp vụ: nó không được
+# khóa việc xóa chính chứng từ mà nó ghi lại. Cùng loại với Version / Activity
+# Log / Comment trong danh sách mặc định của Frappe.
+ignore_links_on_delete = [
+	"Fast EInvoice Log",
+]
 
 # function should expect the variable and doc as arguments
 naming_series_variables = {
@@ -418,6 +558,23 @@ scheduler_events = {
 		"0/30 * * * *": [
 			"erpnext.utilities.doctype.video.video.update_youtube_data",
 		],
+		"0 8 * * *": [
+			"erpnext.debt_reconciliation.tasks.send_due_reminders",
+		],
+		# Thông báo chuỗi cung ứng: nhắc theo ngày. Cron chạy MỖI GIỜ, hàm tự so với
+		# "Giờ chạy hằng ngày" trong Cài đặt thông báo — đổi giờ nhắc là việc của
+		# nghiệp vụ trên giao diện, không phải sửa file này rồi deploy (D31).
+		"0 * * * *": [
+			"erpnext.supply_notification.reminders.run_hourly",
+		],
+		# HĐĐT: tự tải PDF chính thức khi Fast ký số xong (~1 phút sau phát hành, mục E5 nhánh 7a).
+		"* * * * *": [
+			"erpnext.einvoice.actions.download_pending_official_pdfs",
+		],
+		# HĐĐT: quét các hóa đơn còn chờ Cơ quan Thuế (mục E8).
+		"0/20 * * * *": [
+			"erpnext.einvoice.tax_status.poll_pending_tax_status",
+		],
 		# Hourly but offset by 30 minutes
 		"30 * * * *": [
 			"erpnext.accounts.doctype.gl_entry.gl_entry.rename_gle_sle_docs",
@@ -432,12 +589,15 @@ scheduler_events = {
 		"erpnext.projects.doctype.project.project.project_status_update_reminder",
 		"erpnext.projects.doctype.project.project.hourly_reminder",
 		"erpnext.projects.doctype.project.project.collect_project_status",
+		"erpnext.debt_reconciliation.tasks.hourly",
 	],
 	"hourly_long": [
 		"erpnext.stock.doctype.repost_item_valuation.repost_item_valuation.repost_entries",
 		"erpnext.utilities.bulk_transaction.retry",
 	],
 	"daily": [
+		"erpnext.einvoice.doctype.fast_einvoice_log.fast_einvoice_log.delete_old_logs",
+		"erpnext.supply_notification.reminders.clear_old_dispatch_logs",
 		"erpnext.support.doctype.issue.issue.auto_close_tickets",
 		"erpnext.crm.doctype.opportunity.opportunity.auto_close_opportunity",
 		"erpnext.controllers.accounts_controller.update_invoice_status",
@@ -461,6 +621,7 @@ scheduler_events = {
 		"erpnext.accounts.utils.auto_create_exchange_rate_revaluation_daily",
 		"erpnext.accounts.utils.run_ledger_health_checks",
 		"erpnext.assets.doctype.asset_maintenance_log.asset_maintenance_log.update_asset_maintenance_log_status",
+		"erpnext.tbyt.expiry.update_document_status",
 	],
 	"weekly": [
 		"erpnext.accounts.utils.auto_create_exchange_rate_revaluation_weekly",
@@ -478,15 +639,10 @@ scheduler_events = {
 	],
 }
 
-email_brand_image = "assets/erpnext/images/erpnext-logo.jpg"
+email_brand_image = "assets/erpnext/images/miyano-logo.png"
 
 default_mail_footer = """
-	<span>
-		Sent via
-		<a class="text-muted" href="https://frappe.io/erpnext?source=via_email_footer" target="_blank">
-			ERPNext
-		</a>
-	</span>
+	<span class="text-muted">Công ty TNHH Miyano Việt Nam</span>
 """
 
 get_translated_dict = {("doctype", "Global Defaults"): "frappe.geo.country_info.get_translated_dict"}
@@ -495,7 +651,6 @@ bot_parsers = [
 	"erpnext.utilities.bot.FindItemBot",
 ]
 
-get_site_info = "erpnext.utilities.get_site_info"
 
 payment_gateway_enabled = "erpnext.accounts.utils.create_payment_gateway_account"
 
@@ -656,6 +811,7 @@ additional_timeline_content = {"*": ["erpnext.telephony.doctype.call_log.call_lo
 extend_bootinfo = [
 	"erpnext.support.doctype.service_level_agreement.service_level_agreement.add_sla_doctypes",
 	"erpnext.startup.boot.bootinfo",
+	"erpnext.supply_notification.boot.bootinfo",
 ]
 
 

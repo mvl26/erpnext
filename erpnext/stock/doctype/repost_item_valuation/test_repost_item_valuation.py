@@ -1,7 +1,3 @@
-# Copyright (c) 2021, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-
-
 from unittest.mock import MagicMock, call
 
 import frappe

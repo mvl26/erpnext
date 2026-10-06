@@ -1,5 +1,3 @@
-// Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
 frappe.provide("erpnext.accounts.bank_reconciliation");
 
 frappe.ui.form.on("Bank Reconciliation Tool", {

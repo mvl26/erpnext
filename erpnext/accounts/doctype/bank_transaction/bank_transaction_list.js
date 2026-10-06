@@ -1,6 +1,3 @@
-// Copyright (c) 2018, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
 frappe.listview_settings["Bank Transaction"] = {
 	add_fields: ["unallocated_amount"],
 	get_indicator: function (doc) {

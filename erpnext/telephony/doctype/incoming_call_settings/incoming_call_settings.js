@@ -1,6 +1,3 @@
-// Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 function time_to_seconds(time_str) {
 	// Convert time string of format HH:MM:SS into seconds.
 	let seq = time_str.split(":");

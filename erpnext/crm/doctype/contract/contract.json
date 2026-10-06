@@ -13,6 +13,8 @@
   "contract_manager",
   "contract_manager_name",
   "reminder_10d_sent_on",
+  "contract_type",
+  "blanket_order",
   "cb_party",
   "party_name",
   "party_full_name",
@@ -398,17 +400,35 @@
    "ignore_user_permissions": 1,
    "label": "Parent Contract",
    "options": "Contract"
+  },
+  {
+   "fieldname": "contract_type",
+   "fieldtype": "Select",
+   "label": "Contract type",
+   "options": "\nMua v\u00e0o\nB\u00e1n ra"
+  },
+  {
+   "fieldname": "blanket_order",
+   "fieldtype": "Link",
+   "label": "Blanket Order",
+   "options": "Blanket Order"
   }
  ],
  "grid_page_length": 50,
  "is_submittable": 1,
  "is_tree": 1,
- "links": [],
- "modified": "2026-03-16 16:30:11.587246",
- "modified_by": "viet.bh@miyano.com.vn",
+ "links": [
+  {
+   "group": "Blanket Order",
+   "link_doctype": "Blanket Order",
+   "link_fieldname": "contract"
+  }
+ ],
+ "modified": "2026-07-20 23:50:27.777009",
+ "modified_by": "hieu.cv2@miyano.com.vn",
  "module": "CRM",
  "name": "Contract",
- "naming_rule": "Expression (old style)",
+ "naming_rule": "Expression",
  "nsm_parent_field": "parent_contract",
  "owner": "Administrator",
  "permissions": [

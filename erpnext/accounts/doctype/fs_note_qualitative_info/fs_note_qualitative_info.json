@@ -1,0 +1,450 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:FSN-{company}-{fiscal_year}-{#####}",
+ "creation": "2026-07-16 09:49:58.229969",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "sb_header",
+  "company",
+  "fiscal_year",
+  "report_type",
+  "status",
+  "cb_header",
+  "prepared_by",
+  "report_date",
+  "sb_muc1",
+  "ownership_type",
+  "business_field",
+  "industry_code",
+  "cb_muc1a",
+  "operating_cycle_months",
+  "employee_count",
+  "business_features_note",
+  "sb_muc1b",
+  "subsidiary_entities",
+  "sb_muc1c",
+  "comparability_statement",
+  "comparability_reason",
+  "other_disclosure_note",
+  "sb_muc2",
+  "currency_unit",
+  "currency_change_reason",
+  "sb_muc3",
+  "accounting_regime",
+  "vas_compliance",
+  "vas_exceptions",
+  "sb_muc4",
+  "accounting_policies",
+  "sb_muc6",
+  "leased_assets_note",
+  "custody_assets_note",
+  "infra_assets_note",
+  "cb_muc6",
+  "pledged_assets_note",
+  "foreign_currency_note",
+  "bad_debt_written_off_note",
+  "installment_interest_note",
+  "other_off_balance_note",
+  "sb_muc9",
+  "contingent_liabilities_note",
+  "subsequent_events_note",
+  "sb_muc9b",
+  "related_party_transactions",
+  "related_party_note",
+  "sb_muc9c",
+  "segment_info_note",
+  "comparative_info_note",
+  "cb_muc9",
+  "going_concern_flag",
+  "going_concern_note",
+  "key_estimates_note",
+  "other_measures_note",
+  "sb_muc10",
+  "has_form_modifications",
+  "form_modification_item",
+  "form_modification_content",
+  "form_modification_reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "sb_header",
+   "fieldtype": "Section Break",
+   "label": "Th\u00f4ng tin chung"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "C\u00f4ng ty",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fiscal_year",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "N\u0103m t\u00e0i ch\u00ednh",
+   "options": "Fiscal Year",
+   "reqd": 1
+  },
+  {
+   "default": "B\u00e1o c\u00e1o n\u0103m",
+   "fieldname": "report_type",
+   "fieldtype": "Select",
+   "label": "Lo\u1ea1i b\u00e1o c\u00e1o",
+   "options": "B\u00e1o c\u00e1o n\u0103m\nB\u00e1o c\u00e1o gi\u1eefa ni\u00ean \u0111\u1ed9"
+  },
+  {
+   "default": "Nh\u00e1p",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Tr\u1ea1ng th\u00e1i",
+   "options": "Nh\u00e1p\nHo\u00e0n th\u00e0nh\n\u0110\u00e3 duy\u1ec7t"
+  },
+  {
+   "fieldname": "cb_header",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "user",
+   "fieldname": "prepared_by",
+   "fieldtype": "Link",
+   "label": "Ng\u01b0\u1eddi l\u1eadp",
+   "options": "User"
+  },
+  {
+   "fieldname": "report_date",
+   "fieldtype": "Date",
+   "label": "Ng\u00e0y l\u1eadp b\u00e1o c\u00e1o"
+  },
+  {
+   "fieldname": "sb_muc1",
+   "fieldtype": "Section Break",
+   "label": "M\u1ee5c I \u2013 \u0110\u1eb7c \u0111i\u1ec3m ho\u1ea1t \u0111\u1ed9ng c\u1ee7a doanh nghi\u1ec7p"
+  },
+  {
+   "fieldname": "ownership_type",
+   "fieldtype": "Select",
+   "label": "1. H\u00ecnh th\u1ee9c s\u1edf h\u1eefu v\u1ed1n",
+   "options": "DNNN\nC\u1ed5 ph\u1ea7n\nTNHH\nH\u1ee3p danh\nT\u01b0 nh\u00e2n"
+  },
+  {
+   "fieldname": "business_field",
+   "fieldtype": "Data",
+   "label": "2. L\u0129nh v\u1ef1c kinh doanh"
+  },
+  {
+   "fieldname": "industry_code",
+   "fieldtype": "Data",
+   "label": "3. Ng\u00e0nh ngh\u1ec1 kinh doanh (VSIC)"
+  },
+  {
+   "fieldname": "cb_muc1a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "operating_cycle_months",
+   "fieldtype": "Int",
+   "label": "4. Chu k\u1ef3 SXKD th\u00f4ng th\u01b0\u1eddng (th\u00e1ng)"
+  },
+  {
+   "fieldname": "employee_count",
+   "fieldtype": "Int",
+   "label": "7. S\u1ed1 l\u01b0\u1ee3ng ng\u01b0\u1eddi lao \u0111\u1ed9ng b\u00ecnh qu\u00e2n"
+  },
+  {
+   "fieldname": "business_features_note",
+   "fieldtype": "Small Text",
+   "label": "5. \u0110\u1eb7c \u0111i\u1ec3m ho\u1ea1t \u0111\u1ed9ng trong n\u0103m \u1ea3nh h\u01b0\u1edfng \u0111\u1ebfn BCTC"
+  },
+  {
+   "fieldname": "sb_muc1b",
+   "fieldtype": "Section Break",
+   "label": "6. C\u1ea5u tr\u00fac doanh nghi\u1ec7p"
+  },
+  {
+   "fieldname": "subsidiary_entities",
+   "fieldtype": "Table",
+   "label": "C\u00f4ng ty con / C\u00f4ng ty LD-LK / \u0110\u01a1n v\u1ecb tr\u1ef1c thu\u1ed9c",
+   "options": "FS Subsidiary Entity Item"
+  },
+  {
+   "fieldname": "sb_muc1c",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "C\u00f3 th\u1ec3 so s\u00e1nh \u0111\u01b0\u1ee3c",
+   "fieldname": "comparability_statement",
+   "fieldtype": "Select",
+   "label": "8. Kh\u1ea3 n\u0103ng so s\u00e1nh th\u00f4ng tin BCTC",
+   "options": "C\u00f3 th\u1ec3 so s\u00e1nh \u0111\u01b0\u1ee3c\nKh\u00f4ng th\u1ec3 so s\u00e1nh \u0111\u01b0\u1ee3c"
+  },
+  {
+   "depends_on": "eval:doc.comparability_statement=='Kh\u00f4ng th\u1ec3 so s\u00e1nh \u0111\u01b0\u1ee3c'",
+   "fieldname": "comparability_reason",
+   "fieldtype": "Small Text",
+   "label": "L\u00fd do (n\u1ebfu kh\u00f4ng th\u1ec3 so s\u00e1nh)"
+  },
+  {
+   "fieldname": "other_disclosure_note",
+   "fieldtype": "Small Text",
+   "label": "9. Thuy\u1ebft minh th\u00f4ng tin kh\u00e1c theo ph\u00e1p lu\u1eadt li\u00ean quan"
+  },
+  {
+   "fieldname": "sb_muc2",
+   "fieldtype": "Section Break",
+   "label": "M\u1ee5c II \u2013 K\u1ef3 k\u1ebf to\u00e1n, \u0111\u01a1n v\u1ecb ti\u1ec1n t\u1ec7 s\u1eed d\u1ee5ng trong k\u1ebf to\u00e1n"
+  },
+  {
+   "fieldname": "currency_unit",
+   "fieldtype": "Link",
+   "label": "2. \u0110\u01a1n v\u1ecb ti\u1ec1n t\u1ec7 s\u1eed d\u1ee5ng trong k\u1ebf to\u00e1n",
+   "options": "Currency"
+  },
+  {
+   "fieldname": "currency_change_reason",
+   "fieldtype": "Small Text",
+   "label": "L\u00fd do thay \u0111\u1ed5i \u0111\u01a1n v\u1ecb ti\u1ec1n t\u1ec7 so v\u1edbi n\u0103m tr\u01b0\u1edbc (n\u1ebfu c\u00f3)"
+  },
+  {
+   "fieldname": "sb_muc3",
+   "fieldtype": "Section Break",
+   "label": "M\u1ee5c III \u2013 Chu\u1ea9n m\u1ef1c v\u00e0 Ch\u1ebf \u0111\u1ed9 k\u1ebf to\u00e1n \u00e1p d\u1ee5ng"
+  },
+  {
+   "default": "Th\u00f4ng t\u01b0 s\u1ed1 99/2025/TT-BTC ng\u00e0y 27/10/2025 c\u1ee7a B\u1ed9 T\u00e0i ch\u00ednh",
+   "fieldname": "accounting_regime",
+   "fieldtype": "Data",
+   "label": "1. Ch\u1ebf \u0111\u1ed9 k\u1ebf to\u00e1n \u00e1p d\u1ee5ng"
+  },
+  {
+   "default": "1",
+   "fieldname": "vas_compliance",
+   "fieldtype": "Check",
+   "label": "2. Tu\u00e2n th\u1ee7 \u0111\u1ea7y \u0111\u1ee7 Chu\u1ea9n m\u1ef1c k\u1ebf to\u00e1n Vi\u1ec7t Nam v\u00e0 Ch\u1ebf \u0111\u1ed9 k\u1ebf to\u00e1n"
+  },
+  {
+   "depends_on": "eval:!doc.vas_compliance",
+   "fieldname": "vas_exceptions",
+   "fieldtype": "Small Text",
+   "label": "Chu\u1ea9n m\u1ef1c k\u1ebf to\u00e1n kh\u00f4ng \u00e1p d\u1ee5ng (n\u1ebfu c\u00f3)"
+  },
+  {
+   "fieldname": "sb_muc4",
+   "fieldtype": "Section Break",
+   "label": "M\u1ee5c IV \u2013 Ch\u00ednh s\u00e1ch k\u1ebf to\u00e1n, \u01b0\u1edbc t\u00ednh k\u1ebf to\u00e1n v\u00e0 quy \u0111\u1ecbnh ph\u00e1p lu\u1eadt li\u00ean quan (29 ch\u00ednh s\u00e1ch)"
+  },
+  {
+   "fieldname": "accounting_policies",
+   "fieldtype": "Table",
+   "label": "Danh m\u1ee5c ch\u00ednh s\u00e1ch k\u1ebf to\u00e1n",
+   "options": "FS Accounting Policy Item"
+  },
+  {
+   "fieldname": "sb_muc6",
+   "fieldtype": "Section Break",
+   "label": "M\u1ee5c VI \u2013 Th\u00f4ng tin b\u1ed5 sung ngo\u00e0i B\u00e1o c\u00e1o t\u00ecnh h\u00ecnh t\u00e0i ch\u00ednh"
+  },
+  {
+   "fieldname": "leased_assets_note",
+   "fieldtype": "Small Text",
+   "label": "a. T\u00e0i s\u1ea3n thu\u00ea ngo\u00e0i"
+  },
+  {
+   "fieldname": "custody_assets_note",
+   "fieldtype": "Small Text",
+   "label": "b. T\u00e0i s\u1ea3n nh\u1eadn gi\u1eef h\u1ed9, k\u00fd g\u1eedi, gia c\u00f4ng, u\u1ef7 th\u00e1c XNK"
+  },
+  {
+   "fieldname": "infra_assets_note",
+   "fieldtype": "Small Text",
+   "label": "c. T\u00e0i s\u1ea3n k\u1ebft c\u1ea5u h\u1ea1 t\u1ea7ng kh\u00f4ng t\u00ednh v\u00e0o v\u1ed1n NN t\u1ea1i DN"
+  },
+  {
+   "fieldname": "cb_muc6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pledged_assets_note",
+   "fieldtype": "Small Text",
+   "label": "d. T\u00e0i s\u1ea3n d\u00f9ng \u0111\u1ec3 c\u1ea7m c\u1ed1, th\u1ebf ch\u1ea5p"
+  },
+  {
+   "fieldname": "foreign_currency_note",
+   "fieldtype": "Small Text",
+   "label": "\u0111. Ngo\u1ea1i t\u1ec7, v\u00e0ng ti\u1ec1n t\u1ec7, kim kh\u00ed qu\u00fd, \u0111\u00e1 qu\u00fd"
+  },
+  {
+   "fieldname": "bad_debt_written_off_note",
+   "fieldtype": "Small Text",
+   "label": "e. N\u1ee3 kh\u00f3 \u0111\u00f2i \u0111\u00e3 x\u1eed l\u00fd (trong v\u00f2ng 10 n\u0103m)"
+  },
+  {
+   "fieldname": "installment_interest_note",
+   "fieldtype": "Small Text",
+   "label": "g/h. L\u00e3i tr\u1ea3 ch\u1eadm, tr\u1ea3 g\u00f3p khi mua/b\u00e1n t\u00e0i s\u1ea3n"
+  },
+  {
+   "fieldname": "other_off_balance_note",
+   "fieldtype": "Small Text",
+   "label": "i. Th\u00f4ng tin kh\u00e1c v\u1ec1 kho\u1ea3n m\u1ee5c ngo\u00e0i BCTC"
+  },
+  {
+   "fieldname": "sb_muc9",
+   "fieldtype": "Section Break",
+   "label": "M\u1ee5c IX \u2013 Nh\u1eefng th\u00f4ng tin kh\u00e1c"
+  },
+  {
+   "fieldname": "contingent_liabilities_note",
+   "fieldtype": "Small Text",
+   "label": "1. N\u1ee3 ti\u1ec1m t\u00e0ng, cam k\u1ebft v\u00e0 th\u00f4ng tin t\u00e0i ch\u00ednh kh\u00e1c"
+  },
+  {
+   "fieldname": "subsequent_events_note",
+   "fieldtype": "Small Text",
+   "label": "2. S\u1ef1 ki\u1ec7n ph\u00e1t sinh sau ng\u00e0y k\u1ebft th\u00fac k\u1ef3 k\u1ebf to\u00e1n n\u0103m"
+  },
+  {
+   "fieldname": "sb_muc9b",
+   "fieldtype": "Section Break",
+   "label": "3. Th\u00f4ng tin v\u1ec1 c\u00e1c b\u00ean li\u00ean quan"
+  },
+  {
+   "fieldname": "related_party_transactions",
+   "fieldtype": "Table",
+   "label": "Giao d\u1ecbch v\u1edbi b\u00ean li\u00ean quan",
+   "options": "FS Related Party Txn Item"
+  },
+  {
+   "fieldname": "related_party_note",
+   "fieldtype": "Small Text",
+   "label": "Di\u1ec5n gi\u1ea3i b\u1ea3n ch\u1ea5t quan h\u1ec7 b\u00ean li\u00ean quan"
+  },
+  {
+   "fieldname": "sb_muc9c",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "segment_info_note",
+   "fieldtype": "Small Text",
+   "label": "4. T\u00e0i s\u1ea3n, doanh thu, k\u1ebft qu\u1ea3 KD theo b\u1ed9 ph\u1eadn (VAS 28)"
+  },
+  {
+   "fieldname": "comparative_info_note",
+   "fieldtype": "Small Text",
+   "label": "5. Th\u00f4ng tin so s\u00e1nh (thay \u0111\u1ed5i th\u00f4ng tin BCTC c\u00e1c ni\u00ean \u0111\u1ed9 tr\u01b0\u1edbc)"
+  },
+  {
+   "fieldname": "cb_muc9",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "going_concern_flag",
+   "fieldtype": "Check",
+   "label": "6. C\u00f3 nghi ng\u1edd v\u1ec1 gi\u1ea3 \u0111\u1ecbnh ho\u1ea1t \u0111\u1ed9ng li\u00ean t\u1ee5c"
+  },
+  {
+   "depends_on": "going_concern_flag",
+   "fieldname": "going_concern_note",
+   "fieldtype": "Small Text",
+   "label": "Di\u1ec5n gi\u1ea3i gi\u1ea3 \u0111\u1ecbnh ho\u1ea1t \u0111\u1ed9ng li\u00ean t\u1ee5c"
+  },
+  {
+   "fieldname": "key_estimates_note",
+   "fieldtype": "Small Text",
+   "label": "7. Gi\u1ea3 \u0111\u1ecbnh v\u00e0 \u01b0\u1edbc t\u00ednh k\u1ebf to\u00e1n quan tr\u1ecdng"
+  },
+  {
+   "fieldname": "other_measures_note",
+   "fieldtype": "Small Text",
+   "label": "8. C\u00e1c bi\u1ec7n ph\u00e1p/gi\u1ea3i ph\u00e1p kh\u00e1c"
+  },
+  {
+   "fieldname": "sb_muc10",
+   "fieldtype": "Section Break",
+   "label": "M\u1ee5c X \u2013 N\u1ed9i dung s\u1eeda \u0111\u1ed5i, b\u1ed5 sung bi\u1ec3u m\u1eabu so v\u1edbi quy \u0111\u1ecbnh c\u1ee7a B\u1ed9 T\u00e0i ch\u00ednh"
+  },
+  {
+   "default": "0",
+   "fieldname": "has_form_modifications",
+   "fieldtype": "Check",
+   "label": "C\u00f3 s\u1eeda \u0111\u1ed5i, b\u1ed5 sung bi\u1ec3u m\u1eabu so v\u1edbi quy \u0111\u1ecbnh"
+  },
+  {
+   "depends_on": "has_form_modifications",
+   "fieldname": "form_modification_item",
+   "fieldtype": "Data",
+   "label": "T\u00ean ch\u1ec9 ti\u00eau s\u1eeda \u0111\u1ed5i"
+  },
+  {
+   "depends_on": "has_form_modifications",
+   "fieldname": "form_modification_content",
+   "fieldtype": "Small Text",
+   "label": "N\u1ed9i dung s\u1eeda \u0111\u1ed5i"
+  },
+  {
+   "depends_on": "has_form_modifications",
+   "fieldname": "form_modification_reason",
+   "fieldtype": "Small Text",
+   "label": "L\u00fd do thay \u0111\u1ed5i"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-16 09:49:58.229969",
+ "modified_by": "anh.doan@medcons.vn",
+ "module": "Accounts",
+ "name": "FS Note Qualitative Info",
+ "naming_rule": "Expression (old style)",
+ "owner": "anh.doan@medcons.vn",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

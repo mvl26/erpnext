@@ -1,6 +1,3 @@
-// Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Opening Invoice Creation Tool", {
 	setup: function (frm) {
 		frm.set_query("party_type", "invoices", function (doc, cdt, cdn) {

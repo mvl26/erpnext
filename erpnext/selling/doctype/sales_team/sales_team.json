@@ -60,6 +60,7 @@
    "oldfieldname": "allocated_amount",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_width": "120px",
    "read_only": 1,
    "width": "120px"
@@ -81,13 +82,14 @@
    "label": "Incentives",
    "oldfieldname": "incentives",
    "oldfieldtype": "Currency",
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   }
  ],
  "idx": 1,
  "istable": 1,
  "links": [],
- "modified": "2021-11-09 23:55:20.670475",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Sales Team",

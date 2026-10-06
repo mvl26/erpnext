@@ -1,6 +1,3 @@
-// Copyright (c) 2016, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.provide("erpnext.asset");
 frappe.provide("erpnext.accounts.dimensions");
 

@@ -1,0 +1,28 @@
+{
+ "add_total_row": 0,
+ "creation": "2026-08-07 09:00:00",
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": "",
+ "module": "Einvoice",
+ "name": "Doi Soat Hoa Don Dien Tu",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "ref_doctype": "Fast EInvoice Document",
+ "report_name": "Doi Soat Hoa Don Dien Tu",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "Kế toán trưởng HĐĐT"
+  },
+  {
+   "role": "Kế toán HĐĐT"
+  },
+  {
+   "role": "Accounts Manager"
+  }
+ ]
+}

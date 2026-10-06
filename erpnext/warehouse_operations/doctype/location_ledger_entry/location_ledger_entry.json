@@ -1,0 +1,46 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-09-09 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ngay", "thoi_diem", "kho", "o", "col_1", "vat_tu", "so_lo", "so_luong",
+  "sec_ct", "chung_tu_type", "chung_tu", "chung_tu_row", "col_2", "sle", "da_huy", "company"
+ ],
+ "fields": [
+  {"fieldname": "ngay", "fieldtype": "Date", "label": "Ngày", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "thoi_diem", "fieldtype": "Datetime", "label": "Thời điểm", "reqd": 1, "search_index": 1},
+  {"fieldname": "kho", "fieldtype": "Link", "label": "Kho", "options": "Warehouse", "reqd": 1, "search_index": 1},
+  {"fieldname": "o", "fieldtype": "Link", "label": "Ô", "options": "Storage Location", "reqd": 1, "search_index": 1, "in_list_view": 1},
+  {"fieldname": "col_1", "fieldtype": "Column Break"},
+  {"fieldname": "vat_tu", "fieldtype": "Link", "label": "Mặt hàng", "options": "Item", "reqd": 1, "search_index": 1, "in_list_view": 1},
+  {"fieldname": "so_lo", "fieldtype": "Link", "label": "Số lô", "options": "Batch", "search_index": 1, "in_list_view": 1, "description": "Để trống với hàng không quản lý lô"},
+  {"fieldname": "so_luong", "fieldtype": "Float", "label": "Số lượng", "reqd": 1, "in_list_view": 1, "description": "Có dấu: nhập là dương, xuất là âm"},
+  {"fieldname": "sec_ct", "fieldtype": "Section Break", "label": "Chứng từ nguồn"},
+  {"fieldname": "chung_tu_type", "fieldtype": "Link", "label": "Loại chứng từ", "options": "DocType", "search_index": 1},
+  {"fieldname": "chung_tu", "fieldtype": "Dynamic Link", "label": "Chứng từ", "options": "chung_tu_type", "search_index": 1},
+  {"fieldname": "chung_tu_row", "fieldtype": "Data", "label": "Dòng chứng từ", "search_index": 1, "description": "voucher_detail_no — khoá để đảo đúng ô gốc khi huỷ"},
+  {"fieldname": "col_2", "fieldtype": "Column Break"},
+  {"fieldname": "sle", "fieldtype": "Link", "label": "Dòng sổ kho ERPNext", "options": "Stock Ledger Entry", "search_index": 1},
+  {"fieldname": "da_huy", "fieldtype": "Check", "label": "Đã đảo", "default": "0"},
+  {"fieldname": "company", "fieldtype": "Link", "label": "Công ty", "options": "Company"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-21 14:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Warehouse Operations",
+ "name": "Location Ledger Entry",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "System Manager", "read": 1, "report": 1, "export": 1},
+  {"role": "Stock Manager", "read": 1, "report": 1, "export": 1},
+  {"role": "Stock User", "read": 1, "report": 1}
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

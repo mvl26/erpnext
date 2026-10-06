@@ -1,6 +1,3 @@
-// Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.views.calendar["Work Order"] = {
 	fields: ["planned_start_date", "planned_end_date", "status", "produced_qty", "qty", "name", "name"],
 	field_map: {

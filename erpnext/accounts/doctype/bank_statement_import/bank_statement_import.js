@@ -1,6 +1,3 @@
-// Copyright (c) 2019, Frappe Technologies and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Bank Statement Import", {
 	setup(frm) {
 		frappe.realtime.on("data_import_refresh", ({ data_import }) => {

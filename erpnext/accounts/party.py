@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 from frappe import _, msgprint, qb, scrub
 from frappe.contacts.doctype.address.address import get_company_address, get_default_address
@@ -115,6 +111,8 @@ def _get_party_details(
 	shipping_address=None,
 	dispatch_address=None,
 	pos_profile=None,
+	*,
+	chuoi_dia_chi_co_san=None,
 ):
 	party_details = frappe._dict(
 		set_account_and_due_date(party, account, party_type, company, posting_date, bill_date, doctype)
@@ -139,6 +137,7 @@ def _get_party_details(
 		shipping_address,
 		dispatch_address,
 		ignore_permissions=ignore_permissions,
+		chuoi_dia_chi_co_san=chuoi_dia_chi_co_san,
 	)
 	set_contact_details(party_details, party, party_type)
 	set_other_values(party_details, party, party_type)
@@ -186,6 +185,46 @@ def _get_party_details(
 	return party_details
 
 
+def _chuoi_dia_chi(chuoi_co_san, ten_truong, dia_chi, *, ignore_permissions):
+	"""Chuỗi địa chỉ để HIỂN THỊ: dùng lại chuỗi chứng từ ĐANG GIỮ nếu có, chỉ
+	dựng lại khi chứng từ chưa có gì.
+
+	VÌ SAO (lỗi thật, Miyano 24/09/2026 — thủ kho không ghi được lượt lấy nào):
+	`SellingController.set_missing_lead_customer_details` nạp lại thông tin khách
+	ở MỌI lần lưu, kể cả trên một phiếu giao ĐÃ TỒN TẠI và đã đủ dữ liệu, rồi
+	đưa kết quả qua `Document.update_if_missing` — hàm này BỎ QUA mọi khoá mà
+	chứng từ đã có giá trị (`self.get(key) is not None`). Nghĩa là chuỗi địa chỉ
+	vừa dựng bị VỨT ĐI. Nhưng để dựng nó, `render_address` phải đọc tài liệu
+	`Address` kèm `check_permission()` — mà `Address` chỉ cho vai trò `All` đọc
+	kèm `if_owner = 1`. Đường đi đầy đủ:
+
+		warehouse_operations/vitri/lay_hang.py  doc.save()
+		→ controllers/accounts_controller.py:221  set_missing_values(for_validate=True)
+		→ controllers/selling_controller.py:113   _get_party_details(...)
+		→ accounts/party.py  set_address_details → render_address
+		→ frappe/contacts/doctype/address/address.py:174  address.check_permission()
+		→ PermissionError (tiếng Anh, giữa kho)
+
+	Thủ kho có `Stock User` + `Stock Manager` không đọc được `Address` của khách
+	(người tạo là nhân viên bán hàng), nên MỌI hàm ghi của trang Lấy hàng PDA
+	(`ghi_da_lay`, `doi_lo`, `tach_dong_theo_lo`, `hoan_tat`…) đều chết — vì một
+	chuỗi mà khung sẽ vứt đi ngay sau đó.
+
+	VÌ SAO DÙNG "CÓ MẶT KHOÁ" CHỨ KHÔNG PHẢI "CHUỖI KHÁC RỖNG": điều kiện của
+	`update_if_missing` là `is not None`, không phải tính đúng/sai. Một phiếu có
+	`address_display = ""` vẫn bị bỏ qua khi cập nhật, nên vẫn phải dùng lại —
+	nếu xét theo chuỗi khác rỗng thì ca đó lại rơi vào `render_address` và lỗi
+	quyền quay lại nguyên vẹn. Bên gọi chỉ đưa vào `chuoi_co_san` những khoá mà
+	chứng từ giữ giá trị `is not None`, nên "khoá có mặt" ⇔ "kết quả sẽ bị vứt
+	đi" ⇔ dùng lại là KHÔNG đổi hành vi, chỉ bỏ một lần đọc thừa.
+
+	Bên gọi không truyền gì (`None`) thì hàm chạy y như trước.
+	"""
+	if chuoi_co_san and ten_truong in chuoi_co_san:
+		return chuoi_co_san[ten_truong]
+	return render_address(dia_chi, check_permissions=not ignore_permissions)
+
+
 def set_address_details(
 	party_details,
 	party,
@@ -198,6 +237,7 @@ def set_address_details(
 	dispatch_address=None,
 	*,
 	ignore_permissions=False,
+	chuoi_dia_chi_co_san=None,
 ):
 	# party_billing
 	party_billing_field = (
@@ -210,8 +250,11 @@ def set_address_details(
 			get_fetch_values(doctype, party_billing_field, party_details[party_billing_field])
 		)
 
-	party_details.address_display = render_address(
-		party_details[party_billing_field], check_permissions=not ignore_permissions
+	party_details.address_display = _chuoi_dia_chi(
+		chuoi_dia_chi_co_san,
+		"address_display",
+		party_details[party_billing_field],
+		ignore_permissions=ignore_permissions,
 	)
 
 	# party_shipping
@@ -230,8 +273,11 @@ def set_address_details(
 		party_type, party.name
 	)
 
-	party_details[party_shipping_display] = render_address(
-		party_details[party_shipping_field], check_permissions=not ignore_permissions
+	party_details[party_shipping_display] = _chuoi_dia_chi(
+		chuoi_dia_chi_co_san,
+		party_shipping_display,
+		party_details[party_shipping_field],
+		ignore_permissions=ignore_permissions,
 	)
 
 	if doctype:

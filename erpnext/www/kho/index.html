@@ -1,0 +1,25 @@
+{% extends "templates/base.html" %}
+
+{# Bỏ trống navbar/footer: màn PDA cao chừng 4 inch, khuôn web mặc định ăn mất
+   phần trên cho thanh điều hướng và phần dưới cho chân trang. #}
+{% block navbar %}{% endblock %}
+{% block footer %}{% endblock %}
+
+{% block title %}{{ _("Kho — PDA") }}{% endblock %}
+
+{% block content %}
+<div id="kho-app" data-la_khach="{{ 1 if la_khach else 0 }}" data-nguoi_dung="{{ nguoi_dung }}"></div>
+{{ include_style('kho_pda.bundle.css') }}
+{% endblock %}
+
+{# `templates/base.html` nạp `frappe-web.bundle.js` (định nghĩa `frappe.provide`,
+   `frappe.call`, jQuery) ở khối `base_scripts`, đứng SAU khối `content` trong tài
+   liệu — và một thẻ `<script src>` không async/defer chạy đúng lúc trình duyệt
+   gặp nó. Đặt `kho_pda.bundle.js` trong `content` thì nó chạy TRƯỚC bundle của
+   Frappe, và `frappe.provide("erpnext.kho_pda")` ở dòng đầu mỗi file trong bundle
+   ném lỗi ngay (đã dò trực tiếp trong `frappe/public/js/frappe-web.bundle.js` và
+   `templates/base.html`, chưa cần chạy thử để thấy). Khối `script` của
+   `base.html` nằm sau `base_scripts` nên nạp đúng thứ tự phụ thuộc. #}
+{% block script %}
+{{ include_script('kho_pda.bundle.js') }}
+{% endblock %}

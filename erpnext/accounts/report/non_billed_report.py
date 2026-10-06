@@ -1,7 +1,3 @@
-# Copyright (c) 2013, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
-
 import frappe
 from frappe.model.meta import get_field_precision
 from frappe.query_builder.functions import IfNull, Round

@@ -1,0 +1,181 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-08-21 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "document_type",
+  "scope_level",
+  "short_code",
+  "column_break_rd_1",
+  "so_hieu",
+  "ngay_cap",
+  "khong_thoi_han",
+  "ngay_het_han",
+  "section_break_rd_1",
+  "pham_vi",
+  "section_break_rd_2",
+  "file",
+  "column_break_rd_2",
+  "trang_thai",
+  "is_active",
+  "thay_the_cho"
+ ],
+ "fields": [
+  {
+   "default": "TBYT-CT-.YYYY.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "TBYT-CT-.YYYY.-.#####"
+  },
+  {
+   "fieldname": "document_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Loại chứng từ",
+   "options": "TBYT Document Type",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "document_type.scope_level",
+   "fieldname": "scope_level",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Cấp phạm vi",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "document_type.short_code",
+   "fieldname": "short_code",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Mã ngắn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_rd_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "so_hieu",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Số hiệu",
+   "search_index": 1
+  },
+  {
+   "fieldname": "ngay_cap",
+   "fieldtype": "Date",
+   "label": "Ngày cấp",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Tờ giấy này cấp vô thời hạn. Tích vào thì không bao giờ bị cảnh báo hết hạn.",
+   "fieldname": "khong_thoi_han",
+   "fieldtype": "Check",
+   "label": "Vô thời hạn"
+  },
+  {
+   "fieldname": "ngay_het_han",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Ngày hết hạn",
+   "mandatory_depends_on": "eval:!doc.khong_thoi_han"
+  },
+  {
+   "fieldname": "section_break_rd_1",
+   "fieldtype": "Section Break",
+   "label": "Phạm vi áp dụng"
+  },
+  {
+   "description": "Tờ giấy này cấp cho ai. Chọn Loại chứng từ trước, ô bên dưới sẽ tự biết cần chọn Công ty, Chủ sở hữu, Số lưu hành, Lô hàng hay Mặt hàng. Một tờ CFS ghi tên 5 số lưu hành thì thêm 5 dòng — vẫn là một bản ghi, không nhân bản.",
+   "fieldname": "pham_vi",
+   "fieldtype": "Table",
+   "label": "Phạm vi",
+   "options": "TBYT Document Scope",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_rd_2",
+   "fieldtype": "Section Break",
+   "label": "Tệp và hiệu lực"
+  },
+  {
+   "fieldname": "file",
+   "fieldtype": "Attach",
+   "label": "Tệp",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_rd_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Trạng thái",
+   "options": "Còn hiệu lực\nSắp hết hạn\nHết hạn\nĐã thay thế",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Đang hiệu lực"
+  },
+  {
+   "description": "Bản ghi mà tờ giấy này thay thế khi gia hạn. Bản cũ tự chuyển sang Đã thay thế, không bị ghi đè.",
+   "fieldname": "thay_the_cho",
+   "fieldtype": "Link",
+   "label": "Thay thế cho",
+   "options": "TBYT Regulatory Document"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-21 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "TBYT",
+ "name": "TBYT Regulatory Document",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Item Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "so_hieu",
+ "track_changes": 1
+}

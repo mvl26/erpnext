@@ -1,6 +1,3 @@
-// Copyright (c) 2016, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Asset Category", {
 	onload: function (frm) {
 		frm.add_fetch("company_name", "accumulated_depreciation_account", "accumulated_depreciation_account");

@@ -1,6 +1,3 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
 frappe.views.calendar["Task"] = {
 	field_map: {
 		start: "exp_start_date",

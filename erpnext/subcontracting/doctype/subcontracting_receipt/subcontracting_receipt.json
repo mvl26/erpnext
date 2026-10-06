@@ -338,6 +338,7 @@
    "fieldtype": "Currency",
    "label": "Total",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -620,6 +621,7 @@
    "fieldtype": "Currency",
    "label": "Total Additional Costs",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide_if_no_value": 1,
    "read_only": 1
   },
@@ -679,7 +681,7 @@
  "in_create": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-10-08 21:43:27.065640",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Subcontracting",
  "name": "Subcontracting Receipt",

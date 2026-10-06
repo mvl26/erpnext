@@ -1,7 +1,3 @@
-# Copyright (c) 2013, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
-
 import frappe
 
 from erpnext.projects.report.billing_summary import get_columns, get_data

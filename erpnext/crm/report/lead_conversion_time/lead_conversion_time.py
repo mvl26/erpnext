@@ -1,7 +1,3 @@
-# Copyright (c) 2018, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
-
 import frappe
 from frappe import _, msgprint
 from frappe.utils import date_diff, flt

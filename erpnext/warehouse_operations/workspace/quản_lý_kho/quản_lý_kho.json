@@ -1,0 +1,362 @@
+{
+ "charts": [],
+ "content": "[{\"id\": \"vtk-tieu-de\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Vị trí kho</b></span>\", \"col\": 12}}, {\"id\": \"vtk-loi-tat\", \"type\": \"paragraph\", \"data\": {\"text\": \"Giá kệ, ô kệ và sổ tồn theo từng ô. Mở rộng của <b>Warehouse</b>.\", \"col\": 12}}, {\"id\": \"vtk-sc-quet\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Quét mã tra cứu\", \"col\": 3}}, {\"id\": \"vtk-sc-xep-pda\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Xếp hàng vào ô\", \"col\": 3}}, {\"id\": \"vtk-sc-lay-pda\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Lấy hàng\", \"col\": 3}}, {\"id\": \"vtk-sc-dat-o\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đặt ô trên tem hàng loạt\", \"col\": 3}}, {\"id\": \"vtk-sc-the-pda\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Thẻ PDA\", \"col\": 3}}, {\"id\": \"vtk-sc-cai-app\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cài app PDA\", \"col\": 3}}, {\"id\": \"vtk-sc-lo\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Nhập lô\", \"col\": 3}}, {\"id\": \"vtk-sc-xep\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Xếp / chuyển vị trí\", \"col\": 3}}, {\"id\": \"vtk-sc-1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Ô kệ\", \"col\": 3}}, {\"id\": \"vtk-sc-2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bật quản lý vị trí\", \"col\": 3}}, {\"id\": \"vtk-sc-3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sinh mã ô\", \"col\": 3}}, {\"id\": \"vtk-sc-4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Tồn kho theo vị trí\", \"col\": 3}}, {\"id\": \"vtk-sc-5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Hàng chưa xếp vị trí\", \"col\": 3}}, {\"id\": \"vtk-sc-6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đối soát tồn vị trí\", \"col\": 3}}, {\"id\": \"vtk-sc-7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Gán vị trí cố định\", \"col\": 3}}, {\"id\": \"vtk-sp\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"vtk-card-0\", \"type\": \"card\", \"data\": {\"card_name\": \"Hằng ngày\", \"col\": 3}}, {\"id\": \"vtk-card-1\", \"type\": \"card\", \"data\": {\"card_name\": \"Thiết lập\", \"col\": 3}}, {\"id\": \"vtk-card-2\", \"type\": \"card\", \"data\": {\"card_name\": \"Báo cáo\", \"col\": 3}}, {\"id\": \"vtk-card-3\", \"type\": \"card\", \"data\": {\"card_name\": \"Sổ vị trí\", \"col\": 3}}, {\"id\": \"vtk-card-app-pda\", \"type\": \"card\", \"data\": {\"card_name\": \"App PDA\", \"col\": 4}}]",
+ "creation": "2026-09-11 00:00:00",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "stock",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Quản lý kho",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Hằng ngày",
+   "link_count": 5,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Quét mã tra cứu",
+   "link_count": 0,
+   "link_to": "quet-ma-tra-cuu",
+   "link_type": "Page",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Xếp hàng vào ô",
+   "link_count": 0,
+   "link_to": "xep-hang-pda",
+   "link_type": "Page",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Lấy hàng",
+   "link_count": 0,
+   "link_to": "lay-hang-pda",
+   "link_type": "Page",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Batch Entry",
+   "link_count": 0,
+   "link_to": "Batch Entry",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Location Transfer",
+   "link_count": 0,
+   "link_to": "Location Transfer",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Thiết lập",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Warehouse Location Setup",
+   "link_count": 0,
+   "link_to": "Warehouse Location Setup",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Location Generator",
+   "link_count": 0,
+   "link_to": "Location Generator",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Storage Location",
+   "link_count": 0,
+   "link_to": "Storage Location",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Item Location Preference",
+   "link_count": 0,
+   "link_to": "Item Location Preference",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Báo cáo",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Tồn kho theo vị trí",
+   "link_count": 0,
+   "link_to": "Ton Kho Theo Vi Tri",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Hàng chưa xếp vị trí",
+   "link_count": 0,
+   "link_to": "Hang Chua Xep Vi Tri",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Đối soát tồn vị trí",
+   "link_count": 0,
+   "link_to": "Doi Soat Ton Vi Tri",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Hàng nằm sai vị trí",
+   "link_count": 0,
+   "link_to": "Hang Nam Sai Vi Tri",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Sổ vị trí",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Location Ledger Entry",
+   "link_count": 0,
+   "link_to": "Location Ledger Entry",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Location Balance",
+   "link_count": 0,
+   "link_to": "Location Balance",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "App PDA",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Thẻ PDA",
+   "link_count": 0,
+   "link_to": "PDA Badge",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "dependencies": ""
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cài app PDA",
+   "link_count": 0,
+   "link_to": "cai-app-pda",
+   "link_type": "Page",
+   "onboard": 1,
+   "type": "Link",
+   "dependencies": ""
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Màn hình PDA",
+   "link_count": 0,
+   "link_to": "pda-home",
+   "link_type": "Page",
+   "onboard": 1,
+   "type": "Link",
+   "dependencies": ""
+  }
+ ],
+ "modified": "2026-09-23 20:05:00.000000",
+ "modified_by": "Administrator",
+ "module": "Warehouse Operations",
+ "name": "Quản lý kho",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 40.0,
+ "shortcuts": [
+  {
+   "color": "Cyan",
+   "doc_view": "",
+   "label": "Quét mã tra cứu",
+   "link_to": "quet-ma-tra-cuu",
+   "type": "Page"
+  },
+  {
+   "color": "Green",
+   "doc_view": "",
+   "label": "Xếp hàng vào ô",
+   "link_to": "xep-hang-pda",
+   "type": "Page"
+  },
+  {
+   "color": "Pink",
+   "doc_view": "",
+   "label": "Lấy hàng",
+   "link_to": "lay-hang-pda",
+   "type": "Page"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "",
+   "label": "Đặt ô trên tem hàng loạt",
+   "link_to": "dat-o-hang-loat",
+   "type": "Page"
+  },
+  {
+   "color": "Cyan",
+   "doc_view": "",
+   "label": "Thẻ PDA",
+   "link_to": "PDA Badge",
+   "type": "DocType"
+  },
+  {
+   "label": "Cài app PDA",
+   "link_to": "cai-app-pda",
+   "type": "Page"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "",
+   "label": "Nhập lô",
+   "link_to": "Batch Entry",
+   "type": "DocType"
+  },
+  {
+   "color": "Purple",
+   "doc_view": "",
+   "label": "Xếp / chuyển vị trí",
+   "link_to": "Location Transfer",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Ô kệ",
+   "link_to": "Storage Location",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "",
+   "label": "Bật quản lý vị trí",
+   "link_to": "Warehouse Location Setup",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "",
+   "label": "Sinh mã ô",
+   "link_to": "Location Generator",
+   "type": "DocType"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "",
+   "label": "Gán vị trí cố định",
+   "link_to": "Item Location Preference",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Tồn kho theo vị trí",
+   "link_to": "Ton Kho Theo Vi Tri",
+   "report_ref_doctype": "Location Balance",
+   "type": "Report"
+  },
+  {
+   "doc_view": "",
+   "label": "Hàng chưa xếp vị trí",
+   "link_to": "Hang Chua Xep Vi Tri",
+   "report_ref_doctype": "Location Balance",
+   "type": "Report"
+  },
+  {
+   "doc_view": "",
+   "label": "Đối soát tồn vị trí",
+   "link_to": "Doi Soat Ton Vi Tri",
+   "report_ref_doctype": "Location Balance",
+   "type": "Report"
+  }
+ ],
+ "title": "Quản lý kho"
+}

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 9+ cấm HTTP không mã hoá. Máy chủ hiện chạy trong mạng nội bộ theo IP,
+     nên mở ngoại lệ ĐÚNG cho dải nội bộ; mọi địa chỉ khác vẫn bắt buộc HTTPS. -->
+<network-security-config>
+	<domain-config cleartextTrafficPermitted="true">
+		<domain includeSubdomains="false">192.168.61.129</domain>
+		<domain includeSubdomains="false">10.0.2.2</domain>
+	</domain-config>
+	<base-config cleartextTrafficPermitted="false" />
+</network-security-config>

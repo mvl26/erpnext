@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 from frappe import _, bold, throw
 from frappe.utils import cint, flt, get_link_to_form, nowtime
@@ -114,6 +110,23 @@ class SellingController(StockController):
 		if customer:
 			from erpnext.accounts.party import _get_party_details
 
+			# Chuỗi địa chỉ chứng từ ĐANG GIỮ — đưa xuống để `set_address_details`
+			# khỏi dựng lại một thứ mà `update_if_missing` ngay dưới đây sẽ vứt đi.
+			# Chỉ đưa những khoá `is not None`: đó ĐÚNG là điều kiện
+			# `update_if_missing` dùng để bỏ qua, nên "có mặt ở đây" ⇔ "sẽ bị vứt
+			# đi" ⇔ dùng lại không đổi hành vi. VÌ SAO cần: dựng lại chuỗi đó phải
+			# đọc `Address` kèm kiểm quyền, mà vai trò kho không đọc được — thủ kho
+			# ăn `PermissionError` ở mọi lần lưu phiếu giao trên trang Lấy hàng PDA.
+			# Đường đi đầy đủ ở `erpnext/accounts/party.py::_chuoi_dia_chi`.
+			chuoi_dia_chi_co_san = {
+				k: v
+				for k, v in (
+					("address_display", self.get("address_display")),
+					("shipping_address", self.get("shipping_address")),
+				)
+				if v is not None
+			}
+
 			party_details = _get_party_details(
 				customer,
 				ignore_permissions=self.flags.ignore_permissions,
@@ -124,6 +137,7 @@ class SellingController(StockController):
 				party_address=self.customer_address,
 				shipping_address=self.shipping_address_name,
 				company_address=self.get("company_address"),
+				chuoi_dia_chi_co_san=chuoi_dia_chi_co_san,
 			)
 			if not self.meta.get_field("sales_team"):
 				party_details.pop("sales_team")

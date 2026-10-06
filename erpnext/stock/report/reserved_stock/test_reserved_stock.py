@@ -1,5 +1,3 @@
-# Copyright (c) 2023, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
 from random import randint
 
 from frappe.tests.utils import FrappeTestCase, change_settings

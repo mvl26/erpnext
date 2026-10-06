@@ -1,6 +1,3 @@
-// Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.provide("erpnext.accounts");
 erpnext.sales_common.setup_selling_controller();
 

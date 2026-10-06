@@ -105,6 +105,7 @@
    "fieldtype": "Data",
    "in_global_search": 1,
    "label": "Item Name",
+   "length": 500,
    "read_only": 1
   },
   {
@@ -310,6 +311,7 @@
    "fieldtype": "Currency",
    "label": "Operating Cost",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -317,6 +319,7 @@
    "fieldtype": "Currency",
    "label": "Raw Material Cost",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -324,6 +327,7 @@
    "fieldtype": "Currency",
    "label": "Scrap Material Cost",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -336,6 +340,7 @@
    "fieldtype": "Currency",
    "label": "Operating Cost (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -344,6 +349,7 @@
    "fieldtype": "Currency",
    "label": "Raw Material Cost (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -353,6 +359,7 @@
    "label": "Scrap Material Cost(Company Currency)",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -361,6 +368,7 @@
    "in_list_view": 1,
    "label": "Total Cost",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -372,6 +380,7 @@
    "fieldtype": "Currency",
    "label": "Total Cost (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -638,7 +647,7 @@
  "image_field": "image",
  "is_submittable": 1,
  "links": [],
- "modified": "2025-06-16 16:13:22.497695",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM",

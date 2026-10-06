@@ -1,7 +1,3 @@
-# Copyright (c) 2021, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 from frappe.tests.utils import FrappeTestCase, change_settings, timeout
 from frappe.utils import add_days, add_months, add_to_date, cint, flt, now, today

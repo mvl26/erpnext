@@ -1,7 +1,3 @@
-# Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
-
 from frappe.contacts.address_and_contact import (
 	delete_contact_and_address,
 	load_address_and_contact,

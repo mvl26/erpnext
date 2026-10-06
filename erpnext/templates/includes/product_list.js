@@ -1,6 +1,3 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
 window.get_product_list = function() {
 	$(".more-btn .btn").click(function() {
 		window.get_product_list()

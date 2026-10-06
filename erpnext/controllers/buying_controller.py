@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 from frappe import ValidationError, _, msgprint
 from frappe.contacts.doctype.address.address import render_address

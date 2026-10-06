@@ -1,6 +1,3 @@
-# Copyright (c) 2023, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-
 import frappe
 from frappe import qb
 from frappe.query_builder.functions import Sum

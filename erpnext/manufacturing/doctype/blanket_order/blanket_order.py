@@ -1,7 +1,3 @@
-# Copyright (c) 2018, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
-
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -19,13 +15,13 @@ class BlanketOrder(Document):
 	from typing import TYPE_CHECKING
 
 	if TYPE_CHECKING:
-		from frappe.types import DF
-
 		from erpnext.manufacturing.doctype.blanket_order_item.blanket_order_item import BlanketOrderItem
+		from frappe.types import DF
 
 		amended_from: DF.Link | None
 		blanket_order_type: DF.Literal["", "Selling", "Purchasing"]
 		company: DF.Link
+		contract: DF.Link | None
 		customer: DF.Link | None
 		customer_name: DF.Data | None
 		from_date: DF.Date

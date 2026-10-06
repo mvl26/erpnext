@@ -1,6 +1,3 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
 frappe.query_reports["Budget Variance Report"] = {
 	filters: get_filters(),
 	formatter: function (value, row, column, data, default_formatter) {

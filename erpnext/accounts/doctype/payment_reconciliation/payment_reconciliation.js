@@ -1,6 +1,3 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-// For license information, please see license.txt
-
 frappe.provide("erpnext.accounts");
 erpnext.accounts.PaymentReconciliationController = class PaymentReconciliationController extends (
 	frappe.ui.form.Controller

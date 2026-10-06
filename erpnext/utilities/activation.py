@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import frappe
 from frappe import _
 from frappe.core.doctype.installed_applications.installed_applications import get_setup_wizard_completed_apps

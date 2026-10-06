@@ -1,6 +1,3 @@
-// Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
 frappe.ui.form.on("Account", {
 	setup: function (frm) {
 		frm.add_fetch("parent_account", "report_type", "report_type");

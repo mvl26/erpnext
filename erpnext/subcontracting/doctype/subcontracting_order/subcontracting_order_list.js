@@ -1,6 +1,3 @@
-// Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.listview_settings["Subcontracting Order"] = {
 	get_indicator: function (doc) {
 		const status_colors = {

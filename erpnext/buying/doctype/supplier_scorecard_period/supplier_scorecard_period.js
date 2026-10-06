@@ -1,6 +1,3 @@
-// Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
-// For license information, please see license.txt
-
 frappe.ui.form.on("Supplier Scorecard Period", {
 	onload: function (frm) {
 		let criteria_grid = frm.get_field("criteria").grid;

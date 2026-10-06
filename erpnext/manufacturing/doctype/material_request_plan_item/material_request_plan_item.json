@@ -44,7 +44,8 @@
   {
    "fieldname": "item_name",
    "fieldtype": "Data",
-   "label": "Item Name"
+   "label": "Item Name",
+   "length": 500
   },
   {
    "columns": 2,

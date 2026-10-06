@@ -1,7 +1,3 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
-
 erpnext.TransactionController = class TransactionController extends erpnext.taxes_and_totals {
 	setup() {
 		super.setup();

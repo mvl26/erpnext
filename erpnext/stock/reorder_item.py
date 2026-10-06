@@ -1,7 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
-
-
 import json
 from math import ceil
 
@@ -371,7 +367,7 @@ def get_comapny_wise_users(company):
 
 
 def notify_errors(exceptions_list):
-	subject = _("[Important] [ERPNext] Auto Reorder Errors")
+	subject = _("[Important] [Miyano ERP] Auto Reorder Errors")
 	content = (
 		_("Dear System Manager,")
 		+ "<br>"

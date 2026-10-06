@@ -1,6 +1,3 @@
-# Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-
 from datetime import date, timedelta
 
 import frappe

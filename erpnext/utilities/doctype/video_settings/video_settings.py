@@ -1,7 +1,3 @@
-# Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
-
 import frappe
 from apiclient.discovery import build
 from frappe import _

@@ -108,6 +108,14 @@
   "inspection_required_before_purchase",
   "quality_inspection_template",
   "inspection_required_before_delivery",
+  "tbyt_tab",
+  "la_thiet_bi_y_te",
+  "so_luu_hanh",
+  "phan_loai_tbyt",
+  "column_break_tbyt",
+  "tinh_trang_ho_so",
+  "section_break_tbyt",
+  "ho_so_tbyt_html",
   "manufacturing",
   "include_item_in_manufacturing",
   "is_sub_contracted_item",
@@ -156,6 +164,7 @@
    "fieldtype": "Data",
    "in_global_search": 1,
    "label": "Item Name",
+   "length": 500,
    "oldfieldname": "item_name",
    "oldfieldtype": "Data",
    "search_index": 1
@@ -888,6 +897,61 @@
    "fieldname": "deferred_accounting_section",
    "fieldtype": "Section Break",
    "label": "Deferred Accounting"
+  },
+  {
+   "fieldname": "tbyt_tab",
+   "fieldtype": "Tab Break",
+   "label": "Hồ sơ TBYT"
+  },
+  {
+   "default": "0",
+   "description": "Mặc định lấy theo nhóm hàng khi tạo mới; sửa tay được.",
+   "fieldname": "la_thiet_bi_y_te",
+   "fieldtype": "Check",
+   "label": "Là thiết bị / vật tư y tế"
+  },
+  {
+   "depends_on": "la_thiet_bi_y_te",
+   "description": "Chưa được Cục cấp số thì vẫn chọn được bản ghi ở trạng thái Đang đăng ký.",
+   "fieldname": "so_luu_hanh",
+   "fieldtype": "Link",
+   "label": "Số lưu hành",
+   "mandatory_depends_on": "eval:doc.la_thiet_bi_y_te",
+   "options": "TBYT Marketing Authorization"
+  },
+  {
+   "depends_on": "la_thiet_bi_y_te",
+   "description": "Suy từ số lưu hành — không nhập tay để hai mặt hàng cùng số không thể khai lệch loại.",
+   "fetch_from": "so_luu_hanh.phan_loai",
+   "fieldname": "phan_loai_tbyt",
+   "fieldtype": "Data",
+   "label": "Phân loại TBYT",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_tbyt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "la_thiet_bi_y_te",
+   "description": "Chỉ xét hồ sơ cấp mặt hàng. Chứng từ theo lô (CQ, CO) xem ở Batch và trong báo cáo.",
+   "fieldname": "tinh_trang_ho_so",
+   "fieldtype": "Select",
+   "label": "Tình trạng hồ sơ",
+   "options": "\nSố lưu hành hết hiệu lực\nChưa có số lưu hành\nCó chứng từ hết hạn\nThiếu chứng từ bắt buộc\nSắp hết hạn\nĐủ hồ sơ mặt hàng",
+   "read_only": 1
+  },
+  {
+   "depends_on": "la_thiet_bi_y_te",
+   "fieldname": "section_break_tbyt",
+   "fieldtype": "Section Break",
+   "label": "Bộ chứng từ"
+  },
+  {
+   "depends_on": "la_thiet_bi_y_te",
+   "fieldname": "ho_so_tbyt_html",
+   "fieldtype": "HTML",
+   "label": "Hồ sơ TBYT"
   }
  ],
  "icon": "fa fa-tag",

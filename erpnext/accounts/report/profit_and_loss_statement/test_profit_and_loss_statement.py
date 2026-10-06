@@ -1,6 +1,3 @@
-# Copyright (c) 2023, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
 import frappe
 from frappe.desk.query_report import export_query
 from frappe.tests.utils import FrappeTestCase

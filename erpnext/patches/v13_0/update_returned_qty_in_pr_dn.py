@@ -1,5 +1,3 @@
-# Copyright (c) 2021, Frappe and Contributors
-# License: GNU General Public License v3. See license.txt
 import frappe
 
 from erpnext.controllers.status_updater import OverAllowanceError

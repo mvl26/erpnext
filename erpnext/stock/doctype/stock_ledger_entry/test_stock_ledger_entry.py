@@ -1,6 +1,3 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-
 import json
 import time
 from uuid import uuid4

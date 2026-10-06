@@ -1,0 +1,270 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-09-08 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "point",
+  "reference_doctype",
+  "reference_name",
+  "column_break_head",
+  "milestone",
+  "trigger_event",
+  "sent_on",
+  "status",
+  "channel_section",
+  "channel_email",
+  "channel_inapp",
+  "channel_external",
+  "column_break_channel",
+  "is_manual",
+  "test_mode",
+  "triggered_by",
+  "recipient_section",
+  "recipients",
+  "external_recipients",
+  "cc",
+  "bcc",
+  "attachments",
+  "reason",
+  "remark",
+  "content_section",
+  "subject",
+  "body",
+  "inapp_message",
+  "external_content_section",
+  "external_subject",
+  "external_body"
+ ],
+ "fields": [
+  {
+   "fieldname": "point",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Điểm thông báo",
+   "options": "Supply Notification Point",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Loại chứng từ",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Chứng từ",
+   "options": "reference_doctype",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "submit",
+   "description": "submit, new, cancel, d7/d3/d1 (trước hạn), q1 (quá hạn), change:<trường>:<giá trị>, wf:<trạng thái>, manual.",
+   "fieldname": "milestone",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Mốc",
+   "reqd": 1
+  },
+  {
+   "fieldname": "trigger_event",
+   "fieldtype": "Data",
+   "label": "Thời điểm bắn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sent_on",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm gửi"
+  },
+  {
+   "default": "Sent",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Kết quả",
+   "options": "Sent\nPartial\nSkipped\nFailed",
+   "description": "Partial = gửi được nội bộ nhưng đối tác (NCC/khách) không nhận được, xem ô Lý do."
+  },
+  {
+   "fieldname": "channel_section",
+   "fieldtype": "Section Break",
+   "label": "Kênh đã gửi"
+  },
+  {
+   "default": "0",
+   "fieldname": "channel_email",
+   "fieldtype": "Check",
+   "label": "Email nội bộ"
+  },
+  {
+   "default": "0",
+   "fieldname": "channel_inapp",
+   "fieldtype": "Check",
+   "label": "In-app"
+  },
+  {
+   "default": "0",
+   "fieldname": "channel_external",
+   "fieldtype": "Check",
+   "label": "Email ra ngoài"
+  },
+  {
+   "fieldname": "column_break_channel",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "is_manual",
+   "fieldtype": "Check",
+   "label": "Gửi thủ công",
+   "default": "0",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "test_mode",
+   "fieldtype": "Check",
+   "label": "Gửi trong chế độ thử",
+   "default": "0",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "triggered_by",
+   "fieldtype": "Link",
+   "label": "Người bấm gửi",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "recipient_section",
+   "fieldtype": "Section Break",
+   "label": "Người nhận"
+  },
+  {
+   "fieldname": "recipients",
+   "fieldtype": "Small Text",
+   "label": "Người nhận nội bộ"
+  },
+  {
+   "fieldname": "external_recipients",
+   "fieldtype": "Small Text",
+   "label": "Người nhận ngoài"
+  },
+  {
+   "fieldname": "cc",
+   "fieldtype": "Small Text",
+   "label": "CC",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bcc",
+   "fieldtype": "Small Text",
+   "label": "BCC",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attachments",
+   "fieldtype": "Small Text",
+   "label": "Tệp đính kèm",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Lý do bỏ qua / lỗi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remark",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú"
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Nội dung đã gửi",
+   "collapsible": 1,
+   "description": "Bản chụp đúng nội dung đã gửi ở lần này. Sửa mẫu về sau không làm đổi bản chụp này."
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Small Text",
+   "label": "Tiêu đề (nội bộ)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "body",
+   "fieldtype": "Text Editor",
+   "label": "Thân thư nội bộ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inapp_message",
+   "fieldtype": "Small Text",
+   "label": "Câu thông báo trong hệ thống",
+   "read_only": 1
+  },
+  {
+   "fieldname": "external_content_section",
+   "fieldtype": "Section Break",
+   "label": "Nội dung gửi đối tác",
+   "collapsible": 1,
+   "depends_on": "external_subject"
+  },
+  {
+   "fieldname": "external_subject",
+   "fieldtype": "Small Text",
+   "label": "Tiêu đề (gửi đối tác)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "external_body",
+   "fieldtype": "Text Editor",
+   "label": "Thân thư gửi đối tác",
+   "read_only": 1
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-06 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Supply Notification",
+ "name": "Supply Notification Dispatch Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1
+  },
+  {
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Quản trị thông báo"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

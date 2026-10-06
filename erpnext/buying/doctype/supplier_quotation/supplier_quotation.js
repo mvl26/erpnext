@@ -1,6 +1,3 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
 erpnext.buying.setup_buying_controller();
 erpnext.buying.SupplierQuotationController = class SupplierQuotationController extends (
 	erpnext.buying.BuyingController

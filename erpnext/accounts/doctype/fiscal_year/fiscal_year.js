@@ -1,6 +1,3 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
 frappe.ui.form.on("Fiscal Year", {
 	onload: function (frm) {
 		if (frm.doc.__islocal) {
