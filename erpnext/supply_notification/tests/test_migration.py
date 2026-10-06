@@ -129,9 +129,13 @@ class TestMigrationOutcome(FrappeTestCase):
 		self.assertEqual(point.trigger_event, constants.DATE_REMINDER)
 		self.assertEqual(point.date_field, "due_date")
 		self.assertEqual(point.reminder_offset_list(), [-7, -3, -1])
-		self.assertEqual(
+		# Điều kiện khoá thêm (ví dụ `on_hold = 0`) do patch
+		# `v15_0.khoa_dieu_kien_diem_thong_bao` đưa vào và được
+		# `tests/test_point_guards.py` kiểm riêng — ở đây chỉ cần điều kiện gốc
+		# của bản chuyển đổi còn nguyên.
+		self.assertIn(
+			("outstanding_amount", ">", "0"),
 			[(row.fieldname, row.operator, row.value) for row in point.conditions],
-			[("outstanding_amount", ">", "0")],
 		)
 
 	def test_conditions_replace_the_hardcoded_filters(self):

@@ -40,6 +40,7 @@ class SupplyNotificationPoint(Document):
 		self._validate_conditions()  # V3
 		self._validate_templates()  # V1, V2
 		self._validate_external_content()  # V4
+		self._validate_external_email_fields()
 		self._validate_print_format()  # V6
 		self._validate_channels()  # V5
 		self._warn()
@@ -289,6 +290,16 @@ class SupplyNotificationPoint(Document):
 					)
 
 			self._validate_external_snippets(template)
+
+	def _validate_external_email_fields(self):
+		# Gõ nhầm tên trường thì lúc gửi chỉ âm thầm không thấy email — chặn ngay khi lưu.
+		if not self.reference_doctype:
+			return
+
+		meta = frappe.get_meta(self.reference_doctype)
+		label = self.meta.get_label("external_email_fields")
+		for row in self.external_email_fields or []:
+			self._assert_field_exists(meta, row.fieldname, label)
 
 	def _validate_external_snippets(self, template: str):
 		from erpnext.supply_notification.doctype.supply_notification_snippet.supply_notification_snippet import (

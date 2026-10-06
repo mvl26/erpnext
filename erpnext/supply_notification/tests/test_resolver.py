@@ -260,3 +260,55 @@ class TestResolverExternalEmail(FrappeTestCase):
 		doc.supplier = supplier.name
 
 		self.assertIsNone(resolver.party_email(doc))
+
+	def test_contact_person_on_document_wins_over_the_partys_primary_contact(self):
+		"""Ô "Đầu mối liên hệ ... trên chứng từ": người ghi ở `contact_person`, không
+		phải một liên hệ bất kỳ của đối tác."""
+		supplier = fixtures.make_supplier()
+		_contact(supplier, "chinh@example.com", is_primary=1)
+		chosen = _contact(supplier, "dau-moi@example.com", is_primary=0)
+
+		doc = frappe.new_doc("Purchase Order")
+		doc.supplier = supplier
+		doc.contact_person = chosen
+
+		self.assertEqual(resolver.party_email(doc), "dau-moi@example.com")
+
+
+class TestExternalEmails(FrappeTestCase):
+	def test_email_field_chosen_on_the_point_is_read_from_the_document(self):
+		point = fixtures.make_point(
+			reference_doctype="Purchase Order",
+			users=[make_user()],
+			notify_external=1,
+			external_party_contact=0,
+			external_email_fields=["contact_email"],
+			_skip_insert=True,
+		)
+		doc = frappe.new_doc("Purchase Order")
+		doc.contact_email = "truong@example.com"
+
+		self.assertEqual(resolver.external_emails(point, doc)[0], ["truong@example.com"])
+
+	def test_several_addresses_in_the_contact_email_box_are_all_sent_to(self):
+		point = fixtures.make_point(
+			reference_doctype="Purchase Order",
+			users=[make_user()],
+			notify_external=1,
+			external_party_contact=1,
+			_skip_insert=True,
+		)
+		doc = frappe.new_doc("Purchase Order")
+		doc.contact_email = "a@example.com, b@example.com"
+
+		self.assertEqual(resolver.external_emails(point, doc)[0], ["a@example.com", "b@example.com"])
+
+
+def _contact(supplier: str, email: str, is_primary: int) -> str:
+	contact = frappe.new_doc("Contact")
+	contact.first_name = f"Lien he {frappe.generate_hash(length=4)}"
+	contact.is_primary_contact = is_primary
+	contact.append("email_ids", {"email_id": email, "is_primary": 1})
+	contact.append("links", {"link_doctype": "Supplier", "link_name": supplier})
+	contact.insert(ignore_permissions=True)
+	return contact.name

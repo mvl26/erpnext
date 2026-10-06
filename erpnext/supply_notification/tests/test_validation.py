@@ -128,6 +128,19 @@ class TestExternalContentChecks(FrappeTestCase):
 		self.assertIn("Không có mẫu dùng chung", message)
 
 
+class TestFieldRefChecks(FrappeTestCase):
+	def test_unknown_email_field_is_refused(self):
+		message = error_of(
+			self,
+			users=[make_user()],
+			notify_external=1,
+			external_party_contact=0,
+			external_email_fields=["email_khong_co"],
+		)
+
+		self.assertIn("email_khong_co", message)
+
+
 class TestChannelChecks(FrappeTestCase):
 	def test_v5_enabled_point_without_a_channel_is_refused(self):
 		message = error_of(self, users=[make_user()], send_email=0, send_inapp=0)

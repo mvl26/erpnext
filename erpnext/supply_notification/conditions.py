@@ -45,7 +45,9 @@ FILTER_OPERATORS = {
 	CONTAINS: "like",
 }
 
-NUMERIC_FIELDTYPES = ("Currency", "Float", "Int", "Percent")
+#: `Check` nằm chung với số: ô tích trống trong DB có thể là NULL, so theo chuỗi
+#: thì `is_return = 0` không khớp bản ghi chưa bao giờ tích — so theo số thì khớp.
+NUMERIC_FIELDTYPES = ("Currency", "Float", "Int", "Percent", "Check")
 DATE_FIELDTYPES = ("Date", "Datetime")
 
 LOGIC_AND = "VÀ"

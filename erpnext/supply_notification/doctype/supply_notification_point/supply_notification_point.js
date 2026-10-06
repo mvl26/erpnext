@@ -84,6 +84,13 @@ function load_field_options(frm) {
 		frm.set_df_property("workflow_state", "options", r.message || []);
 	});
 
+	// Bảng "Email ghi trong trường của chứng từ": chỉ liệt kê trường chứa email,
+	// để người cấu hình không phải tự nhớ tên kỹ thuật.
+	frappe.call("erpnext.supply_notification.preview.field_options", { doctype, only_email: 1 }).then((r) => {
+		const options = (r.message || []).map((row) => ({ value: row.value, label: row.label }));
+		frm.fields_dict.external_email_fields.grid.update_docfield_property("fieldname", "options", options);
+	});
+
 	frm.fields_dict.conditions.grid.update_docfield_property("fieldname", "options", []);
 	frappe.call("erpnext.supply_notification.preview.field_options", { doctype }).then((r) => {
 		const options = (r.message || []).map((row) => row.value);

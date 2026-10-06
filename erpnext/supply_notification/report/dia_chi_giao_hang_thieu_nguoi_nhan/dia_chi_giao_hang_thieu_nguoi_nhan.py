@@ -3,7 +3,7 @@
 """Địa chỉ giao hàng thiếu người nhận hoặc điện thoại (CR_01 mục 4).
 
 Khối `dia_chi_giao_hang` lấy người nhận từ Liên hệ gắn với địa chỉ và điện thoại
-từ chính địa chỉ. Thiếu thì email gửi NCC không có dòng người nhận — báo cáo này
+từ chính địa chỉ. Địa chỉ của chính công ty chỉ cần điện thoại. Thiếu thì email gửi NCC không có dòng người nhận — báo cáo này
 liệt kê đúng những địa chỉ cần bổ sung, để nghiệp vụ tự dọn trước khi bật điểm.
 """
 
@@ -40,7 +40,7 @@ def rows(filters):
 	addresses = frappe.get_all(
 		"Address",
 		filters=address_filters,
-		fields=["name", "address_title", "address_type", "phone"],
+		fields=["name", "address_title", "address_type", "phone", "is_your_company_address"],
 		order_by="address_title asc",
 	)
 	if not addresses:
@@ -52,7 +52,8 @@ def rows(filters):
 	for row in addresses:
 		contact = contacts.get(row.name, "")
 		missing = []
-		if not contact:
+		# Địa chỉ của công ty không có chỗ khai người nhận — chỉ đòi điện thoại.
+		if not contact and not row.is_your_company_address:
 			missing.append(_("người nhận"))
 		if not row.phone:
 			missing.append(_("điện thoại"))

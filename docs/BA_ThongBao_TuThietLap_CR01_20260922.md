@@ -555,3 +555,96 @@ bản cũ) · `q1`/`q7` (quá hạn) · `change:<trường>:<giá trị mới>` 
 3. Chuẩn hoá dữ liệu bằng hai báo cáo mới (liên hệ NCC có email; địa chỉ giao có người nhận + điện thoại).
 4. Điền *Email nhận thư thử* và gán vai trò quản trị.
 5. HDSD bản Word có ảnh chụp thật (bản nháp ngắn: `docs/HDSD_ThongBao_TuThietLap_20260923.md`).
+
+---
+
+## 15. Bổ sung sau nghiệm thu đợt 1 (06/10/2026)
+
+Ba điều chỉnh xuất phát từ một câu hỏi thật khi dùng: *"thư ghi gửi cho NCC mà hàng đợi chỉ
+thấy người CC nhận"*.
+
+| # | Việc | Lý do |
+| --- | --- | --- |
+| 1 | **CC / BCC / Trả lời về chỉ đi với thư gửi đối tác** | Đúng BA F10. Trước đó gắn vào cả thư nội bộ, nên khi đối tác thiếu email thì thư ngoài bị bỏ mà thư nội bộ vẫn đi kèm CC — nhìn vào hàng đợi tưởng "chỉ người CC nhận được thư gửi NCC". Điểm không bật kênh ngoài thì CC vẫn ở thư nội bộ như cũ |
+| 2 | **Nhật ký có trạng thái `Partial`** | "Gửi được thư nội bộ" không có nghĩa là đối tác đã nhận. Trước đó ghi `Sent`, phải mở từng dòng đọc ô *Lý do* mới biết khách bị miss. Nay lọc `Kết quả = Partial` ra đúng danh sách cần xử lý |
+| 3 | **Nhật ký lưu bản chụp nội dung đã gửi** | Nhật ký chỉ ghi "đã gửi" thì không kiểm soát được. Nay giữ tiêu đề + thân thư nội bộ, câu thông báo in-app, tiêu đề + thân thư gửi đối tác, đúng như lúc gửi. Sửa mẫu về sau **không** làm đổi bản chụp cũ. Ô nào không gửi thì để trống |
+
+Kèm theo: nút **Gửi lại** trên nhật ký mở cho **mọi trạng thái** (trước chỉ `Failed`), riêng dòng
+`Sent` có câu xác nhận cảnh báo sẽ tạo thêm một thư nữa; và nút **Xem thư như người nhận thấy**
+dựng lại thư từ bản chụp.
+
+**Lưu ý vận hành:** bản chụp làm nhật ký nặng hơn (mỗi dòng thêm phần thân thư). Hạn giữ nhật ký
+tự động 180 ngày trong *Cài đặt thông báo* là cơ chế dọn — đừng đặt về 0 (giữ vĩnh viễn) cho các
+điểm bắn tự động nhiều.
+
+### 15.1. Sửa trình bày địa chỉ và chữ ký (06/10/2026)
+
+Nghiệp vụ phản ánh thư in ra dính chữ:
+
+```
+Địa chỉ giao hàng: LK21, Lô số 03, Ngõ 1, phố Lâm Hạ, Phường Bồ Đề, Hà Nội11813Vietnam, ,
+Phone: 0988806848Email: info@miyano.com.vn
+Điện thoại: 0988806848
+```
+
+Nguyên nhân: khối địa chỉ dùng mẫu in địa chỉ của Frappe (`get_address_display`) rồi bỏ thẻ
+HTML — mất chỗ ngắt dòng nên các phần dính nhau, lại kéo theo dòng Phone/Email của mẫu nên
+điện thoại in hai lần.
+
+Nay khối tự ghép từ từng trường, **mỗi phần một dòng**, và khử trùng không phân biệt dấu:
+
+```
+Địa chỉ giao hàng:
+LK21, Lô số 03, Ngõ 1, phố Lâm Hạ
+Phường Bồ Đề
+Hà Nội 11813, Việt Nam
+Người nhận: Chị Lan – 0988806848
+```
+
+Khối chữ ký cũng vậy: họ tên / công ty / điện thoại / email mỗi thứ một dòng.
+
+### 15.2. Chứng từ "nhiều đầu vào" — Payment Entry (06/10/2026)
+
+PO đặt câu hỏi: Payment Entry đến từ nhiều nguồn (mua hàng, bán hàng, tạm ứng, chi phí,
+chuyển tiền nội bộ…), kiểm soát thế nào. Phân tích đầy đủ nằm ở
+**`docs/BA_ThongBao_PaymentEntry_20261006.md`**. Ba điều cần biết ở đây:
+
+1. **Lỗ hổng đang có:** NTF-10 và NTF-12 chỉ lọc `payment_type`, nên phiếu chi cho **nhân
+   viên** hay **cổ đông** cũng bắn điểm "chi NCC" và **kênh gửi ra ngoài đang bật**. Việc
+   khoá lại chỉ mất 10 phút trên giao diện: thêm điều kiện `party_type = Supplier` cho
+   NTF-10 và `party_type = Customer` cho NTF-12.
+2. **Quy tắc mới, áp cho mọi chứng từ nhiều đầu vào:** một điểm = một tình huống nghiệp vụ;
+   điểm trên Payment Entry phải khoá đủ `payment_type` **và** `party_type`; điểm bật kênh
+   ngoài chỉ đặt với `party_type = Supplier`/`Customer`.
+3. **Bộ máy còn thiếu một toán tử:** điều kiện trên bảng con mang nghĩa "ít nhất một dòng
+   thoả", nên *"không trong danh sách"* không diễn đạt được *"không dòng nào thuộc nhóm X"*.
+   Cần thêm toán tử **"Không dòng nào thoả"** (mục 5.1 của tài liệu kia).
+
+### 15.3. Soát lại toàn bộ 13 điểm — một chứng từ, nhiều nghĩa nghiệp vụ (06/10/2026)
+
+Từ câu hỏi về Payment Entry, soát cả 13 điểm theo cùng một câu hỏi: *chứng từ nguồn của điểm
+này có mang nhiều nghĩa nghiệp vụ khác nhau không?*
+
+| Điểm | Vấn đề | Đã thêm điều kiện |
+| --- | --- | --- |
+| NTF-04 Phiếu nhập mua | `Purchase Receipt` cũng là phiếu **trả hàng NCC** | `is_return = 0` |
+| NTF-05 Hoá đơn mua | `Purchase Invoice` cũng là hoá đơn **trả hàng** | `is_return = 0` |
+| NTF-06 Nhắc hạn trả NCC | Nhắc cả hoá đơn đang **tạm giữ thanh toán** | `on_hold = 0` |
+| NTF-07 Phiếu giao hàng | `Delivery Note` cũng là phiếu **nhận lại hàng trả** — và điểm này **gửi thư cho khách** | `is_return = 0` |
+| NTF-10 Chi NCC | `Payment Entry` là cửa chung mọi dòng tiền | `references.reference_doctype = Purchase Invoice` |
+| NTF-12 Thu khách | như trên | `references.reference_doctype = Sales Invoice` |
+
+**Bảy điểm còn lại không cần sửa**, lý do cụ thể:
+
+| Điểm | Vì sao giữ nguyên |
+| --- | --- |
+| NTF-01 Đơn bán hàng | Báo kho mọi đơn bán là đúng. Khách nội bộ (`is_internal_customer`) chưa khai trên site; khi nào dùng bán hàng liên công ty thì thêm điều kiện |
+| NTF-02 Yêu cầu vật tư | Đã lọc `material_request_type = Purchase` |
+| NTF-03 Đơn mua hàng | Báo kho mọi PO là đúng, kể cả PO gia công |
+| NTF-08 Nhắc hạn thu khách | Điều kiện `outstanding_amount > 0` đã tự loại hoá đơn trả hàng (công nợ âm) và hoá đơn POS (đã thu ngay) |
+| NTF-09 / NTF-11 Yêu cầu thanh toán | Đã lọc `payment_request_type` Outward / Inward |
+| NTF-13 Gửi NCC (CR_01) | Loại Thủ công, người dùng tự quyết định bấm |
+
+Sửa thêm một chỗ trong bộ máy: điều kiện trên trường **ô tích (Check)** nay so theo **số**
+chứ không theo chuỗi — ô chưa bao giờ tích có thể là `NULL` trong DB, so theo chuỗi thì
+`is_return = 0` **không** khớp những bản ghi đó và điểm lại im lặng.

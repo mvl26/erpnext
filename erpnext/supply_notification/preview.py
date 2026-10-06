@@ -14,7 +14,7 @@ import json
 import frappe
 from frappe import _
 from frappe.model.workflow import get_workflow_name
-from frappe.utils import add_days, getdate
+from frappe.utils import add_days, cint, getdate
 
 from erpnext.supply_notification import constants, content, context, dispatch, resolver
 
@@ -55,11 +55,16 @@ def _sample(doctype: str, reference: str | None):
 
 
 @frappe.whitelist()
-def field_options(doctype: str, only_types: str | None = None) -> list[dict]:
-	"""Trường của chứng từ (và bảng con) kèm nhãn tiếng Việt, cho hộp Chèn trường."""
+def field_options(doctype: str, only_types: str | None = None, only_email: int = 0) -> list[dict]:
+	"""Trường của chứng từ (và bảng con) kèm nhãn tiếng Việt, cho hộp Chèn trường.
+
+	`only_email`: chỉ các trường chứa địa chỉ email — cho bảng *Email ghi trong
+	trường của chứng từ*.
+	"""
 	if not doctype or not frappe.db.exists("DocType", doctype):
 		return []
 
+	only_email = cint(only_email)
 	wanted = [t.strip() for t in (only_types or "").split(",") if t.strip()]
 	meta = frappe.get_meta(doctype)
 	options = []
@@ -69,6 +74,8 @@ def field_options(doctype: str, only_types: str | None = None) -> list[dict]:
 			continue
 		if wanted and df.fieldtype not in wanted:
 			continue
+		if only_email and not _holds_email(df):
+			continue
 		options.append(
 			{
 				"value": df.fieldname,
@@ -77,7 +84,7 @@ def field_options(doctype: str, only_types: str | None = None) -> list[dict]:
 			}
 		)
 
-		if df.fieldtype in ("Table", "Table MultiSelect") and not wanted:
+		if df.fieldtype in ("Table", "Table MultiSelect") and not wanted and not only_email:
 			child = frappe.get_meta(df.options)
 			for child_df in child.fields:
 				if child_df.fieldtype in LAYOUT_FIELDTYPES:
@@ -90,13 +97,19 @@ def field_options(doctype: str, only_types: str | None = None) -> list[dict]:
 					}
 				)
 
-	if not wanted:
+	if not wanted and not only_email:
 		options.extend(
 			{"value": name, "label": name, "description": _("biến dựng sẵn")}
 			for name in constants_builtin_names()
 		)
 
 	return options
+
+
+def _holds_email(df) -> bool:
+	if df.fieldtype not in ("Data", "Small Text", "Text", "Code", "Long Text"):
+		return False
+	return df.options == "Email" or "email" in df.fieldname
 
 
 def constants_builtin_names() -> list[str]:

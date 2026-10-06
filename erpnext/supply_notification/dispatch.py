@@ -34,6 +34,10 @@ STATUS_SENT = "Sent"
 STATUS_SKIPPED = "Skipped"
 STATUS_FAILED = "Failed"
 
+#: Gửi được kênh nội bộ nhưng đối tác KHÔNG nhận được (thiếu email, hoặc không
+#: tạo được PDF bắt buộc). Tách riêng để lọc đúng các lần đối tác bị miss thư.
+STATUS_PARTIAL = "Partial"
+
 
 # --- Điểm vào ------------------------------------------------------------
 
@@ -113,7 +117,7 @@ def already_dispatched(point: str, doctype: str, docname: str, milestone: str) -
 				"reference_doctype": doctype,
 				"reference_name": docname,
 				"milestone": milestone,
-				"status": ("in", (STATUS_SENT, STATUS_SKIPPED)),
+				"status": ("in", (STATUS_SENT, STATUS_PARTIAL, STATUS_SKIPPED)),
 			},
 		)
 	)
@@ -129,7 +133,7 @@ def over_hourly_cap(point) -> bool:
 		LOG_DOCTYPE,
 		{
 			"point": point.name,
-			"status": STATUS_SENT,
+			"status": ("in", (STATUS_SENT, STATUS_PARTIAL)),
 			"creation": (">", add_to_date(now_datetime(), hours=-1)),
 		},
 	)
@@ -175,7 +179,18 @@ def _test_target() -> str | None:
 	return settings.test_email or None
 
 
-def sendmail(*, recipients, subject, message, doc, cc=None, bcc=None, reply_to=None, attachments=None):
+def sendmail(
+	*,
+	recipients,
+	subject,
+	message,
+	doc,
+	cc=None,
+	bcc=None,
+	reply_to=None,
+	attachments=None,
+	expose_recipients=None,
+):
 	"""Bọc quanh `frappe.sendmail` để chế độ thử không lách được (D16)."""
 	test_email = _test_target()
 	if test_email:
@@ -193,6 +208,7 @@ def sendmail(*, recipients, subject, message, doc, cc=None, bcc=None, reply_to=N
 		reference_name=doc.name,
 		reply_to=reply_to,
 		attachments=attachments or None,
+		expose_recipients=expose_recipients,
 	)
 
 
@@ -297,16 +313,25 @@ def send(point, doc, milestone: str, *, triggered_by: str | None = None, force: 
 		point, doc, scope=context.SCOPE_INTERNAL, milestone=milestone, triggered_by=triggered_by
 	)
 
+	# CC / BCC / Trả lời về là của **thư gửi đối tác** (BA F10: "CC người tạo để
+	# theo dõi phản hồi của NCC"). Gắn chúng vào cả thư nội bộ thì khi đối tác
+	# thiếu email, thư ngoài bị bỏ nhưng thư nội bộ vẫn đi kèm CC — người đọc hàng
+	# đợi thấy "thư gửi NCC mà chỉ người CC nhận được". Điểm không bật kênh ngoài
+	# thì CC mới thuộc về thư nội bộ.
+	cc_belongs_outside = bool(point.notify_external)
+	internal_cc = [] if cc_belongs_outside else list(recipients.cc)
+	internal_bcc = [] if cc_belongs_outside else list(recipients.bcc)
+
 	sent_email = False
 	if point.send_email and recipients.emails:
 		sendmail(
 			recipients=list(recipients.emails),
-			cc=list(recipients.cc),
-			bcc=list(recipients.bcc),
+			cc=internal_cc,
+			bcc=internal_bcc,
 			subject=internal.subject,
 			message=internal.body,
 			doc=doc,
-			reply_to=recipients.reply_to,
+			reply_to=recipients.reply_to if not cc_belongs_outside else None,
 		)
 		sent_email = True
 	elif point.send_email:
@@ -318,7 +343,9 @@ def send(point, doc, milestone: str, *, triggered_by: str | None = None, force: 
 		sent_inapp = True
 
 	external_sent: list[str] = []
+	external = None
 	attachments: list[dict] = []
+	external_missing = bool(point.notify_external and not recipients.external)
 	if point.notify_external and recipients.external:
 		attachments, attach_error = attachments_for(point, doc)
 		if attach_error:
@@ -331,6 +358,7 @@ def send(point, doc, milestone: str, *, triggered_by: str | None = None, force: 
 				milestone=milestone,
 				triggered_by=triggered_by,
 			)
+
 			sendmail(
 				recipients=list(recipients.external),
 				cc=list(recipients.cc),
@@ -340,10 +368,20 @@ def send(point, doc, milestone: str, *, triggered_by: str | None = None, force: 
 				doc=doc,
 				reply_to=recipients.reply_to,
 				attachments=attachments,
+				# Frappe gửi mỗi người một bản và mặc định ô "Tới" chỉ ghi chính người
+				# nhận bản đó. Người được CC mở thư ra không thấy địa chỉ đối tác đâu,
+				# tưởng thư chưa tới NCC. Ghi đủ người nhận vào tiêu đề thư, như một
+				# thư gửi tay — đối tác bấm "Trả lời tất cả" cũng tới đúng người CC.
+				expose_recipients="header",
 			)
 			external_sent = list(recipients.external)
 
 	status = STATUS_SENT if (sent_email or sent_inapp or external_sent) else STATUS_SKIPPED
+
+	if external_missing:
+		# Thư nội bộ đi được không có nghĩa là đối tác đã nhận. Ghi `Partial` để lọc
+		# nhanh đúng những lần "khách/NCC bị miss" thay vì phải mở từng dòng ra đọc.
+		status = STATUS_PARTIAL if status == STATUS_SENT else status
 
 	return write_log(
 		point,
@@ -351,7 +389,14 @@ def send(point, doc, milestone: str, *, triggered_by: str | None = None, force: 
 		milestone,
 		status=status,
 		triggered_by=triggered_by,
+		# Bản chụp nội dung THẬT của lần gửi này. Nhật ký chỉ ghi "đã gửi" thì
+		# người dùng không đối chiếu được khi đối tác hỏi lại, mà mẫu thì sửa
+		# bất cứ lúc nào — dựng lại nội dung cũ từ cấu hình hiện tại là sai.
 		subject=internal.subject,
+		body=internal.body if sent_email else "",
+		inapp_message=internal.inapp if sent_inapp else "",
+		external_subject=external.subject if external_sent else "",
+		external_body=external.body if external_sent else "",
 		channel_email=int(sent_email),
 		channel_inapp=int(sent_inapp),
 		channel_external=int(bool(external_sent)),

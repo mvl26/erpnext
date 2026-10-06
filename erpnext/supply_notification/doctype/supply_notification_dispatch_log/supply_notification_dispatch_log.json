@@ -24,14 +24,20 @@
   "test_mode",
   "triggered_by",
   "recipient_section",
-  "subject",
   "recipients",
   "external_recipients",
   "cc",
   "bcc",
   "attachments",
   "reason",
-  "remark"
+  "remark",
+  "content_section",
+  "subject",
+  "body",
+  "inapp_message",
+  "external_content_section",
+  "external_subject",
+  "external_body"
  ],
  "fields": [
   {
@@ -89,7 +95,8 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Kết quả",
-   "options": "Sent\nSkipped\nFailed"
+   "options": "Sent\nPartial\nSkipped\nFailed",
+   "description": "Partial = gửi được nội bộ nhưng đối tác (NCC/khách) không nhận được, xem ô Lý do."
   },
   {
    "fieldname": "channel_section",
@@ -147,12 +154,6 @@
    "label": "Người nhận"
   },
   {
-   "fieldname": "subject",
-   "fieldtype": "Small Text",
-   "label": "Tiêu đề đã gửi",
-   "read_only": 1
-  },
-  {
    "fieldname": "recipients",
    "fieldtype": "Small Text",
    "label": "Người nhận nội bộ"
@@ -190,12 +191,56 @@
    "fieldname": "remark",
    "fieldtype": "Small Text",
    "label": "Ghi chú"
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Nội dung đã gửi",
+   "collapsible": 1,
+   "description": "Bản chụp đúng nội dung đã gửi ở lần này. Sửa mẫu về sau không làm đổi bản chụp này."
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Small Text",
+   "label": "Tiêu đề (nội bộ)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "body",
+   "fieldtype": "Text Editor",
+   "label": "Thân thư nội bộ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inapp_message",
+   "fieldtype": "Small Text",
+   "label": "Câu thông báo trong hệ thống",
+   "read_only": 1
+  },
+  {
+   "fieldname": "external_content_section",
+   "fieldtype": "Section Break",
+   "label": "Nội dung gửi đối tác",
+   "collapsible": 1,
+   "depends_on": "external_subject"
+  },
+  {
+   "fieldname": "external_subject",
+   "fieldtype": "Small Text",
+   "label": "Tiêu đề (gửi đối tác)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "external_body",
+   "fieldtype": "Text Editor",
+   "label": "Thân thư gửi đối tác",
+   "read_only": 1
   }
  ],
  "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-23 09:00:00.000000",
+ "modified": "2026-10-06 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Supply Notification",
  "name": "Supply Notification Dispatch Log",

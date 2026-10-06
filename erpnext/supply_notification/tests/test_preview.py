@@ -95,6 +95,13 @@ class TestFieldOptions(FrappeTestCase):
 		self.assertIn("due_date", values)
 		self.assertNotIn("supplier_name", values)
 
+	def test_email_picker_offers_only_email_fields(self):
+		values = [row["value"] for row in preview.field_options("Purchase Order", only_email=1)]
+
+		self.assertIn("contact_email", values)
+		self.assertNotIn("supplier_name", values)
+		self.assertNotIn("ten_doi_tac", values)
+
 	def test_builtin_variables_are_offered_too(self):
 		values = [row["value"] for row in preview.field_options("Sales Order")]
 

@@ -114,6 +114,29 @@ class TestFactTable(FrappeTestCase):
 
 
 class TestAddressAndSignature(FrappeTestCase):
+	def test_address_block_puts_each_part_on_its_own_line(self):
+		"""Lỗi 06/10/2026: các phần dính liền ("Hà Nội11813Vietnam") và lặp điện thoại."""
+		address = fixtures.ensure_address(title=f"Kho xuong dong {frappe.generate_hash(length=5)}")
+		frappe.db.set_value("Address", address, {"address_line2": "Phường Bồ Đề", "pincode": "11813"})
+		point = fixtures.make_point(
+			reference_doctype="Purchase Order",
+			notify_owner=1,
+			address_field="shipping_address",
+			body_template="{{ dia_chi_giao_hang() }}",
+		)
+		order = fixtures.make_purchase_order(submit=False, shipping_address=address)
+
+		body = content.build(point, order).body
+
+		self.assertIn("Số 1 đường Thử<br>Phường Bồ Đề<br>", body)
+		self.assertIn("11813", body)
+		# Không còn dính chữ, không kéo theo Phone/Email của mẫu địa chỉ Frappe.
+		self.assertNotIn("11813Vietnam", body)
+		self.assertNotIn("Phone:", body)
+		self.assertNotIn("Email:", body)
+		# Điện thoại chỉ xuất hiện MỘT lần.
+		self.assertEqual(body.count("0900 000 000"), 1)
+
 	def test_address_block_reads_the_linked_address(self):
 		address = fixtures.ensure_address(contact_name="Chị Lan")
 		point = fixtures.make_point(
@@ -138,6 +161,8 @@ class TestAddressAndSignature(FrappeTestCase):
 			body_template="{{ dia_chi_giao_hang() }}",
 		)
 		order = fixtures.make_purchase_order(submit=False)
+		# PO tự điền địa chỉ giao của công ty nếu site đã khai — xoá đi để đúng tình huống.
+		order.shipping_address = None
 
 		self.assertEqual(content.build(point, order).body, "")
 
@@ -148,6 +173,16 @@ class TestAddressAndSignature(FrappeTestCase):
 		body = content.build(point, order).body
 
 		self.assertIn(frappe.db.get_value("User", order.owner, "full_name"), body)
+
+	def test_signature_puts_each_line_on_its_own_row(self):
+		point = fixtures.make_point(notify_owner=1, body_template="{{ chu_ky() }}")
+		order = fixtures.make_sales_order(submit=False)
+
+		body = content.build(point, order).body
+		full_name = frappe.db.get_value("User", order.owner, "full_name")
+
+		self.assertIn(f"{full_name}<br>", body)
+		self.assertNotIn(" | ", body)
 
 
 class TestScope(FrappeTestCase):
@@ -186,3 +221,30 @@ class TestBlockHelpers(FrappeTestCase):
 
 		self.assertNotIn("<", text)
 		self.assertIn("Số 1 đường Thử", text)
+		self.assertNotIn("Phone", text)
+
+	def test_duplicate_country_written_in_the_state_field_is_dropped(self):
+		"""Dữ liệu thật hay có state = "Việt Nam" và country = "Vietnam"."""
+		address = fixtures.ensure_address(title=f"Kho trung ten {frappe.generate_hash(length=5)}")
+		frappe.db.set_value("Address", address, {"state": "Việt Nam", "pincode": "11813"})
+
+		lines = blocks.address_lines(address)
+
+		self.assertEqual(len(lines), 2)
+		self.assertEqual(lines[-1].count("iệt Nam") + lines[-1].count("ietnam"), 1)
+		self.assertIn("Hà Nội 11813", lines[-1])
+
+	def test_address_without_city_still_shows_the_pincode(self):
+		address = fixtures.ensure_address(title=f"Kho khong thanh pho {frappe.generate_hash(length=5)}")
+		frappe.db.set_value("Address", address, {"city": "", "pincode": "11813"})
+
+		self.assertIn("11813", " ".join(blocks.address_lines(address)))
+
+	def test_address_lines_keep_locality_pincode_and_country_together(self):
+		address = fixtures.ensure_address(title=f"Kho dong cuoi {frappe.generate_hash(length=5)}")
+		frappe.db.set_value("Address", address, "pincode", "11813")
+
+		lines = blocks.address_lines(address)
+
+		self.assertEqual(lines[0], "Số 1 đường Thử")
+		self.assertRegex(lines[-1], r"^Hà Nội 11813, .+$")

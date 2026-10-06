@@ -128,7 +128,11 @@ Mọi đường vào đều đi qua **một** hàm gửi (`dispatch.send`), nên
 
 ### 3.4. `Supply Notification Dispatch Log` (bổ sung)
 
-Thêm: `triggered_by` (Link User), `trigger_event` (Data), `is_manual` (Check), `test_mode` (Check), `subject` (Small Text), `cc` (Small Text), `bcc` (Small Text), `attachments` (Small Text), `reason` (Small Text — lý do bỏ qua/lỗi dễ đọc, tách khỏi `remark` kỹ thuật). Nút **Gửi lại** trên dòng `Failed`. Thêm `Link` từ chứng từ nguồn qua `dashboard` của điểm và `additional_timeline_content`.
+Thêm: `triggered_by` (Link User), `trigger_event` (Data), `is_manual` (Check), `test_mode` (Check), `cc`, `bcc`, `attachments`, `reason` (lý do bỏ qua/lỗi dễ đọc, tách khỏi `remark` kỹ thuật).
+
+**Bản chụp nội dung đã gửi** (bổ sung 06/10/2026): `subject`, `body` (Text Editor, chỉ đọc), `inapp_message`, `external_subject`, `external_body`. Ghi **đúng nội dung của lần gửi đó**, không dựng lại từ cấu hình hiện tại — mẫu sửa về sau thì bản chụp vẫn nguyên, nên khi đối tác hỏi lại "các anh gửi gì cho tôi" thì có bằng chứng. Ô nào **không gửi** thì để trống (đối tác thiếu email → `external_body` rỗng), tránh hiểu nhầm là đã gửi. Nút **Xem thư như người nhận thấy** dựng lại thư từ bản chụp này.
+
+**Trạng thái:** `Sent` · **`Partial`** (gửi được nội bộ nhưng đối tác KHÔNG nhận được — lọc nhanh đúng các lần khách/NCC bị miss) · `Skipped` · `Failed`. Chống trùng và trần thư tính cả `Partial`. Nút **Gửi lại** hiện ở **mọi trạng thái**, riêng `Sent` có câu xác nhận cảnh báo tạo thêm một thư nữa. Thêm `Link` từ chứng từ nguồn qua `dashboard` của điểm và `additional_timeline_content`.
 
 **Mốc (`milestone`) — quy ước giữ tương thích với dữ liệu cũ:**
 
@@ -223,9 +227,13 @@ Nguồn lấy dữ liệu, theo thứ tự ưu tiên:
 
 | Dòng | Nguồn |
 | --- | --- |
-| Địa chỉ | `Address` mà `address_field` trỏ tới → `frappe.get_address_display` (luôn hiện, kể cả khi rỗng) |
+| Địa chỉ | `Address` mà `address_field` trỏ tới, ghép từ **từng trường** qua `blocks.address_lines`, mỗi phần một dòng |
 | Người nhận | Contact ở `contact_field` trên chứng từ → Contact có `Contact.address` = địa chỉ đó. **Không** lùi về `Address.address_title`: đó là nhãn địa chỉ ("Kho Miyano"), không phải một con người — lấy nhầm thì cảnh báo thiếu dữ liệu không bao giờ bật |
 | Điện thoại | `Address.phone` → điện thoại của Contact tìm được ở trên |
+
+**Không dùng `frappe.get_address_display`** (sửa 06/10/2026): hàm đó render theo *Address Template*, trả về HTML có `<br>` **và kèm cả dòng Phone / Email**. Bỏ thẻ HTML đi thì các phần dính liền nhau — lỗi thật đã gặp: `Hoàng MaiHà Nội, Vietnam, , Phone: 0966500463Email: …` — và điện thoại bị in hai lần vì khối đã có dòng điện thoại riêng. `address_lines` ghép từ `address_line1`, `address_line2`, rồi một dòng `city/county/state + pincode + country`, có **khử trùng không phân biệt dấu** (dữ liệu thật hay có `state = "Việt Nam"` cạnh `country = "Vietnam"`).
+
+Khối `chu_ky` cũng theo nếp đó: họ tên / công ty / điện thoại / email, **mỗi thông tin một dòng**.
 
 Thiếu người nhận thì bỏ dòng người nhận (còn điện thoại thì hiện riêng dòng điện thoại); thiếu cả hai thì email chỉ có dòng địa chỉ — không in nhãn trống. Đồng thời hộp xác nhận của nút Thủ công **cảnh báo rõ** là địa chỉ chưa có người nhận/điện thoại, và báo cáo *"Địa chỉ giao hàng thiếu người nhận/điện thoại"* liệt kê để nghiệp vụ bổ sung (CR_01 mục 4 — việc của anh Hiếu/Xuân, không phải của hệ thống).
 
@@ -258,6 +266,8 @@ def send(point, doc, milestone, *, triggered_by=None, force=False, test_to=None)
 ```
 
 Thứ tự kiểm: Cài đặt `enabled` → điểm `enabled` → chống trùng (`force` bỏ qua — dùng cho *Gửi lại* và loại Thủ công) → **trần email/giờ** (NF3: đếm dòng nhật ký của điểm trong 1 giờ; vượt thì đặt `enabled = 0`, ghi `paused_reason`, báo quản trị, ghi `Skipped`) → dựng người nhận → dựng nội dung → gửi 3 kênh độc lập → ghi nhật ký.
+
+**CC / BCC / Trả lời về thuộc về thư gửi đối tác** (BA F10). Gắn chúng vào cả thư nội bộ là sai và gây hiểu nhầm nặng: khi đối tác thiếu email, thư ngoài bị bỏ nhưng thư nội bộ vẫn đi kèm CC, người đọc hàng đợi thấy "thư gửi NCC mà chỉ người CC nhận được". Điểm **không** bật kênh ngoài thì CC mới thuộc thư nội bộ.
 
 **Chế độ thử (D16):** một hàm bọc duy nhất quanh `frappe.sendmail` — khi `test_mode` bật, mọi `recipients/cc/bcc` thay bằng `test_email`, tiêu đề thêm `[THỬ → <email gốc>]`, nhật ký ghi `test_mode = 1`. In-app vẫn chạy bình thường (chỉ tới người nội bộ, không có rủi ro gửi nhầm đối tác).
 

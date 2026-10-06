@@ -140,6 +140,36 @@ class TestConfirmation(FrappeTestCase):
 
 		self.assertTrue(any("người nhận" in warning for warning in box["warnings"]))
 
+	def test_company_address_does_not_ask_for_a_receiver(self):
+		"""Địa chỉ của công ty không có chỗ khai người nhận — đừng cảnh báo mãi."""
+		point = make_send_to_supplier_point(address_field="shipping_address")
+		address = fixtures.ensure_address(
+			title=f"Kho cong ty {frappe.generate_hash(length=5)}", phone="0900 111 222", company_address=True
+		)
+		order = fixtures.make_purchase_order(
+			supplier=fixtures.make_supplier(email="ncc@example.com"), shipping_address=address
+		)
+
+		box = manual.get_confirmation(point.name, "Purchase Order", order.name)
+
+		self.assertFalse([warning for warning in box["warnings"] if address in warning])
+
+	def test_company_address_without_phone_still_warns_about_the_phone(self):
+		point = make_send_to_supplier_point(address_field="shipping_address")
+		address = fixtures.ensure_address(
+			title=f"Kho cong ty {frappe.generate_hash(length=5)}", phone="", company_address=True
+		)
+		order = fixtures.make_purchase_order(
+			supplier=fixtures.make_supplier(email="ncc@example.com"), shipping_address=address
+		)
+
+		box = manual.get_confirmation(point.name, "Purchase Order", order.name)
+		mine = [warning for warning in box["warnings"] if address in warning]
+
+		self.assertEqual(len(mine), 1)
+		self.assertIn("điện thoại", mine[0])
+		self.assertNotIn("người nhận", mine[0])
+
 
 class TestSending(FrappeTestCase):
 	def test_each_press_sends_again_and_history_counts(self):

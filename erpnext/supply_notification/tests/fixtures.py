@@ -243,6 +243,8 @@ def make_point(**values):
 		doc.append("recipient_groups", {"group": group})
 	for fieldname in values.pop("user_fields", []):
 		doc.append("user_fields", {"fieldname": fieldname})
+	for fieldname in values.pop("external_email_fields", []):
+		doc.append("external_email_fields", {"fieldname": fieldname})
 	for fieldname, operator, value in values.pop("conditions", []):
 		doc.append("conditions", {"fieldname": fieldname, "operator": operator, "value": value})
 	for fieldname, label in values.pop("item_columns", []):
@@ -293,8 +295,13 @@ def set_settings(**values):
 	return settings
 
 
-def ensure_address(title="Kho Miyano thử", phone="0900 000 000", link=None, contact_name=None):
-	"""Địa chỉ giao hàng mẫu, kèm liên hệ gắn với địa chỉ nếu cần."""
+def ensure_address(
+	title="Kho Miyano thử", phone="0900 000 000", link=None, contact_name=None, company_address=False
+):
+	"""Địa chỉ giao hàng mẫu, kèm liên hệ gắn với địa chỉ nếu cần.
+
+	`company_address`: địa chỉ của chính công ty (cờ *Is Your Company Address*).
+	"""
 	name = f"{title}-Shipping"
 	if not frappe.db.exists("Address", name):
 		doc = frappe.new_doc("Address")
@@ -304,6 +311,9 @@ def ensure_address(title="Kho Miyano thử", phone="0900 000 000", link=None, co
 		doc.city = "Hà Nội"
 		doc.country = frappe.db.get_single_value("System Settings", "country") or "Vietnam"
 		doc.phone = phone
+		if company_address:
+			doc.is_your_company_address = 1
+			link = link or ("Company", COMPANY)
 		if link:
 			doc.append("links", {"link_doctype": link[0], "link_name": link[1]})
 		doc.insert(ignore_permissions=True)

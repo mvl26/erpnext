@@ -25,3 +25,19 @@ class TestDiaChiGiaoHangThieuNguoiNhan(FrappeTestCase):
 		)
 
 		self.assertNotIn(address, [row["address"] for row in execute()[1]])
+
+	def test_company_address_with_phone_is_not_listed(self):
+		address = fixtures.ensure_address(
+			title=f"Kho cong ty {frappe.generate_hash(length=5)}", phone="0900 111 222", company_address=True
+		)
+
+		self.assertNotIn(address, [row["address"] for row in execute()[1]])
+
+	def test_company_address_without_phone_only_misses_the_phone(self):
+		address = fixtures.ensure_address(
+			title=f"Kho cong ty {frappe.generate_hash(length=5)}", phone="", company_address=True
+		)
+
+		rows = {row["address"]: row for row in execute()[1]}
+
+		self.assertEqual(rows[address]["missing"], "điện thoại")
