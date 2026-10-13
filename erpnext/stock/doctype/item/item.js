@@ -1366,3 +1366,221 @@ function erpnext_tbyt_lookup_html(results) {
 
 	return `<div class="mb-2"><b>${__("Số hiệu này đã có trong hệ thống")}</b></div>${rows}`;
 }
+
+// --- Quy tắc sinh mã vật tư (docs/ke-hoach-build-sinh-ma-vat-tu.md) ---
+// Server (erpnext/stock/item_code_rule.py) mới là nơi quyết định mã và chặn trùng.
+// Phần này chỉ để người dùng thấy trước, ngay lúc điền form: mã sẽ được sinh ra,
+// và vật tư nào đang dùng cùng mã hàng NCC.
+erpnext.item.code_rule = {
+	MODE: "Quy tắc mã vật tư",
+
+	active() {
+		return frappe.defaults.get_default("item_naming_by") === this.MODE;
+	},
+
+	in_scope(doc) {
+		return Boolean(
+			cint(doc.is_stock_item) && !cint(doc.is_fixed_asset) && !cint(doc.has_variants) && !doc.variant_of
+		);
+	},
+
+	creating(frm) {
+		return this.active() && frm.is_new() && this.in_scope(frm.doc);
+	},
+
+	// Vật tư đã lưu mà mã do quy tắc sinh: mã chạy theo nhóm hàng, thương hiệu,
+	// mã hàng NCC. Mã đặt tay thì giữ nguyên.
+	following(frm) {
+		return (
+			this.active() && !frm.is_new() && this.in_scope(frm.doc) && cint(frm.doc.item_code_by_rule) === 1
+		);
+	},
+
+	default_row(frm) {
+		const rows = frm.doc.supplier_items || [];
+		return rows.find((row) => cint(row.is_default)) || (rows.length === 1 ? rows[0] : null);
+	},
+
+	toggle(frm) {
+		if (!this.active()) return;
+		const applies = this.in_scope(frm.doc);
+		const creating = applies && frm.is_new();
+
+		if (frm.is_new()) {
+			// Vật tư thuộc quy tắc: mã do hệ thống sinh, ô nhập chỉ gây hiểu lầm.
+			// Dịch vụ, tài sản vẫn gõ mã tay ở chính ô này.
+			frm.toggle_display("item_code", !creating);
+			frm.toggle_reqd("item_code", !creating);
+		}
+		const ruled = creating || this.following(frm);
+		frm.toggle_reqd("brand", ruled);
+		frm.toggle_reqd("supplier_items", ruled);
+
+		this.preview(frm);
+	},
+
+	banner(frm, html, color) {
+		const $banner =
+			frm.__item_code_banner || (frm.__item_code_banner = $('<div class="form-message"></div>'));
+		if (!html) {
+			$banner.detach();
+			return;
+		}
+		$banner.removeClass("blue orange red").addClass(color).html(html);
+		// frm.set_intro() ở refresh xóa sạch vùng thông báo — gắn lại sau mỗi lần.
+		frm.layout.message.removeClass("hidden").append($banner);
+	},
+
+	similar_html(similar) {
+		const esc = frappe.utils.escape_html;
+		const rows = similar
+			.map((item) => {
+				const url = frappe.utils.get_form_link("Item", item.item_code);
+				const blocked = item.same_brand
+					? ` — <b>${__("cùng thương hiệu (Brand), hệ thống sẽ chặn khi lưu")}</b>`
+					: "";
+				return `<li><a href="${url}" target="_blank">${esc(item.item_code)}</a> · ${esc(
+					item.item_name || ""
+				)} · ${esc(item.brand || "")}${blocked}</li>`;
+			})
+			.join("");
+		return `<div class="mt-2">${__(
+			"Cảnh báo: mã hàng NCC này đã có ở vật tư khác. Kiểm tra xem có trùng vật tư không:"
+		)}<ul class="mb-0">${rows}</ul></div>`;
+	},
+
+	preview(frm) {
+		// Phản hồi về chậm của lần gõ trước không được đè lên lần gõ sau.
+		const ticket = (frm.__item_code_ticket = (frm.__item_code_ticket || 0) + 1);
+		const following = this.following(frm);
+		if (!this.creating(frm) && !following) {
+			this.banner(frm);
+			return;
+		}
+
+		const row = this.default_row(frm);
+		frappe
+			.call({
+				method: "erpnext.stock.item_code_rule.preview_item_code",
+				args: {
+					item_group: frm.doc.item_group,
+					brand: frm.doc.brand,
+					supplier_part_no: row && row.supplier_part_no,
+					item_code: following ? frm.doc.name : null,
+				},
+			})
+			.then((r) => {
+				if (ticket !== frm.__item_code_ticket) return;
+				if (following ? !this.following(frm) : !this.creating(frm)) return;
+				const preview = r.message || {};
+				// Đang sửa mà mã không đổi thì không có gì để báo.
+				if (following && preview.code === frm.doc.name) {
+					this.banner(frm);
+					return;
+				}
+				const missing = (preview.missing || []).slice();
+				if (!row) missing.push(__("Chưa chọn NCC mặc định (Default Supplier) ở bảng Supplier Items"));
+				const similar = preview.similar || [];
+
+				let html;
+				if (missing.length) {
+					const list = missing.map((m) => `<li>${frappe.utils.escape_html(m)}</li>`).join("");
+					html = `<div>${
+						following
+							? __("Mã vật tư đổi theo thông tin mới khi lưu. Còn thiếu:")
+							: __("Mã vật tư do hệ thống sinh khi lưu. Còn thiếu:")
+					}<ul class="mb-0">${list}</ul></div>`;
+				} else {
+					let note = "";
+					if (preview.from_sequence) {
+						note = __("NCC không có mã hàng nên hệ thống cấp số thứ tự khi lưu.");
+					} else if (!following) {
+						note = __("Hệ thống chốt mã khi lưu.");
+					}
+					if (preview.truncated) {
+						note +=
+							" " +
+							__("Mã hàng NCC dài hơn {0} ký tự nên chỉ lấy {0} ký tự đầu.", [
+								preview.part_length,
+							]);
+					}
+					const code = `<b>${frappe.utils.escape_html(preview.code)}</b>`;
+					html = following
+						? `<div>${__("Mã vật tư sẽ đổi từ {0} thành {1} khi lưu.", [
+								`<b>${frappe.utils.escape_html(frm.doc.name)}</b>`,
+								code,
+						  ])} ${note}</div>`
+						: `<div>${__("Mã vật tư dự kiến:")} ${code}. ${note}</div>`;
+				}
+				// Trùng cả thương hiệu lẫn mã hàng NCC thì danh sách bên dưới đã nói lý do chặn.
+				const duplicate = similar.some((item) => item.same_brand);
+				if (preview.taken && !duplicate) {
+					html += `<div>${__("Mã này đã có vật tư khác dùng, hệ thống sẽ chặn khi lưu.")}</div>`;
+				}
+				if (similar.length) html += this.similar_html(similar);
+
+				const blocked = preview.taken || duplicate;
+				this.banner(
+					frm,
+					html,
+					blocked ? "red" : missing.length || similar.length ? "orange" : "blue"
+				);
+			});
+	},
+};
+
+frappe.ui.form.on("Item", {
+	refresh(frm) {
+		// NCC mặc định chỉ khai ở bảng Supplier Items (tab Purchasing). Cột Default Supplier
+		// của Item Defaults không còn dùng cho vật tư: ẩn đi, ở mọi chế độ đặt tên.
+		const defaults_grid = frm.fields_dict.item_defaults && frm.fields_dict.item_defaults.grid;
+		if (defaults_grid) {
+			defaults_grid.update_docfield_property("default_supplier", "hidden", 1);
+			defaults_grid.refresh();
+		}
+		erpnext.item.code_rule.toggle(frm);
+	},
+	item_group(frm) {
+		erpnext.item.code_rule.toggle(frm);
+	},
+	brand(frm) {
+		erpnext.item.code_rule.toggle(frm);
+	},
+	is_stock_item(frm) {
+		erpnext.item.code_rule.toggle(frm);
+	},
+	is_fixed_asset(frm) {
+		erpnext.item.code_rule.toggle(frm);
+	},
+	has_variants(frm) {
+		erpnext.item.code_rule.toggle(frm);
+	},
+});
+
+frappe.ui.form.on("Item Supplier", {
+	supplier_items_add(frm, cdt, cdn) {
+		const rule = erpnext.item.code_rule;
+		if (rule.active() && (frm.doc.supplier_items || []).length === 1) {
+			frappe.model.set_value(cdt, cdn, "is_default", 1);
+		}
+		rule.toggle(frm);
+	},
+	supplier_items_remove(frm) {
+		erpnext.item.code_rule.toggle(frm);
+	},
+	is_default(frm, cdt, cdn) {
+		// Mỗi vật tư chỉ một NCC mặc định: tích dòng này thì bỏ tích các dòng khác.
+		const row = locals[cdt][cdn];
+		if (cint(row.is_default)) {
+			(frm.doc.supplier_items || []).forEach((other) => {
+				if (other.name !== row.name && cint(other.is_default)) {
+					frappe.model.set_value(other.doctype, other.name, "is_default", 0);
+				}
+			});
+		}
+		erpnext.item.code_rule.toggle(frm);
+	},
+	supplier_part_no(frm) {
+		erpnext.item.code_rule.toggle(frm);
+	},
+});

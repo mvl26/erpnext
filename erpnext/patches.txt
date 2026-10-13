@@ -447,3 +447,5 @@ erpnext.patches.v15_0.migrate_supply_notification_v2
 erpnext.patches.v15_0.set_vnd_rounding_settings
 erpnext.patches.v15_0.khoa_dieu_kien_diem_thong_bao
 erpnext.warehouse_operations.patches.v1_0.chon_lo_theo_han_dung
+erpnext.patches.v15_0.mark_default_item_supplier
+erpnext.patches.v15_0.move_default_supplier_to_item_supplier

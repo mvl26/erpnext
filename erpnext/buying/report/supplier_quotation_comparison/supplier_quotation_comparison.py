@@ -293,10 +293,8 @@ def get_message():
 
 
 @frappe.whitelist()
-def set_default_supplier(item_code, supplier, company):
-	frappe.db.set_value(
-		"Item Default",
-		{"parent": item_code, "company": company},
-		"default_supplier",
-		supplier,
-	)
+def set_default_supplier(item_code, supplier, company=None):
+	# NCC mặc định khai ở bảng Supplier Items của vật tư, không còn theo từng công ty.
+	from erpnext.stock.doctype.item_supplier.item_supplier import set_default_supplier
+
+	return set_default_supplier(item_code, supplier)

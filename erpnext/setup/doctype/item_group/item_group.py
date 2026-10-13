@@ -19,6 +19,7 @@ class ItemGroup(NestedSet):
 
 		image: DF.AttachImage | None
 		is_group: DF.Check
+		item_group_code: DF.Data | None
 		item_group_defaults: DF.Table[ItemDefault]
 		item_group_name: DF.Data
 		lft: DF.Int
@@ -34,6 +35,32 @@ class ItemGroup(NestedSet):
 				self.parent_item_group = _("All Item Groups")
 		self.validate_item_group_defaults()
 		self.check_item_tax()
+		self.validate_item_group_code()
+
+	def validate_item_group_code(self):
+		from erpnext.stock.item_code_rule import (
+			GROUP_CODE_LENGTH,
+			guard_item_group_code,
+			require_component_code,
+			validate_component_code,
+		)
+
+		label = _("Mã nhóm (Item Group Code)")
+		validate_component_code(self, "item_group_code", label, GROUP_CODE_LENGTH)
+		require_component_code(self, "item_group_code", label)
+		guard_item_group_code(self)
+
+	def before_rename(self, olddn, newdn, merge=False, group_fname="is_group"):
+		from erpnext.stock.item_code_rule import guard_item_group_merge
+
+		super().before_rename(olddn, newdn, merge, group_fname)
+		guard_item_group_merge(olddn, newdn, merge)
+
+	def after_rename(self, olddn, newdn, merge=False):
+		from erpnext.stock.item_code_rule import apply_merge_cascade
+
+		super().after_rename(olddn, newdn, merge)
+		apply_merge_cascade(merge)
 
 	def check_item_tax(self):
 		"""Check whether Tax Rate is not entered twice for same Tax Type"""
@@ -51,9 +78,12 @@ class ItemGroup(NestedSet):
 					check_list.append((d.item_tax_template, d.tax_category))
 
 	def on_update(self):
+		from erpnext.stock.item_code_rule import apply_cascade
+
 		NestedSet.on_update(self)
 		self.validate_one_root()
 		self.delete_child_item_groups_key()
+		apply_cascade(self)
 
 	def on_trash(self):
 		NestedSet.on_trash(self, allow_root_deletion=True)

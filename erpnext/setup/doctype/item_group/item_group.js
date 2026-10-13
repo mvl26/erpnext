@@ -76,6 +76,7 @@ frappe.ui.form.on("Item Group", {
 
 	refresh: function (frm) {
 		frm.trigger("set_root_readonly");
+		frm.trigger("lock_item_group_code");
 		frm.add_custom_button(__("Item Group Tree"), function () {
 			frappe.set_route("Tree", "Item Group");
 		});
@@ -85,6 +86,22 @@ frappe.ui.form.on("Item Group", {
 				frappe.set_route("List", "Item", { item_group: frm.doc.name });
 			});
 		}
+	},
+
+	lock_item_group_code: function (frm) {
+		// Mã đã lưu thì khóa: nó đã, hoặc sắp, nằm trong mã vật tư.
+		const rule_mode = frappe.defaults.get_default("item_naming_by") === "Quy tắc mã vật tư";
+		const locked = rule_mode && !frm.is_new() && !!frm.doc.item_group_code;
+		frm.set_df_property("item_group_code", "read_only", locked ? 1 : 0);
+		if (!locked) return;
+
+		const name = frm.doc.name;
+		frappe.call("erpnext.stock.item_code_rule.may_change_codes").then((r) => {
+			if (!r.message || frm.doc.name !== name) return;
+			frm.add_custom_button(__("Đổi mã nhóm (Change Item Group Code)"), () => {
+				frm.set_df_property("item_group_code", "read_only", 0);
+			});
+		});
 	},
 
 	set_root_readonly: function (frm) {
