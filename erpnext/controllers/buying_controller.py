@@ -178,10 +178,10 @@ class BuyingController(SubcontractingController):
 
 	def set_supplier_from_item_default(self):
 		if self.meta.get_field("supplier") and not self.supplier:
+			from erpnext.stock.doctype.item_supplier.item_supplier import get_default_supplier
+
 			for d in self.get("items"):
-				supplier = frappe.db.get_value(
-					"Item Default", {"parent": d.item_code, "company": self.company}, "default_supplier"
-				)
+				supplier = get_default_supplier(d.item_code)
 				if supplier:
 					self.supplier = supplier
 				else:

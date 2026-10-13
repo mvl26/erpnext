@@ -1416,18 +1416,6 @@ erpnext.item.code_rule = {
 		frm.toggle_reqd("brand", ruled);
 		frm.toggle_reqd("supplier_items", ruled);
 
-		// default_supplier chạy theo dòng NCC mặc định; để lộ ra thì người dùng sửa
-		// xong lần lưu sau lại bị ghi đè. Chưa có dòng mặc định thì vẫn phải thấy nó.
-		const defaults_grid = frm.fields_dict.item_defaults && frm.fields_dict.item_defaults.grid;
-		if (defaults_grid) {
-			defaults_grid.update_docfield_property(
-				"default_supplier",
-				"hidden",
-				applies && this.default_row(frm) ? 1 : 0
-			);
-			defaults_grid.refresh();
-		}
-
 		this.preview(frm);
 	},
 
@@ -1543,6 +1531,13 @@ erpnext.item.code_rule = {
 
 frappe.ui.form.on("Item", {
 	refresh(frm) {
+		// NCC mặc định chỉ khai ở bảng Supplier Items (tab Purchasing). Cột Default Supplier
+		// của Item Defaults không còn dùng cho vật tư: ẩn đi, ở mọi chế độ đặt tên.
+		const defaults_grid = frm.fields_dict.item_defaults && frm.fields_dict.item_defaults.grid;
+		if (defaults_grid) {
+			defaults_grid.update_docfield_property("default_supplier", "hidden", 1);
+			defaults_grid.refresh();
+		}
 		erpnext.item.code_rule.toggle(frm);
 	},
 	item_group(frm) {

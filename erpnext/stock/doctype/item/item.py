@@ -31,6 +31,7 @@ from erpnext.controllers.item_variant import (
 )
 from erpnext.stock import item_code_rule
 from erpnext.stock.doctype.item_default.item_default import ItemDefault
+from erpnext.stock.doctype.item_supplier.item_supplier import take_default_supplier_from_item_defaults
 from erpnext.stock.utils import get_valuation_method
 
 
@@ -216,6 +217,7 @@ class Item(Document):
 		self.validate_customer_provided_part()
 		self.update_defaults_from_item_group()
 		self.validate_item_defaults()
+		take_default_supplier_from_item_defaults(self)
 		item_code_rule.validate_item(self)
 		self.validate_auto_reorder_enabled_in_stock_settings()
 		self.cant_change()
@@ -1296,6 +1298,11 @@ def get_item_defaults(item_code, company):
 			row = d.as_dict(no_private_properties=True)
 			row.pop("name")
 			out.update(row)
+
+	# NCC mặc định khai ở bảng Supplier Items (tab Purchasing), không còn ở Item Defaults.
+	out["default_supplier"] = next(
+		(row.supplier for row in item.supplier_items if cint(row.is_default)), None
+	)
 	return out
 
 

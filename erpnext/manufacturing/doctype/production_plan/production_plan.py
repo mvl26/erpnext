@@ -1004,14 +1004,9 @@ class ProductionPlan(Document):
 		if not items:
 			return
 
-		default_supplier = frappe._dict(
-			frappe.get_all(
-				"Item Default",
-				fields=["parent", "default_supplier"],
-				filters={"parent": ("in", items), "default_supplier": ("is", "set")},
-				as_list=1,
-			)
-		)
+		from erpnext.stock.doctype.item_supplier.item_supplier import get_default_suppliers
+
+		default_supplier = get_default_suppliers(items)
 
 		if not default_supplier:
 			return

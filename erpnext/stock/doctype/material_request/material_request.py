@@ -539,14 +539,9 @@ def make_purchase_order_based_on_supplier(source_name, target_doc=None, args=Non
 
 @frappe.whitelist()
 def get_items_based_on_default_supplier(supplier):
-	supplier_items = [
-		d.parent
-		for d in frappe.db.get_all(
-			"Item Default", {"default_supplier": supplier, "parenttype": "Item"}, "parent"
-		)
-	]
+	from erpnext.stock.doctype.item_supplier.item_supplier import get_items_with_default_supplier
 
-	return supplier_items
+	return get_items_with_default_supplier(supplier)
 
 
 @frappe.whitelist()
@@ -596,23 +591,18 @@ def get_material_requests_based_on_supplier(doctype, txt, searchfield, start, pa
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
 def get_default_supplier_query(doctype, txt, searchfield, start, page_len, filters):
+	from erpnext.stock.doctype.item_supplier.item_supplier import get_default_suppliers
+
 	doc = frappe.get_doc("Material Request", filters.get("doc"))
-	item_list = []
-	for d in doc.items:
-		item_list.append(d.item_code)
+	default_suppliers = set(get_default_suppliers([d.item_code for d in doc.items]).values())
+	if not default_suppliers:
+		return []
 
 	supplier = frappe.qb.DocType("Supplier")
-	item_default = frappe.qb.DocType("Item Default")
 	query = (
 		frappe.qb.from_(supplier)
-		.left_join(item_default)
-		.on(supplier.name == item_default.default_supplier)
-		.select(item_default.default_supplier)
-		.where(
-			(item_default.parent.isin(item_list))
-			& (item_default.default_supplier.notnull())
-			& (supplier[searchfield].like(f"%{txt}%"))
-		)
+		.select(supplier.name)
+		.where((supplier.name.isin(default_suppliers)) & (supplier[searchfield].like(f"%{txt}%")))
 		.offset(start)
 		.limit(page_len)
 	)

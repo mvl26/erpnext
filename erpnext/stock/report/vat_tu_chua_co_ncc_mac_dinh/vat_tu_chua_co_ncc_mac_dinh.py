@@ -46,12 +46,6 @@ def get_columns():
 			"fieldtype": "Int",
 			"width": 110,
 		},
-		{
-			"fieldname": "default_supplier",
-			"label": _("NCC mặc định cũ (Default Supplier)"),
-			"fieldtype": "Data",
-			"width": 220,
-		},
 		{"fieldname": "reason", "label": _("Việc cần làm"), "fieldtype": "Data", "width": 300},
 	]
 
@@ -82,23 +76,11 @@ def get_data(filters):
 		if cint(row.is_default):
 			has_default.add(row.parent)
 
-	default_suppliers = {}
-	for row in frappe.get_all(
-		"Item Default",
-		filters={"parenttype": "Item", "default_supplier": ("is", "set")},
-		fields=["parent", "default_supplier"],
-		order_by="idx",
-	):
-		suppliers = default_suppliers.setdefault(row.parent, [])
-		if row.default_supplier not in suppliers:
-			suppliers.append(row.default_supplier)
-
 	data = []
 	for item in items:
 		if item.item_code in has_default:
 			continue
 		item.supplier_rows = supplier_rows.get(item.item_code, 0)
-		item.default_supplier = ", ".join(default_suppliers.get(item.item_code, []))
 		item.reason = (
 			_("Nhiều NCC, chưa chọn NCC mặc định")
 			if item.supplier_rows
