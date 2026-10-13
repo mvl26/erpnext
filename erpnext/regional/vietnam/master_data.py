@@ -55,6 +55,8 @@ def seed_item_group_taxonomy(company=None):
 			}
 		)
 		doc.flags.ignore_permissions = True
+		# Cây nhóm khung chưa có Mã nhóm; nghiệp vụ điền sau, trước khi tạo vật tư theo quy tắc mã.
+		doc.flags.ignore_mandatory = True
 		doc.insert()
 
 
@@ -87,9 +89,9 @@ def _seed_default_warehouse(company):
 	"""Safety net: ensure the company has at least one posting warehouse (kho)."""
 	if frappe.get_all("Warehouse", filters={"company": company, "is_group": 0}, limit=1):
 		return
-	frappe.get_doc(
-		{"doctype": "Warehouse", "warehouse_name": "Kho tổng", "company": company}
-	).insert(ignore_permissions=True)
+	frappe.get_doc({"doctype": "Warehouse", "warehouse_name": "Kho tổng", "company": company}).insert(
+		ignore_permissions=True
+	)
 
 
 @frappe.whitelist()

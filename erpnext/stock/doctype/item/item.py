@@ -29,6 +29,7 @@ from erpnext.controllers.item_variant import (
 	make_variant_item_code,
 	validate_item_variant_attributes,
 )
+from erpnext.stock import item_code_rule
 from erpnext.stock.doctype.item_default.item_default import ItemDefault
 from erpnext.stock.utils import get_valuation_method
 
@@ -111,6 +112,7 @@ class Item(Document):
 		is_stock_item: DF.Check
 		is_sub_contracted_item: DF.Check
 		item_code: DF.Data
+		item_code_by_rule: DF.Check
 		item_defaults: DF.Table[ItemDefault]
 		item_group: DF.Link
 		item_name: DF.Data | None
@@ -154,6 +156,10 @@ class Item(Document):
 		self.set_onload("current_valuation_method", get_valuation_method(self.name))
 
 	def autoname(self):
+		if item_code_rule.applies_to(self):
+			item_code_rule.set_item_code(self)
+			return
+
 		if frappe.db.get_default("item_naming_by") == "Naming Series":
 			if self.variant_of:
 				if not self.item_code:
@@ -210,6 +216,7 @@ class Item(Document):
 		self.validate_customer_provided_part()
 		self.update_defaults_from_item_group()
 		self.validate_item_defaults()
+		item_code_rule.validate_item(self)
 		self.validate_auto_reorder_enabled_in_stock_settings()
 		self.cant_change()
 		self.validate_item_tax_net_rate_range()
@@ -220,6 +227,8 @@ class Item(Document):
 	def on_update(self):
 		self.update_variants()
 		self.update_item_price()
+		# Để sau cùng: từ đây bản ghi mang mã mới.
+		item_code_rule.apply_code_change(self)
 
 	def validate_description(self):
 		"""Clean HTML description if set"""
@@ -547,6 +556,8 @@ class Item(Document):
 			frappe.delete_doc("Item", variant_of.name)
 
 	def before_rename(self, old_name, new_name, merge=False):
+		item_code_rule.guard_rename(self)
+
 		if self.item_name == old_name:
 			frappe.db.set_value("Item", old_name, "item_name", new_name)
 
@@ -565,6 +576,7 @@ class Item(Document):
 			)
 
 		frappe.db.set_value("Item", new_name, "item_code", new_name)
+		item_code_rule.after_item_rename(new_name, merge)
 
 		if merge:
 			self.set_last_purchase_rate(new_name)

@@ -2,6 +2,8 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from erpnext.stock.item_code_rule import warn_duplicate_manufacturer_part_no
+
 
 class ItemManufacturer(Document):
 	# begin: auto-generated types
@@ -23,6 +25,7 @@ class ItemManufacturer(Document):
 	def validate(self):
 		self.validate_duplicate_entry()
 		self.manage_default_item_manufacturer()
+		warn_duplicate_manufacturer_part_no(self)
 
 	def on_trash(self):
 		self.manage_default_item_manufacturer(delete=True)

@@ -9,6 +9,7 @@
  "engine": "InnoDB",
  "field_order": [
   "brand",
+  "brand_code",
   "image",
   "description",
   "defaults",
@@ -50,13 +51,23 @@
    "fieldtype": "Attach Image",
    "hidden": 1,
    "label": "Image"
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "description": "Phần thứ hai của mã vật tư, tách khỏi tên thương hiệu. Chỉ gồm chữ không dấu và số, giữ nguyên hoa/thường. Tối đa 6 ký tự; nhập dài hơn thì hệ thống lấy 6 ký tự đầu. Đã lưu thì không sửa được.",
+   "fieldname": "brand_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Mã thương hiệu (Brand Code)",
+   "mandatory_depends_on": "eval:frappe.defaults.get_default(\"item_naming_by\")==\"Quy tắc mã vật tư\"",
+   "unique": 1
   }
  ],
  "icon": "fa fa-certificate",
  "idx": 1,
  "image_field": "image",
  "links": [],
- "modified": "2024-08-20 14:10:21.377962",
+ "modified": "2026-10-13 11:00:00.000000",
  "modified_by": "Administrator",
  "module": "Setup",
  "name": "Brand",
@@ -106,6 +117,7 @@
   }
  ],
  "quick_entry": 1,
+ "search_fields": "brand_code",
  "show_name_in_global_search": 1,
  "sort_field": "modified",
  "sort_order": "ASC"

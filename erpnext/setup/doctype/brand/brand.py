@@ -1,6 +1,7 @@
 import copy
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 
 
@@ -16,12 +17,39 @@ class Brand(Document):
 		from erpnext.stock.doctype.item_default.item_default import ItemDefault
 
 		brand: DF.Data
+		brand_code: DF.Data | None
 		brand_defaults: DF.Table[ItemDefault]
 		description: DF.Text | None
 		image: DF.AttachImage | None
 	# end: auto-generated types
 
-	pass
+	def validate(self):
+		from erpnext.stock.item_code_rule import (
+			BRAND_CODE_LENGTH,
+			guard_brand_code,
+			require_component_code,
+			validate_component_code,
+		)
+
+		label = _("Mã thương hiệu (Brand Code)")
+		validate_component_code(self, "brand_code", label, BRAND_CODE_LENGTH)
+		require_component_code(self, "brand_code", label)
+		guard_brand_code(self)
+
+	def on_update(self):
+		from erpnext.stock.item_code_rule import apply_cascade
+
+		apply_cascade(self)
+
+	def before_rename(self, old, new, merge=False):
+		from erpnext.stock.item_code_rule import guard_brand_merge
+
+		guard_brand_merge(old, new, merge)
+
+	def after_rename(self, old, new, merge=False):
+		from erpnext.stock.item_code_rule import apply_merge_cascade
+
+		apply_merge_cascade(merge)
 
 
 def get_brand_defaults(item, company):
