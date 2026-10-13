@@ -11,6 +11,7 @@
  "field_order": [
   "gs",
   "item_group_name",
+  "item_group_code",
   "parent_item_group",
   "is_group",
   "image",
@@ -135,6 +136,15 @@
    "fieldname": "la_tbyt",
    "fieldtype": "Check",
    "label": "Là nhóm thiết bị y tế"
+  },
+  {
+   "description": "Phần thứ nhất của mã vật tư, tách khỏi tên nhóm. Chỉ gồm chữ không dấu và số, giữ nguyên hoa/thường. Tối đa 3 ký tự; nhập dài hơn thì hệ thống lấy 3 ký tự đầu. Đã lưu thì không sửa được.",
+   "fieldname": "item_group_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Mã nhóm (Item Group Code)",
+   "mandatory_depends_on": "eval:frappe.defaults.get_default(\"item_naming_by\")==\"Quy tắc mã vật tư\"",
+   "unique": 1
   }
  ],
  "icon": "fa fa-sitemap",
@@ -143,7 +153,7 @@
  "is_tree": 1,
  "links": [],
  "max_attachments": 3,
- "modified": "2024-01-30 14:08:38.485616",
+ "modified": "2026-10-13 11:00:00.000000",
  "modified_by": "Administrator",
  "module": "Setup",
  "name": "Item Group",
@@ -210,7 +220,7 @@
    "share": 1
   }
  ],
- "search_fields": "parent_item_group",
+ "search_fields": "parent_item_group,item_group_code",
  "show_name_in_global_search": 1,
  "sort_field": "modified",
  "sort_order": "DESC",

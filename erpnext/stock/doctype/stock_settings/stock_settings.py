@@ -5,6 +5,7 @@ from frappe.model.document import Document
 from frappe.utils import cint
 from frappe.utils.html_utils import clean_html
 
+from erpnext.stock.item_code_rule import RULE_MODE
 from erpnext.stock.utils import check_pending_reposting
 
 
@@ -41,7 +42,8 @@ class StockSettings(Document):
 		do_not_use_batchwise_valuation: DF.Check
 		enable_stock_reservation: DF.Check
 		item_group: DF.Link | None
-		item_naming_by: DF.Literal["Item Code", "Naming Series"]
+		item_naming_by: DF.Literal["Item Code", "Naming Series", "Quy tắc mã vật tư"]
+		item_rename_role: DF.Link | None
 		mr_qty_allowance: DF.Float
 		naming_series_prefix: DF.Data | None
 		over_delivery_receipt_allowance: DF.Float
@@ -86,6 +88,10 @@ class StockSettings(Document):
 			hide_name_field=True,
 			make_mandatory=0,
 		)
+		if self.get("item_naming_by") == RULE_MODE:
+			# Mã do hệ thống sinh nên không bắt nhập, nhưng vẫn hiện: vật tư ngoài
+			# phạm vi quy tắc (dịch vụ, tài sản) vẫn gõ mã tay ở chính ô này.
+			make_property_setter("Item", "item_code", "reqd", 0, "Check", validate_fields_for_doctype=False)
 
 		# show/hide barcode field
 		for name in ["barcode", "barcodes", "scan_barcode"]:

@@ -55,6 +55,8 @@ def seed_item_group_taxonomy(company=None):
 			}
 		)
 		doc.flags.ignore_permissions = True
+		# Cây nhóm khung chưa có Mã nhóm; nghiệp vụ điền sau, trước khi tạo vật tư theo quy tắc mã.
+		doc.flags.ignore_mandatory = True
 		doc.insert()
 
 
