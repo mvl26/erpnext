@@ -53,10 +53,3 @@ class TestVatTuChuaCoNCCMacDinh(FrappeTestCase):
 		item = self.item(is_stock_item=0)
 
 		self.assertNotIn(item.name, self.rows())
-
-	def test_default_supplier_from_item_defaults_is_shown(self):
-		item = self.item([(self.supplier, "AAA1"), (self.other, "BBB2")])
-		item.item_defaults[0].default_supplier = self.other
-		item.save()
-
-		self.assertEqual(self.rows()[item.name]["default_supplier"], self.other)

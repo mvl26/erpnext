@@ -330,7 +330,6 @@ def validate_item(doc):
 
 	if doc.get("supplier_items"):
 		validate_supplier_rows(doc)
-	sync_default_supplier(doc)
 	if not doc.is_new():
 		plan_code_change(doc)
 
@@ -459,19 +458,6 @@ def set_supplier_part_no_keys(doc):
 	"""Điền ở mọi chế độ: bật quy tắc sau này thì dòng cũ đã có sẵn khóa để so trùng."""
 	for row in doc.get("supplier_items") or []:
 		row.supplier_part_no_key = match_key(row.supplier_part_no) or None
-
-
-def sync_default_supplier(doc):
-	"""`default_supplier` chạy theo dòng mặc định, để các luồng core không phải sửa.
-
-	Item cũ chưa khai `supplier_items` thì không có dòng mặc định — khi đó giữ
-	nguyên `default_supplier`, xóa đi là làm hỏng luồng Yêu cầu vật tư → PO.
-	"""
-	row = get_default_supplier_row(doc)
-	if not row:
-		return
-	for item_default in doc.get("item_defaults") or []:
-		item_default.default_supplier = row.supplier
 
 
 def _code_inputs(doc):

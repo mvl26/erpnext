@@ -16,6 +16,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase, change_settings
 
 from erpnext.stock import item_code_rule
+from erpnext.stock.doctype.item_supplier.item_supplier import get_default_supplier
 from erpnext.stock.item_code_rule import DuplicateItemError, ItemCodeRuleError
 
 RULE = item_code_rule.RULE_MODE
@@ -358,11 +359,10 @@ class TestCodeGeneration(ItemCodeRuleCase):
 
 		self.assertEqual(item.name, self.code("X0002"))
 
-	def test_default_supplier_follows_the_default_row(self):
+	def test_the_default_supplier_is_the_one_the_code_is_built_from(self):
 		item = new_item(self.group, self.brand, [(self.supplier, self.pn)]).insert()
 
-		self.assertTrue(item.item_defaults)
-		self.assertEqual({d.default_supplier for d in item.item_defaults}, {self.supplier})
+		self.assertEqual(get_default_supplier(item.name), self.supplier)
 
 
 class TestScope(ItemCodeRuleCase):
@@ -455,16 +455,6 @@ class TestDuplicateDetection(ItemCodeRuleCase):
 
 
 class TestAfterCreation(ItemCodeRuleCase):
-	def test_item_defaults_follow_the_default_supplier(self):
-		other = make_supplier(f"{self.sfx}-2")
-		item = new_item(self.group, self.brand, [(self.supplier, "AAA1", 1), (other, "BBB2")]).insert()
-
-		item.supplier_items[0].is_default = 0
-		item.supplier_items[1].is_default = 1
-		item.save()
-
-		self.assertEqual({d.default_supplier for d in item.item_defaults}, {other})
-
 	def test_existing_item_missing_brand_and_supplier_still_saves(self):
 		use_naming_mode(self, "Item Code")
 		code = f"_TEST-ICR-OLD-{self.sfx}"
@@ -480,14 +470,15 @@ class TestAfterCreation(ItemCodeRuleCase):
 		use_naming_mode(self, "Item Code")
 		item = new_item(self.group, None, item_code=f"_TEST-ICR-OLD-{self.sfx}").insert()
 		self.assertTrue(item.item_defaults)
-		item.item_defaults[0].default_supplier = self.supplier
-		item.save()
+		# Dữ liệu từ trước khi NCC mặc định chuyển sang bảng Supplier Items.
+		frappe.db.set_value("Item Default", item.item_defaults[0].name, "default_supplier", self.supplier)
+		item.reload()
 		use_naming_mode(self, RULE)
 
 		item.description = "Sửa sau khi bật quy tắc"
 		item.save()
 
-		self.assertEqual(item.item_defaults[0].default_supplier, self.supplier)
+		self.assertEqual(get_default_supplier(item.name), self.supplier)
 
 	def test_existing_item_with_several_suppliers_must_pick_a_default(self):
 		use_naming_mode(self, "Item Code")
@@ -1057,7 +1048,7 @@ class TestCodeFollowsItem(ItemCodeRuleCase):
 		item.save()
 
 		self.assert_renamed(item, old, self.code(f"Q{self.tok}"))
-		self.assertEqual({d.default_supplier for d in item.item_defaults}, {other})
+		self.assertEqual(get_default_supplier(item.name), other)
 
 	def test_part_no_written_differently_keeps_the_code(self):
 		item = self.rule_item(self.pn_dashed)
@@ -1304,8 +1295,10 @@ class TestBackfill(ItemCodeRuleCase):
 			self.group, None, suppliers, item_code=f"_TEST-ICR-OLD-{frappe.generate_hash(length=6)}"
 		).insert()
 		if default_supplier:
-			item.item_defaults[0].default_supplier = default_supplier
-			item.save()
+			# Ghi thẳng vào dữ liệu: lưu qua form thì NCC này đã thành dòng tích mặc định.
+			frappe.db.set_value(
+				"Item Default", item.item_defaults[0].name, "default_supplier", default_supplier
+			)
 		return item
 
 	def default_flags(self, item):
