@@ -272,18 +272,21 @@
    "label": "Estimated Cost",
    "oldfieldname": "project_value",
    "oldfieldtype": "Currency",
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   },
   {
    "fieldname": "total_costing_amount",
    "fieldtype": "Currency",
    "label": "Total Costing Amount (via Timesheet)",
+   "precision": "0",
    "read_only": 1
   },
   {
    "fieldname": "total_purchase_cost",
    "fieldtype": "Currency",
    "label": "Total Purchase Cost (via Purchase Invoice)",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -302,24 +305,28 @@
    "fieldname": "total_sales_amount",
    "fieldtype": "Currency",
    "label": "Total Sales Amount (via Sales Order)",
+   "precision": "0",
    "read_only": 1
   },
   {
    "fieldname": "total_billable_amount",
    "fieldtype": "Currency",
    "label": "Total Billable Amount (via Timesheet)",
+   "precision": "0",
    "read_only": 1
   },
   {
    "fieldname": "total_billed_amount",
    "fieldtype": "Currency",
    "label": "Total Billed Amount (via Sales Invoice)",
+   "precision": "0",
    "read_only": 1
   },
   {
    "fieldname": "total_consumed_material_cost",
    "fieldtype": "Currency",
    "label": "Total Consumed Material Cost (via Stock Entry)",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -343,6 +350,7 @@
    "oldfieldname": "gross_margin_value",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -462,7 +470,7 @@
  "index_web_pages_for_search": 1,
  "links": [],
  "max_attachments": 4,
- "modified": "2025-10-24 11:46:54.321559",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "buiviet9802@gmail.com",
  "module": "Projects",
  "name": "Project",

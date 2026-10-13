@@ -30,8 +30,12 @@ from erpnext.einvoice.payload import amount_in_words_for, compute_tax_groups
 
 FEI = "Fast EInvoice Document"
 
-# Loại tiền lấy đồng nguyên (0 chữ số thập phân) — VND/JPY; còn lại 2 chữ số.
+# Loại tiền không có đơn vị lẻ — mọi khoản tiền (thành tiền từng dòng, tiền thuế,
+# tổng) đều là số nguyên.
 _ZERO_DECIMAL_CURRENCIES = frozenset({"VND", "JPY"})
+
+# Số lẻ của các khoản tiền khi loại tiền có đơn vị lẻ (USD, EUR...).
+COMPONENT_PRECISION = 2
 
 # Bốn ô nhóm thuế của Phần I.
 TAX_GROUP_FIELDS = ("tax_amount_free", "tax_amount_0", "tax_amount_5", "tax_amount_10")
@@ -58,9 +62,26 @@ COMPUTED_MASTER_FIELDS = (
 COMPUTED_LINE_FIELDS = ("discount_amount", "amount", "tax_amount")
 
 
-def amount_precision(currency):
-	"""Số chữ số thập phân của tiền, theo loại tiền."""
-	return 0 if (currency or "VND").upper() in _ZERO_DECIMAL_CURRENCIES else 2
+def amount_precision(currency=None):
+	"""Số chữ số thập phân của các khoản **thành phần** (thành tiền, tiền thuế,
+	chiết khấu, khuyến mại) — cùng độ chính xác với Tổng thanh toán.
+
+	VND làm tròn đồng nguyên **ngay ở từng dòng**, như HĐĐT in ra: thành tiền và
+	tiền thuế mỗi dòng là số nguyên, Tiền hàng và Tiền thuế GTGT chỉ là tổng các
+	số nguyên đó, nên Tổng thanh toán cộng lại khớp tuyệt đối với từng dòng. Chứng
+	từ gốc (hóa đơn, phiếu giao) cũng làm tròn như vậy — `precision = 0` trên các
+	trường tiền và `round_row_wise_tax` bật trong Accounts Settings.
+	"""
+	return total_precision(currency)
+
+
+def total_precision(currency):
+	"""Số chữ số thập phân của **Tổng thanh toán**.
+
+	VND và JPY không có đơn vị nhỏ hơn đồng/yên trong thanh toán, nên số tiền
+	phải tròn. Ngoại tệ có xu thì giữ hai số lẻ.
+	"""
+	return 0 if (currency or "VND").upper() in _ZERO_DECIMAL_CURRENCIES else COMPONENT_PRECISION
 
 
 def process_type_of(line):
@@ -103,13 +124,17 @@ def dominant_tax_rate(lines):
 	return max(totals, key=totals.get) if totals else "0"
 
 
-def summarise(lines, precision, deduction_amount=0, deduction_amount_other=0):
+def summarise(lines, currency, deduction_amount=0, deduction_amount_other=0):
 	"""Tổng hợp phần master từ các dòng **đã tính**. Chỉ đọc, không sửa dòng nào.
 
 	`validation` dùng chính hàm này để biết số master có khớp dòng hàng không —
 	nên "số đúng" và "số được kiểm" không thể là hai định nghĩa khác nhau.
+
+	Nhận loại tiền chứ không nhận sẵn độ chính xác, vì các khoản thành phần và
+	Tổng thanh toán làm tròn khác nhau: chỉ nơi này mới biết cả hai.
 	"""
 	lines = lines or []
+	precision = amount_precision(currency)
 	billable = [line for line in lines if is_billable(line)]
 
 	amount = flt(sum(flt(line.amount) for line in billable), precision)
@@ -137,7 +162,9 @@ def summarise(lines, precision, deduction_amount=0, deduction_amount_other=0):
 		**{field: flt(groups[field], precision) for field in TAX_GROUP_FIELDS},
 		"discount_amount": discount,
 		"promotion_amount": promotion,
-		"total_amount": flt(amount + tax_amount - deductions, precision),
+		# Làm tròn **một lần duy nhất**, ở đây, trên số đã cộng đủ — nên chênh lệch
+		# làm tròn không bao giờ vượt quá nửa đơn vị tiền tệ.
+		"total_amount": flt(amount + tax_amount - deductions, total_precision(currency)),
 		"tax_rate": dominant_tax_rate(lines),
 		"unbucketed": flt(groups["unbucketed"], precision),
 	}
@@ -151,7 +178,7 @@ def compute_document_totals(fei):
 	precision = amount_precision(fei.currency)
 	compute_lines(fei.lines, precision)
 
-	totals = summarise(fei.lines, precision, fei.deduction_amount, fei.deduction_amount_other)
+	totals = summarise(fei.lines, fei.currency, fei.deduction_amount, fei.deduction_amount_other)
 	for fieldname in COMPUTED_MASTER_FIELDS:
 		if fieldname in totals:
 			fei.set(fieldname, totals[fieldname])

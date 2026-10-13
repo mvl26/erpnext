@@ -1,0 +1,122 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-23 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "group_name",
+  "column_break_head",
+  "disabled",
+  "member_section",
+  "departments",
+  "users",
+  "fixed_emails",
+  "preview_section",
+  "member_preview"
+ ],
+ "fields": [
+  {
+   "fieldname": "group_name",
+   "fieldtype": "Data",
+   "label": "Tên nhóm",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "label": "Ngừng dùng",
+   "default": "0",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "member_section",
+   "fieldtype": "Section Break",
+   "label": "Thành viên"
+  },
+  {
+   "fieldname": "departments",
+   "fieldtype": "Table",
+   "label": "Theo phòng ban",
+   "options": "Supply Notification Department",
+   "description": "Mọi nhân viên đang làm việc thuộc các phòng ban này (kể cả phòng con)."
+  },
+  {
+   "fieldname": "users",
+   "fieldtype": "Table",
+   "label": "Theo người cụ thể",
+   "options": "Supply Notification User"
+  },
+  {
+   "fieldname": "fixed_emails",
+   "fieldtype": "Small Text",
+   "label": "Email cố định",
+   "description": "Mỗi dòng hoặc mỗi dấu phẩy một địa chỉ. Email ngoài công ty chỉ dùng được ở điểm có bật kênh gửi ra ngoài."
+  },
+  {
+   "fieldname": "preview_section",
+   "fieldtype": "Section Break",
+   "label": "Thành viên thực tế"
+  },
+  {
+   "fieldname": "member_preview",
+   "fieldtype": "HTML",
+   "label": "Thành viên thực tế"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-23 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Supply Notification",
+ "name": "Supply Notification Recipient Group",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Quản trị thông báo",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All"
+  }
+ ],
+ "sort_field": "group_name",
+ "sort_order": "ASC",
+ "states": [],
+ "autoname": "field:group_name",
+ "title_field": "group_name",
+ "track_changes": 1,
+ "show_title_field_in_link": 1
+}

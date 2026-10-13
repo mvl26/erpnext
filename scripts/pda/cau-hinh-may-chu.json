@@ -1,0 +1,6 @@
+{
+	"_ghi_chu": "Địa chỉ máy chủ mà bản đóng gói (pda_app/www/) sẽ gọi. Trong KHO MÃ NGUỒN đây LUÔN là địa chỉ THỬ (site erptest.local). Người phát hành tự sửa sang địa chỉ thật trước khi dựng APK cho kho, rồi trả file này về giá trị thử — xem pda_app/README.md. Vì sao không để sẵn địa chỉ thật: một bản dựng lỡ tay từ kho mã nguồn sẽ trỏ vào máy chủ thật và thủ kho ghi vào dữ liệu thật mà không ai biết; ngược lại thì chỉ hỏng dữ liệu thử.",
+	"_ghi_chu_phat_hanh": "'may_chu_phat_hanh' là địa chỉ của BẢN PHÁT HÀNH THẬT. dong-goi.sh so nó với 'may_chu': KHÁC nhau (hoặc bỏ trống) thì sinh window.KHO_BAN_THU = true và app hiện dải cam 'BẢN THỬ' trên màn thẻ + màn menu. Người phát hành điền địa chỉ thật vào CẢ HAI khoá khi dựng APK cho kho thì dải đó tự tắt. Để trống ở đây là CỐ Ý và là mặt AN TOÀN của mặc định: thiếu thông tin thì cứ coi là bản thử — một dải cam thừa chỉ gây phiền, một dải cam THIẾU là đúng sự cố ta đang chặn.",
+	"may_chu": "http://192.168.61.129:8003",
+	"may_chu_phat_hanh": ""
+}

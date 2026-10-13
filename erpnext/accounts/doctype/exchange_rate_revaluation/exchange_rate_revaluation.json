@@ -77,6 +77,7 @@
    "fieldtype": "Currency",
    "label": "Gain/Loss from Revaluation",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -85,6 +86,7 @@
    "fieldtype": "Currency",
    "label": "Gain/Loss already booked",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -92,6 +94,7 @@
    "fieldtype": "Currency",
    "label": "Total Gain/Loss",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -109,7 +112,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2023-06-20 07:29:06.972434",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Exchange Rate Revaluation",

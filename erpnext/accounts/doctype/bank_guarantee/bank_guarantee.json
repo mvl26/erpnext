@@ -89,6 +89,7 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Amount",
+   "precision": "0",
    "reqd": 1
   },
   {
@@ -192,12 +193,14 @@
   {
    "fieldname": "margin_money",
    "fieldtype": "Currency",
-   "label": "Margin Money"
+   "label": "Margin Money",
+   "precision": "0"
   },
   {
    "fieldname": "charges",
    "fieldtype": "Currency",
-   "label": "Charges Incurred"
+   "label": "Charges Incurred",
+   "precision": "0"
   },
   {
    "fieldname": "fixed_deposit_number",
@@ -216,7 +219,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2025-09-25 23:44:12.473583",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Bank Guarantee",

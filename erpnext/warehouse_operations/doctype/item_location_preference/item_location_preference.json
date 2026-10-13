@@ -1,0 +1,34 @@
+{
+ "actions": [],
+ "autoname": "field:vat_tu",
+ "creation": "2026-09-15 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": ["vat_tu", "vi_tri_gan", "sec_gc", "ghi_chu"],
+ "fields": [
+  {"fieldname": "vat_tu", "fieldtype": "Link", "label": "Mặt hàng", "options": "Item",
+   "reqd": 1, "in_list_view": 1, "set_only_once": 1},
+  {"fieldname": "vi_tri_gan", "fieldtype": "Table", "label": "Vị trí gán",
+   "options": "Item Location Preference Row", "reqd": 1,
+   "description": "Một mặt hàng có thể giữ nhiều vị trí (22/09/2026): một ô ở dãy này, cả một tầng ở dãy kia, kể cả ở kho khác. Các vị trí không được chồng lên nhau và không chồng lên vị trí của mặt hàng khác. Gợi ý ô: ô trống trước (bất kể thuộc vị trí nào), hết ô trống mới dồn vào ô đang chứa chính mặt hàng này."},
+  {"fieldname": "sec_gc", "fieldtype": "Section Break"},
+  {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chú"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-22 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Warehouse Operations",
+ "name": "Item Location Preference",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1},
+  {"role": "Stock Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1},
+  {"role": "Stock User", "read": 1, "report": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -553,6 +553,7 @@
    "fieldtype": "Currency",
    "label": "Total (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -564,6 +565,7 @@
    "oldfieldname": "net_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -576,6 +578,7 @@
    "fieldtype": "Currency",
    "label": "Total",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -585,6 +588,7 @@
    "oldfieldname": "net_total_import",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -666,6 +670,7 @@
    "oldfieldname": "other_charges_added",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -677,6 +682,7 @@
    "oldfieldname": "other_charges_deducted",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -689,6 +695,7 @@
    "oldfieldname": "total_tax",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -704,6 +711,7 @@
    "oldfieldname": "other_charges_added_import",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -715,6 +723,7 @@
    "oldfieldname": "other_charges_deducted_import",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -723,6 +732,7 @@
    "fieldtype": "Currency",
    "label": "Total Taxes and Charges",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -745,6 +755,7 @@
    "fieldtype": "Currency",
    "label": "Additional Discount Amount (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -763,6 +774,7 @@
    "fieldtype": "Currency",
    "label": "Additional Discount Amount",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1
   },
   {
@@ -778,6 +790,7 @@
    "oldfieldname": "grand_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -788,6 +801,7 @@
    "label": "Rounding Adjustment (Company Currency)",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -808,6 +822,7 @@
    "oldfieldname": "rounded_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -824,6 +839,7 @@
    "oldfieldname": "grand_total_import",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -833,6 +849,7 @@
    "label": "Rounding Adjustment",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -841,6 +858,7 @@
    "fieldtype": "Currency",
    "label": "Rounded Total",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -865,6 +883,7 @@
    "label": "Advance Paid",
    "no_copy": 1,
    "options": "party_account_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1230,6 +1249,7 @@
    "label": "Tax Withholding Net Total",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -1240,6 +1260,7 @@
    "label": "Base Tax Withholding Net Total",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1309,7 +1330,7 @@
  "idx": 105,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-07-31 17:19:40.816883",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Buying",
  "name": "Purchase Order",

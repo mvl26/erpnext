@@ -1,0 +1,14 @@
+{
+  "appId": "vn.com.miyano.pda",
+  "appName": "Miyano PDA",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  },
+  "server": {
+    "androidScheme": "https",
+    "errorPath": "index.html"
+  }
+}

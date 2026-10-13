@@ -23,6 +23,15 @@ DELIVERY_NOTE_STATUS_OPTIONS = "\n".join(("", *STATUSES))
 DRAFT_TEMPLATE = "Fast HĐĐT - Bản nháp gửi khách"
 ISSUED_TEMPLATE = "Fast HĐĐT - Hóa đơn chính thức"
 
+# Mẫu email hóa đơn chính thức: dòng mã tra cứu, và dòng link công khai tới PDF
+# chèn ngay sau nó. Mẫu đã tạo trên site từ trước được chèn thêm dòng link khi
+# migrate — xem `_add_public_link_row`.
+_LOOKUP_ROW = "<tr><td>Mã tra cứu</td><td><b>{{ doc.fast_key_search }}</b></td></tr>"
+_LINK_ROW = (
+	'{% if doc.public_pdf_url %}<tr><td>Xem / tải hóa đơn</td><td><a href="{{ doc.public_pdf_url }}">'
+	"{{ doc.public_pdf_url }}</a></td></tr>{% endif %}"
+)
+
 
 def setup_einvoice():
 	_make_delivery_note_fields()
@@ -73,17 +82,20 @@ chính thức và gửi lại.</p>
 <tr><td>Mẫu số</td><td>{{ doc.fast_pattern }}</td></tr>
 <tr><td>Ngày phát hành</td><td>{{ frappe.format_value(doc.fast_signed_date, {"fieldtype": "Date"}) }}</td></tr>
 <tr><td>Mã tra cứu</td><td><b>{{ doc.fast_key_search }}</b></td></tr>
+{% if doc.public_pdf_url %}<tr><td>Xem / tải hóa đơn</td><td><a href="{{ doc.public_pdf_url }}">{{ doc.public_pdf_url }}</a></td></tr>{% endif %}
 <tr><td>Tổng thanh toán</td><td><b>{{ frappe.format_value(doc.total_amount, {"fieldtype": "Currency"}) }}</b></td></tr>
 <tr><td>Bằng chữ</td><td>{{ doc.amount_in_words }}</td></tr>
 </table>
-<p>Quý khách có thể dùng <b>mã tra cứu</b> ở trên để tra cứu hóa đơn trên cổng của
-nhà cung cấp dịch vụ hóa đơn điện tử.</p>
+<p>Quý khách có thể xem và tải hóa đơn qua link ở trên, hoặc dùng <b>mã tra cứu</b> để tra
+cứu hóa đơn trên cổng của nhà cung cấp dịch vụ hóa đơn điện tử.</p>
 <p>Trân trọng,<br>Công ty TNHH Miyano Việt Nam</p>""",
 		),
 	)
 
 	for name, subject, response in templates:
 		if frappe.db.exists("Email Template", name):
+			if name == ISSUED_TEMPLATE:
+				_add_public_link_row(name)
 			continue
 		doc = frappe.get_doc(
 			{
@@ -97,6 +109,24 @@ nhà cung cấp dịch vụ hóa đơn điện tử.</p>
 		)
 		doc.flags.ignore_permissions = True
 		doc.insert()
+
+
+def _add_public_link_row(name):
+	"""Chèn dòng link công khai vào mẫu email đã tạo từ trước khi có link.
+
+	Chỉ chèn khi mẫu còn nguyên dòng mã tra cứu gốc. Mẫu đã bị sửa tay tới mức
+	không còn dòng đó thì để nguyên — không đoán chỗ chèn vào nội dung người khác viết.
+	"""
+	template = frappe.get_doc("Email Template", name)
+	html = template.response_html or template.response or ""
+	if "public_pdf_url" in html or _LOOKUP_ROW not in html:
+		return
+
+	html = html.replace(_LOOKUP_ROW, f"{_LOOKUP_ROW}\n{_LINK_ROW}")
+	template.response_html = html
+	template.response = html
+	template.flags.ignore_permissions = True
+	template.save()
 
 
 def _make_delivery_note_fields():
@@ -153,6 +183,16 @@ def _make_delivery_note_fields():
 					no_copy=1,
 					hidden=1,
 					description="Bản sao dự phòng của keySearch, phòng khi chứng từ HĐĐT bị xóa.",
+				),
+				dict(
+					fieldname="fast_einvoice_pdf_url",
+					fieldtype="Data",
+					options="URL",
+					label="Link xem hóa đơn",
+					insert_after="fast_key_search",
+					read_only=1,
+					no_copy=1,
+					description="Link công khai tới PDF hóa đơn chính thức — gửi được cho khách.",
 				),
 			]
 		},

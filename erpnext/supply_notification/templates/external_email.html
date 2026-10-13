@@ -1,0 +1,20 @@
+<div>
+	<p>{{ intro }}</p>
+
+	{% if facts %}
+	<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
+		<tbody>
+			{% for fact in facts %}
+			<tr>
+				<td><strong>{{ fact.label }}</strong></td>
+				<td>{{ fact.value }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+	{% endif %}
+
+	{% if closing %}
+	<p>{{ closing }}</p>
+	{% endif %}
+</div>

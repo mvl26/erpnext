@@ -11,7 +11,7 @@ import json
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import now_datetime
+from frappe.utils import add_to_date, now_datetime
 
 from erpnext.einvoice.actions import (
 	download_official_pdf,
@@ -40,7 +40,7 @@ from erpnext.einvoice.reconcile import reconcile_invoice
 from erpnext.einvoice.tax_status import check_tax_status
 from erpnext.einvoice.tests.test_fast_approval import Mailbox
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.tests.test_fixtures import make_delivery_note, minimal_pdf_bytes
+from erpnext.einvoice.tests.test_fixtures import attach_official_xml, make_delivery_note, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
 
@@ -144,7 +144,10 @@ class TestScenario1HappyPath(EndToEndBase):
 		mark_customer_approved(self.fei, approved_by="Chị Lan", channel="Email")
 		issue_invoice(self.fei, client=self.client(NOT_FOUND, ISSUE_OK))
 
+		# Fast cần khoảng 1 phút ký số xong mới có PDF — giả lập đã qua thời gian đó.
+		frappe.db.set_value(FEI, self.fei, "issued_time", add_to_date(now_datetime(), seconds=-90))
 		download_official_pdf(self.fei, client=self.client(pdf()))
+		attach_official_xml(self.fei)
 		send_invoice_to_customer(self.fei, mailer=self.mailbox)
 		self.assertEqual(self.status(), STATUS_SENT)
 
@@ -242,14 +245,28 @@ class TestScenario6DoubleClick(EndToEndBase):
 
 
 class TestScenario3ValidationStopsBeforeFast(EndToEndBase):
-	"""Kịch bản 3: có MST nhưng xóa địa chỉ — chặn tại ERP, không gọi API."""
+	"""Kịch bản 3: có MST nhưng xóa địa chỉ.
 
-	def test_nothing_is_sent_when_the_address_is_missing(self):
+	Chốt chặn chỉ đứng ở nút phát hành. Bản nháp vẫn xem được — đó là cách kế
+	toán nhìn ra mình thiếu địa chỉ; khóa nó lại là khóa đúng cái cửa dẫn tới
+	chỗ sửa. Bản nháp không tiêu số hóa đơn nên không có gì để mất.
+	"""
+
+	def test_the_draft_is_still_viewable_so_the_mistake_can_be_found(self):
 		frappe.db.set_value(FEI, self.fei, "address", "")
-		client = self.client(pdf())
+
+		result = preview_draft(self.fei, client=self.client(pdf()))
+
+		self.assertTrue(result["ok"])
+		self.assertEqual(self.status(), STATUS_DRAFT_VIEWED)
+
+	def test_nothing_is_sent_to_fast_when_issuing_without_an_address(self):
+		frappe.db.set_value(FEI, self.fei, "address", "")
+		frappe.db.set_value(FEI, self.fei, "status", STATUS_CUSTOMER_APPROVED)
+		client = self.client(NOT_FOUND, ISSUE_OK)
 
 		with self.assertRaises(frappe.ValidationError):
-			preview_draft(self.fei, client=client)
+			issue_invoice(self.fei, client=client)
 
 		self.assertEqual(self.transport.calls, [])
-		self.assertEqual(self.status(), STATUS_DRAFT)
+		self.assertEqual(self.status(), STATUS_CUSTOMER_APPROVED)

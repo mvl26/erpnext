@@ -83,6 +83,7 @@
    "fieldtype": "Currency",
    "label": "Payment Amount",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -92,6 +93,7 @@
    "in_list_view": 1,
    "label": "Outstanding",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -99,7 +101,8 @@
    "fieldname": "paid_amount",
    "fieldtype": "Currency",
    "label": "Paid Amount",
-   "options": "currency"
+   "options": "currency",
+   "precision": "0"
   },
   {
    "default": "0",
@@ -107,6 +110,7 @@
    "fieldname": "discounted_amount",
    "fieldtype": "Currency",
    "label": "Discounted Amount",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -151,13 +155,14 @@
    "in_list_view": 1,
    "label": "Interest",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2021-09-23 13:48:27.898830",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Overdue Payment",

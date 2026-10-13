@@ -803,6 +803,7 @@
    "hide_seconds": 1,
    "label": "Total Billing Amount",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -827,6 +828,7 @@
    "hide_seconds": 1,
    "label": "Total (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -839,6 +841,7 @@
    "oldfieldname": "net_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1,
    "reqd": 1
@@ -856,6 +859,7 @@
    "hide_seconds": 1,
    "label": "Total",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -865,6 +869,7 @@
    "hide_seconds": 1,
    "label": "Net Total",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -975,6 +980,7 @@
    "oldfieldname": "other_charges_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -991,6 +997,7 @@
    "hide_seconds": 1,
    "label": "Total Taxes and Charges",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1021,6 +1028,7 @@
    "label": "Loyalty Amount",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1099,6 +1107,7 @@
    "hide_seconds": 1,
    "label": "Additional Discount Amount (Company Currency)",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1123,6 +1132,7 @@
    "hide_seconds": 1,
    "label": "Additional Discount Amount",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1
   },
   {
@@ -1144,6 +1154,7 @@
    "oldfieldname": "grand_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1,
    "reqd": 1
@@ -1157,6 +1168,7 @@
    "label": "Rounding Adjustment (Company Currency)",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1170,6 +1182,7 @@
    "oldfieldname": "rounded_total",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1206,6 +1219,7 @@
    "oldfieldname": "grand_total_export",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "read_only": 1,
    "reqd": 1
   },
@@ -1218,6 +1232,7 @@
    "label": "Rounding Adjustment",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1232,6 +1247,7 @@
    "oldfieldname": "rounded_total_export",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -1255,6 +1271,7 @@
    "oldfieldname": "total_advance",
    "oldfieldtype": "Currency",
    "options": "party_account_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1268,6 +1285,7 @@
    "oldfieldname": "outstanding_amount",
    "oldfieldtype": "Currency",
    "options": "party_account_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1390,6 +1408,7 @@
    "label": "Paid Amount (Company Currency)",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1410,6 +1429,7 @@
    "oldfieldname": "paid_amount",
    "oldfieldtype": "Currency",
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1431,6 +1451,7 @@
    "label": "Base Change Amount (Company Currency)",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1449,6 +1470,7 @@
    "label": "Change Amount",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "print_hide": 1
   },
   {
@@ -1470,6 +1492,7 @@
    "label": "Write Off Amount",
    "no_copy": 1,
    "options": "currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only_depends_on": "eval:doc.write_off_outstanding_amount_automatically"
   },
@@ -1481,6 +1504,7 @@
    "label": "Write Off Amount (Company Currency)",
    "no_copy": 1,
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1,
    "read_only": 1
   },
@@ -1811,6 +1835,7 @@
    "oldfieldname": "total_commission",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "print_hide": 1
   },
   {
@@ -2028,6 +2053,7 @@
    "fieldtype": "Currency",
    "label": "Amount Eligible for Commission",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -2199,7 +2225,7 @@
    "link_fieldname": "consolidated_invoice"
   }
  ],
- "modified": "2025-09-09 14:48:59.472826",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice",

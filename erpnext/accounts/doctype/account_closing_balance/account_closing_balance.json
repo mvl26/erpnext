@@ -59,7 +59,8 @@
    "label": "Debit Amount",
    "oldfieldname": "debit",
    "oldfieldtype": "Currency",
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   },
   {
    "fieldname": "credit",
@@ -67,7 +68,8 @@
    "label": "Credit Amount",
    "oldfieldname": "credit",
    "oldfieldtype": "Currency",
-   "options": "Company:company:default_currency"
+   "options": "Company:company:default_currency",
+   "precision": "0"
   },
   {
    "fieldname": "account_currency",
@@ -79,13 +81,15 @@
    "fieldname": "debit_in_account_currency",
    "fieldtype": "Currency",
    "label": "Debit Amount in Account Currency",
-   "options": "account_currency"
+   "options": "account_currency",
+   "precision": "0"
   },
   {
    "fieldname": "credit_in_account_currency",
    "fieldtype": "Currency",
    "label": "Credit Amount in Account Currency",
-   "options": "account_currency"
+   "options": "account_currency",
+   "precision": "0"
   },
   {
    "fieldname": "project",
@@ -129,7 +133,7 @@
  "icon": "fa fa-list",
  "in_create": 1,
  "links": [],
- "modified": "2023-03-06 08:56:36.393237",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Account Closing Balance",

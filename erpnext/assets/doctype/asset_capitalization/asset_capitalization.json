@@ -220,6 +220,7 @@
    "fieldtype": "Currency",
    "label": "Consumed Stock Total Value",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -227,6 +228,7 @@
    "fieldtype": "Currency",
    "label": "Consumed Asset Total Value",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -252,6 +254,7 @@
    "fieldtype": "Currency",
    "label": "Service Expense Total Amount",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -264,6 +267,7 @@
    "fieldtype": "Currency",
    "label": "Total Value",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -324,7 +328,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-01-08 13:14:33.008458",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Assets",
  "name": "Asset Capitalization",

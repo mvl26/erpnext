@@ -67,6 +67,7 @@
    "fieldname": "item_name",
    "fieldtype": "Data",
    "label": "Item Name",
+   "length": 500,
    "oldfieldname": "item_name",
    "oldfieldtype": "Data",
    "read_only": 1

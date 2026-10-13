@@ -39,7 +39,7 @@ def _catalogue():
 		(
 			("460",),
 			_("Có hóa đơn treo trên hệ thống Fast."),
-			_("Dùng nút Truy vấn (370) để đối soát và dọn hóa đơn treo trước khi phát hành tiếp."),
+			_("Dùng nút Lấy dữ liệu từ Fast (370) để đối soát và dọn hóa đơn treo trước khi phát hành tiếp."),
 		),
 		(
 			tuple(CERTIFICATE_CODES),
@@ -64,7 +64,7 @@ def _catalogue():
 		(
 			tuple(DUPLICATE_INVOICE_CODES),
 			_("Hóa đơn này đã được phát hành trước đó."),
-			_("Bấm Truy vấn (370) để lấy về số hóa đơn đã có. TUYỆT ĐỐI không phát hành lại."),
+			_("Bấm Lấy dữ liệu từ Fast (370) để lấy về số hóa đơn đã có. TUYỆT ĐỐI không phát hành lại."),
 		),
 		(
 			("812", "825"),

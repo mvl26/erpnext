@@ -21,6 +21,7 @@ module `erpnext/einvoice/`.
 | 6 | Xác nhận với Fast **thẻ nào chứa tiền thuế suất 8%** | Kế toán + Fast | Bốn thẻ `TaxAmountFree/0/5/10` không có ô cho 8% |
 | 7 | Xử lý hóa đơn test `TESTPM260807A` đã lỡ phát hành thật | Kế toán trưởng | Là số hóa đơn thật đã tiêu, phải điều chỉnh hoặc thay thế |
 | 8 | Giao role **Kế toán trưởng HĐĐT** cho đúng người | Kế toán trưởng | Role này mở nút phát hành và nút hủy |
+| 9 | Hỏi Fast có **lệnh API tải XML** hóa đơn không | Miyano + Fast | Tài liệu API chỉ có PDF (380/385). Chưa có lệnh thì kế toán phải đính XML tay cho từng hóa đơn trước khi gửi khách |
 
 Ngoài ra, hai việc chuẩn hóa dữ liệu (Giai đoạn 1 của đặc tả):
 
@@ -81,6 +82,18 @@ số, không gửi CQT, không tiêu số hóa đơn nào.
 
 **Chỉ từ trạng thái 06 trở đi hóa đơn mới có giá trị pháp lý.** Bản PDF ở trạng
 thái 01–04 là bản nháp; mẫu email gửi khách đã ghi sẵn dòng cảnh báo này.
+
+**PDF và XML gửi khách.** PDF chính thức **tự tải** khoảng 1 phút sau khi phát hành
+(Fast còn đang ký số; bấm tay sớm hơn 60 giây sẽ bị chặn). PDF để công khai, trường
+*Link xem hóa đơn* là link gửi thẳng cho khách. **XML phải đính tay**: API Fast không
+có lệnh tải XML — tải file XML trên portal Fast rồi đính vào trường *XML hóa đơn*.
+ERP chỉ gửi email hóa đơn khi có **đủ cả PDF và XML**, và email kèm cả hai file.
+
+**Nơi lưu file.** Mọi file của một hóa đơn — bản nháp, PDF chính thức (kể cả bản trên
+phiếu giao), PDF chuyển đổi, XML — nằm chung thư mục
+`Home/Invoices/{năm}/{tháng}/{ngày phát hành}/{số hóa đơn}` trong File Manager. Thư mục
+chỉ được tạo khi có file cần lưu. Bản nháp chưa có số nằm tạm ở thư mục mang tên chứng
+từ HĐĐT; phát hành xong tự dời về thư mục số hóa đơn, thư mục tạm rỗng tự xóa.
 
 ---
 

@@ -13,20 +13,34 @@
 // form hiện một số rồi chứng từ lưu một số khác thì đắt hơn nhiều.
 
 frappe.ui.form.on("Fast EInvoice Document", {
-	refresh(frm) {
+	// `await` chứ không bắn rồi bỏ đấy: Frappe xóa sạch nút tùy biến trong
+	// `refresh_header()` **trước** khi gọi script của form ("header must be
+	// refreshed before client methods because add_custom_button"). Không chờ thì
+	// nút được thêm sau khi cả chuỗi refresh đã xong, và lần refresh kế tiếp bất
+	// kỳ sẽ quét sạch chúng — bảng cảnh báo thì sống sót vì nó nằm ở dashboard,
+	// nên triệu chứng là "có cảnh báo mà không có nút".
+	async refresh(frm) {
 		apply_totals_lock(frm);
 		render_override_banner(frm);
 		set_item_query(frm);
 		if (frm.is_new()) return;
-		frm.trigger("load_einvoice_state");
+		await frm.trigger("load_einvoice_state");
 	},
 
 	async load_einvoice_state(frm) {
-		const { message: state } = await frappe.call({
-			method: "erpnext.einvoice.form_state.get_form_state",
-			args: { fei: frm.doc.name },
-		});
-		if (!state) return;
+		let state;
+		try {
+			({ message: state } = await frappe.call({
+				method: "erpnext.einvoice.form_state.get_form_state",
+				args: { fei: frm.doc.name },
+			}));
+		} catch (error) {
+			// Không lấy được trạng thái thì vẫn không được để form trống trơn: còn
+			// nút tải lại, và lời nói rõ vì sao chưa có các nút khác.
+			render_state_failure(frm);
+			return;
+		}
+		if (!state) return render_state_failure(frm);
 
 		frm.einvoice_state = state;
 		render_status_indicator(frm, state);
@@ -220,6 +234,15 @@ function render_validation(frm, state) {
 }
 
 // --- Nút theo trạng thái (bảng B2) ------------------------------------------
+
+function render_state_failure(frm) {
+	frm.dashboard.add_comment(
+		__("Chưa tải được trạng thái hóa đơn điện tử từ máy chủ. Bấm “Tải lại” để thử lại."),
+		"red",
+		true
+	);
+	frm.add_custom_button(__("Tải lại"), () => frm.reload_doc());
+}
 
 function render_buttons(frm, state) {
 	for (const button of state.buttons) {
@@ -445,7 +468,14 @@ function summary_html(frm, button) {
 		[__("Khách hàng"), doc.customer_name],
 		[__("Mã số thuế"), doc.customer_tax_code || "—"],
 		[__("Địa chỉ"), doc.address],
-		[__("Ngày hóa đơn"), frappe.datetime.str_to_user(doc.invoice_date)],
+		// Phát hành luôn đặt ngày hóa đơn bằng hôm nay (actions.refresh_before_send) — bảng
+		// xác nhận phải hiện đúng ngày sẽ in lên hóa đơn, không phải ngày điền sẵn.
+		[
+			__("Ngày hóa đơn"),
+			frappe.datetime.str_to_user(
+				button.name === "issue" ? frappe.datetime.get_today() : doc.invoice_date
+			),
+		],
 		[__("Số dòng hàng"), `${(doc.lines || []).length} ${__("dòng")}`],
 		[__("Tiền hàng"), money(doc.amount)],
 		[__("Tiền thuế"), money(doc.tax_amount)],

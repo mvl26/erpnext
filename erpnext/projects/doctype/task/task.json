@@ -286,6 +286,7 @@
    "oldfieldname": "actual_budget",
    "oldfieldtype": "Currency",
    "options": "Company:company:default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -296,6 +297,7 @@
    "fieldname": "total_billing_amount",
    "fieldtype": "Currency",
    "label": "Total Billable Amount (via Timesheet)",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -406,7 +408,7 @@
  "is_tree": 1,
  "links": [],
  "max_attachments": 20,
- "modified": "2026-03-31 10:12:45.366195",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "hieu.cv2@miyano.com.vn",
  "module": "Projects",
  "name": "Task",

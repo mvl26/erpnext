@@ -77,14 +77,16 @@
    "fieldname": "min_amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Min Amount"
+   "label": "Min Amount",
+   "precision": "0"
   },
   {
    "default": "0",
    "fieldname": "max_amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Max Amount"
+   "label": "Max Amount",
+   "precision": "0"
   },
   {
    "fieldname": "section_break_6",
@@ -193,7 +195,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-07-22 17:25:07.880984",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Promotional Scheme Product Discount",

@@ -3,10 +3,11 @@
 """Nút 11 & 12 — trạng thái CQT (8200) và truy vấn đối soát (370) — mục E8."""
 
 import json
+from datetime import timedelta
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import add_to_date, getdate, now_datetime, nowdate
+from frappe.utils import add_to_date, get_datetime, getdate, now_datetime, nowdate
 
 from erpnext.einvoice.builder import create_from_delivery_note
 from erpnext.einvoice.constants import (
@@ -22,7 +23,7 @@ from erpnext.einvoice.constants import (
 )
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.reconcile import reconcile_invoice
-from erpnext.einvoice.tax_status import check_tax_status, poll_pending_tax_status
+from erpnext.einvoice.tax_status import _is_due, check_tax_status, poll_pending_tax_status
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
 from erpnext.einvoice.tests.test_fixtures import make_delivery_note
 
@@ -139,6 +140,47 @@ class TestCheckTaxStatus(TaxStatusBase):
 		self.assertEqual(payload["invoiceNumberTo"], "2")
 		self.assertEqual(payload["invoiceType"], "1")
 
+	def test_the_query_asks_by_invoice_date_only_when_issued_later(self):
+		"""8200 lọc theo đúng ngày hóa đơn, không theo ngày ký, không nới thành khoảng.
+
+		Hóa đơn cũ mang ngày phiếu giao nên có thể lệch ngày ký. Khoảng bao cả hai
+		ngày mà lệch sang tháng khác (28/08 → 03/09) là vắt hai kỳ — Fast trả
+		``100 - Only process with the same period``.
+		"""
+		frappe.db.set_value(
+			FEI, self.fei.name, {"invoice_date": "2026-08-28", "fast_signed_date": "2026-09-03"}
+		)
+		check_tax_status(self.fei.name, client=self._client(self.accepted()))
+
+		log = frappe.get_doc(LOG, {"fei_document": self.fei.name, "method": 8200})
+		payload = json.loads(log.request_json)["payload"]
+		self.assertEqual(payload["invoiceDateFrom"], "20260828")
+		self.assertEqual(payload["invoiceDateTo"], "20260828")
+
+	def test_the_query_falls_back_to_the_signed_date_without_an_invoice_date(self):
+		frappe.db.set_value(FEI, self.fei.name, {"invoice_date": None, "fast_signed_date": "2026-09-03"})
+		check_tax_status(self.fei.name, client=self._client(self.accepted()))
+
+		log = frappe.get_doc(LOG, {"fei_document": self.fei.name, "method": 8200})
+		payload = json.loads(log.request_json)["payload"]
+		self.assertEqual(payload["invoiceDateFrom"], "20260903")
+		self.assertEqual(payload["invoiceDateTo"], "20260903")
+
+	def test_padded_fields_in_the_result_still_match(self):
+		"""Tài liệu Fast mục 17 có ví dụ đệm khoảng trắng quanh cả tên thẻ lẫn giá trị."""
+		row = {
+			" key ": f" {self.fei.fast_key} ",
+			" taxStatus ": " 3 ",
+			" verificationCode ": " M1-0099 ",
+			" feedbackContent ": "",
+		}
+		padded = envelope(1, json.dumps({"data": [row]}))
+		check_tax_status(self.fei.name, client=self._client(padded))
+
+		self.fei.reload()
+		self.assertEqual(self.fei.status, STATUS_TAX_ACCEPTED)
+		self.assertEqual(self.fei.tax_verification_code, "M1-0099")
+
 	def test_a_sent_invoice_can_also_be_checked(self):
 		frappe.db.set_value(FEI, self.fei.name, "status", STATUS_SENT)
 		check_tax_status(self.fei.name, client=self._client(self.accepted()))
@@ -174,6 +216,58 @@ class TestPollJob(TaxStatusBase):
 	def test_the_job_does_nothing_when_auto_polling_is_off(self):
 		configure(auto_poll_tax_status=0, token="TOKEN-ABC", token_time=now_datetime())
 		self.assertEqual(poll_pending_tax_status(client=self._client(self.accepted())), [])
+
+	def _age(self, hours, checked_minutes_ago=None):
+		now = now_datetime()
+		issued = add_to_date(now, hours=-hours)
+		frappe.db.set_value(
+			FEI,
+			self.fei.name,
+			{
+				"issued_time": issued,
+				"fast_signed_date": getdate(issued),
+				"tax_checked_time": (
+					add_to_date(now, minutes=-checked_minutes_ago)
+					if checked_minutes_ago is not None
+					else None
+				),
+			},
+		)
+
+	def _polled(self):
+		return self.fei.name in poll_pending_tax_status(client=self._client(self.accepted()))
+
+	def test_a_fresh_invoice_is_asked_every_run(self):
+		self._age(hours=1, checked_minutes_ago=20)
+		self.assertTrue(self._polled())
+
+	def test_an_older_invoice_is_not_asked_again_so_soon(self):
+		"""Hóa đơn 5 giờ tuổi vừa hỏi 20 phút trước thì bỏ qua lượt này — không gọi dồn."""
+		self._age(hours=5, checked_minutes_ago=20)
+		self.assertFalse(self._polled())
+
+	def test_it_asks_again_once_the_gap_has_passed(self):
+		self._age(hours=5, checked_minutes_ago=118)
+		self.assertTrue(self._polled())
+
+	def test_it_stops_asking_after_three_days(self):
+		"""Quá mốc cuối thì thôi tự hỏi — báo cáo đối soát gom lại cho người xử lý."""
+		self._age(hours=80)
+		self.assertFalse(self._polled())
+
+	def test_a_stuck_invoice_costs_a_bounded_number_of_calls(self):
+		"""Hóa đơn kẹt "Chờ CQT" mãi: hỏi 20 phút/lần suốt 7 ngày là ~500 lời gọi."""
+		issued = get_datetime("2026-09-01 08:00:00")
+		row = frappe._dict(issued_time=issued, fast_signed_date=issued.date(), tax_checked_time=None)
+		calls = []
+		for step in range(7 * 72):  # cron 20 phút/lượt, 7 ngày
+			now = issued + timedelta(minutes=20 * step, seconds=7)
+			if _is_due(row, now):
+				calls.append(now)
+				row.tax_checked_time = now + timedelta(seconds=3)
+
+		self.assertLessEqual(len(calls), 25)
+		self.assertLess(calls[-1], issued + timedelta(hours=72))
 
 	def test_the_job_is_registered_on_a_cron_schedule(self):
 		cron = frappe.get_hooks("scheduler_events").get("cron") or {}
@@ -236,6 +330,34 @@ class TestReconcile(TaxStatusBase):
 
 		self.fei.reload()
 		self.assertEqual(self.fei.status, STATUS_DRAFT)
+
+	def test_the_button_applies_what_fast_says_and_says_so(self):
+		"""Nút trên form: lấy dữ liệu từ Fast là áp luôn, và luôn nói đã thấy gì."""
+		from erpnext.einvoice.reconcile import refresh_from_fast
+
+		other = envelope(1, '{"invoiceNo":"77","serial":"1C26TMY","keySearch":"KS-ABC-123"}')
+		result = refresh_from_fast(self.fei.name, client=self._client(other))
+
+		self.fei.reload()
+		self.assertEqual(self.fei.fast_invoice_no, "77")
+		self.assertIn("77", result["message"])
+
+	def test_the_button_says_when_everything_already_matches(self):
+		from erpnext.einvoice.reconcile import refresh_from_fast
+
+		same = envelope(1, '{"invoiceNo":"2","serial":"1C26TMY","keySearch":"KS-ABC-123"}')
+		result = refresh_from_fast(self.fei.name, client=self._client(same))
+		self.assertIn("khớp", result["message"])
+
+	def test_applying_never_pulls_a_tax_verdict_back_to_issued(self):
+		"""CQT đã chấp nhận thì giữ 08 — kéo về 06 là mất quyền điều chỉnh/thay thế."""
+		frappe.db.set_value(FEI, self.fei.name, "status", "08 - CQT chấp nhận")
+		other = envelope(1, '{"invoiceNo":"77","serial":"1C26TMY","keySearch":"KS-ABC-123"}')
+		reconcile_invoice(self.fei.name, apply=True, client=self._client(other))
+
+		self.fei.reload()
+		self.assertEqual(self.fei.status, "08 - CQT chấp nhận")
+		self.assertEqual(self.fei.fast_invoice_no, "77")
 
 	def test_it_uses_method_370(self):
 		same = envelope(1, '{"invoiceNo":"2","keySearch":"KS-ABC-123"}')

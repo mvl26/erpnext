@@ -21,7 +21,7 @@ from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.tests.test_fast_approval import Mailbox
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
 from erpnext.einvoice.tests.test_fast_pdf import pdf_envelope, sent_payload
-from erpnext.einvoice.tests.test_fixtures import make_delivery_note
+from erpnext.einvoice.tests.test_fixtures import attach_official_xml, make_delivery_note
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -66,6 +66,8 @@ class TestSendViaErp(SendInvoiceBase):
 	def setUp(self):
 		super().setUp()
 		self._attach_official_pdf()
+		attach_official_xml(self.fei.name)
+		self.fei.reload()
 
 	def test_sending_moves_to_sent_status(self):
 		send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
@@ -106,6 +108,14 @@ class TestSendViaErp(SendInvoiceBase):
 	def test_official_pdf_is_attached(self):
 		send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
 		self.assertIn("HD_1C26TMY_2", str(self.mailbox.sent[0]["attachments"]))
+
+	def test_the_email_carries_both_the_pdf_and_the_xml(self):
+		"""PDF để khách đọc, XML là hóa đơn điện tử gốc có chữ ký số — gửi thiếu cái nào cũng không đủ."""
+		send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
+
+		urls = [row["file_url"] for row in self.mailbox.sent[0]["attachments"]]
+		self.assertEqual(urls, [self.fei.official_pdf, self.fei.official_xml])
+		self.assertTrue(urls[1].endswith(".xml"))
 
 	def test_recipient_defaults_to_the_invoice_email(self):
 		send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
@@ -185,6 +195,14 @@ class TestSendPreconditions(SendInvoiceBase):
 		self.assertFalse(self.fei.official_pdf)
 		with self.assertRaises(frappe.ValidationError):
 			send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
+
+	def test_erp_sending_needs_the_xml_too(self):
+		"""Có PDF mà chưa đính XML thì chưa gửi — báo rõ còn thiếu XML."""
+		self._attach_official_pdf()
+		with self.assertRaises(frappe.ValidationError) as caught:
+			send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
+		self.assertIn("XML", str(caught.exception))
+		self.assertEqual(self.mailbox.sent, [])
 
 	def test_missing_recipient_is_refused(self):
 		self._attach_official_pdf()

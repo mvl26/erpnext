@@ -726,7 +726,8 @@
    "fieldname": "ctc",
    "fieldtype": "Currency",
    "label": "Cost to Company (CTC)",
-   "options": "salary_currency"
+   "options": "salary_currency",
+   "precision": "0"
   },
   {
    "fieldname": "basic_details_tab",
@@ -828,7 +829,8 @@
   {
    "fieldname": "luong_dong_bhxh",
    "fieldtype": "Currency",
-   "label": "L\u01b0\u01a1ng \u0111\u00f3ng BHXH"
+   "label": "L\u01b0\u01a1ng \u0111\u00f3ng BHXH",
+   "precision": "0"
   },
   {
    "fieldname": "ma_chinh_sach_bhxh",
@@ -847,7 +849,7 @@
  "image_field": "image",
  "is_tree": 1,
  "links": [],
- "modified": "2026-03-31 16:19:02.245690",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "hieu.cv2@miyano.com.vn",
  "module": "Setup",
  "name": "Employee",

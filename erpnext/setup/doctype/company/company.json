@@ -211,7 +211,8 @@
    "fieldname": "monthly_sales_target",
    "fieldtype": "Currency",
    "label": "Monthly Sales Target",
-   "options": "default_currency"
+   "options": "default_currency",
+   "precision": "0"
   },
   {
    "fieldname": "column_break_goals",
@@ -223,6 +224,7 @@
    "label": "Total Monthly Sales",
    "no_copy": 1,
    "options": "default_currency",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -434,7 +436,8 @@
    "label": "Credit Limit",
    "oldfieldname": "credit_limit",
    "oldfieldtype": "Currency",
-   "options": "default_currency"
+   "options": "default_currency",
+   "precision": "0"
   },
   {
    "fieldname": "payment_terms",
@@ -858,7 +861,7 @@
  "image_field": "company_logo",
  "is_tree": 1,
  "links": [],
- "modified": "2025-08-25 18:34:03.602046",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Setup",
  "name": "Company",

@@ -8,10 +8,11 @@ nhưng vẫn ghi log đầy đủ như mọi lời gọi khác (nguyên tắc A3
 """
 
 import json
+from datetime import timedelta
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, getdate, now_datetime, nowdate
+from frappe.utils import add_to_date, get_datetime, getdate, now_datetime, nowdate
 
 from erpnext.einvoice.actions import ACTION_EXECUTE, FEI, _explain, _mirror_status
 from erpnext.einvoice.constants import (
@@ -32,9 +33,22 @@ METHOD_TAX_STATUS = 8200
 # Bảng B2 — hóa đơn đã phát hành hoặc đã gửi khách thì mới có trạng thái CQT.
 TAX_CHECK_STATUSES = frozenset({STATUS_ISSUED, STATUS_SENT})
 
-# Job nền chỉ quét hóa đơn ký trong 7 ngày gần nhất (mục E8). Cũ hơn thì đối
-# soát tay — quét mãi chỉ tốn lời gọi mà CQT cũng không đổi ý nữa.
-POLL_WINDOW_DAYS = 7
+# Nhịp hỏi CQT giãn dần theo tuổi hóa đơn: (tuổi tối đa tính bằng giờ, khoảng
+# cách tối thiểu giữa hai lần hỏi tính bằng phút). CQT cấp mã thường trong vài
+# phút; hóa đơn còn chờ sau đó thì hỏi dồn cũng không nhanh hơn, chỉ đẻ thêm lời
+# gọi và dòng nhật ký — hỏi 20 phút/lần suốt 7 ngày là ~500 lời gọi cho một hóa
+# đơn kẹt. Quá mốc cuối thì thôi tự hỏi: báo cáo đối soát đã gom hóa đơn chờ CQT
+# quá 24 giờ, người xử lý bấm nút 11 hoặc hỏi Fast.
+POLL_SCHEDULE = (
+	(2, 0),  # 2 giờ đầu: mỗi lượt cron (20 phút)
+	(24, 120),  # tới hết ngày đầu: 2 giờ/lần
+	(72, 720),  # tới hết ngày thứ ba: 12 giờ/lần
+)
+# Cron chạy lệch vài giây mỗi lượt — không có dung sai thì nhịp 2 giờ thành 2 giờ 20.
+POLL_TOLERANCE = timedelta(minutes=5)
+# Lọc thô trong SQL theo ngày ký (chỉ có ngày, không có giờ). Mốc chính xác là
+# `POLL_SCHEDULE`; cửa sổ này chỉ cần phủ được mốc cuối.
+POLL_WINDOW_DAYS = 3
 
 # Loại chứng từ truy vấn (tài liệu Fast mục 17): 1 - Hóa đơn, 2 - Phiếu xuất kho.
 # Module này chỉ phát hành hóa đơn (310/320/350) nên luôn hỏi loại 1.
@@ -58,12 +72,18 @@ def parse_tax_status(message, key=None, invoice_no=None):
 	for row in rows:
 		if not isinstance(row, dict):
 			continue
-		lowered = {name.lower(): value for name, value in row.items()}
-		if key and str(lowered.get("key") or "") == str(key):
+		# Fast đệm khoảng trắng quanh cả tên thẻ lẫn giá trị (ví dụ ở tài liệu mục 17:
+		# `" taxStatus ":"3"`) — so nguyên văn thì không bao giờ khớp, hóa đơn kẹt "Chờ CQT".
+		lowered = {str(name).strip().lower(): value for name, value in row.items()}
+		if key and _text(lowered.get("key")) == _text(key):
 			return _normalise(lowered)
-		if invoice_no and str(lowered.get("invoiceno") or "") == str(invoice_no):
+		if invoice_no and _text(lowered.get("invoiceno")) == _text(invoice_no):
 			return _normalise(lowered)
 	return None
+
+
+def _text(value):
+	return str(value or "").strip()
 
 
 def _rows(payload):
@@ -77,11 +97,10 @@ def _rows(payload):
 
 
 def _normalise(row):
-	code = str(row.get("taxstatus") or "").strip()
 	return {
-		"tax_status": _STATUS_MAP.get(code, TAX_STATUS_PENDING),
-		"tax_verification_code": str(row.get("verificationcode") or ""),
-		"tax_feedback": str(row.get("feedbackcontent") or ""),
+		"tax_status": _STATUS_MAP.get(_text(row.get("taxstatus")), TAX_STATUS_PENDING),
+		"tax_verification_code": _text(row.get("verificationcode")),
+		"tax_feedback": _text(row.get("feedbackcontent")),
 	}
 
 
@@ -139,12 +158,19 @@ def _query_payload(doc):
 	Thiếu một thẻ thì Fast ném ``810 - The given key was not present in the
 	dictionary`` (nó đọc thẳng khóa trong dictionary chứ không kiểm tra trước).
 	Khoảng số hóa đơn thu hẹp kết quả về đúng hóa đơn này thay vì cả ngày.
+
+	Thẻ ngày là đúng **ngày hóa đơn** (``InvoiceDate`` đã gửi lúc phát hành), không
+	phải ngày ký — tài liệu Fast mục 17, tr. 39. Hóa đơn phát hành trước khi ngày
+	hóa đơn được đặt bằng ngày phát hành có thể lệch ngày ký; không được nới thành
+	khoảng bao cả hai ngày: lệch sang tháng khác là khoảng ngày vắt hai kỳ, Fast trả
+	``100 - Only process with the same period``. Chỉ khi thiếu ngày hóa đơn mới
+	dùng ngày ký.
 	"""
-	signed = _yyyymmdd(doc.fast_signed_date or doc.invoice_date)
+	invoice_date = _yyyymmdd(doc.invoice_date or doc.fast_signed_date)
 	number = str(doc.fast_invoice_no or "")
 	return {
-		"invoiceDateFrom": signed,
-		"invoiceDateTo": signed,
+		"invoiceDateFrom": invoice_date,
+		"invoiceDateTo": invoice_date,
 		"invoiceNumberFrom": number,
 		"invoiceNumberTo": number,
 		"voucherBook": "",
@@ -165,15 +191,17 @@ def poll_pending_tax_status(client=None):
 	if not settings.enabled or not settings.auto_poll_tax_status:
 		return []
 
-	pending = frappe.get_all(
+	candidates = frappe.get_all(
 		FEI,
 		filters={
 			"tax_status": TAX_STATUS_PENDING,
 			"status": ("in", list(TAX_CHECK_STATUSES)),
 			"fast_signed_date": (">=", add_to_date(nowdate(), days=-POLL_WINDOW_DAYS)),
 		},
-		pluck="name",
+		fields=["name", "issued_time", "fast_signed_date", "tax_checked_time"],
 	)
+	now = now_datetime()
+	pending = [row.name for row in candidates if _is_due(row, now)]
 	if not pending:
 		return []
 
@@ -188,6 +216,23 @@ def poll_pending_tax_status(client=None):
 			# Một hóa đơn hỏng không được làm chết cả lô.
 			frappe.log_error(title=f"HĐĐT: không kiểm tra được trạng thái CQT của {name}")
 	return checked
+
+
+def _is_due(row, now):
+	"""Hóa đơn này đã tới lượt hỏi CQT chưa — theo ``POLL_SCHEDULE``.
+
+	``tax_checked_time`` ghi cả khi lời gọi hỏng, nên Fast lỗi cũng bị giãn nhịp
+	chứ không bị gọi dồn.
+	"""
+	issued = get_datetime(row.issued_time or row.fast_signed_date)
+	age_hours = (now - issued).total_seconds() / 3600
+	for max_age_hours, gap_minutes in POLL_SCHEDULE:
+		if age_hours < max_age_hours:
+			if not row.tax_checked_time:
+				return True
+			waited = now - get_datetime(row.tax_checked_time)
+			return waited >= timedelta(minutes=gap_minutes) - POLL_TOLERANCE
+	return False
 
 
 def _notify_rejection(doc, reason):

@@ -30,6 +30,17 @@ frappe.ui.form.on("Delivery Note", {
 				__("Hóa đơn điện tử")
 			);
 		}
+
+		// Không có nút nào thì phải nói vì sao. Server đã tính sẵn `reason`; giấu
+		// nó đi là để người dùng nhìn một phiếu giao trống trơn mà đoán xem hóa
+		// đơn điện tử hỏng ở đâu.
+		if (!state.can_create && !state.existing && state.reason) {
+			frm.dashboard.add_comment(
+				__("Chưa lập được hóa đơn điện tử: {0}", [state.reason]),
+				"orange",
+				true
+			);
+		}
 	},
 });
 

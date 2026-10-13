@@ -160,7 +160,7 @@ def _errored(filters):
 	rows = []
 	for doc in _fei_rows(conditions):
 		if doc.status == STATUS_NEEDS_RECONCILE:
-			note = _("Đã gửi lệnh phát hành nhưng chưa rõ kết quả — BẮT BUỘC bấm Truy vấn (370).")
+			note = _("Đã gửi lệnh phát hành nhưng chưa rõ kết quả — BẮT BUỘC bấm Lấy dữ liệu từ Fast (370).")
 		else:
 			note = doc.error_message or _("Phát hành không thành công.")
 		rows.append(

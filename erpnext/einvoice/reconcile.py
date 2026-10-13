@@ -16,12 +16,14 @@ from frappe.utils import getdate, now_datetime
 
 from erpnext.einvoice.actions import ACTION_EXECUTE, FEI, _explain, _mirror_status
 from erpnext.einvoice.constants import (
+	ISSUED_STATUSES,
 	STATUS_DRAFT,
 	STATUS_ISSUED,
 	STATUS_NEEDS_RECONCILE,
 	TAX_STATUS_PENDING,
 )
 from erpnext.einvoice.fast_settings import check_enabled
+from erpnext.einvoice.folders import move_invoice_files
 from erpnext.einvoice.gateway import call_fast
 from erpnext.einvoice.issue import ERROR_NOT_FOUND, METHOD_QUERY, parse_issue_result
 
@@ -33,6 +35,31 @@ COMPARED_FIELDS = (
 	("fast_key_search", "Mã tra cứu"),
 	("fast_signed_date", "Ngày phát hành"),
 )
+
+
+@frappe.whitelist()
+def refresh_from_fast(fei, client=None):
+	"""Nút "Lấy dữ liệu từ Fast" — hỏi Fast bằng 370 rồi áp kết quả về chứng từ.
+
+	Fast là nguồn sự thật về hóa đơn: có hóa đơn với Key này thì số, ký hiệu, mã
+	tra cứu, ngày ký phải theo Fast; không có thì chứng từ đang treo được trả về
+	Nháp. Nút luôn trả một câu nói rõ đã thấy gì — trước đây nút đối soát chỉ
+	so sánh rồi im lặng, người dùng bấm xong không biết có gì xảy ra.
+	"""
+	result = reconcile_invoice(fei, apply=True, client=client)
+	if result.get("message"):
+		return result
+
+	fast = result.get("fast") or {}
+	summary = _("số {0}, ký hiệu {1}, mã tra cứu {2}").format(
+		fast.get("fast_invoice_no") or "?", fast.get("fast_serial") or "?", fast.get("fast_key_search") or "?"
+	)
+	if result.get("applied"):
+		changed = ", ".join(row["label"] for row in result["differences"])
+		result["message"] = _("Đã cập nhật theo Fast ({0}): {1}.").format(changed, summary)
+	else:
+		result["message"] = _("Dữ liệu trên ERP đã khớp với Fast: {0}.").format(summary)
+	return result
 
 
 @frappe.whitelist()
@@ -90,14 +117,20 @@ def _apply_from_fast(doc, found):
 		for fieldname, _label in COMPARED_FIELDS
 		if found.get(fieldname) not in (None, "")
 	}
-	# Fast có hóa đơn này nghĩa là nó đã ra số thật.
-	values["status"] = STATUS_ISSUED
+	# Fast có hóa đơn này nghĩa là nó đã ra số thật. Chứng từ đã ở trạng thái sau
+	# phát hành (đã gửi khách, CQT đã xét…) thì giữ nguyên — kéo về 06 là mất dấu
+	# phán quyết CQT và khóa mất quyền điều chỉnh/thay thế.
+	if doc.status not in ISSUED_STATUSES:
+		values["status"] = STATUS_ISSUED
 	values.setdefault("tax_status", doc.tax_status or TAX_STATUS_PENDING)
 	values["error_code"] = ""
 	values["error_message"] = ""
 
 	frappe.db.set_value(FEI, doc.name, values, update_modified=False)
-	_mirror_status(doc.name, STATUS_ISSUED)
+	if values.get("status"):
+		_mirror_status(doc.name, STATUS_ISSUED)
+	# Số hóa đơn vừa khôi phục từ Fast: file của chứng từ về đúng thư mục số hóa đơn.
+	move_invoice_files(doc.name)
 
 	if doc.delivery_note:
 		frappe.db.set_value(

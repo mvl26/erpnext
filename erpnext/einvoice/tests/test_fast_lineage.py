@@ -4,7 +4,7 @@
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import now_datetime
+from frappe.utils import getdate, now_datetime, nowdate
 
 from erpnext.einvoice.builder import create_from_delivery_note
 from erpnext.einvoice.constants import (
@@ -101,6 +101,14 @@ class TestCreateAdjustment(LineageBase):
 		self.assertEqual(child.status, STATUS_DRAFT)
 		self.assertEqual(child.invoice_type, INVOICE_TYPE_ADJUSTMENT)
 		self.assertEqual(child.original_document, self.original.name)
+
+	def test_the_new_invoice_does_not_inherit_the_original_date(self):
+		"""Hóa đơn điều chỉnh có ngày của chính nó — ngày phát hành — không phải ngày hóa đơn gốc."""
+		frappe.db.set_value(FEI, self.original.name, "invoice_date", "2026-08-07")
+		self.original.reload()
+
+		child = self._make_adjustment()
+		self.assertEqual(getdate(child.invoice_date), getdate(nowdate()))
 
 	def test_reason_and_minute_are_carried(self):
 		child = self._make_adjustment(minute_no="BB-01", minute_date="2026-08-08")

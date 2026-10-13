@@ -1,0 +1,48 @@
+/* Trang "Đặt ô trên tem hàng loạt". Lớp CSS của một trang Frappe là TOÀN CỤC —
+   mọi lớp ở đây phải mang tiền tố `dohl-` (xem chú thích cùng nội dung ở
+   `xep_hang_pda.css`). */
+
+.dohl {
+	padding: 4px 0 24px;
+}
+
+.dohl-mo-dau {
+	margin-bottom: 12px;
+	line-height: 1.5;
+}
+
+.dohl-xong {
+	padding: 12px 14px;
+	border-radius: 8px;
+	background: var(--bg-green);
+	color: var(--text-on-green);
+}
+
+.dohl-thieu-o {
+	margin-top: 6px;
+	font-weight: 600;
+}
+
+.dohl-bang-lo {
+	background: var(--card-bg);
+}
+
+.dohl-bang-lo th,
+.dohl-bang-lo td {
+	vertical-align: middle;
+}
+
+.dohl-mo {
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+/* Link control nhúng trong ô bảng: bỏ khoảng cách của form-group để dòng không cao gấp đôi. */
+.dohl-o .frappe-control {
+	margin: 0;
+}
+
+.dohl-dang-nap {
+	opacity: 0.5;
+	pointer-events: none;
+}

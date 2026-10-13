@@ -1,0 +1,102 @@
+{% extends "templates/web.html" %}
+
+{% block title %}{{ _("Quét thẻ PDA") }}{% endblock %}
+
+{% block page_content %}
+<div class="pda-the">
+	<h1>{{ _("Quét thẻ nhân viên") }}</h1>
+	<p class="pda-mo">{{ _("Bắn mã vạch trên thẻ. Thẻ mờ thì bấm Gõ tay.") }}</p>
+	<input id="pda-ma" type="text" inputmode="none" autocomplete="off" autocorrect="off"
+		autocapitalize="characters" spellcheck="false" />
+	<button type="button" id="pda-go-tay" class="btn btn-default">{{ _("Gõ tay") }}</button>
+	<div id="pda-bao" class="pda-bao"></div>
+	<div id="pda-may-chu" class="pda-may-chu"></div>
+</div>
+
+<style>
+	.pda-the { max-width: 520px; margin: 12vh auto; padding: 0 16px; text-align: center; }
+	.pda-the h1 { font-size: 22px; margin-bottom: 4px; }
+	.pda-mo { color: var(--text-muted); }
+	#pda-ma { width: 100%; height: 56px; font-size: 22px; text-align: center; letter-spacing: 2px;
+		font-family: var(--font-stack-monospace, monospace); margin: 16px 0 8px; }
+	.pda-bao { min-height: 48px; padding: 8px; font-weight: 600; }
+	.pda-bao.loi { color: #c0392b; }
+	/* Chữ nhỏ, mờ, không chiếm chỗ của ô quét/nút — chỉ để không ai nhầm site
+	   đang nối (ví dụ site thử erptest.local với máy chủ thật), xem mục 3b
+	   đợt sửa cuối app PDA. */
+	.pda-may-chu { margin-top: 24px; font-size: 11px; color: var(--text-muted, #999); opacity: 0.6; }
+</style>
+
+<script>
+(function () {
+	const o = document.getElementById("pda-ma");
+	const bao = document.getElementById("pda-bao");
+	let dang_gui = false;
+
+	// Hiện ngay địa chỉ máy chủ đang nối — không chiếm chỗ, chỉ để trưởng kho/thủ
+	// kho phát hiện ngay nếu app lỡ trỏ vào site thử thay vì site thật.
+	document.getElementById("pda-may-chu").textContent = "Máy chủ: " + window.location.host;
+
+	// Giữ focus như các trang PDA khác: súng quét gõ vào ô đang focus rồi gửi Enter.
+	// `inputmode="none"` giữ focus mà KHÔNG bật bàn phím ảo che nửa màn hình.
+	const giu_focus = () => o.focus({ preventScroll: true });
+	giu_focus();
+	document.addEventListener("click", (ev) => {
+		if (ev.target.id !== "pda-go-tay") giu_focus();
+	});
+	document.getElementById("pda-go-tay").addEventListener("click", () => {
+		o.setAttribute("inputmode", "text");
+		giu_focus();
+	});
+
+	o.addEventListener("keydown", (ev) => {
+		if (ev.key !== "Enter" && ev.key !== "Tab") return;
+		ev.preventDefault();
+		gui();
+	});
+
+	function gui() {
+		const ma = (o.value || "").trim();
+		if (!ma || dang_gui) return;
+		dang_gui = true;
+		bao.className = "pda-bao";
+		bao.textContent = "Đang kiểm thẻ…";
+		// Phiên Frappe là cookie: gọi CÙNG NGUỒN với `credentials: "same-origin"` thì
+		// cookie phiên do phản hồi đặt ra được giữ lại đúng như trên trình duyệt.
+		fetch("/api/method/erpnext.warehouse_operations.vitri.the_pda.dang_nhap_bang_the", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "same-origin",
+			body: JSON.stringify({ ma: ma }),
+		})
+			.then((r) => r.json().then((j) => ({ ok: r.ok, j: j })))
+			.then(({ ok, j }) => {
+				if (ok && j.message && j.message.di_toi) {
+					window.location.href = j.message.di_toi;
+					return;
+				}
+				hong(loi_tu(j));
+			})
+			.catch(() => hong("Không nối được máy chủ. Kiểm tra wifi rồi quét lại."));
+	}
+
+	function loi_tu(j) {
+		try {
+			const ds = JSON.parse(j._server_messages || "[]");
+			if (ds.length) return JSON.parse(ds[0]).message;
+		} catch (e) {
+			// Không phân tích được thì dùng câu chung bên dưới.
+		}
+		return "Thẻ không dùng được — báo trưởng kho.";
+	}
+
+	function hong(cau) {
+		dang_gui = false;
+		o.value = "";
+		bao.className = "pda-bao loi";
+		bao.textContent = cau;
+		giu_focus();
+	}
+})();
+</script>
+{% endblock %}

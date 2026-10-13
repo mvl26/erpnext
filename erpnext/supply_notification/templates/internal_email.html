@@ -1,0 +1,54 @@
+<div>
+	<p>{{ intro }}</p>
+
+	{% if facts %}
+	<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
+		<tbody>
+			{% for fact in facts %}
+			<tr>
+				<td><strong>{{ fact.label }}</strong></td>
+				<td>{{ fact.value }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+	{% endif %}
+
+	{% if items %}
+	<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
+		<thead>
+			<tr>
+				<th>{{ _("Mã vật tư") }}</th>
+				<th>{{ _("Tên hàng") }}</th>
+				<th>{{ _("Số lượng") }}</th>
+				<th>{{ _("ĐVT") }}</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for item in items %}
+			<tr>
+				<td>{{ item.item_code }}</td>
+				<td>{{ item.item_name }}</td>
+				<td>{{ item.qty }}</td>
+				<td>{{ item.uom }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+	{% if hidden_items %}
+	<p><em>{{ _("... và {0} dòng nữa, xem đầy đủ trên chứng từ.").format(hidden_items) }}</em></p>
+	{% endif %}
+	{% endif %}
+
+	<p>
+		<a href="{{ doc_url }}">{{ _("Mở {0}").format(doc_label) }}</a>
+		{% if stock_url %}
+		&nbsp;·&nbsp;
+		<a href="{{ stock_url }}">{{ _("Mở báo cáo tồn kho") }}</a>
+		{% endif %}
+	</p>
+
+	{% if action %}
+	<p>{{ action }}</p>
+	{% endif %}
+</div>

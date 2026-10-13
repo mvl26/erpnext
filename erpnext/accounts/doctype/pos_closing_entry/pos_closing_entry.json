@@ -132,6 +132,7 @@
    "fieldname": "grand_total",
    "fieldtype": "Currency",
    "label": "Grand Total",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -139,6 +140,7 @@
    "fieldname": "net_total",
    "fieldtype": "Currency",
    "label": "Net Total",
+   "precision": "0",
    "read_only": 1
   },
   {
@@ -236,7 +238,7 @@
    "link_fieldname": "pos_closing_entry"
   }
  ],
- "modified": "2023-08-10 16:25:49.322697",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "POS Closing Entry",
