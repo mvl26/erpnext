@@ -2,6 +2,7 @@
 
 > Trạng thái: **đã code xong Giai đoạn 1, 2, 3 và phần patch của Giai đoạn 5** (12/10/2026). Đã bật trên site dev `miyano` kèm dữ liệu thử; chưa bật trên production. Chi tiết ở mục 14.
 > Phạm vi: sửa trực tiếp core trong fork `mvl26/erpnext`
+> **Điều chỉnh lần bảy 13/10/2026 (mục 5.5, 14.12):** bỏ Default Supplier của Item Defaults trên vật tư. NCC mặc định **chỉ còn khai ở bảng Supplier Items** (tab Purchasing); mọi luồng mua hàng đọc dòng tích mặc định ở đó.
 > **Điều chỉnh lần sáu 13/10/2026 (mục 5.4, 14.11):** mã vật tư **không còn bất biến**. Đổi nhóm hàng, thương hiệu, NCC mặc định hay mã hàng NCC thì vật tư **đổi mã theo**; đổi mã nhóm, mã thương hiệu ở danh mục thì **mọi vật tư mang mã cũ đổi theo**. Thay cho nguyên tắc "mã chốt một lần" ở các bản trước.
 > **Điều chỉnh lần năm 13/10/2026 (mục 14.10):** mã nhóm, mã thương hiệu **luôn bắt buộc** (không chỉ lúc tạo) và **đã lưu thì khóa**, kể cả khi chưa vật tư nào dùng.
 > **Điều chỉnh lần bốn 13/10/2026 (mục 14.9):** Brand và Item Group **giữ ID là tên**; mã dùng để sinh mã vật tư là **trường riêng** (`brand_code`, `item_group_code`), và **bắt buộc khi tạo** Brand, Item Group. Thay cho phần "ID của Brand là mã" ở 14.7.
@@ -170,7 +171,7 @@ Chữ "hãng" trong tài liệu này và "Thương hiệu (Brand)" trên màn h�
 
 **Mã đã lưu thì khóa.** Sau lần lưu đầu tiên có mã, ô mã chuyển sang chỉ đọc và server từ chối mọi thay đổi, **kể cả khi chưa vật tư nào mang mã đó**. Người có vai trò được đổi mã vật tư (và System Manager) thấy nút "Đổi mã nhóm" / "Đổi mã thương hiệu" trên form để mở khóa; họ sửa mã thì mọi vật tư mang mã cũ đổi mã theo (5.4). Khóa vẫn cần dù mã đã chạy theo: sửa một mã ở danh mục là đổi mã hàng loạt vật tư. Không ai xóa trắng được mã. Bản ghi chưa có mã thì nhập được một lần, rồi khóa.
 
-**Item Defaults.default_supplier**: không xóa (nhiều luồng core đang dùng, danh sách ở mục 13). Ẩn khỏi form, hệ thống tự đồng bộ theo dòng `is_default` (xem 5.5).
+**Item Defaults.default_supplier**: không còn dùng cho vật tư. Cột này bị ẩn trên form vật tư ở mọi chế độ đặt tên và luôn để trống; NCC mặc định nằm ở dòng `is_default` của Supplier Items (xem 5.5). Các ô khác của Item Defaults (kho, bảng giá, tài khoản theo công ty) không đổi.
 
 ---
 
@@ -262,14 +263,46 @@ Mã vật tư **luôn bằng** `{mã nhóm}-{mã thương hiệu}-{phần ghép 
 | Người khác đang mở form của Item vừa bị đổi mã | Thấp | Họ gặp lỗi "không tìm thấy" và phải mở lại theo mã mới |
 | Sửa một ô trên Item là đổi mã trên mọi chứng từ: thao tác nhỏ, hậu quả rộng | Cao | Form báo trước mã sẽ đổi; cân nhắc giới hạn quyền sửa Nhóm hàng, Thương hiệu của Item đã có giao dịch (chưa làm) |
 
-**Đồng bộ NCC mặc định.** Cho phép đổi dòng `is_default` sang NCC khác; hệ thống đồng bộ `default_supplier` trong Item Defaults theo dòng này (5.5), và mã đổi theo mã hàng của NCC mới.
+**Đổi NCC mặc định.** Tích dòng `is_default` ở NCC khác: các luồng mua hàng dùng NCC mới (5.5), và mã đổi theo mã hàng của NCC mới.
 
-### 5.5 Đồng bộ `default_supplier`
+### 5.5 NCC mặc định của vật tư nằm ở bảng Supplier Items
 
-Khi lưu Item: với mỗi dòng trong Item Defaults, đặt `default_supplier` = NCC của dòng `is_default`. Cách này giữ nguyên các luồng core (Material Request → PO, drop ship, đặt hàng lại tự động, `get_item_details`) mà không phải sửa từng luồng.
+**Một chỗ khai, một chỗ đọc.** NCC mặc định của vật tư là NCC ở dòng được tích `is_default` trong bảng Supplier Items (tab Purchasing). Áp dụng ở **mọi chế độ đặt tên**, không riêng chế độ quy tắc.
 
-- Item **không có** dòng `is_default` (Item cũ chưa khai `supplier_items`): giữ nguyên `default_supplier`, không xóa.
-- Chạy sau `update_defaults_from_item_group`, vì hàm này điền `default_supplier` từ Item Group khi Item chưa có Item Defaults.
+| | Trước | Sau |
+|---|---|---|
+| Khai NCC mặc định | Cột Default Supplier của Item Defaults, theo từng công ty | Tích `NCC mặc định (Default Supplier)` ở một dòng của bảng Supplier Items |
+| Các luồng đọc | `Item Default.default_supplier` | Dòng tích mặc định, qua `erpnext/stock/doctype/item_supplier/item_supplier.py` (`get_default_supplier`, `get_default_suppliers`, `get_items_with_default_supplier`) |
+| Cột Default Supplier của Item Defaults trên vật tư | Hiện, người dùng nhập | Ẩn trên form, luôn để trống, không luồng nào đọc |
+
+**Các luồng đã chuyển:**
+
+| Luồng | Chỗ sửa |
+|---|---|
+| Điền NCC lên dòng chứng từ; lọc dòng PO theo NCC khi tạo từ Yêu cầu vật tư | `get_item_defaults` (`item.py`) trả `default_supplier` theo dòng tích mặc định |
+| Điền NCC cho chứng từ mua từ vật tư đầu tiên | `BuyingController.set_supplier_from_item_default` |
+| Yêu cầu vật tư: danh sách vật tư theo NCC, danh sách NCC mặc định để chọn | `get_items_based_on_default_supplier`, `get_default_supplier_query` (`material_request.py`) |
+| Kế hoạch sản xuất: NCC gia công của bán thành phẩm | `set_default_supplier_for_subcontracting_order` |
+| Báo cáo so sánh báo giá: nút "Set Default Supplier" | Tích dòng của NCC đó trên vật tư, thêm dòng nếu chưa có. Lưu qua vật tư nên giờ cần quyền sửa vật tư (trước đây ghi thẳng, không kiểm) |
+| Báo cáo "Vat Tu Chua Co NCC Mac Dinh" | Bỏ cột "NCC mặc định cũ" |
+
+Tạo PO từ Sales Order (drop ship) dùng NCC đã điền sẵn trên dòng Sales Order nên đi theo luồng thứ nhất.
+
+**Không đổi:**
+
+- Thứ tự ưu tiên: NCC mặc định của vật tư → của Nhóm hàng → của Thương hiệu.
+- Item Group và Brand vẫn khai NCC mặc định ở bảng defaults của chúng. Hai bảng đó dùng chung DocType con `Item Default` với vật tư, nên trường `default_supplier` **còn trong DocType**; chỉ là vật tư không dùng nó nữa.
+- Ngoài chế độ quy tắc, vật tư chỉ có một dòng NCC không tự được tích: khai NCC ở bảng này trước giờ không làm nó thành NCC mặc định.
+
+**NCC mặc định vẫn tới qua ô cũ** trong ba trường hợp: Data Import, API, và vật tư mới nhận NCC mặc định của Nhóm hàng (`update_defaults_from_item_group`). Lúc lưu vật tư, `take_default_supplier_from_item_defaults` chuyển giá trị đó thành dòng tích mặc định rồi để trống ô. Nếu vật tư đã có dòng được tích thì dòng đó quyết định, giá trị ở ô cũ bị bỏ.
+
+**Dữ liệu cũ** (patch `move_default_supplier_to_item_supplier`):
+
+- Vật tư có NCC mặc định ở Item Defaults: tích dòng của NCC đó ở Supplier Items, chưa có dòng thì thêm; rồi để trống ô cũ.
+- Dòng đang tích khác với Item Defaults: Item Defaults thắng, vì đó là thứ các luồng mua hàng dùng tới giờ. Riêng vật tư có mã do quy tắc sinh thì dòng đang tích thắng, vì mã ghép từ nó.
+- Các công ty khai NCC mặc định khác nhau cho cùng một vật tư: lấy NCC của dòng đầu, và ghi các giá trị cũ thành một bình luận trên vật tư để còn tra lại.
+
+**Hệ quả cần biết:** NCC mặc định của vật tư **không còn theo từng công ty**. Site dev có 3 công ty; vật tư nào cần NCC mặc định khác nhau theo công ty thì cách này không đáp ứng.
 
 ### 5.6 Pseudo-code
 
@@ -435,6 +468,19 @@ Phần còn lại của Giai đoạn 0 và các quyết định D1, D2, D9 làm 
 | 66 | Người có vai trò được phép đổi tên Item bằng tay, rồi sửa nhóm của Item đó | Mã đặt tay được giữ; Item mất dấu `item_code_by_rule` |
 | 67 | Người dùng tự bật hoặc tắt `item_code_by_rule` qua API | Hệ thống đặt lại theo giá trị cũ |
 | 68 | Lưu Item từ form khi mã đổi | Phản hồi mang mã mới và `localname` là mã cũ; form chuyển sang mã mới |
+| 69 | Vật tư có hai NCC, tích dòng thứ hai; cột cũ ở Item Defaults bị gài NCC thứ nhất | Mọi luồng ở 5.5 vẫn ra NCC thứ hai |
+| 70 | Tạo PO từ Yêu cầu vật tư theo NCC mặc định | Dòng PO lọc theo NCC của dòng tích mặc định |
+| 71 | Bỏ tích NCC mặc định, hoặc xóa hết dòng NCC (ngoài chế độ quy tắc) | Vật tư hết NCC mặc định; các luồng rơi về Nhóm hàng, Thương hiệu |
+| 72 | Vật tư kiểu cũ chỉ có NCC mặc định ở Item Defaults, lưu lại | Hệ thống thêm dòng NCC đó ở Supplier Items, tích mặc định, và để trống ô cũ |
+| 73 | Ngoài chế độ quy tắc, vật tư có đúng một dòng NCC chưa tích | Không tự tích; vật tư không có NCC mặc định |
+| 74 | Báo cáo so sánh báo giá: Set Default Supplier với NCC vật tư chưa có | Thêm dòng NCC đó và tích mặc định; người không có quyền sửa vật tư bị từ chối |
+| 75 | Như 74 với vật tư có mã do quy tắc sinh | NCC mặc định đổi, và mã vật tư đổi theo mã hàng của NCC mới |
+| 76 | Patch: dòng đang tích khác NCC ở Item Defaults, vật tư mang mã đặt tay / mã do quy tắc sinh | Item Defaults thắng / dòng đang tích thắng |
+| 77 | Patch: hai công ty khai hai NCC mặc định khác nhau | Lấy NCC của dòng đầu; các giá trị cũ thành bình luận trên vật tư |
+| 78 | Mở form vật tư ở chế độ "Item Code" | Cột Default Supplier của bảng Item Defaults không hiện |
+| 79 | Data Import/API ghi NCC vào ô Default Supplier của Item Defaults, vật tư chưa tích dòng nào / đã tích dòng khác | Thành dòng tích mặc định / bị bỏ qua; ô cũ để trống trong cả hai trường hợp |
+| 80 | Tạo vật tư mới trong Nhóm hàng có NCC mặc định | Vật tư nhận NCC đó thành dòng tích mặc định; Nhóm hàng giữ nguyên |
+| 81 | Patch chạy trên site có Item Group, Brand khai NCC mặc định | NCC mặc định của Item Group, Brand không bị đụng |
 
 ---
 
@@ -517,6 +563,8 @@ Khảo sát ngày 09/10/2026, nhánh `feat/vn-tbyt-ho-so-phap-ly`, site dev `miy
 
 ### 13.2 Nơi đang dùng `default_supplier`
 
+> Bảng dưới là hiện trạng lúc khảo sát. Từ 13/10/2026 các luồng này đọc dòng tích mặc định ở bảng Supplier Items (mục 5.5).
+
 | File | Dùng để |
 |---|---|
 | `erpnext/stock/doctype/material_request/material_request.py` | Tách PO theo NCC khi tạo từ Yêu cầu vật tư |
@@ -554,14 +602,14 @@ File mới:
 
 ## 14. Trạng thái triển khai (12/10/2026)
 
-Nhánh `feat/vn-tbyt-ho-so-phap-ly`, chưa commit. Site dev `miyano` đã migrate và **đã chuyển sang chế độ "Quy tắc mã vật tư"** để chạy thử (mục 14.5). Hướng dẫn cho người dùng: `docs/HDSD_SinhMaVatTu_MiyanoERP_20261013_V1.6.docx`.
+Nhánh `feat/vn-tbyt-ho-so-phap-ly`, chưa commit. Site dev `miyano` đã migrate và **đã chuyển sang chế độ "Quy tắc mã vật tư"** để chạy thử (mục 14.5). Hướng dẫn cho người dùng: `docs/HDSD_SinhMaVatTu_MiyanoERP_20261013_V1.7.docx`.
 
 ### 14.1 Đã làm
 
 | Giai đoạn | Nội dung | Ghi chú |
 |---|---|---|
 | 1 | Các trường ở mục 4 | Mã nhóm, mã thương hiệu bắt buộc và khóa sau khi lưu, kiểm tra trên server thay cho `reqd` (mục 4) |
-| 2 | Chế độ đặt tên mới, chuẩn hóa, sinh mã, validate, chống trùng lớp 1–2, đồng bộ `default_supplier`, chặn đổi tên/gộp mã, khóa các thành phần của mã, giới hạn 3-6-11, mã bắt buộc và khóa sau khi lưu ở danh mục, mã vật tư chạy theo thông tin, tắt Quick Entry | 146 test ở `erpnext/stock/tests/test_item_code_rule.py` |
+| 2 | Chế độ đặt tên mới, chuẩn hóa, sinh mã, validate, chống trùng lớp 1–2, đồng bộ `default_supplier`, chặn đổi tên/gộp mã, khóa các thành phần của mã, giới hạn 3-6-11, mã bắt buộc và khóa sau khi lưu ở danh mục, mã vật tư chạy theo thông tin, tắt Quick Entry | 146 test ở `erpnext/stock/tests/test_item_code_rule.py`; NCC mặc định: 34 test ở `erpnext/stock/tests/test_default_supplier.py` |
 | 3 | Form Item: mã dự kiến, bắt buộc có điều kiện, cảnh báo ngay khi mã hàng NCC đã có ở vật tư khác | Phần JavaScript **chưa chạy thử trên trình duyệt** |
 | 5 | Patch đánh dấu NCC mặc định và báo cáo xử lý tay | Mới chạy trên site dev, nơi không có dòng Item Supplier nào |
 
@@ -703,3 +751,24 @@ Chưa làm, cần quyết định hoặc cần môi trường khác:
 - **Patch cho production:** không cần. Production chưa có Item nào do quy tắc sinh, nên không Item nào mang dấu; Item cũ giữ mã. Trên site dev, 7 Item đã được đánh dấu bằng script dữ liệu thử.
 - Phần giao diện (dải báo trước, form chuyển sang mã mới sau khi lưu) **chưa chạy thử trên trình duyệt**. Đã kiểm ở mức phản hồi của máy chủ: lần lưu trả về mã mới kèm `localname` là mã cũ, đúng cơ chế mà form dùng khi bản ghi mới được cấp tên.
 - Việc đổi mã ở tiến trình nền cần worker đang chạy (`bench start` hoặc supervisor).
+
+### 14.12 Điều chỉnh lần bảy (13/10/2026): bỏ Default Supplier của Item Defaults trên vật tư
+
+Thiết kế ở mục 5.5. Trước lần này, cột Default Supplier của Item Defaults vẫn là thứ các luồng mua hàng đọc; hệ thống chỉ chép giá trị từ dòng tích mặc định sang, và chỉ ẩn cột khi quy tắc đang bật.
+
+Phần đã làm:
+
+- `erpnext/stock/doctype/item_supplier/item_supplier.py`: các hàm trả lời "NCC mặc định của vật tư là ai", hàm đặt NCC mặc định, hàm nhận giá trị tới qua ô cũ, và hàm chuyển dữ liệu cũ.
+- Sáu luồng ở bảng mục 5.5 chuyển sang đọc dòng tích mặc định.
+- Bỏ `sync_default_supplier` khỏi `item_code_rule.py`: không còn gì chép NCC mặc định sang Item Defaults.
+- Form vật tư ẩn cột Default Supplier của Item Defaults ở mọi chế độ.
+- Patch `erpnext.patches.v15_0.move_default_supplier_to_item_supplier`.
+
+Bản làm đầu tiên trong ngày giữ một bản sao ẩn ở cột cũ và cho các luồng đọc dự phòng từ đó. Bản đó thừa so với yêu cầu và có lỗi: xóa hết dòng NCC của vật tư rồi lưu thì NCC mặc định tự xuất hiện lại từ bản sao. Đã bỏ cả bản sao lẫn phần đọc dự phòng.
+
+Chưa kiểm được:
+
+- Các bộ test gốc của Yêu cầu vật tư, Sales Order (drop ship) và Kế hoạch sản xuất không chạy được trên site dev vì thiếu dữ liệu mẫu `_Test Company`. Thay vào đó, từng hàm đã sửa được gọi trực tiếp trong `test_default_supplier.py`, với cột cũ cố ý bị gài một NCC khác để luồng nào còn đọc nó sẽ ra sai.
+- Chưa tạo PO thật từ Yêu cầu vật tư trên giao diện; chưa xem form vật tư trên trình duyệt.
+- Patch mới chạy trên site dev, nơi 7 vật tư đều đã có dòng tích khớp với giá trị cũ; cần chạy thử trên bản sao production.
+- Patch cũ `mark_default_item_supplier` (đã merge trước đó) tự tích vật tư chỉ có một dòng NCC. Nếu nó đã chạy trên server với vật tư kiểu cũ có đúng một dòng NCC mà không khai NCC mặc định, các vật tư đó nay có NCC mặc định mà trước đây không có. Cần đếm trên server trước khi triển khai.
