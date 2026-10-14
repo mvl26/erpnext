@@ -6,6 +6,10 @@ module `erpnext/einvoice/`.
 
 > **Trạng thái:** phần mềm đã dựng xong và test đầy đủ bằng transport giả.
 > **Chưa chạy thật lần nào** — xem mục "Việc phải làm trước khi go-live".
+>
+> **Từ đặc tả bản 3.0, hóa đơn lập từ Sales Invoice** (hóa đơn bán đã
+> submit), không còn lập từ phiếu giao. Phiếu giao chỉ hiện hóa đơn suy ra qua hóa đơn
+> bán. Hóa đơn đã phát hành theo bản 2.0 vẫn mang nguồn "Delivery Note (v2)".
 
 ---
 
@@ -25,7 +29,7 @@ module `erpnext/einvoice/`.
 
 Ngoài ra, hai việc chuẩn hóa dữ liệu (Giai đoạn 1 của đặc tả):
 
-- Delivery Note phải gắn **Sales Taxes and Charges Template** — thuế là con số
+- Sales Invoice phải gắn **Sales Taxes and Charges Template** — thuế là con số
   pháp lý, hệ thống không đoán.
 - Rà `tax_id`, địa chỉ xuất hóa đơn và email trên toàn bộ Customer đang hoạt
   động. Đây là nguồn của lỗi 836.
@@ -54,7 +58,7 @@ thật là hành động **cố ý lật hai cờ**, không thể vô tình.
 ## 3. Quy trình hằng ngày
 
 ```
-Delivery Note đã submit
+Sales Invoice đã submit   (lập trong ngày giao hàng)
    │  [Tạo hóa đơn điện tử]                     ← xác nhận cấp 1
    ▼
 01 Nháp ──[Xem bản nháp PDF]──► 02 Đã xem nháp
@@ -90,7 +94,7 @@ có lệnh tải XML — tải file XML trên portal Fast rồi đính vào trư
 ERP chỉ gửi email hóa đơn khi có **đủ cả PDF và XML**, và email kèm cả hai file.
 
 **Nơi lưu file.** Mọi file của một hóa đơn — bản nháp, PDF chính thức (kể cả bản trên
-phiếu giao), PDF chuyển đổi, XML — nằm chung thư mục
+hóa đơn bán), PDF chuyển đổi, XML — nằm chung thư mục
 `Home/Invoices/{năm}/{tháng}/{ngày phát hành}/{số hóa đơn}` trong File Manager. Thư mục
 chỉ được tạo khi có file cần lưu. Bản nháp chưa có số nằm tạm ở thư mục mang tên chứng
 từ HĐĐT; phát hành xong tự dời về thư mục số hóa đơn, thư mục tạm rỗng tự xóa.
@@ -119,9 +123,9 @@ Bảng lỗi tiếng Việt hiện ngay trên chứng từ kèm gợi ý hành �
 
 | Mã | Nghĩa | Làm gì |
 |---|---|---|
-| 152 | Đọc tiền bằng chữ sai loại tiền | Đồng bộ lại từ phiếu giao, hệ thống sinh lại |
+| 152 | Đọc tiền bằng chữ sai loại tiền | Đồng bộ lại từ hóa đơn bán, hệ thống sinh lại |
 | 809 / 835 | Hóa đơn đã phát hành trước đó | Bấm Truy vấn (370). **Không phát hành lại** |
-| 812 / 825 | Tên hàng quá dài hoặc có xuống dòng | Sửa tên hàng trên phiếu giao rồi đồng bộ lại |
+| 812 / 825 | Tên hàng quá dài hoặc có xuống dòng | Sửa tên hàng trên chứng từ HĐĐT (hoặc trên hóa đơn bán rồi đồng bộ lại) |
 | 819 | Ngày hóa đơn nhỏ hơn hóa đơn liền trước | Đặt lại ngày hóa đơn |
 | 836 | Thiếu thông tin người mua | Bảng kiểm tra dữ liệu trên form chỉ đúng trường thiếu |
 | 78013 | Mã số thuế khách không hợp lệ | Sửa `tax_id` trên hồ sơ Customer |
@@ -131,10 +135,11 @@ Bảng lỗi tiếng Việt hiện ngay trên chứng từ kèm gợi ý hành �
 ### 4.3 CQT từ chối (trạng thái 09)
 
 Xem lý do ở trường `Phản hồi CQT`. Sửa nguồn sai (thường là MST hoặc tên đơn
-vị mua), rồi **Hủy nội bộ** (cấp 3, gõ `HUY`) và lập hóa đơn mới từ phiếu giao.
+vị mua), rồi **Hủy nội bộ** (cấp 3, gõ `HUY`) và lập hóa đơn mới từ hóa đơn bán.
 
-Hủy xong, phiếu giao được mở khóa để lập hóa đơn mới; liên kết tới chứng từ đã
-hủy vẫn giữ để còn lần lại lịch sử.
+Hủy xong, hóa đơn bán được mở khóa để lập hóa đơn mới (Key mang hậu tố `-L2`);
+chứng từ đã hủy vẫn giữ hóa đơn bán để còn lần lại lịch sử. Hóa đơn bán cũng hủy
+được (để sửa lại) khi hóa đơn điện tử ở trạng thái 12.
 
 ### 4.4 Sai sót sau khi CQT đã chấp nhận (trạng thái 08)
 
@@ -152,11 +157,24 @@ Bản ghi mới đi lại trọn vòng đời từ Nháp. Hóa đơn gốc chỉ
 
 ### 4.5 Báo cáo đối soát
 
-**Doi Soat Hoa Don Dien Tu** — chạy mỗi cuối ngày, gom ba việc phải dọn:
+**Doi Soat Hoa Don Dien Tu** — chạy mỗi cuối ngày, gom bốn việc phải dọn:
 
-1. Phiếu giao đã submit mà chưa lập hóa đơn.
-2. Hóa đơn chờ CQT quá 24 giờ (bất thường — hỏi Fast).
-3. Hóa đơn lỗi hoặc cần đối soát.
+1. Hóa đơn bán đã submit mà chưa lập hóa đơn điện tử.
+2. Phiếu giao đã submit mà chưa lập hóa đơn bán — hóa đơn điện tử lập từ hóa đơn
+   bán, nên hóa đơn bán lập muộn là hóa đơn điện tử muộn so với ngày giao hàng.
+3. Hóa đơn chờ CQT quá 24 giờ (bất thường — hỏi Fast).
+4. Hóa đơn lỗi hoặc cần đối soát.
+
+### 4.6 Hóa đơn bán, hóa đơn điện tử và các tình huống riêng (bản 3.0)
+
+| Tình huống | Hệ thống làm gì | Kế toán làm gì |
+|---|---|---|
+| Hủy hóa đơn bán khi hóa đơn điện tử đã có số (06–11) hoặc chưa rõ (05, 98) | Chặn, nêu số hóa đơn | Lập điều chỉnh / thay thế |
+| Hủy hóa đơn bán khi hóa đơn điện tử còn là nháp hoặc đã hủy nội bộ (12) | Cho hủy | Xóa bản nháp cũ; lập lại từ hóa đơn bán sửa lại |
+| Hóa đơn bán trả hàng, ghi nợ, số dư đầu kỳ, gộp POS | Không có nút tạo, nêu lý do | Trả hàng: lập điều chỉnh giảm từ hóa đơn gốc |
+| Phiếu giao trong hóa đơn bán đã có hóa đơn bản 2.0 | Từ chối tạo, nêu chứng từ cũ | Mở chứng từ cũ, bấm **Gắn hóa đơn bán** |
+| Tổng tiền chứng từ HĐĐT lệch hóa đơn bán (quy tắc 18) | Cảnh báo | Sửa hóa đơn bán hoặc Đồng bộ lại |
+| Hóa đơn bán ghi sổ khác kỳ kê khai với ngày hóa đơn (quy tắc 19) | Cảnh báo | Kế toán trưởng xác nhận trước khi phát hành |
 
 ---
 
