@@ -11,6 +11,18 @@
 //
 // Ô quét (giữ focus, tắt bàn phím ảo, tự gửi khi súng quét không có Enter) là
 // thành phần dùng chung `public/js/warehouse_operations/o_quet.js` — xem lý do ở đó.
+//
+// PHẦN QUYẾT ĐỊNH ("quét mã này ra cái gì") không còn nằm ở đây (Task 2, Bước 6
+// của kế hoạch app PDA `/kho`): đã chuyển sang `luong/tra_cuu.js` — CÙNG một file
+// mà màn "Tra cứu" của app PDA (`kho_pda/man_tra_cuu.js`) dùng, để hai nơi không
+// lệch luật. File này chỉ còn giữ TOÀN BỘ phần VẼ nguyên vẹn.
+//
+// VÒNG SỬA 1 (soát xét `task-2-soat-xet.md`): bản đầu tự ý LẬT NGƯỢC phán quyết
+// của lớp luồng (`const d = kq.du_lieu || {loai:null}` vứt cả `kq.loai`/`kq.bao`),
+// và còn giữ RIÊNG ba bản luật lẽ ra phải dùng chung — nhãn hiển thị của `loai`,
+// chính sách lịch sử, ngưỡng cận date. Cả bốn đã chuyển hẳn vào `luong/tra_cuu.js`;
+// phần vẽ dưới đây chỉ còn ĐỌC (`kq.loai`, `kq.bao`, `this._luong.lich_su()`,
+// `nhan_loai()`/`trang_thai_han()` uỷ quyền sang lớp luồng), không tự suy lại.
 
 // Bọc IIFE: script trang Frappe chạy ở phạm vi TOÀN CỤC. Hằng `const` và các hàm
 // nhỏ (`e`, `so`, `ngay`…) của hai trang PDA mà để trần thì mở trang thứ hai
@@ -22,8 +34,14 @@
 			title: __("Quét mã tra cứu"),
 			single_column: true,
 		});
-		frappe.require(O_QUET, () => {
-			wrapper.quet_ma = new erpnext.warehouse_operations.QuetMaTraCuu(page);
+		// Nạp lớp LUỒNG trước — brief đòi tường minh ("nạp file luồng ... trước khi
+		// dựng trang"), và constructor bên dưới gọi
+		// `erpnext.warehouse_operations.luong.tra_cuu.tao(...)` ngay lập tức nên
+		// namespace đó phải tồn tại trước khi `new QuetMaTraCuu(page)` chạy.
+		frappe.require(LUONG_TRA_CUU, () => {
+			frappe.require(O_QUET, () => {
+				wrapper.quet_ma = new erpnext.warehouse_operations.QuetMaTraCuu(page);
+			});
 		});
 	};
 
@@ -34,18 +52,51 @@
 	frappe.provide("erpnext.warehouse_operations");
 
 	const O_QUET = ["/assets/erpnext/js/warehouse_operations/o_quet.js", "/assets/erpnext/js/warehouse_operations/o_quet.css"];
-	const SO_LAN_QUET_NHO = 10;
-	// Lô còn hạn từ ngần này ngày trở xuống thì tô cam ("cận date"). Đặt 3 tháng
-	// khi dựng trang — CHƯA hỏi kho ngưỡng thật; kho dùng mốc khác thì đổi ở đây.
-	const NGAY_CAN_DATE = 90;
+	const LUONG_TRA_CUU = "/assets/erpnext/js/warehouse_operations/luong/tra_cuu.js";
+	// THỂ HIỆN luồng của trang đang mở. Cần ở cấp module vì các hàm dựng HTML bên
+	// dưới (`the_lo`, `dong_hang`, `ve_lich_su`...) là hàm cấp module, không có
+	// `this` — mà `trang_thai_han` nay là PHƯƠNG THỨC của thể hiện (nó đọc ngày
+	// TIÊM VÀO, xem `luong/tra_cuu.js`). Gán trong constructor; chỉ có đúng một
+	// trang "Quét mã tra cứu" mở tại một thời điểm.
+	let _luong_cua_trang = null;
+	// Ngưỡng "cận date" + `SO_LAN_QUET_NHO` (trần lịch sử) đã CHUYỂN vào lớp luồng
+	// (vòng sửa 1, mục 3 và 5) — không còn hằng số nào ở đây để đọc lệch với app.
 
 	erpnext.warehouse_operations.QuetMaTraCuu = class QuetMaTraCuu {
 		constructor(page) {
 			this.page = page;
-			this.lich_su = [];
+			// KHÔNG còn `this.lich_su` riêng — vòng sửa 1 (mục 3) hợp nhất chính sách
+			// lịch sử vào lớp luồng; `ve_lich_su()` đọc thẳng `this._luong.lich_su()`.
 			// Số thứ tự lần quét: quét dồn hai mã liền nhau thì câu trả lời của mã
 			// TRƯỚC có thể về SAU — không có số này thì màn hình hiện nhầm mã cũ.
 			this.lan = 0;
+			// Phần QUYẾT ĐỊNH ("quét mã này ra cái gì") — CÙNG một luồng mà màn "Tra
+			// cứu" của app PDA dùng (xem đầu file). `goi: frappe.xcall` đúng nguyên
+			// văn Bước 6 của brief: `frappe.xcall` đã tự hiện câu báo máy chủ cho lỗi
+			// quyền/mất mạng (Desk có `frappe.app`, khác app PDA — xem `kho_pda/vo.js`
+			// vì sao đường đó KHÔNG dùng được ở đấy), nên trang này không cần tự bắt
+			// lại hai ca đó, y như trước khi tách lớp.
+			//
+			// `gio` (vòng sửa 2, M4): TRƯỚC khi gộp lớp (trước Task 2), trang này ghi
+			// giờ vào lịch sử bằng `frappe.datetime.now_time()` — GIỜ SITE, không phải
+			// giờ trình duyệt. Lớp luồng mặc định giờ MÁY TRẠM (đúng cho app, chạy
+			// ngay trên máy quét trong kho) — không tiêm lại đúng giờ site ở đây thì
+			// một máy tính văn phòng lệch múi giờ với server sẽ thấy dấu giờ trong
+			// lịch sử Desk ĐỔI NGHĨA mà không ai biết (cùng múi giờ thì im lặng khớp,
+			// không lộ ra khác biệt).
+			//
+			// `ngay` (soát xét tổng, M2): CÙNG lý do với `gio`, nhưng đắt hơn nhiều —
+			// đây là ngày dùng để phán "lô hết hạn / cận date / còn hạn". Trước khi
+			// gộp lớp trang này tính bằng `frappe.datetime.get_day_diff(hsd,
+			// frappe.datetime.get_today())`, tức MÚI GIỜ SITE; bản gộp lớp đầu tiên
+			// lỡ để lớp luồng gọi thẳng `new Date()` (múi giờ MÁY). Tiêm lại ngày
+			// site ở đây để giữ đúng nghĩa CŨ.
+			this._luong = erpnext.warehouse_operations.luong.tra_cuu.tao({
+				goi: frappe.xcall,
+				gio: () => frappe.datetime.now_time(),
+				ngay: () => frappe.datetime.get_today(),
+			});
+			_luong_cua_trang = this._luong;
 			this.dung();
 		}
 
@@ -86,14 +137,21 @@
 			// Đang cuộn xuống cuối danh sách lô của lần quét trước mà bóp cò quét
 			// tiếp thì kết quả mới phải hiện ngay trước mắt, không nằm khuất phía trên.
 			window.scrollTo({ top: 0 });
-			frappe
-				.xcall("erpnext.warehouse_operations.vitri.quet.tra_cuu", { ma: ma })
-				.then((d) => {
+			this._luong
+				.quet(ma)
+				.then((kq) => {
 					if (lan !== this.lan) return;
-					d = d || { loai: null };
-					this.ve_ket_qua(ma, d);
-					this.nho(ma, d);
-					rung(d.loai ? [40] : [80, 60, 80]);
+					// `kq.loai`/`kq.bao` là phán quyết CỦA LỚP LUỒNG — nguồn sự thật DUY
+					// NHẤT (vòng sửa 1, mục 1: bản trước tự suy lại mọi thứ từ
+					// `kq.du_lieu`, im lặng vứt cả hai — đo được: ép lớp luồng trả
+					// `loai:"khong_ro"` + một câu báo tuỳ ý trong khi vẫn giữ `du_lieu`
+					// của một lô THẬT, trang vẫn vẽ thẻ "Lô" đầy đủ như không có chuyện
+					// gì). `ve_ket_qua`/`ve_lich_su` bên dưới đọc thẳng `kq`, không tự
+					// suy `loai` từ `du_lieu` nữa. Lịch sử cũng không còn `this.nho(...)`
+					// riêng — `this._luong.quet()` đã tự ghi vào bộ nhớ DÙNG CHUNG.
+					this.ve_ket_qua(ma, kq);
+					this.ve_lich_su();
+					rung(kq.loai !== "khong_ro" ? [40] : [80, 60, 80]);
 				})
 				.catch(() => {
 					// Lỗi quyền / mất mạng: `frappe.xcall` đã tự hiện câu báo của máy
@@ -103,13 +161,6 @@
 				.finally(() => {
 					if (lan === this.lan) this.giu_focus();
 				});
-		}
-
-		nho(ma, d) {
-			this.lich_su = this.lich_su.filter((x) => x.ma !== ma);
-			this.lich_su.unshift({ ma: ma, loai: d.loai, ten: tieu_de_ngan(d), luc: frappe.datetime.now_time() });
-			this.lich_su = this.lich_su.slice(0, SO_LAN_QUET_NHO);
-			this.ve_lich_su();
 		}
 
 		// ----------------------------------------------------------------- vẽ
@@ -132,27 +183,42 @@
 				</div>`);
 		}
 
-		ve_ket_qua(ma, d) {
-			const ve = { lo: the_lo, vat_tu: the_vat_tu, o: the_o, kho: the_kho }[d.loai];
-			this.$ket_qua.html(ve ? ve(d) : the_khong_thay(ma));
+		// `kq` = phán quyết nguyên vẹn của lớp luồng (`{loai, du_lieu, bao}`). Ca
+		// THƯỜNG NGÀY (`kq.loai` không nhận diện được) tự có `kq.bao` làm tiêu đề
+		// thẻ "không nhận ra" — không lặp một dải cảnh báo thứ hai. Dải
+		// `.qmtc-canh-bao` CHỈ hiện khi lớp luồng gắn `bao` đi kèm một `loai` ĐÃ
+		// nhận diện được (vòng sửa 1, mục 1 — ca không xảy ra hôm nay ở Tra cứu,
+		// nhưng phán quyết đó KHÔNG ĐƯỢC im lặng biến mất nếu một ngày lớp luồng
+		// bắt đầu gắn thêm cảnh báo cho dữ liệu đã biết, ví dụ "lô sắp hết hạn").
+		ve_ket_qua(ma, kq) {
+			const ve = { lo: the_lo, vat_tu: the_vat_tu, o: the_o, kho: the_kho }[kq.loai];
+			if (ve) {
+				const canh_bao = kq.bao ? `<div class="qmtc-canh-bao">${e(kq.bao)}</div>` : "";
+				this.$ket_qua.html(canh_bao + ve(kq.du_lieu));
+			} else {
+				this.$ket_qua.html(the_khong_thay(ma, kq.bao));
+			}
 		}
 
 		ve_lich_su() {
-			if (!this.lich_su.length) return this.$lich_su.empty();
+			const ds = this._luong.lich_su();
+			if (!ds.length) return this.$lich_su.empty();
 			this.$lich_su.html(`
 				<div class="qmtc-tieu-de-muc">${__("Vừa quét")}</div>
-				${this.lich_su
-					.map(
-						(x) => `
-					<div class="qmtc-dong-lich-su ${x.loai ? "" : "khong-thay"}" data-ma="${e(x.ma)}" role="button">
-						<span class="qmtc-nhan-loai loai-${x.loai || "khong"}">${nhan_loai(x.loai)}</span>
+				${ds
+					.map((x) => {
+						const khong_thay = x.loai === "khong_ro";
+						const ten = x.du_lieu ? tieu_de_ngan(x.du_lieu) : "";
+						return `
+					<div class="qmtc-dong-lich-su ${khong_thay ? "khong-thay" : ""}" data-ma="${e(x.ma)}" role="button">
+						<span class="qmtc-nhan-loai loai-${khong_thay ? "khong" : x.loai}">${nhan_loai(x.loai)}</span>
 						<span class="qmtc-lich-su-chu">
 							<span class="qmtc-lich-su-ma">${e(x.ma)}</span>
-							${x.ten ? `<span class="qmtc-lich-su-ten">${e(x.ten)}</span>` : ""}
+							${ten ? `<span class="qmtc-lich-su-ten">${e(ten)}</span>` : ""}
 						</span>
 						<span class="qmtc-lich-su-luc">${e(x.luc.slice(0, 5))}</span>
-					</div>`
-					)
+					</div>`;
+					})
 					.join("")}`);
 		}
 	};
@@ -335,11 +401,26 @@
 			</div>`;
 	}
 
-	function the_khong_thay(ma) {
+	// `bao` là câu của LỚP LUỒNG (vòng sửa 1, mục 1/2) — hiện ĐÚNG chuỗi đó, không
+	// tự chép lại "Không nhận ra mã này" ở đây nữa (soát xét, P4: chuỗi đó từng nằm
+	// ở BA nơi). Phòng hờ `bao` rỗng (gọi `the_khong_thay` từ một đường nào khác
+	// không đi qua lớp luồng) mới rơi về câu MẶC ĐỊNH.
+	//
+	// VÒNG SỬA 2 (soát xét, M5): hai câu dưới đây gõ NGUYÊN VĂN bằng `__("...")`,
+	// KHÔNG đọc qua `erpnext.warehouse_operations.luong.tra_cuu.CAU_KHONG_RO`/
+	// `MO_TA_KHONG_RO` như vòng trước — `__(<biến>)` chạy đúng lúc thi hành (biến
+	// đó vẫn giữ đúng chữ), nhưng bộ rút chuỗi dịch của Frappe chỉ nhận diện được
+	// `__(` đi NGAY SAU bởi một chuỗi chữ, không lần theo được giá trị của một
+	// biến — hai câu này sẽ biến mất khỏi catalog dịch, không ai biết. Cái giá:
+	// chữ NGUYÊN VĂN nay có ở ba nơi (hằng số trong lớp luồng + hai lớp vẽ) thay
+	// vì một — đổi lại để công cụ dịch nhìn thấy được câu, đúng đánh đổi người
+	// soát chọn. Hằng số trong lớp luồng vẫn là NGUỒN Ý NGHĨA (đổi câu thì sửa ở
+	// đó trước, hai chỗ `__("...")` dưới đây phải tự tay khớp lại theo).
+	function the_khong_thay(ma, bao) {
 		return `
 			<div class="qmtc-the qmtc-khong-thay">
 				<div class="qmtc-cho-hinh">${frappe.utils.icon("search", "xl")}</div>
-				<div class="qmtc-cho-chu">${__("Không nhận ra mã này")}</div>
+				<div class="qmtc-cho-chu">${e(bao || __("Không nhận ra mã này."))}</div>
 				<div class="qmtc-ma-to">${e(ma)}</div>
 				<div class="qmtc-mo">${__(
 					"Không phải tem lô, tem vị trí, mã vật tư hay mã kho. Có thể vừa quét nhầm mã trên vỏ thùng."
@@ -385,19 +466,21 @@
 		return `<div class="qmtc-chip"><span class="qmtc-chip-nhan">${e(nhan)}</span>${than}</div>`;
 	}
 
+	// `trang_thai_han`/`nhan_loai` UỶ QUYỀN thẳng cho lớp luồng (vòng sửa 1, mục 2
+	// và 5) — không còn tính/ánh xạ RIÊNG ở đây nữa. Giữ lại làm HÀM CHUYỂN TIẾP
+	// (không đổi tên) để mọi lời gọi cũ trong file này (`the_lo`, `dong_hang`...)
+	// không phải sửa — chỉ đổi phần THÂN hàm.
+	// Qua THỂ HIỆN, không qua namespace (soát xét tổng, M2): phán quyết hết hạn
+	// đọc ngày TIÊM VÀO `tao()` (`ngay: () => frappe.datetime.get_today()` ở
+	// constructor) — giờ SITE, đúng như trang này vẫn tính trước khi gộp lớp. Lấy
+	// thể hiện qua `_luong_cua_trang` vì các hàm dựng HTML ở file này là hàm cấp
+	// module (không có `this`), giữ nguyên tên để không phải sửa hàng chục lời gọi.
 	function trang_thai_han(hsd) {
-		if (!hsd) return { muc: "khong", chu: "" };
-		const con = frappe.datetime.get_day_diff(hsd, frappe.datetime.get_today());
-		if (con < 0) return { muc: "het", chu: __("Hết hạn {0} ngày", [-con]) };
-		if (con === 0) return { muc: "het", chu: __("Hết hạn hôm nay") };
-		if (con <= NGAY_CAN_DATE) return { muc: "can", chu: __("Còn {0} ngày", [con]) };
-		return { muc: "con", chu: __("Còn {0} ngày", [con]) };
+		return _luong_cua_trang.trang_thai_han(hsd);
 	}
 
 	function nhan_loai(loai) {
-		return (
-			{ lo: __("Lô"), vat_tu: __("Vật tư"), o: __("Vị trí"), kho: __("Kho") }[loai] || __("Không rõ")
-		);
+		return erpnext.warehouse_operations.luong.tra_cuu.nhan_loai(loai);
 	}
 
 	function tieu_de_ngan(d) {
