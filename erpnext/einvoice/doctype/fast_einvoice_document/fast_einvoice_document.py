@@ -21,6 +21,8 @@ from erpnext.einvoice.constants import (
 	INVOICE_TYPE_REPLACEMENT,
 	ISSUED_STATUSES,
 	LIVE_STATUSES,
+	SOURCE_DELIVERY_NOTE_V2,
+	SOURCE_SALES_INVOICE,
 	STATUS_DRAFT,
 	STATUS_ISSUING,
 )
@@ -65,6 +67,8 @@ PROTECTED_MASTER_FIELDS = (
 	"amount_in_words",
 	"human_name",
 	"release_type",
+	"source_doctype",
+	"sales_invoice",
 	"delivery_note",
 	"invoice_type",
 )
@@ -151,6 +155,7 @@ class FastEInvoiceDocument(Document):
 		self._validate_manual_override()
 		self._compute_totals()
 		self._validate_fast_key_is_immutable()
+		self._validate_source()
 		self._validate_lineage()
 		self._guard_locked_data()
 		self._validate_official_xml()
@@ -178,7 +183,7 @@ class FastEInvoiceDocument(Document):
 	def _refuse_duplicate_record(self):
 		"""Một lần bán, một hóa đơn, một bản ghi — không bao giờ có bản ghi thứ hai.
 
-		Bản ghi mới chỉ sinh ra từ phiếu giao (`builder`) hoặc từ hóa đơn gốc
+		Bản ghi mới chỉ sinh ra từ hóa đơn bán (`builder`) hoặc từ hóa đơn gốc
 		(`lineage`), luôn ở trạng thái Nháp và có Key riêng. Mọi đường khác — nút
 		Duplicate, import, API — mà chép kèm Key, số hóa đơn hay trạng thái đã
 		phát hành là đẻ ra một hóa đơn "ma": nhìn y như hóa đơn thật, cộng trùng
@@ -189,7 +194,7 @@ class FastEInvoiceDocument(Document):
 			frappe.throw(
 				_(
 					"Không tạo được bản ghi hóa đơn mới mang sẵn số hóa đơn / trạng thái đã phát hành "
-					"(số {0}, trạng thái {1}). Hóa đơn chỉ lập từ phiếu giao hàng, hoặc lập điều chỉnh / "
+					"(số {0}, trạng thái {1}). Hóa đơn chỉ lập từ hóa đơn bán, hoặc lập điều chỉnh / "
 					"thay thế từ hóa đơn gốc."
 				).format(self.fast_invoice_no or "—", self.status or "—"),
 				frappe.DuplicateEntryError,
@@ -206,10 +211,31 @@ class FastEInvoiceDocument(Document):
 					frappe.DuplicateEntryError,
 				)
 
-		if self.delivery_note and self.invoice_type == INVOICE_TYPE_ORIGINAL:
+		if self.invoice_type != INVOICE_TYPE_ORIGINAL:
+			return
+
+		# Chốt theo **hóa đơn bán**. Chốt cũ viết `if self.delivery_note and …`:
+		# bản ghi nguồn hóa đơn bán không có phiếu giao nên chốt đó tự bỏ qua mà
+		# không báo gì.
+		if self.sales_invoice:
+			from erpnext.einvoice.builder import live_invoice_for
+
+			if live := live_invoice_for(self.sales_invoice):
+				frappe.throw(
+					_("Hóa đơn bán {0} đã có chứng từ HĐĐT {1} ({2}).").format(
+						self.sales_invoice, live.name, live.status
+					),
+					frappe.DuplicateEntryError,
+				)
+
+		if self.source_doctype == SOURCE_DELIVERY_NOTE_V2 and self.delivery_note:
 			live = frappe.db.get_value(
 				FEI,
-				{"delivery_note": self.delivery_note, "status": ("in", list(LIVE_STATUSES))},
+				{
+					"delivery_note": self.delivery_note,
+					"invoice_type": INVOICE_TYPE_ORIGINAL,
+					"status": ("in", list(LIVE_STATUSES)),
+				},
 				["name", "status"],
 				as_dict=True,
 			)
@@ -249,12 +275,6 @@ class FastEInvoiceDocument(Document):
 	def on_trash(self):
 		"""Gỡ chứng từ ra khỏi mọi thứ đang trỏ tới nó, rồi mới để Frappe xóa.
 
-		Phiếu giao có trường `fast_einvoice` trỏ ngược về đây, còn chứng từ này
-		lại trỏ sang phiếu giao — hai Link vòng vào nhau nên Frappe từ chối xóa cả
-		hai đầu, không có lối ra nào ngoài `force`. Frappe chạy `on_trash` **trước**
-		`check_if_doc_is_linked` (frappe/model/delete_doc.py:126 rồi 133), nên dọn
-		ở đây là vừa kịp.
-
 		Hóa đơn đã tiêu số thật thì không xóa: đó là chứng từ pháp lý Cơ quan Thuế
 		đang giữ, xóa bản ghi ERP chỉ làm mất dấu vết chứ không làm hóa đơn biến
 		mất. Sai nội dung thì lập hóa đơn điều chỉnh hoặc thay thế.
@@ -271,28 +291,41 @@ class FastEInvoiceDocument(Document):
 				frappe.PermissionError,
 			)
 
-		self._release_delivery_note()
+		self._release_source_documents()
 		self._drop_own_logs()
 
-	def _release_delivery_note(self):
-		"""Xóa dấu vết của chứng từ này trên phiếu giao.
+	def _release_source_documents(self):
+		"""Xóa bản sao HĐĐT của chứng từ này trên chứng từ nguồn.
 
-		Giữ lại `fast_key_search` — trường đó vốn được đặt ra làm bản sao dự phòng
-		"phòng khi chứng từ HĐĐT bị xóa" (xem `einvoice/setup.py`), nên đây đúng là
-		lúc nó có việc để làm.
+		Sales Invoice không có Link trỏ ngược về đây (mục C5), nên chỉ biết bản sao
+		là của ai qua `sales_invoice`: còn chứng từ HĐĐT gốc khác đang sống thì bản
+		sao thuộc về nó, không đụng vào.
+
+		Phiếu giao của bản 2.0 có trường `fast_einvoice` trỏ ngược về đây, còn chứng
+		từ này lại trỏ sang phiếu giao — hai Link vòng vào nhau nên Frappe từ chối
+		xóa cả hai đầu. Frappe chạy `on_trash` **trước** `check_if_doc_is_linked`
+		(frappe/model/delete_doc.py:126 rồi 133), nên dọn ở đây là vừa kịp.
+
+		Giữ lại `fast_key_search` — trường đó vốn là bản sao dự phòng "phòng khi
+		chứng từ HĐĐT bị xóa", nên đây đúng là lúc nó có việc để làm.
 		"""
+		from erpnext.einvoice.builder import clear_source_stamp, live_invoice_for
+
+		if (
+			self.sales_invoice
+			and self.invoice_type == INVOICE_TYPE_ORIGINAL
+			and not live_invoice_for(self.sales_invoice, exclude=self.name)
+		):
+			clear_source_stamp("Sales Invoice", self.sales_invoice)
+
 		if not self.delivery_note or not frappe.db.exists("Delivery Note", self.delivery_note):
+			return
+		if not frappe.get_meta("Delivery Note").has_field("fast_einvoice"):
 			return
 		if frappe.db.get_value("Delivery Note", self.delivery_note, "fast_einvoice") != self.name:
 			# Phiếu giao đang trỏ tới một chứng từ khác — không đụng vào.
 			return
-
-		frappe.db.set_value(
-			"Delivery Note",
-			self.delivery_note,
-			{"fast_einvoice": "", "fast_einvoice_status": "", "fast_invoice_no": ""},
-			update_modified=False,
-		)
+		clear_source_stamp("Delivery Note", self.delivery_note)
 
 	def _drop_own_logs(self):
 		"""Nhật ký là hội thoại **của riêng** chứng từ này, đi cùng nó.
@@ -330,10 +363,10 @@ class FastEInvoiceDocument(Document):
 	def _compute_totals(self):
 		"""Tính lại dòng hàng và tổng hợp — công thức nằm ở `einvoice.totals`.
 
-		Chứng từ tự tính như hóa đơn thật, không chỉ giữ số copy của phiếu giao:
+		Chứng từ tự tính như hóa đơn thật, không chỉ giữ số copy của chứng từ nguồn:
 		sửa hay thêm một dòng thì thành tiền, tiền thuế, các ô nhóm thuế, chiết
 		khấu, khuyến mại, tổng thanh toán và số tiền bằng chữ đều đổi theo và luôn
-		khớp nhau. Phiếu giao đã submit không sửa được, nên đây là chỗ duy nhất
+		khớp nhau. Hóa đơn bán đã submit không sửa được, nên đây là chỗ duy nhất
 		sửa được nội dung hóa đơn trước lúc phát hành.
 
 		Hai trường hợp **không** tính:
@@ -380,6 +413,42 @@ class FastEInvoiceDocument(Document):
 				_(
 					"Không được đổi Key ({0}) sau khi bản ghi đã tồn tại — đây là mã chống phát hành trùng."
 				).format(before.fast_key)
+			)
+
+	def _validate_source(self):
+		"""Chứng từ nguồn tường minh, đặt một lần lúc tạo, không sửa được (C2.1 #1, #1a).
+
+		Bản ghi có cả `delivery_note` lẫn `sales_invoice` thì phải luôn biết cái nào
+		là nguồn — đoán là cách hai nguồn sự thật sinh ra. Và đổi chứng từ nguồn
+		sau khi đã sinh Key là làm Key lệch hẳn với nguồn (lỗi `be92ff1`): gắn hóa
+		đơn bán vào bản ghi bản 2.0 phải đi qua `link_sales_invoice`, có kiểm tra.
+		"""
+		if not self.source_doctype:
+			frappe.throw(_("Chứng từ HĐĐT phải có Loại chứng từ nguồn."), frappe.MandatoryError)
+		if self.source_doctype == SOURCE_SALES_INVOICE and not self.sales_invoice:
+			frappe.throw(
+				_("Hóa đơn điện tử lập từ hóa đơn bán phải gắn hóa đơn bán (Sales Invoice)."),
+				frappe.MandatoryError,
+			)
+		if self.source_doctype == SOURCE_DELIVERY_NOTE_V2 and not self.delivery_note:
+			frappe.throw(_("Bản ghi lập theo bản 2.0 phải còn phiếu giao nguồn."), frappe.MandatoryError)
+
+		if self.is_new():
+			return
+		before = self.get_doc_before_save()
+		if not before:
+			return
+		allowed = {"sales_invoice"} if self.flags.get("allow_sales_invoice_link") else set()
+		changed = [
+			self.meta.get_label(field)
+			for field in ("source_doctype", "sales_invoice", "delivery_note")
+			if field not in allowed and (before.get(field) or "") != (self.get(field) or "")
+		]
+		if changed:
+			frappe.throw(
+				_("Không được đổi chứng từ nguồn ({0}) sau khi bản ghi đã tồn tại.").format(
+					", ".join(changed)
+				)
 			)
 
 	def _validate_lineage(self):

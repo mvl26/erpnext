@@ -15,6 +15,7 @@ from frappe import _
 from frappe.utils import getdate, now_datetime
 
 from erpnext.einvoice.actions import ACTION_EXECUTE, FEI, _explain, _mirror_status
+from erpnext.einvoice.builder import stamp_source_documents
 from erpnext.einvoice.constants import (
 	ISSUED_STATUSES,
 	STATUS_DRAFT,
@@ -127,21 +128,10 @@ def _apply_from_fast(doc, found):
 	values["error_message"] = ""
 
 	frappe.db.set_value(FEI, doc.name, values, update_modified=False)
-	if values.get("status"):
-		_mirror_status(doc.name, STATUS_ISSUED)
+	stamp_source_documents(doc.name)
 	# Số hóa đơn vừa khôi phục từ Fast: file của chứng từ về đúng thư mục số hóa đơn.
 	move_invoice_files(doc.name)
 
-	if doc.delivery_note:
-		frappe.db.set_value(
-			"Delivery Note",
-			doc.delivery_note,
-			{
-				"fast_invoice_no": values.get("fast_invoice_no") or doc.fast_invoice_no or "",
-				"fast_key_search": values.get("fast_key_search") or doc.fast_key_search or "",
-			},
-			update_modified=False,
-		)
 	doc.add_comment("Comment", _("Đã cập nhật thông tin hóa đơn theo kết quả truy vấn Fast."))
 
 

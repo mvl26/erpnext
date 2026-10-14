@@ -3,7 +3,7 @@
 """Cây thư mục lưu file hóa đơn điện tử trong File Manager của ERP.
 
 ``Home/Invoices/{năm}/{tháng}/{ngày}/{số hóa đơn}`` — bản nháp PDF, PDF chính
-thức (kể cả bản đính trên phiếu giao), PDF chuyển đổi và XML của một hóa đơn
+thức (kể cả bản đính trên hóa đơn bán), PDF chuyển đổi và XML của một hóa đơn
 nằm chung một thư mục.
 
 Thư mục **không dựng trước**: chỉ khi có file sắp lưu mới kiểm tra từng cấp, cấp

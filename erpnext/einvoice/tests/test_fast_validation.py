@@ -1,6 +1,6 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""16 quy tắc kiểm tra dữ liệu trước khi gửi — Phần F của đặc tả.
+"""Các quy tắc kiểm tra dữ liệu trước khi gửi — Phần F của đặc tả.
 
 Mỗi quy tắc chặn được ở ERP là một lời gọi hỏng tiết kiệm được với Fast, và với
 lệnh phát hành thì còn là một số hóa đơn không bị tiêu oan.
@@ -11,16 +11,28 @@ from typing import ClassVar
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import add_days, add_months, getdate, nowdate
 
+from erpnext.einvoice.builder import create_from_sales_invoice
 from erpnext.einvoice.constants import (
 	PROCESS_TYPE_DISCOUNT,
 	PROCESS_TYPE_GOODS,
 	PROCESS_TYPE_NOTE,
 	PROCESS_TYPE_SPECIAL,
+	SOURCE_DELIVERY_NOTE_V2,
 	STATUS_ISSUED,
 )
+from erpnext.einvoice.tests.test_fast_client import configure
 from erpnext.einvoice.tests.test_fast_document import make_fei
+from erpnext.einvoice.tests.test_fixtures import (
+	make_delivery_note,
+	make_legacy_fei,
+	make_sales_invoice,
+	make_sales_invoice_from_delivery_note,
+)
 from erpnext.einvoice.validation import validate_before_send
+
+FEI = "Fast EInvoice Document"
 
 
 def check(fei, **kwargs):
@@ -292,49 +304,109 @@ class TestValidationRules(FrappeTestCase):
 		self.assertEqual(result.warnings, [])
 
 
-class TestSourceDeliveryNoteRule(FrappeTestCase):
-	"""Quy tắc 15 — kiểm tra chứng từ nguồn."""
+class TestSourceRule(FrappeTestCase):
+	"""Quy tắc 15 — kiểm tra chứng từ nguồn (hóa đơn bán; bản ghi bản 2.0 giữ luật phiếu giao)."""
 
 	def setUp(self):
 		frappe.db.rollback()
+		configure()
 
 	def tearDown(self):
 		frappe.db.rollback()
 
-	def test_submitted_delivery_note_passes(self):
-		from erpnext.einvoice.tests.test_fixtures import make_delivery_note
+	def _legacy(self, **values):
+		return make_fei(source_doctype=SOURCE_DELIVERY_NOTE_V2, sales_invoice=None, **values)
 
-		dn = make_delivery_note()
-		fei = make_fei(delivery_note=dn.name)
+	def test_submitted_sales_invoice_passes(self):
+		si = make_sales_invoice()
+		fei = make_fei(sales_invoice=si.name)
 		self.assertNotIn(15, rules_hit(validate_before_send(fei), "block"))
 
-	def test_draft_delivery_note_is_blocked(self):
-		from erpnext.einvoice.tests.test_fixtures import make_delivery_note
-
-		dn = make_delivery_note(submit=False)
-		fei = make_fei(delivery_note=dn.name)
+	def test_draft_sales_invoice_is_blocked(self):
+		si = make_sales_invoice(submit=False)
+		fei = make_fei(sales_invoice=si.name)
 		self.assertIn(15, rules_hit(validate_before_send(fei), "block"))
 
-	def test_return_delivery_note_is_blocked(self):
-		from erpnext.einvoice.tests.test_fixtures import make_delivery_note
-
-		dn = make_delivery_note(is_return=True)
-		fei = make_fei(delivery_note=dn.name)
+	def test_opening_sales_invoice_is_blocked(self):
+		si = make_sales_invoice()
+		frappe.db.set_value("Sales Invoice", si.name, "is_opening", "Yes")
+		fei = make_fei(sales_invoice=si.name)
 		self.assertIn(15, rules_hit(validate_before_send(fei), "block"))
 
-	def test_delivery_note_already_carrying_a_live_invoice_is_blocked(self):
-		from erpnext.einvoice.tests.test_fixtures import make_delivery_note
+	def test_sales_invoice_already_carrying_a_live_invoice_is_blocked(self):
+		si = make_sales_invoice()
+		create_from_sales_invoice(si.name)
 
-		dn = make_delivery_note()
-		existing = make_fei(delivery_note=dn.name)
-		existing.insert()
-
-		second = make_fei(delivery_note=dn.name, fast_key="KHACNUA")
+		second = make_fei(sales_invoice=si.name, fast_key="KHACNUA")
 		self.assertIn(15, rules_hit(validate_before_send(second), "block"))
 
-	def test_missing_delivery_note_is_blocked(self):
-		fei = make_fei(delivery_note="KHONG-CO-THAT")
+	def test_missing_sales_invoice_is_blocked(self):
+		fei = make_fei(sales_invoice="KHONG-CO-THAT")
 		self.assertIn(15, rules_hit(validate_before_send(fei), "block"))
+
+	def test_a_delivery_note_invoiced_under_v2_is_blocked(self):
+		dn = make_delivery_note()
+		make_legacy_fei(dn.name)
+		si = make_sales_invoice_from_delivery_note(dn.name)
+
+		fei = make_fei(sales_invoice=si.name)
+		self.assertIn(15, rules_hit(validate_before_send(fei), "block"))
+
+	def test_a_v2_record_keeps_the_delivery_note_rules(self):
+		dn = make_delivery_note(submit=False)
+		self.assertIn(15, rules_hit(validate_before_send(self._legacy(delivery_note=dn.name)), "block"))
+
+		dn = make_delivery_note()
+		self.assertNotIn(15, rules_hit(validate_before_send(self._legacy(delivery_note=dn.name)), "block"))
+
+
+class TestMatchTheSalesInvoice(FrappeTestCase):
+	"""Quy tắc 18 (tổng tiền) và 19 (kỳ kê khai) — cảnh báo, không bao giờ chặn."""
+
+	def setUp(self):
+		frappe.db.rollback()
+		configure()
+		self.si = make_sales_invoice()
+		self.fei = frappe.get_doc(FEI, create_from_sales_invoice(self.si.name))
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def test_a_fresh_invoice_matches_its_sales_invoice(self):
+		issues = validate_before_send(self.fei).issues
+		self.assertNotIn(18, [i.rule for i in issues])
+		self.assertNotIn(19, [i.rule for i in issues])
+
+	def test_an_edited_line_is_a_warning_not_a_block(self):
+		self.fei.lines[0].qty = 50
+		self.fei.flags.ignore_links = True
+		self.fei.save(ignore_permissions=True)
+
+		result = validate_before_send(self.fei)
+		self.assertIn(18, rules_hit(result, "warn"))
+		self.assertNotIn(18, rules_hit(result, "block"))
+
+	def test_rounding_pennies_are_not_reported(self):
+		frappe.db.set_value("Sales Invoice", self.si.name, "grand_total", self.si.grand_total + 0.6)
+		self.assertNotIn(18, rules_hit(validate_before_send(self.fei), "warn"))
+
+	def test_a_few_days_inside_the_same_period_is_not_reported(self):
+		"""Ngày hóa đơn luôn là ngày phát hành — lệch vài ngày trong cùng kỳ là chuyện thường."""
+		frappe.db.set_value("Sales Invoice", self.si.name, "posting_date", _same_period_earlier())
+		self.assertNotIn(19, rules_hit(validate_before_send(self.fei), "warn"))
+
+	def test_a_different_declaration_period_is_a_warning(self):
+		frappe.db.set_value("Sales Invoice", self.si.name, "posting_date", add_months(nowdate(), -3))
+		result = validate_before_send(self.fei)
+		self.assertIn(19, rules_hit(result, "warn"))
+		self.assertNotIn(19, rules_hit(result, "block"))
+
+
+def _same_period_earlier():
+	"""Một ngày trước hôm nay mà vẫn cùng quý — hoặc chính hôm nay nếu đang là ngày đầu quý."""
+	today = getdate(nowdate())
+	first_of_quarter = today.replace(month=(today.month - 1) // 3 * 3 + 1, day=1)
+	return max(first_of_quarter, getdate(add_days(today, -2)))
 
 
 class TestNothingBlocksMoreThanFastDoes(FrappeTestCase):
@@ -353,8 +425,9 @@ class TestNothingBlocksMoreThanFastDoes(FrappeTestCase):
 	# Quy tắc chặn vì **luật nghiệp vụ của Miyano**, không phải vì Fast từ chối.
 	# Mỗi mục phải nói được vì sao nó đáng chặn dù Fast vẫn nhận.
 	ERP_BUSINESS_RULES: ClassVar[dict[int, str]] = {
-		15: "Chứng từ nguồn: phiếu giao phải có thật, đã submit, không phải phiếu trả, "
-		"chưa có hóa đơn khác. Fast không biết phiếu giao là gì nên không có mã lỗi nào "
+		15: "Chứng từ nguồn: hóa đơn bán phải có thật, đã submit, không phải trả hàng / ghi nợ / "
+		"số dư đầu kỳ / gộp POS, chưa có hóa đơn khác, và không phiếu giao nào trong nó đã có "
+		"hóa đơn bản 2.0. Fast không biết hóa đơn bán của ERP là gì nên không có mã lỗi nào "
 		"tương ứng — đây là luật kế toán của Miyano, không phải luật của Fast.",
 	}
 

@@ -75,7 +75,11 @@ _RESULT_FIELDS = (
 	"amended_from_fei",
 )
 
+# Chứng từ nguồn đi theo hóa đơn gốc sang hóa đơn điều chỉnh / thay thế: bảng kê
+# lần ra hóa đơn bán qua `sales_invoice`, và `source_doctype` giữ cho bản ghi con
+# đúng một loại nguồn như hóa đơn gốc của nó.
 _COPIED_FIELDS = (
+	"source_doctype",
 	"delivery_note",
 	"sales_invoice",
 	"customer",

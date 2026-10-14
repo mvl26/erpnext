@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import flt, getdate
 
 from erpnext.einvoice.constants import (
 	INVOICE_TYPE_ORIGINAL,
@@ -34,6 +34,7 @@ from erpnext.einvoice.constants import (
 	PROCESS_TYPE_GOODS,
 	PROCESS_TYPE_LABELS,
 	PROCESS_TYPE_SPECIAL,
+	SOURCE_DELIVERY_NOTE_V2,
 	TAX_RATE_CODES,
 )
 from erpnext.einvoice.payload import (
@@ -120,8 +121,10 @@ def validate_before_send(fei, check_source=True):
 	_rule_12_tax_rates(fei, result)
 	_rule_14_email(fei, result)
 	if check_source:
-		_rule_15_source_delivery_note(fei, result)
+		_rule_15_source(fei, result)
 	_rule_16_tax_groups(fei, result)
+	if check_source:
+		_rule_18_19_match_the_sales_invoice(fei, result)
 
 	return result
 
@@ -452,7 +455,58 @@ def _rule_14_email(fei, result):
 # --- 15. Chứng từ nguồn ------------------------------------------------------
 
 
-def _rule_15_source_delivery_note(fei, result):
+def _rule_15_source(fei, result):
+	"""Chứng từ nguồn phải có thật, đã submit, là doanh thu cần xuất hóa đơn, chưa có hóa đơn khác.
+
+	Luật kế toán của Miyano chứ không phải luật của Fast — xem
+	`TestNothingBlocksMoreThanFastDoes.ERP_BUSINESS_RULES`. Bản ghi bản 2.0 (nguồn
+	phiếu giao) giữ luật cũ.
+	"""
+	if fei.get("source_doctype") == SOURCE_DELIVERY_NOTE_V2:
+		_rule_15_legacy_delivery_note(fei, result)
+	else:
+		_rule_15_sales_invoice(fei, result)
+
+
+def _rule_15_sales_invoice(fei, result):
+	from erpnext.einvoice.builder import (
+		legacy_invoices_for_delivery_notes,
+		legacy_refusal,
+		live_invoice_for,
+		sales_invoice_refusal,
+	)
+
+	if not fei.sales_invoice:
+		result.add(15, BLOCK, "sales_invoice", _("Chưa gắn hóa đơn bán (chứng từ nguồn)."))
+		return
+	if not frappe.db.exists("Sales Invoice", fei.sales_invoice):
+		result.add(15, BLOCK, "sales_invoice", _("Hóa đơn bán {0} không tồn tại.").format(fei.sales_invoice))
+		return
+
+	# Hóa đơn điều chỉnh / thay thế **cố ý** dùng chung hóa đơn bán với hóa đơn
+	# gốc, và hóa đơn gốc có thể đã là chứng từ bị hủy rồi sửa lại — điều kiện
+	# "là doanh thu cần xuất hóa đơn" chỉ áp cho hóa đơn gốc.
+	if fei.invoice_type and fei.invoice_type != INVOICE_TYPE_ORIGINAL:
+		return
+
+	refusal = sales_invoice_refusal(frappe.get_doc("Sales Invoice", fei.sales_invoice))
+	if refusal:
+		result.add(15, BLOCK, "sales_invoice", refusal)
+
+	if sibling := live_invoice_for(fei.sales_invoice, exclude=fei.name or ""):
+		result.add(
+			15,
+			BLOCK,
+			"sales_invoice",
+			_("Hóa đơn bán này đã có chứng từ HĐĐT đang sống: {0}.").format(sibling.name),
+		)
+
+	legacy = [row for row in legacy_invoices_for_delivery_notes(fei.sales_invoice) if row.name != fei.name]
+	if legacy:
+		result.add(15, BLOCK, "sales_invoice", legacy_refusal(legacy))
+
+
+def _rule_15_legacy_delivery_note(fei, result):
 	if not fei.delivery_note:
 		result.add(15, BLOCK, "delivery_note", _("Chưa gắn phiếu giao hàng."))
 		return
@@ -481,6 +535,7 @@ def _rule_15_source_delivery_note(fei, result):
 		"Fast EInvoice Document",
 		filters={
 			"delivery_note": fei.delivery_note,
+			"invoice_type": INVOICE_TYPE_ORIGINAL,
 			"status": ("in", list(LIVE_STATUSES)),
 			"name": ("!=", fei.name or ""),
 		},
@@ -549,3 +604,111 @@ def _rule_16_tax_groups(fei, result):
 					"bấm Lưu là số tự tính lại cho khớp."
 				).format(label, flt(fei.get(fieldname)), expected),
 			)
+
+
+# --- 18, 19. Đối chiếu với hóa đơn bán ---------------------------------------
+
+_SALES_INVOICE_TOTALS = (
+	("amount", "Tiền hàng"),
+	("tax_amount", "Tiền thuế GTGT"),
+	("total_amount", "Tổng thanh toán"),
+)
+
+
+def _rule_18_19_match_the_sales_invoice(fei, result):
+	"""Hóa đơn điện tử và sổ sách cùng đọc một hóa đơn bán — nói ra khi hai bên lệch nhau.
+
+	Cả hai quy tắc là **cảnh báo**: Fast không biết hóa đơn bán là gì, và kế toán
+	có lý do chính đáng để sửa dòng trên chứng từ HĐĐT. Chỉ hóa đơn gốc lập từ
+	hóa đơn bán mới đối chiếu — hóa đơn điều chỉnh / thay thế có số tiền riêng.
+	"""
+	if (
+		fei.get("source_doctype") == SOURCE_DELIVERY_NOTE_V2
+		or not fei.sales_invoice
+		or (fei.invoice_type and fei.invoice_type != INVOICE_TYPE_ORIGINAL)
+	):
+		return
+	source = frappe.db.get_value(
+		"Sales Invoice",
+		fei.sales_invoice,
+		["name", "company", "posting_date", "currency", "net_total", "grand_total"],
+		as_dict=True,
+	)
+	if not source:
+		return
+	_rule_18_totals(fei, source, result)
+	_rule_19_declaration_period(fei, source, result)
+
+
+def _rule_18_totals(fei, source, result):
+	"""Tiền hàng, tiền thuế GTGT, tổng thanh toán khớp hóa đơn bán trong **dung sai làm tròn**.
+
+	Hai bên làm tròn khác nhau: chứng từ HĐĐT tính thuế từng dòng (`totals.py`),
+	hóa đơn bán thường tính thuế trên tổng. Mỗi dòng lệch được tối đa một đồng
+	làm tròn, nên dung sai tăng theo số dòng — không thì hóa đơn hoàn toàn đúng
+	cũng bị báo lệch vài đồng, và cảnh báo hiện ở mọi hóa đơn thì không ai đọc.
+	"""
+	if (fei.currency or source.currency) != source.currency:
+		return
+
+	from erpnext.einvoice.builder import output_vat_accounts
+
+	vat_accounts = output_vat_accounts(source.company)
+	vat = sum(
+		flt(row.tax_amount_after_discount_amount)
+		for row in frappe.get_all(
+			"Sales Taxes and Charges",
+			filters={"parent": source.name, "parenttype": "Sales Invoice"},
+			fields=["account_head", "tax_amount_after_discount_amount"],
+		)
+		if row.account_head in vat_accounts
+	)
+	expected = {"amount": source.net_total, "tax_amount": vat, "total_amount": source.grand_total}
+	tolerance = AMOUNT_TOLERANCE * max(1, len(fei.lines or []))
+
+	for fieldname, label in _SALES_INVOICE_TOTALS:
+		mine, theirs = flt(fei.get(fieldname)), flt(expected[fieldname])
+		if abs(mine - theirs) > tolerance:
+			result.add(
+				18,
+				WARN,
+				fieldname,
+				_(
+					"{0} của hóa đơn điện tử là {1}, hóa đơn bán {2} ghi {3} — lệch {4}. Hóa đơn và sổ "
+					"sách phải cùng một số: sửa hóa đơn bán, hoặc bấm Đồng bộ lại nếu dòng ở đây đã bị sửa."
+				).format(_(label), mine, source.name, theirs, flt(mine - theirs)),
+			)
+
+
+def _rule_19_declaration_period(fei, source, result):
+	"""Ngày ghi sổ hóa đơn bán và ngày hóa đơn điện tử rơi vào hai kỳ kê khai khác nhau.
+
+	Ngày hóa đơn luôn là ngày phát hành, nên lệch một vài ngày với `posting_date`
+	là chuyện thường — **không** báo. Chỉ báo khi doanh thu đã ghi vào kỳ này mà
+	hóa đơn lại thuộc kỳ sau (hoặc ngược lại): bảng kê và tờ khai hai kỳ sẽ lệch.
+	"""
+	from erpnext.einvoice.constants import DECLARATION_PERIOD_MONTH
+	from erpnext.einvoice.fast_settings import get_settings
+
+	if not fei.invoice_date or not source.posting_date:
+		return
+	monthly = get_settings().vat_declaration_period == DECLARATION_PERIOD_MONTH
+	booked, invoiced = _period(source.posting_date, monthly), _period(fei.invoice_date, monthly)
+	if booked == invoiced:
+		return
+	result.add(
+		19,
+		WARN,
+		"invoice_date",
+		_(
+			"Hóa đơn bán {0} ghi sổ kỳ {1}, còn hóa đơn điện tử mang ngày kỳ {2}. Doanh thu và hóa đơn "
+			"sẽ nằm ở hai kỳ kê khai khác nhau — cần kế toán trưởng xác nhận trước khi phát hành."
+		).format(source.name, booked, invoiced),
+	)
+
+
+def _period(value, monthly):
+	day = getdate(value)
+	if monthly:
+		return f"{day.month:02d}/{day.year}"
+	return f"Q{(day.month - 1) // 3 + 1}/{day.year}"

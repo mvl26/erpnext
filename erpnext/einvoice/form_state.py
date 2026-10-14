@@ -19,7 +19,10 @@ from frappe import _
 from erpnext.einvoice.constants import (
 	ADJUSTABLE_STATUSES,
 	EDITABLE_STATUSES,
+	INVOICE_TYPE_ORIGINAL,
 	LIVE_STATUSES,
+	SOURCE_DELIVERY_NOTE_V2,
+	STATUS_ADJUSTED,
 	STATUS_AWAITING_CUSTOMER,
 	STATUS_COLOURS,
 	STATUS_CUSTOMER_APPROVED,
@@ -29,6 +32,7 @@ from erpnext.einvoice.constants import (
 	STATUS_ISSUED,
 	STATUS_ISSUING,
 	STATUS_NEEDS_RECONCILE,
+	STATUS_REPLACED,
 	STATUS_SENT,
 	STATUS_TAX_ACCEPTED,
 	STATUS_TAX_REJECTED,
@@ -49,6 +53,9 @@ _HAS_NUMBER = (STATUS_ISSUED, STATUS_SENT, STATUS_TAX_ACCEPTED)
 # mệnh đề với chốt server, để giao diện và server không nói hai điều khác nhau.
 _NEEDS_TAX_VERDICT = frozenset({"create_adjustment", "create_replacement"})
 
+# Chỉ bản ghi bản 2.0 (nguồn phiếu giao) chưa gắn hóa đơn bán mới có nút này.
+_ONLY_FOR_UNLINKED_LEGACY = frozenset({"link_sales_invoice"})
+
 # Bật/tắt ghi đè là hai chiều của một công tắc — không bao giờ hiện cùng lúc.
 _ONLY_WHILE_COMPUTING = frozenset({"override_totals"})
 _ONLY_WHILE_OVERRIDDEN = frozenset({"clear_override"})
@@ -57,10 +64,20 @@ _ONLY_WHILE_OVERRIDDEN = frozenset({"clear_override"})
 BUTTONS = (
 	(
 		"resync",
-		"Đồng bộ lại từ phiếu giao",
-		"erpnext.einvoice.builder.resync_from_delivery_note",
+		"Đồng bộ lại từ hóa đơn bán",
+		"erpnext.einvoice.builder.resync_from_source",
 		1,
 		_FIXABLE,
+		False,
+	),
+	(
+		"link_sales_invoice",
+		"Gắn hóa đơn bán",
+		"erpnext.einvoice.builder.link_sales_invoice",
+		2,
+		# Hóa đơn bản 2.0 đã có số vẫn gắn được: chính những hóa đơn đó cần hóa
+		# đơn bán để bảng kê lấy đúng số. Chỉ trừ hóa đơn đã hủy nội bộ.
+		(*_FIXABLE, *_HAS_NUMBER, STATUS_TAX_REJECTED, STATUS_ADJUSTED, STATUS_REPLACED),
 		False,
 	),
 	(
@@ -270,7 +287,7 @@ def _release_stuck_issuance(doc):
 
 	message = _(
 		"Lần phát hành trước dừng giữa chừng, chưa rõ Fast đã nhận hay chưa. Bấm Lấy dữ liệu từ Fast (370) "
-		"để kiểm tra, hoặc Đồng bộ lại từ phiếu giao rồi phát hành lại — hệ thống luôn truy vấn "
+		"để kiểm tra, hoặc Đồng bộ lại từ chứng từ nguồn rồi phát hành lại — hệ thống luôn truy vấn "
 		"Fast trước khi phát hành nên không thể ra hai số."
 	)
 	frappe.db.set_value(
@@ -305,8 +322,12 @@ def _buttons_for(doc, settings):
 			continue
 		if name in _ONLY_WHILE_OVERRIDDEN and not doc.totals_manual_override:
 			continue
+		if name in _ONLY_FOR_UNLINKED_LEGACY and not _is_unlinked_legacy(doc):
+			continue
 		if needs_chief and not chief:
 			continue
+		if name == "resync" and doc.source_doctype == SOURCE_DELIVERY_NOTE_V2:
+			label = "Đồng bộ lại từ phiếu giao"
 		buttons.append(
 			{
 				"name": name,
@@ -317,6 +338,14 @@ def _buttons_for(doc, settings):
 			}
 		)
 	return buttons
+
+
+def _is_unlinked_legacy(doc):
+	return (
+		doc.source_doctype == SOURCE_DELIVERY_NOTE_V2
+		and doc.invoice_type == INVOICE_TYPE_ORIGINAL
+		and not doc.sales_invoice
+	)
 
 
 def _issue_statuses(settings):
@@ -333,49 +362,113 @@ def _validation_for(doc):
 	return validate_before_send(doc).as_dict()
 
 
-# --- Trạng thái HĐĐT nhìn từ phiếu giao hàng (Nút 1, mục E1) ----------------
+# --- Trạng thái HĐĐT nhìn từ hóa đơn bán (Nút 1, mục E1) --------------------
 
 
 @frappe.whitelist()
-def get_delivery_note_state(delivery_note):
-	"""Phiếu giao này có lập được hóa đơn điện tử không, và vì sao không."""
-	settings = get_settings()
-	source = frappe.db.get_value(
-		"Delivery Note",
-		delivery_note,
-		["docstatus", "is_return", "customer", "customer_name", "grand_total", "currency"],
-		as_dict=True,
+def get_sales_invoice_state(sales_invoice):
+	"""Hóa đơn bán này có lập được hóa đơn điện tử không, và vì sao không."""
+	from erpnext.einvoice.builder import (
+		legacy_invoices_for_delivery_notes,
+		legacy_refusal,
+		live_invoice_for,
+		sales_invoice_refusal,
 	)
-	if not source:
-		return {"can_create": False, "reason": _("Không tìm thấy phiếu giao hàng.")}
 
-	existing = frappe.get_all(
-		FEI,
-		filters={"delivery_note": delivery_note, "status": ("in", list(LIVE_STATUSES))},
-		fields=["name", "status"],
-		limit=1,
-	)
+	if not frappe.db.exists("Sales Invoice", sales_invoice):
+		return {"can_create": False, "reason": _("Không tìm thấy hóa đơn bán.")}
+
+	source = frappe.get_doc("Sales Invoice", sales_invoice)
+	settings = get_settings()
+	existing = live_invoice_for(sales_invoice)
+	legacy = [] if existing else legacy_invoices_for_delivery_notes(sales_invoice)
 
 	state = {
 		"can_create": False,
 		"reason": "",
-		"existing": existing[0] if existing else None,
+		# Bản ghi bản 2.0 của phiếu giao trong hóa đơn bán cũng là "chứng từ HĐĐT
+		# của lần bán này" — mở được nó từ đây là lối đi tới nút Gắn hóa đơn bán.
+		"existing": existing or (legacy[0] if legacy else None),
 		"customer_name": source.customer_name or source.customer,
-		"grand_total": source.grand_total,
+		"grand_total": source.rounded_total or source.grand_total,
 		"currency": source.currency,
 	}
 
 	if not settings.enabled:
 		state["reason"] = _("Tích hợp hóa đơn điện tử đang tắt.")
-	elif source.docstatus != 1:
-		state["reason"] = _("Phiếu giao hàng chưa được submit.")
-	elif source.is_return:
-		state["reason"] = _("Phiếu trả hàng không lập hóa đơn trực tiếp — dùng hóa đơn điều chỉnh giảm.")
+	elif not frappe.has_permission("Sales Invoice", "read", source):
+		state["reason"] = _("Bạn không có quyền xem hóa đơn bán này.")
+	elif refusal := sales_invoice_refusal(source):
+		state["reason"] = refusal
 	elif existing:
-		state["reason"] = _("Phiếu giao này đã có chứng từ HĐĐT {0} ({1}).").format(
-			existing[0].name, existing[0].status
-		)
+		# Đã có chứng từ thì nút Mở là đủ — không phải lý do gì cần cảnh báo.
+		pass
+	elif legacy:
+		state["reason"] = legacy_refusal(legacy)
 	else:
 		state["can_create"] = True
 
 	return state
+
+
+# --- Hóa đơn điện tử nhìn từ phiếu giao hàng — chỉ xem (mục C5) --------------
+
+
+@frappe.whitelist()
+def get_delivery_note_state(delivery_note):
+	"""Hóa đơn điện tử của một phiếu giao, suy ra qua hóa đơn bán — phiếu giao không lưu bản sao mới.
+
+	Hai nguồn: chứng từ bản 2.0 lập thẳng từ phiếu giao, và chứng từ của các hóa
+	đơn bán lập từ phiếu giao này. Không có nút tạo: hóa đơn chỉ lập từ hóa đơn bán.
+	"""
+	if not frappe.db.exists("Delivery Note", delivery_note):
+		return {"documents": [], "message": ""}
+
+	sales_invoices = sorted(
+		{
+			row.parent
+			for row in frappe.get_all(
+				"Sales Invoice Item",
+				filters={"delivery_note": delivery_note, "parenttype": "Sales Invoice", "docstatus": 1},
+				fields=["parent"],
+			)
+		}
+	)
+
+	or_filters = [["delivery_note", "=", delivery_note]]
+	if sales_invoices:
+		or_filters.append(["sales_invoice", "in", sales_invoices])
+	documents = frappe.get_all(
+		FEI,
+		or_filters=or_filters,
+		filters={
+			"status": ("in", list(LIVE_STATUSES | {STATUS_TAX_REJECTED, STATUS_ADJUSTED, STATUS_REPLACED}))
+		},
+		fields=["name", "status", "fast_invoice_no", "sales_invoice", "invoice_type"],
+		order_by="creation asc",
+	)
+
+	if documents:
+		parts = [
+			_("{0} ({1}{2})").format(
+				doc.name,
+				doc.status,
+				_(", số {0}").format(doc.fast_invoice_no) if doc.fast_invoice_no else "",
+			)
+			for doc in documents
+		]
+		message = _("Hóa đơn điện tử: {0}").format(", ".join(parts))
+		colour = "blue"
+	elif sales_invoices:
+		message = _("Hóa đơn bán {0} chưa lập hóa đơn điện tử — lập từ hóa đơn bán.").format(
+			", ".join(sales_invoices)
+		)
+		colour = "orange"
+	else:
+		message = _(
+			"Phiếu giao chưa có hóa đơn bán. Hóa đơn điện tử lập từ hóa đơn bán: lập hóa đơn bán "
+			"cho phiếu giao này trong ngày giao hàng."
+		)
+		colour = "orange"
+
+	return {"documents": documents, "sales_invoices": sales_invoices, "message": message, "colour": colour}

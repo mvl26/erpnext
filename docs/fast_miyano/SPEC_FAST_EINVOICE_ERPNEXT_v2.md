@@ -1,6 +1,6 @@
 # ĐẶC TẢ & HƯỚNG DẪN XÂY DỰNG TÍCH HỢP HÓA ĐƠN ĐIỆN TỬ FAST ↔ ERPNEXT
 
-**Phiên bản 2.0 — 07/08/2026** — thay thế toàn bộ bản 1.0
+**Phiên bản 3.0 — 13/10/2026** — đổi chứng từ nguồn từ Delivery Note sang **Sales Invoice**. Bản 2.0 (07/08/2026) là bản đã thi công; tên tệp giữ nguyên để không gãy tham chiếu
 
 | Hạng mục            | Nội dung                                                                                                                          |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -9,8 +9,15 @@
 | Nhà cung cấp HĐĐT | 0Fast e-Invoice — API portal service v2.5 (06/06/2025), chế độ**không mã hóa RSA**                                    |
 | Thông số kết nối  | clientCode`008254` · proxyCode `006384` · unitCode `CTY` · voucherBook `1C26TAA` · ký hiệu `1C26TMY`               |
 | Hình thức ký số   | **HSM** — Fast tự ký, `action = 0`, một lời gọi là xong                                                             |
-| Chứng từ nguồn     | **Delivery Note** (nút phát hành đặt trên DN)                                                                          |
+| Chứng từ nguồn     | **Sales Invoice đã submit** (nút tạo hóa đơn đặt trên Sales Invoice). Bản 2.0 dùng Delivery Note — xem Phần K và `BAO_CAO_HDDT_NGUON_SALES_INVOICE.md` |
 | Phạm vi v2.0         | Toàn bộ vòng đời: nháp → gửi khách → sửa → duyệt → phát hành → email → điều chỉnh / thay thế / hủy nội bộ |
+| Thay đổi v3.0        | Chứng từ nguồn, khóa chống trùng, custom field, hook hủy, quy tắc 15, tra số cho bảng kê. Vòng đời 01–12 và lớp giao tiếp với Fast **không đổi** |
+
+> **Tình trạng thi công (14/10/2026):** Phần K đã thi công trên nhánh `feat/vn-hddt-provider`
+> (mã, test, patch `einvoice_source_sales_invoice` đã chạy trên site `miyano`). Các câu J6–J13
+> được làm **theo khuyến nghị**; riêng chặn hủy Sales Invoice còn chặn thêm 05 và 98 (chưa rõ đã
+> tiêu số hay chưa), và kỳ kê khai của quy tắc 19 cấu hình ở Fast EInvoice Settings (mặc định Quý).
+> Chưa chạy kịch bản 13–22 trên cổng TEST của Fast.
 
 ---
 
@@ -62,6 +69,10 @@ Thứ ba, **môi trường test và thật phải tách bằng cấu hình**, c�
 
 Thứ tư, **khóa chống bấm đúp**: khi một Fast EInvoice Document đang ở trạng thái "Đang phát hành", mọi nút phát hành bị vô hiệu hóa (dùng `frappe.db.get_value` với `for_update=True` hoặc Redis lock theo `name` của document).
 
+Thứ năm, **một lần bán chỉ có một đường phát hành**: hóa đơn gốc chỉ lập từ Sales Invoice. Không được để hai đường (Delivery Note và Sales Invoice) cùng sống, kể cả trong lúc chuyển đổi — Key của hai đường khác nhau nên Fast không nhận ra hóa đơn trùng.
+
+Thứ sáu, **chứng từ HĐĐT là nguồn sự thật duy nhất** về số hóa đơn và trạng thái. Bản sao ghi lên Sales Invoice chỉ để hiển thị; mọi báo cáo và bảng kê đọc từ `Fast EInvoice Document`.
+
 ---
 
 ## PHẦN B — VÒNG ĐỜI NGHIỆP VỤ (STATE MACHINE)
@@ -69,11 +80,11 @@ Thứ tư, **khóa chống bấm đúp**: khi một Fast EInvoice Document đang
 ### B1. Sơ đồ trạng thái đầy đủ
 
 ```
-                    [Delivery Note đã submit]
+                    [Sales Invoice đã submit]
                               │ bấm "Tạo hóa đơn điện tử"  (xác nhận cấp 1)
                               ▼
                     ┌──────────────────┐
-              ┌────►│  01. NHÁP        │  Dữ liệu đã copy từ DN, chưa gửi Fast
+              ┌────►│  01. NHÁP        │  Dữ liệu đã copy từ SI, chưa gửi Fast
               │     └────────┬─────────┘
               │              │ "Xem bản nháp PDF"  (action=600)
               │              ▼
@@ -128,7 +139,7 @@ Thứ tư, **khóa chống bấm đúp**: khi một Fast EInvoice Document đang
 
 | Mã | Trạng thái       | Nút được phép bấm                                                                                      | Có thể sửa dữ liệu?    |
 | --- | ------------------ | ------------------------------------------------------------------------------------------------------------ | --------------------------- |
-| 01  | Nháp              | Đồng bộ lại từ DN · Xem nháp PDF · Phát hành (nếu bỏ qua bước duyệt khách) · Xóa           | ✅ Có                      |
+| 01  | Nháp              | Đồng bộ lại từ SI · Xem nháp PDF · Phát hành (nếu bỏ qua bước duyệt khách) · Xóa           | ✅ Có                      |
 | 02  | Đã xem nháp     | Sửa (→01) · Gửi nháp cho khách · Xem lại nháp · Phát hành                                        | ✅ Có (chuyển về 01)     |
 | 03  | Chờ khách duyệt | Sửa (→01) · Khách đã duyệt · Gửi lại nháp · Ghi nhận ý kiến khách                            | ✅ Có (chuyển về 01)     |
 | 04  | Khách đã duyệt | **Phát hành** · Sửa (→01, cảnh báo mất trạng thái duyệt) · Xem nháp                       | ⚠️ Có, nhưng cảnh báo |
@@ -139,7 +150,7 @@ Thứ tư, **khóa chống bấm đúp**: khi một Fast EInvoice Document đang
 | 09  | CQT từ chối      | Xem lý do ·**Hủy nội bộ** · Truy vấn (370)                                                      | ❌ Không                   |
 | 10  | Đã điều chỉnh | Chỉ xem · mở bản ghi điều chỉnh liên quan                                                            | ❌ Không                   |
 | 11  | Đã thay thế     | Chỉ xem · mở bản ghi thay thế liên quan                                                                | ❌ Không                   |
-| 12  | Đã hủy nội bộ | Tạo hóa đơn mới từ DN gốc                                                                             | ❌ Không                   |
+| 12  | Đã hủy nội bộ | Tạo hóa đơn mới từ SI gốc                                                                             | ❌ Không                   |
 | 99  | Lỗi               | Xem log lỗi · Truy vấn (370) · Sửa (→01) · Thử lại                                                  | ✅ Có                      |
 
 **Lưu ý pháp lý quan trọng:** bản PDF ở trạng thái 01–04 là **BẢN NHÁP, KHÔNG CÓ GIÁ TRỊ PHÁP LÝ** — chưa có số hóa đơn, chưa ký số, chưa lên CQT. Khi gửi cho khách bắt buộc ghi rõ điều này trong nội dung email (xem mẫu email mục E2). Chỉ từ trạng thái 06 trở đi hóa đơn mới có giá trị.
@@ -155,7 +166,7 @@ Thứ tư, **khóa chống bấm đúp**: khi một Fast EInvoice Document đang
 └─────────────────────────┘        │  ├─ Fast EInvoice Line (child) │
                                    │  └─ trường kết quả từ Fast     │
 ┌─────────────────────────┐        └───────────┬────────────────────┘
-│ Delivery Note (+3 field)│───────────────────►│
+│ Sales Invoice (+4 field)│───────────────────►│
 └─────────────────────────┘                    │
                                    ┌───────────▼────────────────────┐
                                    │  Fast EInvoice Log             │
@@ -200,9 +211,10 @@ Naming: `FEI-.YYYY.-.#####` (ví dụ `FEI-2026-00001`).
 
 | #  | Fieldname                       | Label                          | Fieldtype                                  | BB  | Ghi chú                                                                                                                         |
 | -- | ------------------------------- | ------------------------------ | ------------------------------------------ | --- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 1  | `delivery_note`               | Phiếu giao hàng              | Link → Delivery Note                      | ✔  | Nguồn dữ liệu. Không cho trùng với bản ghi khác đang ở trạng thái 01–08                                             |
-| 2  | `sales_invoice`               | Hóa đơn bán (ERP)          | Link → Sales Invoice                      |     | Điền sau nếu kế toán tạo SINV từ DN                                                                                       |
-| 3  | `customer`                    | Khách hàng                   | Link → Customer                           | ✔  | Fetch từ DN                                                                                                                     |
+| 1  | `sales_invoice`               | Hóa đơn bán (ERP)          | Link → Sales Invoice                      | ✔  | **Chứng từ nguồn.** Bắt buộc với bản ghi tạo mới, chỉ đọc, có index, làm tiêu đề. Không cho trùng với bản ghi khác đang sống (01–08, 98). Một Sales Invoice có thể gồm nhiều phiếu giao |
+| 1a | `source_doctype`              | Loại chứng từ nguồn         | Select (read only)                         | ✔  | `Sales Invoice` / `Delivery Note (v2)`. Đặt một lần lúc tạo, không sửa được — để không bao giờ phải đoán trường nào là nguồn khi bản ghi có cả hai liên kết |
+| 2  | `delivery_note`               | Phiếu giao hàng              | Link → Delivery Note (read only)          |     | Hết bắt buộc. Chỉ còn ở bản ghi lập theo bản 2.0 (nguồn phiếu giao) và để tham chiếu |
+| 3  | `customer`                    | Khách hàng                   | Link → Customer                           | ✔  | Fetch từ SI                                                                                                                     |
 | 4  | `status`                      | Trạng thái                   | Select                                     | ✔  | 12 trạng thái mục B2 +`Lỗi`                                                                                                |
 | 5  | `invoice_type`                | Loại chứng từ               | Select                                     | ✔  | `Hóa đơn gốc` / `Hóa đơn điều chỉnh` / `Hóa đơn thay thế`                                                    |
 | 6  | `original_document`           | Hóa đơn gốc                | Link → Fast EInvoice Document             | ĐK | Bắt buộc khi loại ≠ gốc. Khi gửi lấy`fast_key_search` của bản ghi này                                                |
@@ -227,18 +239,18 @@ Naming: `FEI-.YYYY.-.#####` (ví dụ `FEI-2026-00001`).
 
 #### C2.3 — Nhóm dữ liệu MASTER gửi Fast
 
-Thứ tự dưới đây **chính là thứ tự cột** trong `structure.master`. Cột "Nguồn DN" = giá trị lấy tự động khi tạo bản ghi từ Delivery Note. **ĐK** = bắt buộc có điều kiện.
+Thứ tự dưới đây **chính là thứ tự cột** trong `structure.master`. Cột "Nguồn SI" = giá trị lấy tự động khi tạo bản ghi từ Sales Invoice. **ĐK** = bắt buộc có điều kiện.
 
-| #      | Thẻ Fast                                             | Fieldname                                                                  | Fieldtype                     | BB  | Nguồn DN                               | Quy tắc validate                                                                                                 |
+| #      | Thẻ Fast                                             | Fieldname                                                                  | Fieldtype                     | BB  | Nguồn SI                               | Quy tắc validate                                                                                                 |
 | ------ | ----------------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------- | --- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 20     | Key                                                   | `fast_key`                                                               | Data (read only sau khi tạo) | ✔  | `name` của DN                        | ≤32 ký tự, không dấu,**duy nhất tuyệt đối**. Sinh 1 lần khi tạo bản ghi. Trùng → lỗi 809/835 |
-| 21     | InvoiceDate                                           | `invoice_date`                                                           | Date                          | ✔  | `posting_date`                        | Serialize`dd/MM/yyyy`. Không nhỏ hơn ngày HĐ đã phát hành gần nhất (819)                             |
+| 20     | Key                                                   | `fast_key`                                                               | Data (read only sau khi tạo) | ✔  | `name` của SI                        | ≤32 ký tự, không dấu,**duy nhất tuyệt đối**. Sinh 1 lần khi tạo bản ghi, qua `_unused_key` (lập lại sau hủy nội bộ → hậu tố `-L2`). Trùng → lỗi 809/835 |
+| 21     | InvoiceDate                                           | `invoice_date`                                                           | Date                          | ✔  | **ngày phát hành** — KHÔNG lấy `posting_date`                        | Serialize`dd/MM/yyyy`. Không nhỏ hơn ngày HĐ đã phát hành gần nhất (819)                             |
 | 22     | CustomerCode                                          | `customer_code`                                                          | Data                          | ✔  | `customer`                            | Không dấu                                                                                                       |
-| 23     | Buyer                                                 | `buyer`                                                                  | Data                          |     | Contact của DN                         | Tên**người** đi mua. ≤100 ký tự (836)                                                                |
+| 23     | Buyer                                                 | `buyer`                                                                  | Data                          |     | Contact của SI                         | Tên**người** đi mua. ≤100 ký tự (836)                                                                |
 | 24     | CustomerName                                          | `customer_name`                                                          | Data                          | ✔  | `customer_name`                       | Bắt buộc khi có MST (836). Không xuống dòng (825)                                                           |
 | 25     | CustomerTaxCode                                       | `customer_tax_code`                                                      | Data                          | ĐK | `tax_id` của Customer                | Bắt buộc nếu CustomerType=1. MST 10 hoặc 13 số (78013)                                                       |
 | 26     | CustomerType                                          | `customer_type`                                                          | Select`1`/`0`             | ✔  | Customer Group                          | 1 = Doanh nghiệp · 0 = Cá nhân                                                                                |
-| 27     | Address                                               | `address`                                                                | Data                          | ✔  | **Billing address** của Customer | ⚠️ KHÔNG lấy shipping address của DN                                                                         |
+| 27     | Address                                               | `address`                                                                | Data                          | ✔  | **Billing address** của Customer | ⚠️ KHÔNG lấy shipping address của SI                                                                         |
 | 28     | PhoneNumber                                           | `phone_number`                                                           | Data                          |     | Contact                                 |                                                                                                                   |
 | 29     | FaxNumber                                             | `fax_number`                                                             | Data                          |     |                                         | Thường rỗng                                                                                                    |
 | 30     | IDCardNo                                              | `id_card_no`                                                             | Data                          | ĐK | custom field Customer                   | CCCD: đúng 9 hoặc 12**chữ số** hoặc rỗng                                                             |
@@ -250,10 +262,10 @@ Thứ tự dưới đây **chính là thứ tự cột** trong `structure.master
 | 36     | PaymentMethod                                         | `payment_method`                                                         | Select                        | ✔  | mặc định                             | `TM` / `CK` / `TM/CK`                                                                                       |
 | 37     | Currency                                              | `currency`                                                               | Data                          | ✔  | `currency`                            | ISO 3 ký tự. Hỗ trợ sẵn VND/USD/JPY/EUR (152)                                                                |
 | 38     | ExchangeRate                                          | `exchange_rate`                                                          | Float                         | ✔  | `conversion_rate`                     | VND = 1.0                                                                                                         |
-| 39     | Amount                                                | `amount`                                                                 | Currency                      | ✔  | `net_total`                           | = Σ Amount các dòng. **Giữ 2 số lẻ, không làm tròn về đồng nguyên**                                                                                            |
-| 40     | TotalAmount                                           | `total_amount`                                                           | Currency                      | ✔  | `grand_total`                         | = Amount + TaxAmount − giảm trừ, **làm tròn thành số nguyên** (VND/JPY). Chênh lệch làm tròn ≤ 0,5                                                                                |
-| 41     | TaxRate                                               | `tax_rate`                                                               | Select                        | ✔  | bảng thuế DN                          | `0` `5` `8` `10` `-1`KCT `-2`KKNT `-8`KHAC `-9`rỗng                                              |
-| 42     | TaxAmount                                             | `tax_amount`                                                             | Currency                      | ✔  | `total_taxes_and_charges`             | = Σ TaxAmount các dòng. **Giữ 2 số lẻ, không làm tròn về đồng nguyên**                                                                                         |
+| 39     | Amount                                                | `amount`                                                                 | Currency                      | ✔  | tự tính từ dòng (đối chiếu `net_total`)                           | = Σ Amount các dòng. **Giữ 2 số lẻ, không làm tròn về đồng nguyên**                                                                                            |
+| 40     | TotalAmount                                           | `total_amount`                                                           | Currency                      | ✔  | tự tính (đối chiếu `grand_total`)                         | = Amount + TaxAmount − giảm trừ, **làm tròn thành số nguyên** (VND/JPY). Chênh lệch làm tròn ≤ 0,5                                                                                |
+| 41     | TaxRate                                               | `tax_rate`                                                               | Select                        | ✔  | bảng thuế SI — chỉ dòng tài khoản 3331                          | `0` `5` `8` `10` `-1`KCT `-2`KKNT `-8`KHAC `-9`rỗng                                              |
+| 42     | TaxAmount                                             | `tax_amount`                                                             | Currency                      | ✔  | tự tính (đối chiếu thuế GTGT của SI)             | = Σ TaxAmount các dòng. **Giữ 2 số lẻ, không làm tròn về đồng nguyên**                                                                                         |
 | 43–46 | TaxAmountFree / TaxAmount0 / TaxAmount5 / TaxAmount10 | `tax_amount_free`, `tax_amount_0`, `tax_amount_5`, `tax_amount_10` | Currency                      |     | tính                                   | **Bắt buộc điền đủ khi hóa đơn nhiều thuế suất.** Không có ô cho 8% — phần 8% để ngoài. Đối chứng TEST 2026-09-08: Fast nhận, CQT chấp nhận                                                |
 | 47     | DiscountAmount                                        | `discount_amount`                                                        | Currency                      |     | `discount_amount`                     |                                                                                                                   |
 | 48     | PromotionAmount                                       | `promotion_amount`                                                       | Currency                      |     |                                         |                                                                                                                   |
@@ -289,9 +301,9 @@ Thứ tự dưới đây **chính là thứ tự cột** trong `structure.master
 
 ### C3. Child table `Fast EInvoice Line`
 
-Thứ tự = thứ tự cột `structure.detail`. Nguồn: bảng `items` của Delivery Note.
+Thứ tự = thứ tự cột `structure.detail`. Nguồn: bảng `items` của Sales Invoice.
 
-| #  | Thẻ Fast      | Fieldname           | Fieldtype | BB | Nguồn DN Item               | Validate                                                                                                                                            |
+| #  | Thẻ Fast      | Fieldname           | Fieldtype | BB | Nguồn SI Item               | Validate                                                                                                                                            |
 | -- | -------------- | ------------------- | --------- | -- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1  | ProcessType    | `process_type`    | Select    | ✔ | mặc định`1`             | `1` Hàng hóa/DV · `2` Khuyến mại · `3` Chiết khấu · `4` Ghi chú · `5` Hàng đặc trưng. **Không được rỗng** (836) |
 | 2  | ItemCode       | `item_code`       | Data      | ✔ | `item_code`                | ≤32, không dấu                                                                                                                                   |
@@ -299,10 +311,10 @@ Thứ tự = thứ tự cột `structure.detail`. Nguồn: bảng `items` của 
 | 4  | UOM            | `uom`             | Data      | ✔ | `uom` → tên tiếng Việt | ≤16                                                                                                                                                |
 | 5  | IsPromotion    | `is_promotion`    | Check     | ✔ | 0                            |                                                                                                                                                     |
 | 6  | Quantity       | `qty`             | Float     | ✔ | `qty`                      | > 0                                                                                                                                                 |
-| 7  | Price          | `price`           | Currency  | ✔ | `rate`                     |                                                                                                                                                     |
+| 7  | Price          | `price`           | Currency  | ✔ | `price_list_rate` (không có thì `rate`)                     |                                                                                                                                                     |
 | 8  | Amount         | `amount`          | Currency  | ✔ | `net_amount`               | = Qty × Price − Chiết khấu (khi ReleaseType=1)                                                                                                  |
 | 9  | DiscountRate   | `discount_rate`   | Float     |    |                              |                                                                                                                                                     |
-| 10 | DiscountAmount | `discount_amount` | Currency  |    |                              |                                                                                                                                                     |
+| 10 | DiscountAmount | `discount_amount` | Currency  |    | `qty × price − net_amount`   | Toàn bộ phần giảm dồn về số tiền, để `SL × Đơn giá − Chiết khấu` đúng bằng `net_amount`. Không sao `discount_percentage` |
 | 11 | TaxRate        | `tax_rate`        | Select    | ✔ | Item Tax Template            | Cùng bộ mã master.`-9` chỉ cho dòng ghi chú / HĐ điều chỉnh (78025)                                                                     |
 | 12 | TaxAmount      | `tax_amount`      | Currency  | ✔ | tính                        |                                                                                                                                                     |
 | 13 | Note           | `note`            | Data      |    |                              |                                                                                                                                                     |
@@ -331,14 +343,22 @@ Chính sách lưu trữ: giữ tối thiểu 12 tháng (đối chiếu với CQT
 
 ---
 
-### C5. Custom field bổ sung trên `Delivery Note`
+### C5. Custom field bổ sung trên `Sales Invoice`
 
-| Fieldname                | Label               | Fieldtype                                 | Ghi chú                              |
-| ------------------------ | ------------------- | ----------------------------------------- | ------------------------------------- |
-| `fast_einvoice`        | Chứng từ HĐĐT   | Link → Fast EInvoice Document, read only |                                       |
-| `fast_invoice_no`      | Số HĐĐT          | Data, read only                           | Hiện trên list view để lọc nhanh |
-| `fast_einvoice_status` | Trạng thái HĐĐT | Select, read only                         | Đồng bộ từ Fast Document          |
-| `fast_key_search`      | Mã tra cứu        | Data, read only, hidden                   | Bản sao dự phòng                   |
+| Fieldname                 | Label               | Fieldtype                         | Ghi chú                                                   |
+| ------------------------- | ------------------- | --------------------------------- | ---------------------------------------------------------- |
+| `fast_invoice_no`       | Số HĐĐT          | Data, read only                   | Hiện trên list view để lọc nhanh                       |
+| `fast_einvoice_status`  | Trạng thái HĐĐT | Select, read only                 | Đồng bộ từ Fast Document                                |
+| `fast_key_search`       | Mã tra cứu        | Data, read only, hidden           | Bản sao dự phòng                                         |
+| `fast_einvoice_pdf_url` | Link xem hóa đơn  | Data (URL), read only             | Link công khai tới PDF chính thức                       |
+
+Ba ràng buộc, mỗi cái sinh từ một lỗi đã mắc ở bản 2.0:
+
+- **Không có trường Link trỏ ngược về `Fast EInvoice Document`.** Hai Link trỏ vòng vào nhau từng làm không xóa được bản nháp và không hủy được chứng từ nguồn. Liên kết hiển thị qua mục Connections của Sales Invoice (dựa trên `Fast EInvoice Document.sales_invoice`).
+- **Cả bốn trường đặt `no_copy = 1`.** Lõi chép mọi trường trùng tên khi tạo Sales Invoice từ phiếu giao, tạo hóa đơn trả hàng hoặc sửa lại (amend); thiếu `no_copy` là số hóa đơn bị chép sang chứng từ khác.
+- **Chỉ để hiển thị.** Bản sao có thể trôi (đã gặp trên `MAT-DN-2026-00001`); không báo cáo nào được đọc các trường này.
+
+**Trên `Delivery Note`:** bảy custom field của bản 2.0 được **ẩn, không xóa** — sáu hóa đơn đã phát hành theo bản 2.0 vẫn ghi vào đó. Phiếu giao chỉ hiển thị trạng thái suy ra qua Sales Invoice, không lưu bản sao mới.
 
 ---
 
@@ -348,8 +368,8 @@ Bảng tổng hợp. Chi tiết từng nút ở Phần E.
 
 | #   | Nút                                   | Vị trí      | API                   | Trạng thái hiện nút                       | Cấp xác nhận                      | Ghi vào DocType                                            |
 | --- | -------------------------------------- | ------------- | --------------------- | --------------------------------------------- | ------------------------------------ | ----------------------------------------------------------- |
-| 1   | Tạo hóa đơn điện tử             | Delivery Note | —                    | DN submitted, chưa có FEI                   | 1                                    | Tạo bản ghi FEI, status=01                                |
-| 2   | Đồng bộ lại từ DN                 | FEI           | —                    | 01, 02, 03, 04, 99                            | 1                                    | Ghi đè master+lines, revision_count+1                     |
+| 1   | Tạo hóa đơn điện tử             | Sales Invoice | —                    | SI submitted, chưa có FEI                   | 1                                    | Tạo bản ghi FEI, status=01                                |
+| 2   | Đồng bộ lại từ SI                 | FEI           | —                    | 01, 02, 03, 04, 99                            | 1                                    | Ghi đè master+lines, revision_count+1                     |
 | 3   | Xem bản nháp PDF                     | FEI           | action=600 / m=310    | 01→04, 99 (**không chặn theo validate**)     | 1                                    | `draft_pdf`, `draft_pdf_time`, status→02               |
 | 4   | Gửi bản nháp cho khách             | FEI           | — (email ERP)        | 02, 03, 04                                    | 2                                    | `draft_sent_*`, `draft_send_count`+1, status→03        |
 | 5   | Ghi nhận ý kiến khách              | FEI           | —                    | 03                                            | 2                                    | `customer_feedback`, status→01                           |
@@ -370,20 +390,34 @@ Bảng tổng hợp. Chi tiết từng nút ở Phần E.
 
 Mỗi hành động mô tả theo 6 mục: **Tiền điều kiện → Dialog xác nhận → Validate → Gọi API → Lưu DocType → Xử lý lỗi**.
 
-### E1. Nút 1 — Tạo hóa đơn điện tử (trên Delivery Note)
+### E1. Nút 1 — Tạo hóa đơn điện tử (trên Sales Invoice)
 
-**Tiền điều kiện:** `docstatus == 1` · `is_return == 0` · chưa có FEI nào trỏ tới DN này với status ∈ 01–08 · Settings.enabled = 1.
+**Tiền điều kiện** (server quyết định; form chỉ vẽ lại và luôn hiện lý do khi không có nút):
+
+- `docstatus == 1` · Settings.enabled = 1 · người bấm có quyền đọc Sales Invoice này.
+- Không phải hóa đơn trả hàng (`is_return`), hóa đơn ghi nợ (`is_debit_note`), số dư đầu kỳ (`is_opening`) hay hóa đơn gộp POS (`is_consolidated`). Số dư đầu kỳ đã có hóa đơn ở hệ thống cũ — xuất lại là trùng hóa đơn.
+- Chưa có FEI nào trỏ tới Sales Invoice này với status đang sống (01–08, 98).
+- **Không phiếu giao nào trong dòng hàng của Sales Invoice đã có FEI đang sống lập theo bản 2.0.** Nếu có: từ chối, nêu tên chứng từ cũ, và hướng sang gắn Sales Invoice vào chứng từ đó. Đây là chốt chống "một lần bán, hai số hóa đơn": Key đổi từ tên phiếu giao sang tên Sales Invoice nên truy vấn 370 không còn bắt được.
 
 **Dialog (cấp 1):**
 
-> Tạo chứng từ hóa đơn điện tử từ phiếu giao **MAT-DN-2026-00001**?
+> Tạo chứng từ hóa đơn điện tử từ hóa đơn bán **ACC-SINV-2026-00011**?
 > Khách hàng: Bệnh viện X · Tổng tiền: 11.000.000 đ
 > Hệ thống sẽ sao chép dữ liệu sang chứng từ HĐĐT để rà soát trước khi phát hành. *(Chưa gửi gì cho Fast ở bước này.)*
 > **[Hủy] [Tạo chứng từ]**
 
 **Validate ngay khi tạo** (chạy toàn bộ Phần F, nhưng chỉ **cảnh báo** chứ không chặn — để kế toán còn sửa): hiển thị bảng lỗi/cảnh báo ngay đầu form.
 
-**Lưu DocType:** tạo bản ghi FEI mới, sinh `fast_key` = `name` của DN (bỏ dấu, ≤32 ký tự), copy toàn bộ master + lines, tính `amount_in_words`, `status = 01 Nháp`, ghi ngược `delivery_note.fast_einvoice`.
+**Lưu DocType:** tạo bản ghi FEI mới với `sales_invoice`, `source_doctype = Sales Invoice`; sinh `fast_key` từ `name` của SI (bỏ dấu, ≤32 ký tự, qua `_unused_key`); `invoice_date` = hôm nay (không lấy `posting_date`); copy master + lines; tổng tiền do `totals.py` tự tính, **không** bê `net_total` / `grand_total` của SI sang; tính `amount_in_words`; `status = 01 Nháp`; ghi bốn trường C5 lên Sales Invoice.
+
+**Trên Delivery Note:** không còn nút tạo hóa đơn. Hàm `create_from_delivery_note` của bản 2.0 được giữ lại nhưng trả lời từ chối rõ ràng, vì trình duyệt còn giữ form script cũ trong localStorage có thể vẫn gọi tới.
+
+#### E1.1 — Hủy Sales Invoice nguồn
+
+- `before_cancel`: chặn khi Sales Invoice có hóa đơn còn hiệu lực, tức FEI ở trạng thái 06–11 *(chờ chốt J13)*. Thông báo nêu số hóa đơn và lối đi đúng: điều chỉnh hoặc thay thế.
+- **Không chặn** khi FEI ở "12 - Đã hủy nội bộ": hóa đơn bị CQT từ chối phải cho hủy và sửa lại Sales Invoice, nếu không chứng từ ghi doanh thu bị khóa vĩnh viễn. Bản 2.0 chặn cả trạng thái 12 — không mang sang.
+- `on_cancel`: nhả các FEI chưa phát hành, xóa bốn trường C5. Chỉ **nối thêm** vào `ignore_linked_doctypes` mà lõi vừa đặt, không gán đè.
+- Sales Invoice sửa lại (amend) mang tên mới (`…-1`), tức Key mới. Điều này chỉ xảy ra khi hóa đơn cũ chưa phát hành hoặc đã hủy nội bộ, nên không sinh hóa đơn trùng.
 
 ---
 
@@ -414,7 +448,7 @@ Mỗi hành động mô tả theo 6 mục: **Tiền điều kiện → Dialog x�
 > **Gửi bản nháp hóa đơn cho khách hàng**
 > • Người nhận (sửa được): `ketoan@benhvienx.vn` *(mặc định lấy từ `email_deliver`)*
 > • CC: `[trống]`
-> • Tiêu đề: `[Bản nháp hóa đơn] MAT-DN-2026-00001 — Miyano Việt Nam`
+> • Tiêu đề: `[Bản nháp hóa đơn] ACC-SINV-2026-00011 — Miyano Việt Nam`
 > • Nội dung: *(lấy từ Email Template, sửa được)*
 > • ☑ Đính kèm bản nháp PDF
 > **[Hủy] [Gửi email]**
@@ -432,7 +466,7 @@ Mỗi hành động mô tả theo 6 mục: **Tiền điều kiện → Dialog x�
 
 ### E4. Nút 5 & 6 — Ghi nhận ý kiến khách / Khách đã duyệt
 
-**Nút 5 — Khách yêu cầu sửa (cấp 2):** dialog nhập `customer_feedback` (bắt buộc, ≥10 ký tự). Lưu: ghi feedback kèm timestamp và người nhập (nối thêm vào trường, không ghi đè lịch sử), `status = 01`, `revision_count += 1`. Sau đó kế toán sửa dữ liệu hoặc bấm "Đồng bộ lại từ DN" rồi lặp lại vòng nháp.
+**Nút 5 — Khách yêu cầu sửa (cấp 2):** dialog nhập `customer_feedback` (bắt buộc, ≥10 ký tự). Lưu: ghi feedback kèm timestamp và người nhập (nối thêm vào trường, không ghi đè lịch sử), `status = 01`, `revision_count += 1`. Sau đó kế toán sửa dữ liệu hoặc bấm "Đồng bộ lại từ SI" rồi lặp lại vòng nháp.
 
 **Nút 6 — Khách đã duyệt (cấp 2):** dialog nhập `customer_approved_by` (tên người bên khách đã xác nhận — bắt buộc) và chọn hình thức xác nhận (Email / Điện thoại / Văn bản / Trực tiếp). Lưu: `customer_approved_by`, `customer_approved_time = now()`, `status = 04`, ghi Comment "Khách hàng đã duyệt bản nháp — xác nhận bởi ... qua ...".
 
@@ -486,7 +520,7 @@ Mỗi hành động mô tả theo 6 mục: **Tiền điều kiện → Dialog x�
 6. Gọi ExcuteCommand(action=0, method=310, data, token)   ← lời gọi quyết định
 7a. Success=1 → parse Message → lưu invoiceNo, keySearch, pattern, serial,
        signedDate, issued_by, issued_time; status = 06; tax_status = "Chờ CQT"
-       → ghi ngược sang Delivery Note (số HĐ, keySearch, trạng thái)
+       → ghi ngược sang Sales Invoice (số HĐ, keySearch, trạng thái)
        → COMMIT
        → enqueue job nền: tải PDF (380) sau 6 giây
 7b. Success=0 → ghi error_code/message, status = 99 Lỗi, COMMIT,
@@ -503,7 +537,7 @@ Mỗi hành động mô tả theo 6 mục: **Tiền điều kiện → Dialog x�
 
 ### E6. Nút 8 & 9 — Tải PDF chính thức / PDF chuyển đổi
 
-**Nút 8 (cấp 1):** dialog "Tải bản PDF chính thức của hóa đơn số 2 từ Fast?" → gọi `action=0, method=380`, `data = {"key": fast_key_search}` → decode → lưu vào `official_pdf` (đặt tên `HD_{serial}_{invoice_no}.pdf`) → đồng thời đính kèm sang Delivery Note.
+**Nút 8 (cấp 1):** dialog "Tải bản PDF chính thức của hóa đơn số 2 từ Fast?" → gọi `action=0, method=380`, `data = {"key": fast_key_search}` → decode → lưu vào `official_pdf` (đặt tên `HD_{serial}_{invoice_no}.pdf`) → đồng thời đính kèm sang Sales Invoice.
 
 **Nút 9 (cấp 2):** dialog nhập **tên người chuyển đổi** (mặc định = họ tên user đang đăng nhập, sửa được) → gọi `method=385`, `data = {"key": ..., "convertName": "..."}` → lưu `converted_pdf`. Dùng khi cần bản in giấy hợp lệ kẹp theo hàng.
 
@@ -546,6 +580,8 @@ Hai phương án, chọn theo cấu hình:
 | Sai nhiều/sai nghiêm trọng, cần một hóa đơn mới thay hẳn hóa đơn cũ       | **Thay thế** (350)                                       |
 | Hàng trả lại toàn bộ hoặc một phần                                              | **Điều chỉnh giảm** (320, type 1) — số âm          |
 
+**Hóa đơn bán trả hàng (credit note) không tạo HĐĐT trực tiếp.** Hóa đơn điều chỉnh giảm vẫn lập từ hóa đơn gốc như bảng trên; credit note là chứng từ kế toán đối ứng, gắn vào bản ghi điều chỉnh qua `sales_invoice` *(chờ chốt J8)*.
+
 **Tiền điều kiện:** hóa đơn gốc ở status 08 (CQT đã chấp nhận) và chưa từng bị điều chỉnh/thay thế (nếu rồi → Fast trả lỗi 901).
 
 **Dialog (cấp 2 — nhiều bước):**
@@ -569,7 +605,7 @@ Từ đây bản ghi mới đi lại **đúng vòng đời từ trạng thái 01
 
 **Gọi API:** `action=0, method=330`, `data = {"key": keySearch, "reason": ..., "minuteNo": ..., "minuteDate": yyyyMMdd}`.
 
-**Lưu DocType:** `cancel_reason`, `cancelled_time`, `status = 12`, mở khóa Delivery Note để cho phép tạo hóa đơn mới (xóa `fast_invoice_no` trên DN nhưng **giữ** liên kết lịch sử tới FEI đã hủy).
+**Lưu DocType:** `cancel_reason`, `cancelled_time`, `status = 12`, mở khóa Sales Invoice để cho phép lập lại hóa đơn (xóa `fast_invoice_no` trên SI; bản ghi FEI đã hủy vẫn giữ `sales_invoice` làm lịch sử). Hóa đơn lập lại mang Key hậu tố `-L2`.
 
 ---
 
@@ -577,7 +613,7 @@ Từ đây bản ghi mới đi lại **đúng vòng đời từ trạng thái 01
 
 Hàm `validate_before_send()` chạy ở **3 thời điểm**: khi tạo bản ghi, khi mở form (bảng kết quả hiện ngay trên chứng từ), và **bắt buộc lại** ngay trước khi phát hành phía server.
 
-**Chỉ nút PHÁT HÀNH bị chặn.** Xem bản nháp PDF chạy được kể cả khi chứng từ đang có lỗi mức Chặn: bản nháp không tiêu số hóa đơn, và nó chính là cách kế toán nhìn ra mình sai ở đâu — chặn nó lại là khóa đúng cái cửa dẫn tới chỗ sửa. Dữ liệu sai thì Fast trả lỗi, và mã lỗi của Fast nói đúng chỗ hơn phỏng đoán của ERP. Đồng bộ lại từ phiếu giao cũng không bao giờ bị chặn, vì đó là đường sửa dữ liệu.
+**Chỉ nút PHÁT HÀNH bị chặn.** Xem bản nháp PDF chạy được kể cả khi chứng từ đang có lỗi mức Chặn: bản nháp không tiêu số hóa đơn, và nó chính là cách kế toán nhìn ra mình sai ở đâu — chặn nó lại là khóa đúng cái cửa dẫn tới chỗ sửa. Dữ liệu sai thì Fast trả lỗi, và mã lỗi của Fast nói đúng chỗ hơn phỏng đoán của ERP. Đồng bộ lại từ hóa đơn bán cũng không bao giờ bị chặn, vì đó là đường sửa dữ liệu.
 
 | #  | Quy tắc                                                                                                                         | Mức       | Mã lỗi Fast tránh được |
 | -- | -------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------------------------- |
@@ -595,9 +631,11 @@ Hàm `validate_before_send()` chạy ở **3 thời điểm**: khi tạo bản g
 | 12 | Mọi dòng có`tax_rate` thuộc bộ mã hợp lệ                                                                               | Chặn      | 78025                        |
 | 13 | Tên hàng/tên KH không chứa`&`, `<`, `>` (hoặc phải escape đúng)                                                   | Cảnh báo | 63505                        |
 | 14 | `email_deliver` đúng định dạng, ≤256 ký tự                                                                             | Cảnh báo | 836                          |
-| 15 | DN nguồn: đã submit, không phải trả hàng, chưa có FEI khác đang sống                                                 | Chặn      | —                           |
+| 15 | SI nguồn: đã submit; không phải trả hàng, ghi nợ, số dư đầu kỳ, hóa đơn gộp POS; chưa có FEI khác đang sống; không phiếu giao nào trong SI đã có FEI lập theo bản 2.0. Bản ghi `source_doctype = Delivery Note (v2)` giữ luật cũ | Chặn      | —                           |
 | 16 | Hóa đơn nhiều thuế suất → đã điền đủ TaxAmount0/5/10/Free                                                           | **Cảnh báo** — Fast không dùng bốn ô này để kê khai (đối chứng TEST 2026-09-08) | — |
 | ~~17~~ | ~~Thuế 8% không có ô nhóm nào nhận~~ — **đã bỏ**: nổ ở gần như mọi hóa đơn mà không đòi hành động nào, chỉ làm người dùng bỏ qua bảng cảnh báo. Fast không dùng bốn ô này để kê khai (đối chứng TEST 2026-09-08) | — | — |
+| 18 | Tiền trước thuế, tiền thuế, tổng thanh toán của chứng từ HĐĐT lệch với Sales Invoice quá **dung sai làm tròn** | **Cảnh báo** *(chờ chốt J10)* — nếu đổi thành Chặn phải ghi vào `ERP_BUSINESS_RULES` và nhường `totals_manual_override` | — |
+| 19 | `posting_date` của Sales Invoice và ngày hóa đơn rơi vào **hai kỳ kê khai khác nhau** | **Cảnh báo** *(chờ chốt J9)* — không báo khi chỉ lệch ngày trong cùng kỳ: cảnh báo hiện ở mọi hóa đơn thì không ai đọc | — |
 
 Kết quả validate hiển thị dạng bảng ngay trên form (đỏ = chặn, vàng = cảnh báo), kèm nút nhảy tới trường bị lỗi.
 
@@ -637,10 +675,10 @@ không tự đặt thêm điều kiện chặn của riêng mình — Fast mới
 hành được hay không. Cột cuối cho biết quy tắc nào đang gác mã nào; `TestNothingBlocksMoreThanFastDoes`
 trong `test_fast_validation.py` bắt lỗi ngay nếu có ai thêm một điểm chặn không nêu được căn cứ.
 
-**Ngoại lệ duy nhất — quy tắc 15 (chứng từ nguồn):** phiếu giao phải có thật, đã submit, không
-phải phiếu trả hàng, và chưa có hóa đơn nào khác đang sống. Fast không biết phiếu giao là gì
-nên không có mã lỗi tương ứng. Đây là luật kế toán của Miyano, được ghi thành ngoại lệ có tên
-trong test chứ không lẫn vào các quy tắc khác.
+**Ngoại lệ duy nhất — quy tắc 15 (chứng từ nguồn):** hóa đơn bán phải có thật, đã submit, không
+phải trả hàng / ghi nợ / số dư đầu kỳ, và chưa có hóa đơn nào khác đang sống. Fast không biết hóa đơn bán
+của ERP là gì nên không có mã lỗi tương ứng. Đây là luật kế toán của Miyano, được ghi thành ngoại lệ có tên
+trong test chứ không lẫn vào các quy tắc khác. Quy tắc 18 và 19 là **cảnh báo**, không thuộc diện này.
 
 | Mã | Nghiệp vụ | Fast mô tả | Ghi chú của Fast | Quy tắc ERP |
 | --- | --- | --- | --- | --- |
@@ -713,6 +751,8 @@ trong test chứ không lẫn vào các quy tắc khác.
 
 ## PHẦN H — LỘ TRÌNH XÂY DỰNG TỪ ĐẦU
 
+> Giai đoạn 0–6 dưới đây đã thi công theo bản 2.0 (nguồn Delivery Note) và giữ lại làm lịch sử. Việc chuyển nguồn sang Sales Invoice là **Giai đoạn 7**, mô tả ở Phần K.
+
 ### Giai đoạn 0 — Chuẩn bị với Fast (1–2 ngày, không code)
 
 Checklist bắt buộc hoàn thành trước khi viết dòng code đầu tiên:
@@ -727,7 +767,7 @@ Checklist bắt buộc hoàn thành trước khi viết dòng code đầu tiên:
 
 ### Giai đoạn 1 — Rà soát dữ liệu ERP (1–2 ngày)
 
-- [ ] Kiểm tra Delivery Note có gắn **Sales Taxes and Charges Template** không; nếu chưa → bổ sung (đây là điều kiện tiên quyết, thuế là con số pháp lý không được đoán)
+- [ ] Kiểm tra Sales Invoice có gắn **Sales Taxes and Charges Template** không; nếu chưa → bổ sung (đây là điều kiện tiên quyết, thuế là con số pháp lý không được đoán)
 - [ ] Kiểm tra Item có **Item Tax Template** để lấy thuế suất từng dòng
 - [ ] Rà `tax_id`, billing address, email trên toàn bộ Customer đang hoạt động → làm sạch dữ liệu (đây là nguồn của lỗi 836)
 - [ ] Chuẩn hóa bảng UOM sang tên tiếng Việt (Cái, Chiếc, Bộ, Hộp, Kg…)
@@ -737,7 +777,7 @@ Checklist bắt buộc hoàn thành trước khi viết dòng code đầu tiên:
 
 - [ ] `bench new-app miyano_einvoice` · cài lên site
 - [ ] Tạo 4 DocType theo Phần C (dùng fixtures để version-control)
-- [ ] Tạo 4 custom field trên Delivery Note
+- [ ] Tạo 4 custom field trên Sales Invoice (bản 2.0: trên Delivery Note)
 - [ ] Tạo 2 Role: **Kế toán HĐĐT** (tạo nháp, gửi khách, xem PDF) và **Kế toán trưởng HĐĐT** (thêm quyền phát hành, điều chỉnh, thay thế, hủy). Nút cấp 3 chỉ hiện với role thứ hai
 - [ ] Đưa module `fast_client.py` vào app (đã có sẵn: SOAP, hash, token, encode/decode, đọc số thành chữ)
 
@@ -763,7 +803,7 @@ Checklist bắt buộc hoàn thành trước khi viết dòng code đầu tiên:
 
 - [ ] Nút 13a, 13b, 13c (E9, E10)
 - [ ] Sơ đồ liên kết hai chiều giữa hóa đơn gốc và hóa đơn con
-- [ ] Report "Đối soát hóa đơn điện tử": danh sách DN chưa xuất hóa đơn, hóa đơn chờ CQT quá 24h, hóa đơn lỗi
+- [ ] Report "Đối soát hóa đơn điện tử": danh sách Sales Invoice chưa xuất hóa đơn, phiếu giao đã giao nhưng chưa lập Sales Invoice, hóa đơn chờ CQT quá 24h, hóa đơn lỗi
 
 ### Giai đoạn 6 — Kiểm thử & go-live (3–5 ngày)
 
@@ -808,7 +848,7 @@ Kịch bản test bắt buộc trên môi trường test:
                  "Price","Amount","DiscountRate","DiscountAmount","TaxRate","TaxAmount"]
     },
     "invoices": [{
-      "master": ["MAT-DN-2026-00001","07/08/2026","KH0001","Nguyễn Văn A",
+      "master": ["ACC-SINV-2026-00011","07/08/2026","KH0001","Nguyễn Văn A",
                  "Bệnh viện Đa khoa X","0101234567","1","Số 1 Phố Y, Hà Nội",
                  "0912345678","","kt@bvx.vn","","","CK","VND",1.0,
                  10000000,11000000,10,1000000,0,0,0,1000000,0,0,
@@ -842,6 +882,138 @@ Quy tắc đóng gói: JSON → UTF-8 → **Base64** → tham số `data`. Tên 
 
 1. `require_customer_approval` bật hay tắt mặc định? (Khuyến nghị: **bật** — mọi hóa đơn phải qua bản nháp được khách duyệt, vì sửa hóa đơn đã phát hành rất tốn công.)
 2. Gửi email hóa đơn chính thức: ERP tự gửi hay để Fast gửi (method 700)? (Khuyến nghị: **ERP tự gửi**, method 700 làm dự phòng.)
-3. Có cần gộp nhiều Delivery Note của cùng khách thành 1 hóa đơn không? (Nếu có, DocType cần đổi `delivery_note` thành child table nhiều dòng — nên chốt **trước** khi code.)
+3. ~~Có cần gộp nhiều Delivery Note của cùng khách thành 1 hóa đơn không?~~ **Đã giải quyết ở bản 3.0:** nguồn là Sales Invoice, mà Sales Invoice lấy được dòng hàng từ nhiều phiếu giao.
 4. Miyano có phát sinh Phiếu xuất kho kiêm vận chuyển nội bộ không (method 319/328/358/338)?
 5. Ai được cấp role "Kế toán trưởng HĐĐT" (quyền phát hành)?
+
+**Câu hỏi của bản 3.0 (đổi nguồn sang Sales Invoice).** Tài liệu đang viết theo khuyến nghị; câu nào chốt khác thì sửa đúng mục được dẫn.
+
+6. Chỉ lập hóa đơn từ Sales Invoice **đã submit**? (Khuyến nghị: **có** — mục E1.)
+7. Gỡ hẳn nút trên Delivery Note ngay, hay chạy song song một thời gian? (Khuyến nghị: **gỡ hẳn** — nguyên tắc A4 thứ năm.)
+8. Hóa đơn bán trả hàng: tiếp tục lập điều chỉnh giảm từ hóa đơn gốc rồi gắn credit note vào, hay tạo thẳng từ credit note? (Khuyến nghị: **giữ cách cũ** — mục E9.)
+9. Lệch ngày giữa Sales Invoice và hóa đơn điện tử: cảnh báo hay chặn? (Khuyến nghị: **cảnh báo, chỉ khi khác kỳ kê khai** — quy tắc 19.)
+10. Lệch tổng tiền giữa chứng từ HĐĐT và Sales Invoice: cảnh báo hay chặn? (Khuyến nghị: **cảnh báo có dung sai làm tròn** — quy tắc 18.)
+11. Tám chứng từ HĐĐT hiện có trên site đúng là dữ liệu thử? Giữ làm bản ghi kiểu cũ, hay dọn sạch trước khi chạy thật? (Mục K4.)
+12. Gỡ 10 custom field `vn_einvoice_*` mồ côi và bảng `Vietnam E Invoice Log` trong đợt này? (Khuyến nghị: **có** — mục K4.)
+13. Trạng thái nào chặn hủy Sales Invoice? (Khuyến nghị: **chặn 06–11, không chặn 12** — mục E1.1.)
+
+---
+
+## PHẦN K — GIAI ĐOẠN 7: CHUYỂN CHỨNG TỪ NGUỒN SANG SALES INVOICE
+
+Căn cứ và phân tích đầy đủ: `BAO_CAO_HDDT_NGUON_SALES_INVOICE.md`. Phần này là bản chỉ dẫn thi công rút từ báo cáo đó.
+
+### K1. Vì sao đổi
+
+Doanh thu, thuế GTGT đầu ra, công nợ 131, bảng kê bán ra và tờ khai 01/GTGT đều sinh từ Sales Invoice. Ở bản 2.0 hóa đơn điện tử lập từ phiếu giao, rồi nối với sổ bằng một phép tra vòng (`lookup`: Sales Invoice Item → phiếu giao → chứng từ HĐĐT). Phép tra này sai khi một Sales Invoice gộp nhiều phiếu giao hoặc một phiếu giao tách nhiều Sales Invoice, và không phục vụ được doanh thu không qua phiếu giao (dịch vụ, `update_stock`).
+
+### K2. Phạm vi tệp
+
+**Không sửa** lớp giao tiếp với Fast: `fast_client`, `gateway`, `payload`, `totals`, `tax_status`, `catalogue`, `folders`.
+
+| Tệp | Thay đổi |
+| --- | --- |
+| `einvoice/builder.py` | `create_from_sales_invoice`, `resync_from_sales_invoice`, sinh Key, ghi ngược, hai hook hủy (E1, E1.1). Dùng lại `_copy_lines`, `_price_and_discount`, `_billing_address`, `_one_line`, `_unused_key`. `create_from_delivery_note` giữ lại, chỉ còn trả lời từ chối |
+| `einvoice/form_state.py` | Trạng thái nhìn từ Sales Invoice, bọc trong `_guarded`; đổi nhãn nút "Đồng bộ lại" |
+| `einvoice/validation.py` | Quy tắc 15 theo Sales Invoice; thêm quy tắc 18, 19 (cảnh báo) |
+| `fast_einvoice_document.json` và `.py` | Trường C2.1 #1, #1a, #2; tiêu đề và ô tìm kiếm theo `sales_invoice`; chốt chống trùng viết theo `sales_invoice`; nhả dấu khi xóa bản nháp |
+| `einvoice/issue.py`, `cancel.py`, `actions.py`, `reconcile.py` | Bốn chỗ ghi ngược số hóa đơn, trạng thái, PDF: đổi đích sang Sales Invoice |
+| `einvoice/setup.py` | Custom field C5 trên Sales Invoice; ẩn field trên Delivery Note; sửa hai mẫu email |
+| `einvoice/lookup.py` | Nối thẳng qua `sales_invoice` là đường chính; đường vòng chỉ giữ cho bản ghi `Delivery Note (v2)` |
+| `einvoice/lineage.py` | Sao thêm `source_doctype` sang hóa đơn điều chỉnh / thay thế |
+| Báo cáo `doi_soat_hoa_don_dien_tu` | "Chưa xuất hóa đơn" đếm theo Sales Invoice; thêm loại "đã giao, chưa lập hóa đơn bán"; thêm cột Sales Invoice |
+| `hooks.py` | `doctype_js` và hai `doc_events` chuyển từ Delivery Note sang Sales Invoice |
+| `public/js/einvoice/` | `sales_invoice.js` mới (chép khuôn `delivery_note.js`: `async refresh` có `await`); `delivery_note.js` chỉ còn phần xem |
+| `regional/report/to_khai_thue_gtgt_01` | Sales Invoice chưa có HĐĐT phải hiện là thiếu số hóa đơn, không lấy tên chứng từ ERP thế vào |
+| `patches.txt` và một patch mới | Mục K4 |
+| Kiểm thử | Fixture `make_sales_invoice`; 20 tệp test đang nhắc phiếu giao |
+
+### K3. Thứ tự thi công
+
+| Bước | Nội dung | Ngày công (ước lượng thô) |
+| --- | --- | --- |
+| 1 | Chốt câu hỏi J6–J13; chạy đủ bộ test của module và ghi mốc (K6) | 0,5 |
+| 2 | Schema chứng từ HĐĐT, custom field trên Sales Invoice, patch chuyển đổi | 1 |
+| 3 | `builder`, `form_state`, nút trên form Sales Invoice, hai hook hủy | 1,5 |
+| 4 | Ghi ngược, quy tắc 15 / 18 / 19, `lookup`, báo cáo đối soát | 1,5 |
+| 5 | Fixture `make_sales_invoice`, chuyển 20 tệp test, thêm kịch bản K6 | 1,5 |
+| 6 | Chạy lại kịch bản trên môi trường TEST của Fast; cập nhật `RUNBOOK_HDDT_FAST.md` | 1 |
+
+Đổi fixture và test **trước**, đổi mã **sau**: ba test thuế 8% và các test `builder` phải chạy được trên Sales Invoice trước khi `builder` bị viết lại.
+
+### K4. Chuyển đổi dữ liệu (một patch)
+
+Số liệu site `miyano` ngày 13/10/2026: 8 chứng từ HĐĐT (6 có số, 2 nháp), 0 bản ghi có `sales_invoice`, 1 Sales Invoice đã submit, cổng Fast đang trỏ `:9000` (TEST).
+
+1. Mọi bản ghi hiện có nhận `source_doctype = Delivery Note (v2)`.
+2. `FEI-2026-00009` (nháp): phiếu giao của nó có đúng một Sales Invoice → điền `sales_invoice`, chuyển `source_doctype = Sales Invoice`.
+3. Sáu bản ghi đã có số: **giữ nguyên, không đổi `fast_key`** — Key đã nằm trên hệ thống Fast.
+4. `FEI-2026-00008` (nháp, phiếu giao chưa có Sales Invoice): xóa nháp, lập lại từ Sales Invoice khi có.
+5. `FEI-2026-00007` là bản chép của `FEI-2026-00006` (cùng số 6, cùng Key): xử lý theo quyết định J11, không tự xóa.
+6. Dựng bốn field C5 trên Sales Invoice; ẩn bảy field trên Delivery Note.
+7. Gỡ 10 field `vn_einvoice_*` và bảng `Vietnam E Invoice Log` *(chờ chốt J12)*.
+8. Đổi `modified` của DocType Sales Invoice và Delivery Note để trình duyệt nạp lại form script.
+9. **Patch tự kiểm tra ở cuối** và ghi Error Log nếu còn sót: lần dọn luồng cũ ngày 07/08/2026 đã chạy mà field vẫn còn nguyên.
+
+Patch không được gọi Fast và không được tạo chứng từ kế toán.
+
+### K5. Chốt chặn bắt buộc
+
+Mỗi dòng là một lỗi đã mắc ở bản 2.0, hoặc một rủi ro riêng của Sales Invoice. Lý do đầy đủ nằm ở mục 10 của báo cáo.
+
+| # | Chốt chặn | Lỗi nó ngăn |
+| --- | --- | --- |
+| 1 | Tạo từ Sales Invoice phải dò phiếu giao trong dòng hàng; phiếu nào đã có FEI đang sống thì từ chối | Một lần bán, hai số hóa đơn: Key đổi nên Fast không nhận ra trùng |
+| 2 | Ngày hóa đơn luôn bằng ngày phát hành; `posting_date` chỉ dùng cho quy tắc 19 | Hóa đơn số 4 kẹt "Chờ CQT" vì ngày hóa đơn lấy theo chứng từ nguồn |
+| 3 | Chỉ `totals.py` tính tiền; tổng của Sales Invoice chỉ để đối chiếu | Bốn chỗ cùng tính tiền rồi lệch nhau; chứng từ thành bản chụp |
+| 4 | Đối chiếu tổng tiền có dung sai làm tròn | Làm tròn hai lần; cảnh báo sai ở hóa đơn đúng |
+| 5 | Chốt chống trùng trong controller viết theo `sales_invoice` | Chốt cũ là `if self.delivery_note and …`: bản ghi mới không có phiếu giao nên chốt tự bỏ qua |
+| 6 | Giữ `_unused_key` | Lỗi 809 / truy vấn 370 vướng hóa đơn đã hủy nội bộ |
+| 7 | `sales_invoice` và `source_doctype` chỉ đọc | Sửa tay chứng từ nguồn làm `fast_key` lệch với nguồn |
+| 8 | Không dựng Link trỏ ngược từ Sales Invoice; hook `on_cancel` chỉ nối thêm `ignore_linked_doctypes` | Hai Link trỏ vòng: không xóa được nháp, không hủy được chứng từ nguồn |
+| 9 | Custom field trên Sales Invoice đặt `no_copy` | Số hóa đơn bị chép sang hóa đơn trả hàng, bản sửa lại |
+| 10 | Từ chối `is_opening`, `is_return`, `is_debit_note`, `is_consolidated` | Xuất lại hóa đơn cho số dư đầu kỳ |
+| 11 | Thuế suất chung chỉ lấy từ dòng thuộc tài khoản 3331 | Bảng thuế nhiều dòng: lấy nhầm dòng đầu tiên |
+| 12 | `sales_invoice.js`: `async refresh` có `await`; trạng thái bọc `_guarded` | Form mất hết nút; chứng từ không có lối ra |
+| 13 | Quy tắc mới là cảnh báo; `TestNothingBlocksMoreThanFastDoes` phải xanh | Chặn thừa làm kẹt hóa đơn hợp lệ |
+| 14 | `create_from_delivery_note` trả lời từ chối; patch đổi `modified` | Trình duyệt còn form script cũ vẫn bấm được nút trên phiếu giao |
+| 15 | `create_from_sales_invoice` kiểm tra quyền đọc Sales Invoice | Hàm bản 2.0 ghi bỏ qua phân quyền mà không kiểm tra chứng từ nguồn |
+| 16 | Mẫu email dùng `doc.sales_invoice`; kiểm tra tay mẫu đang lưu trên site | Tiêu đề email ra trống với bản ghi mới |
+| 17 | Kiểm chứng chỉ bằng `bench run-tests`; không gọi phát hành hay tạo Sales Invoice từ console | Dữ liệu rác trên site làm hỏng bộ test khác; chứng từ đã ghi sổ không xóa sạch được |
+
+### K6. Kiểm thử
+
+Mốc ngày 13/10/2026, trước khi sửa (mới chạy 4 bộ; phải chạy đủ ở bước 1):
+
+| Bộ test | Kết quả |
+| --- | --- |
+| `test_einvoice_module` | 1 lỗi / 8: `test_no_vn_einvoice_custom_fields_remain` |
+| `test_fast_folders` | 1 lỗi / 12: `test_the_uploaded_xml_is_filed_with_the_invoice` |
+| `test_fast_lookup` | 7 / 7 đạt |
+| `test_fast_pdf` | 32 / 32 đạt |
+
+Kịch bản bổ sung, nối tiếp bảng 12 kịch bản của Giai đoạn 6:
+
+| # | Kịch bản | Kỳ vọng |
+| --- | --- | --- |
+| 13 | Sales Invoice ghi sổ hôm qua, phát hành hôm nay | Ngày hóa đơn = hôm nay; quy tắc 19 chỉ báo nếu khác kỳ kê khai |
+| 14 | Sales Invoice nhiều dòng, 5% + 8% | Tổng khớp Sales Invoice trong dung sai; bốn ô nhóm thuế đúng |
+| 15 | Sales Invoice gộp hai phiếu giao | Một hóa đơn; bảng kê lấy đúng số qua `sales_invoice` |
+| 16 | Sales Invoice có phiếu giao đã xuất hóa đơn theo bản 2.0 | Bị từ chối, nêu tên chứng từ cũ |
+| 17 | Sales Invoice số dư đầu kỳ / trả hàng / ghi nợ | Bị từ chối kèm lý do |
+| 18 | Hủy Sales Invoice khi FEI ở 08; khi FEI là nháp; khi FEI ở 12 | Chặn; nhả nháp; cho hủy |
+| 19 | Tạo Sales Invoice từ phiếu giao, tạo hóa đơn trả hàng, sửa lại | Không chứng từ nào mang theo số hóa đơn |
+| 20 | Tạo bản ghi FEI thứ hai cho cùng một Sales Invoice | Bị từ chối |
+| 21 | Gọi `create_from_delivery_note` | Trả lời từ chối rõ ràng, không tạo bản ghi |
+| 22 | Lập lại hóa đơn sau khi hủy nội bộ | Key mang hậu tố `-L2`, phát hành được |
+
+Bộ test `sales_invoice` của lõi không chạy được trên site này, nên hai hook hủy phải có test riêng trong `erpnext/einvoice/tests/`. Custom field dựng bằng `migrate`, không dựng trong test (lệnh `ALTER TABLE` làm commit giao dịch của test).
+
+### K7. Triển khai
+
+1. Làm ngoài giờ làm việc.
+2. `bench --site miyano migrate`, rồi **restart supervisor ngay**. Web chạy bằng gunicorn `--preload`: worker cũ không thấy mã mới, trong khi hook đã đổi nằm trong Redis dùng chung.
+3. `bench build --app erpnext`; báo người dùng bấm **Reload** trong menu avatar (Ctrl+Shift+R không xóa localStorage).
+4. Mở hai mẫu email trên site, xem thử với một bản ghi nguồn Sales Invoice.
+5. Kiểm tra patch không ghi Error Log; mở một Sales Invoice và một Delivery Note xem form.
+6. Chạy kịch bản 13–22 trên cổng TEST `:9000` trước khi đổi `api_url` sang hệ thống thật.

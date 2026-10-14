@@ -18,6 +18,8 @@ from frappe.utils import add_to_date, get_datetime, get_url, getdate, now_dateti
 
 from erpnext.einvoice.constants import (
 	EDITABLE_STATUSES,
+	INVOICE_TYPE_ORIGINAL,
+	SOURCE_DELIVERY_NOTE_V2,
 	STATUS_AWAITING_CUSTOMER,
 	STATUS_CUSTOMER_APPROVED,
 	STATUS_DRAFT,
@@ -190,12 +192,10 @@ def _draft_filename(doc):
 
 
 def _mirror_status(fei_name, status):
-	"""Đồng bộ trạng thái sang phiếu giao (mục C5)."""
-	delivery_note = frappe.db.get_value(FEI, fei_name, "delivery_note")
-	if delivery_note:
-		frappe.db.set_value(
-			"Delivery Note", delivery_note, "fast_einvoice_status", status, update_modified=False
-		)
+	"""Đồng bộ trạng thái sang chứng từ nguồn (mục C5) — bản sao chỉ để hiển thị."""
+	from erpnext.einvoice.builder import stamp_source_documents
+
+	stamp_source_documents(fei_name, {"fast_einvoice_status": status})
 
 
 # --- Nút 4/5/6 — vòng duyệt bản nháp với khách hàng (mục E3, E4) -------------
@@ -474,17 +474,28 @@ def download_official_pdf(fei, client=None):
 		FEI, doc.name, {"official_pdf": file_url, "public_pdf_url": public_url}, update_modified=False
 	)
 
-	# Bản PDF cũng đính sang phiếu giao: thủ kho và kế toán kho làm việc ở đó.
-	if doc.delivery_note:
-		_attach_pdf_to(doc, response.message, filename, "Delivery Note", doc.delivery_note, is_private=0)
-		frappe.db.set_value(
-			"Delivery Note", doc.delivery_note, "fast_einvoice_pdf_url", public_url, update_modified=False
-		)
+	# Bản PDF cũng đính sang chứng từ nguồn: kế toán làm việc trên hóa đơn bán.
+	# Bản ghi bản 2.0 thì vẫn đính sang phiếu giao như trước.
+	source_doctype, source_name = _pdf_source(doc)
+	if source_name:
+		_attach_pdf_to(doc, response.message, filename, source_doctype, source_name, is_private=0)
+		from erpnext.einvoice.builder import stamp_source_documents
+
+		stamp_source_documents(doc.name, {"fast_einvoice_pdf_url": public_url})
 
 	# Hóa đơn phát hành từ trước khi có cây thư mục: gom bản nháp cũ về cùng chỗ với PDF chính thức.
 	move_invoice_files(doc.name)
 
 	return {"ok": True, "file_url": file_url, "public_url": public_url}
+
+
+def _pdf_source(doc):
+	"""Chứng từ nguồn nhận bản PDF chính thức — hóa đơn bán, hoặc phiếu giao của bản 2.0."""
+	if doc.get("source_doctype") == SOURCE_DELIVERY_NOTE_V2:
+		return "Delivery Note", doc.delivery_note
+	if doc.sales_invoice and doc.invoice_type == INVOICE_TYPE_ORIGINAL:
+		return "Sales Invoice", doc.sales_invoice
+	return None, None
 
 
 def _official_pdf_filename(doc):
@@ -666,7 +677,7 @@ def _assert_pdf_throttle():
 def _attach_pdf_to(doc, base64_message, filename, doctype, name, is_private=1):
 	from frappe.utils.file_manager import save_file
 
-	# Bản trên phiếu giao nằm cùng thư mục hóa đơn — một hóa đơn, một chỗ tìm.
+	# Bản trên chứng từ nguồn nằm cùng thư mục hóa đơn — một hóa đơn, một chỗ tìm.
 	folder = invoice_folder(doc)
 	saved = save_file(
 		filename, decode_message(base64_message), doctype, name, folder=folder, is_private=is_private

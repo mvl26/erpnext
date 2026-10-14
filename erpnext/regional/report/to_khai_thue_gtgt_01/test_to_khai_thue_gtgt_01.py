@@ -172,7 +172,7 @@ class TestBangKeGTGT(FrappeTestCase):
 		rows = bang_ke_ban_ra(self.company, "1900-01-01", self.to_date)
 		self.assertEqual(len(rows), 1)
 		row = rows[0]
-		self.assertEqual(row["so_hoa_don"], self.si.name)  # no HĐĐT issued → ERP number
+		self.assertEqual(row["so_hoa_don"], "")  # chưa có HĐĐT → thiếu số, không lấy tên chứng từ ERP
 		self.assertEqual(row["mst"], "0312345678")
 		self.assertEqual(row["doanh_so"], 10_000_000)
 		self.assertEqual(row["thue_suat"], 10)

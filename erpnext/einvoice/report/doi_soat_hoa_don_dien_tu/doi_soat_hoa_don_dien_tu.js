@@ -28,7 +28,13 @@ frappe.query_reports["Doi Soat Hoa Don Dien Tu"] = {
 			fieldname: "issue_type",
 			label: __("Loại vấn đề"),
 			fieldtype: "Select",
-			options: ["", "Chưa xuất hóa đơn", "Chờ CQT quá 24 giờ", "Lỗi / cần đối soát"].join("\n"),
+			options: [
+				"",
+				"Chưa xuất hóa đơn",
+				"Đã giao, chưa lập hóa đơn bán",
+				"Chờ CQT quá 24 giờ",
+				"Lỗi / cần đối soát",
+			].join("\n"),
 		},
 	],
 
@@ -37,6 +43,7 @@ frappe.query_reports["Doi Soat Hoa Don Dien Tu"] = {
 		if (column.fieldname === "issue_type" && data) {
 			const colour = {
 				"Chưa xuất hóa đơn": "orange",
+				"Đã giao, chưa lập hóa đơn bán": "orange",
 				"Chờ CQT quá 24 giờ": "blue",
 				"Lỗi / cần đối soát": "red",
 			}[data.issue_type];
