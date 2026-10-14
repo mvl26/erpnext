@@ -6,6 +6,8 @@ trước khi kiểm trùng số lô thì người gõ nhầm một số lô dài
 đi sửa sai chỗ.
 """
 
+import re
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
@@ -278,6 +280,30 @@ class TestSubmit(FrappeTestCase):
 		self.assertTrue(so_goi_1)
 		self.assertTrue(so_goi_2)
 		self.assertNotEqual(so_goi_1, so_goi_2)
+
+	def test_so_goi_la_so_cuoi_cua_phieu_nhap(self):
+		"""Số gọi = phần số cuối của tên phiếu nhập, GIỮ số 0 đầu
+		(`MAT-PRE-2026-00027` -> `00027`) — chốt 14/10/2026."""
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-GOI-PR-1")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+		mong_doi = re.search(r"(\d+)$", self.pr.name).group(1)
+		self.assertEqual(frappe.db.get_value("Batch", "LO-GOI-PR-1", "custom_so_goi"), mong_doi)
+		self.assertEqual(
+			frappe.db.get_value("Batch Entry Item", be.items[0].name, "so_goi"), mong_doi
+		)
+
+	def test_so_goi_phieu_nhap_sua_bo_hau_to_sua(self):
+		"""Phiếu sửa `…-00027-1` vẫn gọi là `00027`, không phải `1`. Phiếu
+		không phải phiếu sửa thì KHÔNG cắt gì (số cuối là chính số phiếu)."""
+		from unittest.mock import patch
+
+		from erpnext.warehouse_operations.doctype.batch_entry import batch_entry
+
+		with patch.object(batch_entry.frappe.db, "get_value", return_value="MAT-PRE-2026-00027"):
+			self.assertEqual(batch_entry._so_goi_tu_phieu_nhap("MAT-PRE-2026-00027-1"), "00027")
+		with patch.object(batch_entry.frappe.db, "get_value", return_value=None):
+			self.assertEqual(batch_entry._so_goi_tu_phieu_nhap("MAT-PRE-2026-00027"), "00027")
 
 	def test_dung_lai_lo_da_co_cua_chinh_mat_hang_nay(self):
 		"""NCC giao làm hai đợt cùng một số lô. Không tạo mới, không nổ khoá
