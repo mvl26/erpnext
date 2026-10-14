@@ -1,6 +1,6 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Dữ liệu mẫu dùng chung cho test HĐĐT: khách hàng, hàng hóa, phiếu giao hàng.
+"""Dữ liệu mẫu dùng chung cho test HĐĐT: khách hàng, hàng hóa, hóa đơn bán, phiếu giao hàng.
 
 Site `miyano` không có Item/Customer/Delivery Note nào, nên bộ test phải tự dựng.
 Tất cả đều get-or-create: chạy lại không nhân bản, và an toàn cả khi một test
@@ -128,7 +128,7 @@ def output_vat_account():
 
 
 def make_delivery_note(qty=100, rate=100000, submit=True, is_return=False, vat_rate=10, **values):
-	"""Phiếu giao hàng đã submit — chứng từ nguồn của hóa đơn điện tử."""
+	"""Phiếu giao hàng đã submit — nguồn của hóa đơn bán (và của bản ghi HĐĐT bản 2.0)."""
 	ensure_stock(qty * 2)
 	customer = ensure_customer()
 
@@ -136,16 +136,7 @@ def make_delivery_note(qty=100, rate=100000, submit=True, is_return=False, vat_r
 	if is_return and not values.get("return_against"):
 		values["return_against"] = make_delivery_note(qty=qty, rate=rate, vat_rate=vat_rate).name
 
-	taxes = []
-	if vat_rate and (account := output_vat_account()):
-		taxes.append(
-			{
-				"charge_type": "On Net Total",
-				"account_head": account,
-				"rate": vat_rate,
-				"description": f"Thuế GTGT {vat_rate}%",
-			}
-		)
+	taxes = _vat_taxes(vat_rate)
 
 	doc = frappe.get_doc(
 		{
@@ -176,6 +167,92 @@ def make_delivery_note(qty=100, rate=100000, submit=True, is_return=False, vat_r
 	if submit:
 		doc.submit()
 	return doc
+
+
+def _vat_taxes(vat_rate):
+	if not vat_rate or not (account := output_vat_account()):
+		return []
+	return [
+		{
+			"charge_type": "On Net Total",
+			"account_head": account,
+			"rate": vat_rate,
+			"description": f"Thuế GTGT {vat_rate}%",
+		}
+	]
+
+
+def make_sales_invoice(qty=100, rate=100000, submit=True, vat_rate=10, items=None, **values):
+	"""Hóa đơn bán đã submit — chứng từ nguồn của hóa đơn điện tử (đặc tả bản 3.0).
+
+	Lập thẳng, không qua phiếu giao và không cập nhật kho: hóa đơn điện tử chỉ cần
+	doanh thu, dòng hàng và bảng thuế. ``items`` thay cho dòng mặc định khi cần
+	nhiều dòng (mỗi dòng có thể mang ``item_tax_template`` riêng).
+	"""
+	customer = ensure_customer()
+	rows = items or [{"item_code": ensure_item(), "item_name": ITEM_NAME, "qty": qty, "rate": rate}]
+	doc = frappe.get_doc(
+		{
+			"doctype": "Sales Invoice",
+			"company": COMPANY,
+			"customer": customer,
+			"posting_date": nowdate(),
+			"set_posting_time": 1,
+			"currency": frappe.db.get_value("Company", COMPANY, "default_currency") or "VND",
+			"conversion_rate": 1,
+			"items": [{"uom": ensure_uom(), "conversion_factor": 1, **row} for row in rows],
+			"taxes": _vat_taxes(vat_rate),
+			**values,
+		}
+	)
+	doc.flags.ignore_permissions = True
+	doc.insert()
+	if submit:
+		doc.submit()
+	return doc
+
+
+def make_sales_invoice_from_delivery_note(delivery_note, submit=True):
+	"""Hóa đơn bán lập từ phiếu giao bằng đúng hàm của lõi — luồng thật của kho → kế toán."""
+	from erpnext.stock.doctype.delivery_note.delivery_note import make_sales_invoice as from_dn
+
+	doc = from_dn(delivery_note)
+	doc.flags.ignore_permissions = True
+	doc.insert()
+	if submit:
+		doc.submit()
+	return doc
+
+
+def make_draft_fei(**values):
+	"""Chứng từ HĐĐT nháp lập từ một hóa đơn bán mới — trả tên chứng từ."""
+	from erpnext.einvoice.builder import create_from_sales_invoice
+
+	return create_from_sales_invoice(make_sales_invoice(**values).name)
+
+
+def make_legacy_fei(delivery_note=None, **values):
+	"""Chứng từ HĐĐT bản 2.0 (nguồn phiếu giao) — dựng thẳng, vì đường tạo từ phiếu giao đã đóng.
+
+	Mô phỏng sáu hóa đơn đã phát hành theo bản 2.0 còn nằm trên site.
+	"""
+	from erpnext.einvoice.builder import _copy_from_source, fast_key_for, stamp_source_documents
+	from erpnext.einvoice.constants import INVOICE_TYPE_ORIGINAL, SOURCE_DELIVERY_NOTE_V2, STATUS_DRAFT
+	from erpnext.einvoice.fast_settings import get_settings
+
+	dn = frappe.get_doc("Delivery Note", delivery_note) if delivery_note else make_delivery_note()
+	fei = frappe.new_doc("Fast EInvoice Document")
+	fei.source_doctype = SOURCE_DELIVERY_NOTE_V2
+	fei.delivery_note = dn.name
+	fei.invoice_type = INVOICE_TYPE_ORIGINAL
+	fei.status = STATUS_DRAFT
+	fei.fast_key = fast_key_for(dn.name)
+	_copy_from_source(fei, dn, get_settings())
+	fei.update(values)
+	fei.flags.ignore_permissions = True
+	fei.insert()
+	stamp_source_documents(fei.name)
+	return fei.name
 
 
 def attach_official_xml(fei_name, filename=None, content=b'<?xml version="1.0" encoding="UTF-8"?><HDon/>'):

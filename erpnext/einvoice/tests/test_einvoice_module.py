@@ -4,8 +4,10 @@
 
 Luồng cũ (Task 40—44) tự phát hành hóa đơn khi submit Sales Invoice. Nó trái
 nguyên tắc A2 của đặc tả Fast v2.0 ("không hành động nào tự chạy ngầm không
-hỏi") nên bị thay hẳn bằng luồng Fast chạy trên Delivery Note. Bộ test này là
-lưới an toàn: nếu ai đó vô tình dựng lại một mảnh của luồng cũ, nó đỏ ngay.
+hỏi") nên bị thay hẳn bằng luồng Fast. Từ đặc tả Fast bản 3.0 luồng Fast lại
+lập hóa đơn từ Sales Invoice — nhưng bằng nút có xác nhận, không bao giờ tự phát
+hành khi submit. Bộ test này là lưới an toàn: nếu ai đó vô tình dựng lại một
+mảnh của luồng cũ, nó đỏ ngay.
 """
 
 import frappe

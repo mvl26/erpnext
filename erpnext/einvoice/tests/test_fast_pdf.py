@@ -13,11 +13,11 @@ from erpnext.einvoice.actions import (
 	download_official_pdf,
 	download_pending_official_pdfs,
 )
-from erpnext.einvoice.builder import create_from_delivery_note
+from erpnext.einvoice.builder import create_from_sales_invoice
 from erpnext.einvoice.constants import STATUS_DRAFT, STATUS_ISSUED, STATUS_TAX_ACCEPTED
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.tests.test_fixtures import make_delivery_note, minimal_pdf_bytes
+from erpnext.einvoice.tests.test_fixtures import make_sales_invoice, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -40,8 +40,8 @@ class PdfTestBase(FrappeTestCase):
 	def setUp(self):
 		frappe.db.rollback()
 		configure(token="TOKEN-ABC", token_time=now_datetime())
-		self.dn = make_delivery_note()
-		self.fei = frappe.get_doc(FEI, create_from_delivery_note(self.dn.name))
+		self.si = make_sales_invoice()
+		self.fei = frappe.get_doc(FEI, create_from_sales_invoice(self.si.name))
 		frappe.db.set_value(
 			FEI,
 			self.fei.name,
@@ -95,13 +95,13 @@ class TestOfficialPdf(PdfTestBase):
 		self.assertEqual(log.action, 0)
 		self.assertEqual(log.status, "Thành công")
 
-	def test_the_pdf_also_lands_on_the_delivery_note(self):
-		"""Kế toán kho cần bản PDF ngay trên phiếu giao, không phải lần mò sang chứng từ khác."""
+	def test_the_pdf_also_lands_on_the_sales_invoice(self):
+		"""Kế toán cần bản PDF ngay trên hóa đơn bán, không phải lần mò sang chứng từ khác."""
 		download_official_pdf(self.fei.name, client=self._client(pdf_envelope()))
 
 		attached = frappe.get_all(
 			"File",
-			filters={"attached_to_doctype": "Delivery Note", "attached_to_name": self.dn.name},
+			filters={"attached_to_doctype": "Sales Invoice", "attached_to_name": self.si.name},
 			pluck="file_name",
 		)
 		self.assertTrue(any("HD_1C26TMY_2" in name for name in attached))
@@ -202,11 +202,11 @@ class TestOfficialPdfIsPublic(PdfTestBase):
 		self._download()
 		self.assertEqual(frappe.db.get_value("File", {"file_url": self.fei.official_pdf}, "is_private"), 0)
 
-	def test_the_delivery_note_copy_is_public_too(self):
+	def test_the_sales_invoice_copy_is_public_too(self):
 		self._download()
 		privacy = frappe.get_all(
 			"File",
-			filters={"attached_to_doctype": "Delivery Note", "attached_to_name": self.dn.name},
+			filters={"attached_to_doctype": "Sales Invoice", "attached_to_name": self.si.name},
 			pluck="is_private",
 		)
 		self.assertTrue(privacy)
@@ -218,13 +218,13 @@ class TestOfficialPdfIsPublic(PdfTestBase):
 		self.assertNotIn("/files/HD_1C26TMY_2.pdf", self.fei.official_pdf)
 		self.assertRegex(self.fei.official_pdf, r"HD_1C26TMY_2_[0-9a-f]{16}")
 
-	def test_a_full_erp_link_lands_on_the_invoice_and_the_delivery_note(self):
+	def test_a_full_erp_link_lands_on_the_invoice_and_the_sales_invoice(self):
 		self._download()
 		self.assertEqual(self.fei.public_pdf_url, get_url(self.fei.official_pdf))
 		self.assertTrue(self.fei.public_pdf_url.startswith("http"))
 
-		self.dn.reload()
-		self.assertEqual(self.dn.fast_einvoice_pdf_url, self.fei.public_pdf_url)
+		self.si.reload()
+		self.assertEqual(self.si.fast_einvoice_pdf_url, self.fei.public_pdf_url)
 
 	def test_the_converted_pdf_stays_private(self):
 		"""Bản chuyển đổi mang tên người chuyển đổi — không công khai."""
@@ -236,7 +236,7 @@ class TestOfficialPdfIsPublic(PdfTestBase):
 
 
 class TestWaitForSigning(PdfTestBase):
-	"""Fast cần khoảng 30 giây – 1 phút ký số xong mới có PDF — gọi sớm chỉ nhận về rỗng."""
+	"""Fast cần khoảng 30 giây đến 1 phút ký số xong mới có PDF — gọi sớm chỉ nhận về rỗng."""
 
 	def test_downloading_right_after_issuance_is_refused_without_calling_fast(self):
 		self._issued_seconds_ago(10)

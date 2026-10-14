@@ -6,7 +6,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import getdate, now_datetime, nowdate
 
-from erpnext.einvoice.builder import create_from_delivery_note
+from erpnext.einvoice.builder import create_from_sales_invoice
 from erpnext.einvoice.constants import (
 	INVOICE_TYPE_ADJUSTMENT,
 	INVOICE_TYPE_REPLACEMENT,
@@ -25,7 +25,7 @@ from erpnext.einvoice.issue import issue_invoice
 from erpnext.einvoice.lineage import create_adjustment, create_replacement
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
 from erpnext.einvoice.tests.test_fast_pdf import sent_payload
-from erpnext.einvoice.tests.test_fixtures import make_delivery_note
+from erpnext.einvoice.tests.test_fixtures import make_sales_invoice
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -40,8 +40,8 @@ class LineageBase(FrappeTestCase):
 	def setUp(self):
 		frappe.db.rollback()
 		configure(token="TOKEN-ABC", token_time=now_datetime(), auto_download_pdf=0)
-		self.dn = make_delivery_note()
-		self.original = frappe.get_doc(FEI, create_from_delivery_note(self.dn.name))
+		self.si = make_sales_invoice()
+		self.original = frappe.get_doc(FEI, create_from_sales_invoice(self.si.name))
 		frappe.db.set_value(
 			FEI,
 			self.original.name,
@@ -127,6 +127,22 @@ class TestCreateAdjustment(LineageBase):
 
 		self.assertNotEqual(child.fast_key, self.original.fast_key)
 		self.assertLessEqual(len(child.fast_key), 32)
+
+	def test_the_child_keeps_the_source_of_the_original(self):
+		"""Bảng kê lần ra hóa đơn bán qua `sales_invoice`, kể cả với hóa đơn điều chỉnh."""
+		child = self._make_adjustment()
+		self.assertEqual(child.source_doctype, "Sales Invoice")
+		self.assertEqual(child.sales_invoice, self.si.name)
+
+	def test_the_child_does_not_overwrite_the_sales_invoice_copy(self):
+		"""Bản sao trên hóa đơn bán vẫn là của hóa đơn gốc khi hóa đơn điều chỉnh đổi trạng thái."""
+		from erpnext.einvoice.actions import _mirror_status
+
+		child = self._make_adjustment()
+		_mirror_status(child.name, "99 - Lỗi")
+		self.assertNotEqual(
+			frappe.db.get_value("Sales Invoice", self.si.name, "fast_einvoice_status"), "99 - Lỗi"
+		)
 
 	def test_the_child_carries_no_result_fields_from_the_original(self):
 		child = self._make_adjustment()
@@ -246,8 +262,8 @@ class TestAdjustmentValidation(LineageBase):
 		result = validate_before_send(child)
 		self.assertTrue(result.ok, [i.message for i in result.blocking])
 
-	def test_sharing_the_delivery_note_with_the_original_is_allowed(self):
-		"""Hóa đơn điều chỉnh cố ý dùng chung phiếu giao với hóa đơn gốc."""
+	def test_sharing_the_sales_invoice_with_the_original_is_allowed(self):
+		"""Hóa đơn điều chỉnh cố ý dùng chung hóa đơn bán với hóa đơn gốc."""
 		from erpnext.einvoice.validation import validate_before_send
 
 		child = self._make_adjustment()

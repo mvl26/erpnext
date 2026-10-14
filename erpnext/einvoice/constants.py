@@ -104,8 +104,8 @@ ISSUED_STATUSES = frozenset(
 # trạng thái không có số hóa đơn, hoặc đã bị điều chỉnh/thay thế/hủy rồi.
 ADJUSTABLE_STATUSES = frozenset({STATUS_ISSUED, STATUS_SENT, STATUS_TAX_ACCEPTED})
 
-# Đang giữ chỗ trên Delivery Note: không cho lập bản ghi HĐĐT thứ hai cho cùng DN
-# (đặc tả C2.1 #1 — "không cho trùng với bản ghi khác đang ở trạng thái 01—08").
+# Đang giữ chỗ trên chứng từ nguồn: không cho lập bản ghi HĐĐT gốc thứ hai cho
+# cùng một hóa đơn bán (đặc tả C2.1 #1 — "không trùng với bản ghi đang sống").
 LIVE_STATUSES = frozenset(
 	{
 		STATUS_DRAFT,
@@ -119,6 +119,24 @@ LIVE_STATUSES = frozenset(
 		STATUS_NEEDS_RECONCILE,
 	}
 )
+
+# Chặn hủy chứng từ nguồn (mục E1.1): hóa đơn còn hiệu lực (06—11), cộng hai
+# trạng thái chưa rõ đã tiêu số hay chưa (05 đang phát hành, 98 cần đối soát).
+# **Không** gồm "12 - Đã hủy nội bộ": hóa đơn bị CQT từ chối rồi hủy thì phải cho
+# hủy và sửa lại hóa đơn bán, nếu không chứng từ ghi doanh thu bị khóa vĩnh viễn.
+CANCEL_BLOCKING_STATUSES = frozenset(
+	(ISSUED_STATUSES - {STATUS_CANCELLED}) | {STATUS_ISSUING, STATUS_NEEDS_RECONCILE}
+)
+
+# --- Chứng từ nguồn — mục C2.1 #1a. Đặt một lần lúc tạo, không đổi.
+# Bản 3.0: hóa đơn gốc chỉ lập từ Sales Invoice. "Delivery Note (v2)" là nhãn của
+# bản ghi lập theo bản 2.0 (nguồn phiếu giao) — còn lại để tra cứu, không lập mới.
+SOURCE_SALES_INVOICE = "Sales Invoice"
+SOURCE_DELIVERY_NOTE_V2 = "Delivery Note (v2)"
+
+# Kỳ kê khai thuế GTGT — quy tắc 19 chỉ cảnh báo khi ngày ghi sổ hóa đơn bán và
+# ngày hóa đơn điện tử rơi vào hai kỳ khác nhau.
+DECLARATION_PERIOD_MONTH = "Tháng"
 
 # --- Loại chứng từ — mục C2.1 #5.
 INVOICE_TYPE_ORIGINAL = "Hóa đơn gốc"

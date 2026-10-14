@@ -35,6 +35,7 @@ from erpnext.einvoice.actions import (
 	_mirror_status,
 	refresh_before_send,
 )
+from erpnext.einvoice.builder import stamp_source_documents
 from erpnext.einvoice.constants import (
 	INVOICE_TYPE_ADJUSTMENT,
 	INVOICE_TYPE_REPLACEMENT,
@@ -351,8 +352,8 @@ def _store_issue_result(doc, result, issued_now):
 		values["issued_time"] = now_datetime()
 
 	frappe.db.set_value(FEI, doc.name, values, update_modified=False)
-	_stamp_delivery_note(doc, result)
-	_mirror_status(doc.name, STATUS_ISSUED)
+	# Số hóa đơn, mã tra cứu, trạng thái chép sang chứng từ nguồn (mục E5, 7a).
+	stamp_source_documents(doc.name)
 	# Hóa đơn vừa có số: bản nháp đang ở thư mục tạm dời về thư mục số hóa đơn.
 	move_invoice_files(doc.name)
 	if issued_now:
@@ -372,20 +373,6 @@ def _flag_signing_date_mismatch(doc, signed):
 		_("Cảnh báo: Fast ký số ngày {0} nhưng ngày hóa đơn là {1}. Cần đối chiếu với Fast.").format(
 			_dmy(signed), _dmy(doc.invoice_date)
 		),
-	)
-
-
-def _stamp_delivery_note(doc, result):
-	if not doc.delivery_note:
-		return
-	frappe.db.set_value(
-		"Delivery Note",
-		doc.delivery_note,
-		{
-			"fast_invoice_no": result.get("fast_invoice_no") or "",
-			"fast_key_search": result.get("fast_key_search") or "",
-		},
-		update_modified=False,
 	)
 
 
@@ -428,7 +415,7 @@ def _handle_unexpected(doc, exc):
 	`call_fast` commit trạng thái "05 - Đang phát hành" **trước** khi gọi Fast.
 	Trước đây chỉ timeout được bắt; mọi lỗi khác (không đăng nhập được, HTTP 500,
 	lỗi đọc phản hồi…) ném thẳng ra ngoài, và chứng từ nằm lại ở 05 — trạng thái
-	không có nút nào, không sửa được, không đồng bộ lại được từ phiếu giao.
+	không có nút nào, không sửa được, không đồng bộ lại được từ chứng từ nguồn.
 
 	Không biết chắc lệnh đã tới Fast hay chưa, nên đưa về "Cần đối soát": ở đó
 	vẫn sửa, đồng bộ lại, xem nháp được, và lần phát hành sau luôn truy vấn 370
@@ -437,7 +424,7 @@ def _handle_unexpected(doc, exc):
 	frappe.log_error(title=f"HĐĐT: phát hành {doc.name} lỗi ngoài dự kiến")
 	message = _(
 		"Phát hành không hoàn tất: {0}. Chứng từ chuyển sang Cần đối soát — bấm Lấy dữ liệu từ Fast (370) "
-		"để chắc chắn hóa đơn chưa ra số, hoặc Đồng bộ lại từ phiếu giao rồi phát hành lại "
+		"để chắc chắn hóa đơn chưa ra số, hoặc Đồng bộ lại từ chứng từ nguồn rồi phát hành lại "
 		"(hệ thống luôn truy vấn Fast trước khi phát hành nên không thể ra hai số)."
 	).format(frappe.utils.strip_html(str(exc)) or type(exc).__name__)
 	frappe.db.set_value(

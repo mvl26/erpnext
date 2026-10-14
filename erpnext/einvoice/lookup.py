@@ -2,12 +2,12 @@
 
 """Tra số hóa đơn điện tử cho các chứng từ kế toán.
 
-Bảng kê bán ra và tờ khai 01/GTGT dựng từ **Sales Invoice**, nhưng hóa đơn điện
-tử phát hành từ **Delivery Note**. Module này bắc cầu giữa hai bên, theo thứ tự
-ưu tiên:
+Bảng kê bán ra và tờ khai 01/GTGT dựng từ **Sales Invoice**, và từ bản 3.0 hóa
+đơn điện tử cũng lập từ chính Sales Invoice — nên số hóa đơn nối thẳng, một — một:
 
-1. Chứng từ HĐĐT trỏ thẳng vào Sales Invoice (kế toán tự điền), hoặc
-2. Chứng từ HĐĐT của phiếu giao mà các dòng hàng của Sales Invoice tham chiếu tới.
+1. Chứng từ HĐĐT trỏ thẳng vào Sales Invoice (`sales_invoice`) — đường chính.
+2. Chỉ cho bản ghi lập theo bản 2.0 (nguồn phiếu giao) chưa gắn hóa đơn bán: đi
+   vòng qua phiếu giao mà các dòng hàng của Sales Invoice tham chiếu tới.
 
 Chỉ lấy hóa đơn **đã thực sự có số** — hóa đơn nháp hoặc đã hủy không được lọt
 vào bảng kê.
@@ -15,7 +15,14 @@ vào bảng kê.
 
 import frappe
 
-from erpnext.einvoice.constants import ISSUED_STATUSES, STATUS_CANCELLED
+from erpnext.einvoice.constants import (
+	INVOICE_TYPE_ORIGINAL,
+	INVOICE_TYPE_REPLACEMENT,
+	ISSUED_STATUSES,
+	SOURCE_DELIVERY_NOTE_V2,
+	STATUS_CANCELLED,
+	STATUS_REPLACED,
+)
 
 FEI = "Fast EInvoice Document"
 
@@ -38,8 +45,11 @@ def invoice_numbers_for(sales_invoices):
 
 def _fields():
 	return [
+		"name",
 		"sales_invoice",
 		"delivery_note",
+		"invoice_type",
+		"status",
 		"fast_invoice_no",
 		"fast_serial",
 		"fast_pattern",
@@ -57,6 +67,13 @@ def _as_entry(row):
 
 
 def _collect_direct(names, found):
+	"""Số hóa đơn của chứng từ HĐĐT trỏ thẳng vào hóa đơn bán.
+
+	Một hóa đơn bán có thể mang nhiều chứng từ: hóa đơn gốc, và hóa đơn điều chỉnh
+	/ thay thế mang theo hóa đơn bán của nó. Số kê khai là của hóa đơn gốc — trừ
+	khi hóa đơn gốc đã bị thay thế, khi đó là số của hóa đơn thay thế.
+	"""
+	by_invoice = {}
 	for row in frappe.get_all(
 		FEI,
 		filters={
@@ -65,12 +82,33 @@ def _collect_direct(names, found):
 			"fast_invoice_no": ("!=", ""),
 		},
 		fields=_fields(),
+		order_by="creation asc",
 	):
-		found[row.sales_invoice] = _as_entry(row)
+		by_invoice.setdefault(row.sales_invoice, []).append(row)
+
+	for sales_invoice, rows in by_invoice.items():
+		if chosen := _declared_row(rows):
+			found[sales_invoice] = _as_entry(chosen)
+
+
+def _declared_row(rows):
+	originals = [row for row in rows if row.invoice_type == INVOICE_TYPE_ORIGINAL]
+	replacements = [row for row in rows if row.invoice_type == INVOICE_TYPE_REPLACEMENT]
+	if originals and originals[-1].status == STATUS_REPLACED and replacements:
+		return replacements[-1]
+	if originals:
+		return originals[-1]
+	return replacements[-1] if replacements else None
 
 
 def _collect_via_delivery_notes(names, found):
-	"""Đi vòng qua phiếu giao mà các dòng hàng của hóa đơn bán tham chiếu tới."""
+	"""Đi vòng qua phiếu giao — chỉ cho hóa đơn gốc bản 2.0 chưa gắn hóa đơn bán.
+
+	Đường vòng sai khi một hóa đơn bán gộp nhiều phiếu giao hay một phiếu giao tách
+	nhiều hóa đơn bán, nên nó chỉ còn phục vụ sáu hóa đơn đã phát hành theo bản 2.0.
+	Gắn hóa đơn bán vào chứng từ cũ (`builder.link_sales_invoice`) là chuyển nó sang
+	đường thẳng.
+	"""
 	if not names:
 		return
 
@@ -89,6 +127,9 @@ def _collect_via_delivery_notes(names, found):
 			FEI,
 			filters={
 				"delivery_note": ("in", list(notes)),
+				"source_doctype": SOURCE_DELIVERY_NOTE_V2,
+				"invoice_type": INVOICE_TYPE_ORIGINAL,
+				"sales_invoice": ("is", "not set"),
 				"status": ("in", DECLARABLE_STATUSES),
 				"fast_invoice_no": ("!=", ""),
 			},

@@ -16,6 +16,7 @@ from frappe import _
 from frappe.utils import getdate, now_datetime
 
 from erpnext.einvoice.actions import ACTION_EXECUTE, FEI, _explain, _mirror_status, _record_error
+from erpnext.einvoice.builder import stamp_source_documents
 from erpnext.einvoice.constants import STATUS_CANCELLED, STATUS_TAX_REJECTED
 from erpnext.einvoice.fast_settings import check_enabled
 from erpnext.einvoice.gateway import call_fast
@@ -79,23 +80,8 @@ def cancel_internally(fei, reason, minute_no=None, minute_date=None, client=None
 		},
 		update_modified=False,
 	)
-	_unlock_delivery_note(doc)
+	# Mở khóa chứng từ nguồn để lập lại hóa đơn: bản sao trên hóa đơn bán mất số
+	# hóa đơn đã hủy, còn bản ghi này vẫn giữ `sales_invoice` làm lịch sử (mục E10).
+	stamp_source_documents(doc.name)
 	doc.add_comment("Comment", _("Đã hủy nội bộ trên Fast. Lý do: {0}").format(reason))
 	return {"ok": True}
-
-
-def _unlock_delivery_note(doc):
-	"""Mở khóa phiếu giao để lập được hóa đơn mới.
-
-	Xóa số hóa đơn nhưng **giữ** liên kết tới chứng từ đã hủy: cần lần lại được
-	lịch sử khi đối chiếu, chỉ là không được để số hóa đơn đã hủy trôi vào bảng
-	kê bán ra.
-	"""
-	if not doc.delivery_note:
-		return
-	frappe.db.set_value(
-		"Delivery Note",
-		doc.delivery_note,
-		{"fast_invoice_no": "", "fast_key_search": "", "fast_einvoice_status": STATUS_CANCELLED},
-		update_modified=False,
-	)

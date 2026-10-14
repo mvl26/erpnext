@@ -12,7 +12,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, getdate, nowdate
 
-from erpnext.einvoice.builder import create_from_delivery_note
+from erpnext.einvoice.builder import create_from_sales_invoice
 from erpnext.einvoice.constants import (
 	STATUS_CUSTOMER_APPROVED,
 	STATUS_DRAFT,
@@ -25,7 +25,7 @@ from erpnext.einvoice.constants import (
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.issue import issue_invoice, parse_issue_result
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.tests.test_fixtures import make_delivery_note
+from erpnext.einvoice.tests.test_fixtures import make_sales_invoice
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -75,8 +75,8 @@ class IssueTestBase(FrappeTestCase):
 	def setUp(self):
 		frappe.db.rollback()
 		configure(token="TOKEN-ABC", token_time=frappe.utils.now_datetime(), auto_download_pdf=0)
-		self.dn = make_delivery_note()
-		self.fei = frappe.get_doc(FEI, create_from_delivery_note(self.dn.name))
+		self.si = make_sales_invoice()
+		self.fei = frappe.get_doc(FEI, create_from_sales_invoice(self.si.name))
 		self._approve()
 
 	def tearDown(self):
@@ -176,13 +176,13 @@ class TestSuccessfulIssuance(IssueTestBase):
 		self.fei.reload()
 		self.assertEqual(self.fei.tax_status, TAX_STATUS_PENDING)
 
-	def test_delivery_note_is_stamped_with_the_invoice_number(self):
+	def test_sales_invoice_is_stamped_with_the_invoice_number(self):
 		issue_invoice(self.fei.name, client=self._client(NOT_FOUND, ISSUE_OK))
 
-		self.dn.reload()
-		self.assertEqual(self.dn.fast_invoice_no, "2")
-		self.assertEqual(self.dn.fast_key_search, "KS-ABC-123")
-		self.assertEqual(self.dn.fast_einvoice_status, STATUS_ISSUED)
+		self.si.reload()
+		self.assertEqual(self.si.fast_invoice_no, "2")
+		self.assertEqual(self.si.fast_key_search, "KS-ABC-123")
+		self.assertEqual(self.si.fast_einvoice_status, STATUS_ISSUED)
 
 	def test_the_decisive_call_is_action_zero_method_310(self):
 		issue_invoice(self.fei.name, client=self._client(NOT_FOUND, ISSUE_OK))

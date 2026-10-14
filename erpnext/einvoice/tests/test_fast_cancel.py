@@ -6,7 +6,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import now_datetime
 
-from erpnext.einvoice.builder import create_from_delivery_note
+from erpnext.einvoice.builder import create_from_sales_invoice
 from erpnext.einvoice.cancel import cancel_internally
 from erpnext.einvoice.constants import (
 	STATUS_CANCELLED,
@@ -17,7 +17,7 @@ from erpnext.einvoice.constants import (
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
 from erpnext.einvoice.tests.test_fast_pdf import sent_payload
-from erpnext.einvoice.tests.test_fixtures import make_delivery_note
+from erpnext.einvoice.tests.test_fixtures import make_sales_invoice
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -28,8 +28,8 @@ class CancelBase(FrappeTestCase):
 	def setUp(self):
 		frappe.db.rollback()
 		configure(token="TOKEN-ABC", token_time=now_datetime())
-		self.dn = make_delivery_note()
-		self.fei = frappe.get_doc(FEI, create_from_delivery_note(self.dn.name))
+		self.si = make_sales_invoice()
+		self.fei = frappe.get_doc(FEI, create_from_sales_invoice(self.si.name))
 		frappe.db.set_value(
 			FEI,
 			self.fei.name,
@@ -41,7 +41,7 @@ class CancelBase(FrappeTestCase):
 				"tax_feedback": "Sai mã số thuế người mua",
 			},
 		)
-		frappe.db.set_value("Delivery Note", self.dn.name, "fast_invoice_no", "2")
+		frappe.db.set_value("Sales Invoice", self.si.name, "fast_invoice_no", "2")
 		self.fei.reload()
 
 	def tearDown(self):
@@ -77,20 +77,22 @@ class TestCancelInternally(CancelBase):
 		self.assertEqual(payload["minuteDate"], "20260808")
 		self.assertTrue(frappe.db.exists(LOG, {"fei_document": self.fei.name, "method": 330}))
 
-	def test_the_delivery_note_is_unlocked_for_a_fresh_invoice(self):
-		"""Mục E10: xóa số HĐĐT trên phiếu giao nhưng GIỮ liên kết lịch sử."""
+	def test_the_sales_invoice_is_unlocked_for_a_fresh_invoice(self):
+		"""Mục E10: xóa số HĐĐT trên hóa đơn bán, còn chứng từ đã hủy GIỮ hóa đơn bán làm lịch sử."""
 		cancel_internally(self.fei.name, reason=REASON, client=self._client(envelope(1, "ok")))
 
-		self.dn.reload()
-		self.assertFalse(self.dn.fast_invoice_no)
-		self.assertEqual(self.dn.fast_einvoice, self.fei.name)
-		self.assertEqual(self.dn.fast_einvoice_status, STATUS_CANCELLED)
+		self.si.reload()
+		self.assertFalse(self.si.fast_invoice_no)
+		self.assertEqual(self.si.fast_einvoice_status, STATUS_CANCELLED)
+		self.assertEqual(frappe.db.get_value(FEI, self.fei.name, "sales_invoice"), self.si.name)
 
-	def test_a_new_invoice_can_be_raised_from_the_same_delivery_note(self):
+	def test_a_new_invoice_can_be_raised_from_the_same_sales_invoice(self):
+		"""Kịch bản K6 #22: hóa đơn lập lại mang Key hậu tố -L2 — Key cũ đã thuộc hóa đơn bị hủy."""
 		cancel_internally(self.fei.name, reason=REASON, client=self._client(envelope(1, "ok")))
 
-		replacement = frappe.get_doc(FEI, create_from_delivery_note(self.dn.name))
-		self.assertNotEqual(replacement.name, self.fei.name)
+		again = frappe.get_doc(FEI, create_from_sales_invoice(self.si.name))
+		self.assertNotEqual(again.name, self.fei.name)
+		self.assertEqual(again.fast_key, f"{self.fei.fast_key}-L2")
 
 	def test_a_fast_error_leaves_the_invoice_as_rejected(self):
 		cancel_internally(

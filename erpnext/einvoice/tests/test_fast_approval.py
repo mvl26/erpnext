@@ -13,7 +13,7 @@ from erpnext.einvoice.actions import (
 	record_customer_feedback,
 	send_draft_to_customer,
 )
-from erpnext.einvoice.builder import create_from_delivery_note
+from erpnext.einvoice.builder import create_from_sales_invoice
 from erpnext.einvoice.constants import (
 	STATUS_AWAITING_CUSTOMER,
 	STATUS_CUSTOMER_APPROVED,
@@ -24,7 +24,7 @@ from erpnext.einvoice.constants import (
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.setup import DRAFT_TEMPLATE, ISSUED_TEMPLATE
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.tests.test_fixtures import make_delivery_note, minimal_pdf_bytes
+from erpnext.einvoice.tests.test_fixtures import make_sales_invoice, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -60,8 +60,8 @@ class TestDraftApprovalCycle(FrappeTestCase):
 	def setUp(self):
 		frappe.db.rollback()
 		configure(token="TOKEN-ABC", token_time=frappe.utils.now_datetime())
-		self.dn = make_delivery_note()
-		self.fei = frappe.get_doc(FEI, create_from_delivery_note(self.dn.name))
+		self.si = make_sales_invoice()
+		self.fei = frappe.get_doc(FEI, create_from_sales_invoice(self.si.name))
 		self.mailbox = Mailbox()
 		self._make_draft_pdf()
 

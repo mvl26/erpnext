@@ -11,13 +11,13 @@ from frappe.utils import add_to_date, getdate, now_datetime, nowdate
 from frappe.utils.file_manager import save_file
 
 from erpnext.einvoice.actions import download_converted_pdf, download_official_pdf, preview_draft
-from erpnext.einvoice.builder import create_from_delivery_note
+from erpnext.einvoice.builder import create_from_sales_invoice
 from erpnext.einvoice.constants import STATUS_CUSTOMER_APPROVED, STATUS_ISSUED
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.folders import ROOT
 from erpnext.einvoice.issue import issue_invoice
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.tests.test_fixtures import attach_official_xml, make_delivery_note, minimal_pdf_bytes
+from erpnext.einvoice.tests.test_fixtures import attach_official_xml, make_sales_invoice, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -32,8 +32,8 @@ class FolderTestBase(FrappeTestCase):
 	def setUp(self):
 		frappe.db.rollback()
 		configure(token="TOKEN-ABC", token_time=now_datetime(), auto_download_pdf=0)
-		self.dn = make_delivery_note()
-		self.fei = frappe.get_doc(FEI, create_from_delivery_note(self.dn.name))
+		self.si = make_sales_invoice()
+		self.fei = frappe.get_doc(FEI, create_from_sales_invoice(self.si.name))
 		# Số hóa đơn ngẫu nhiên: site thật có thể đã có thư mục cho các số nhỏ.
 		self.number = str(int(frappe.generate_hash(length=8), 16))
 		self.expected = f"{ROOT}/2026/08/07/{self.number}"
@@ -93,13 +93,13 @@ class TestOfficialFiles(FolderTestBase):
 		for path in (f"{ROOT}/2026", f"{ROOT}/2026/08", f"{ROOT}/2026/08/07", self.expected):
 			self.assertEqual(frappe.db.get_value("File", path, "is_folder"), 1, path)
 
-	def test_the_delivery_note_copy_sits_in_the_same_folder(self):
+	def test_the_sales_invoice_copy_sits_in_the_same_folder(self):
 		self._issued()
 		download_official_pdf(self.fei.name, client=self._client(pdf()))
 
 		folders = frappe.get_all(
 			"File",
-			filters={"attached_to_doctype": "Delivery Note", "attached_to_name": self.dn.name},
+			filters={"attached_to_doctype": "Sales Invoice", "attached_to_name": self.si.name},
 			pluck="folder",
 		)
 		self.assertEqual(set(folders), {self.expected})

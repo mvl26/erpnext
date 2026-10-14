@@ -409,6 +409,27 @@ function level_two_fields(frm, button) {
 					)}</p>`,
 				},
 			];
+		case "link_sales_invoice":
+			return [
+				{
+					fieldname: "sales_invoice",
+					label: __("Hóa đơn bán"),
+					fieldtype: "Link",
+					options: "Sales Invoice",
+					reqd: 1,
+					get_query: () => ({
+						filters: { docstatus: 1, is_return: 0, customer: frm.doc.customer },
+					}),
+				},
+				{
+					fieldname: "hint",
+					fieldtype: "HTML",
+					options: `<p class="text-muted">${__(
+						"Chỉ gắn được hóa đơn bán lập từ phiếu giao {0}. Key và số hóa đơn giữ nguyên.",
+						[frm.doc.delivery_note]
+					)}</p>`,
+				},
+			];
 		default:
 			return [];
 	}
