@@ -351,6 +351,37 @@ erpnext.warehouse_operations.tem_lo = (function () {
 		};
 	}
 
+	/** Cỡ chữ F1 (mã hàng) VỪA hàng R1: giữ `KHO.co.f1` (11pt) cho mã ngắn,
+	 * mã dài thì hạ từng 0,5pt tới khi đủ chỗ, sàn `F1_NHO_NHAT`.
+	 *
+	 * Ở 11pt đậm, mã 22 ký tự cần ~55mm mà R1 chỉ có 47,0mm (trừ cả F3) → mã
+	 * bị cắt "…" (báo lỗi 14/10/2026, mã item 22 ký tự). Hạ cỡ chỉ làm
+	 * chữ NHỎ đi trong hàng cao cố định 4,32mm nên không đụng ngân sách 27,0mm.
+	 *
+	 * Đo bằng canvas, cùng phông với `.tem` (Arial đậm). Chừa `F1_DU_MM` cho
+	 * sai số làm tròn giữa canvas và bố cục thật. Sàn 5pt = cỡ F11 (số lô dưới
+	 * mã vạch), cỡ nhỏ nhất đã dùng trên tem; nhỏ hơn nữa đầu in
+	 * 203 dpi làm nhoè nét chữ đậm — mã quá dài so với sàn thì vẫn cắt "…".
+	 */
+	const F1_NHO_NHAT = 5;
+	const F1_DU_MM = 0.5;
+	const PX_MOI_MM = 96 / 25.4;
+	let _but_do = null;
+	function rong_chu_mm(chu, co_pt, dam) {
+		if (!chu) return 0;
+		_but_do = _but_do || document.createElement("canvas").getContext("2d");
+		_but_do.font = `${dam ? "700 " : ""}${co_pt}pt Arial, Helvetica, sans-serif`;
+		return _but_do.measureText(String(chu)).width / PX_MOI_MM;
+	}
+	function co_f1_vua(o) {
+		// F3 lấy đúng phần nó chiếm: bề rộng chữ + margin-left 1,5mm (.f3).
+		const f3 = o.F3 ? rong_chu_mm(o.F3, KHO.co.f3, false) + 1.5 : 0;
+		const cho = KHO.rong - 2 * KHO.le - f3 - F1_DU_MM;
+		let co = KHO.co.f1;
+		while (co > F1_NHO_NHAT && rong_chu_mm(o.F1, co, true) > cho) co -= 0.5;
+		return co;
+	}
+
 	/** HTML của MỘT con tem. `o` là một dòng `nhap_lo.du_lieu_tem` trả về.
 	 *
 	 * DỮ LIỆU VÀO LÀ KHOÁ CHỮ HOA `F1`…`F11`, và ĐÃ ĐỊNH DẠNG SẴN: `F5` đã là
@@ -389,8 +420,10 @@ erpnext.warehouse_operations.tem_lo = (function () {
 	 * F11 vẫn in nguyên số lô ngay dưới — đó chính là thứ người ta sẽ gõ tay.
 	 */
 	function ve_tem(o, hinh_vach) {
+		const co_f1 = co_f1_vua(o);
+		const kieu_f1 = co_f1 < KHO.co.f1 ? ` style="font-size:${co_f1}pt"` : "";
 		return `<div class="tem">
-	<div class="hang h1"><span class="f1">${esc(o.F1)}</span><span class="f3">${esc(o.F3)}</span></div>
+	<div class="hang h1"><span class="f1"${kieu_f1}>${esc(o.F1)}</span><span class="f3">${esc(o.F3)}</span></div>
 	<div class="hang h2"><span class="f2">${esc(o.F2)}</span></div>
 	<div class="hang h3"><span class="f4">${esc(o.F4)}</span></div>
 	<div class="giua">

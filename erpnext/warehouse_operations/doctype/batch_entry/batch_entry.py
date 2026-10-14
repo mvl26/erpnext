@@ -30,6 +30,8 @@ nhánh nào — đừng viết mã dựa trên nó. Thứ ràng buộc là KẾT
 và bài test khoá đúng kết quả đó.
 """
 
+import re
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -51,6 +53,25 @@ def _sinh_so_goi() -> str:
 	bớt số.
 	"""
 	return make_autoname(_SERIES_SO_GOI).removeprefix("SOGOI-")
+
+
+def _so_goi_tu_phieu_nhap(phieu_nhap: str) -> str:
+	"""Số gọi = phần SỐ CUỐI của tên phiếu nhập: `MAT-PRE-2026-00027` -> `00027`.
+
+	Chủ đầu tư chốt 14/10/2026: số gọi phải là số của phiếu nhập, để thủ kho
+	đọc số trên tem là biết hàng về theo phiếu nào. Mọi lô của CÙNG một phiếu
+	nhập vì thế mang chung một số gọi; hai phiếu khác nhau thì khác số.
+
+	Giữ nguyên số 0 đứng đầu — đó là đúng chuỗi in trên phiếu nhập. Phiếu sửa
+	(`amended_from`) mang hậu tố `-1`, `-2`… sau số gốc: bỏ hậu tố đó để số gọi
+	vẫn là số của phiếu gốc. Tên không kết thúc bằng chữ số (series tuỳ biến
+	lạ) thì lui về bộ đếm cũ `_sinh_so_goi` chứ không để trống ô to nhất trên tem.
+	"""
+	goc = phieu_nhap
+	if frappe.db.get_value("Purchase Receipt", phieu_nhap, "amended_from"):
+		goc = phieu_nhap.rsplit("-", 1)[0]
+	m = re.search(r"(\d+)$", goc)
+	return m.group(1) if m else _sinh_so_goi()
 
 
 class BatchEntry(Document):
@@ -210,7 +231,7 @@ class BatchEntry(Document):
 					lo.set(truong, gia_tri)
 					doi = True
 			if not lo.custom_so_goi:
-				lo.custom_so_goi = _sinh_so_goi()
+				lo.custom_so_goi = _so_goi_tu_phieu_nhap(self.phieu_nhap)
 				doi = True
 			if doi:
 				lo.save(ignore_permissions=True)
@@ -226,7 +247,7 @@ class BatchEntry(Document):
 				"supplier": self.nha_cung_cap,
 				"reference_doctype": "Purchase Receipt",
 				"reference_name": self.phieu_nhap,
-				"custom_so_goi": _sinh_so_goi(),
+				"custom_so_goi": _so_goi_tu_phieu_nhap(self.phieu_nhap),
 			}
 		).insert(ignore_permissions=True)
 
