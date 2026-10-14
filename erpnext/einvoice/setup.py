@@ -1,6 +1,10 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Dựng custom field trên Delivery Note (mục C5) và hai Role của Giai đoạn 2.
+"""Dựng custom field trên Sales Invoice (mục C5), hai Role của Giai đoạn 2, hai mẫu email.
+
+Từ bản 3.0 hóa đơn lập từ Sales Invoice. Bảy custom field trên Delivery Note của
+bản 2.0 vẫn được dựng nhưng **ẩn**: sáu hóa đơn đã phát hành theo bản 2.0 vẫn
+ghi bản sao vào đó, xóa đi là mất dấu.
 
 Chạy được nhiều lần: gọi lại không nhân đôi trường hay quyền. Được gọi từ patch
 (cho site đang chạy) và từ VN company setup (cho công ty mới).
@@ -17,11 +21,21 @@ from erpnext.einvoice.constants import STATUSES
 ROLE_STAFF = "Kế toán HĐĐT"
 ROLE_CHIEF = "Kế toán trưởng HĐĐT"
 
-DELIVERY_NOTE_STATUS_OPTIONS = "\n".join(("", *STATUSES))
+EINVOICE_STATUS_OPTIONS = "\n".join(("", *STATUSES))
 
 
 DRAFT_TEMPLATE = "Fast HĐĐT - Bản nháp gửi khách"
 ISSUED_TEMPLATE = "Fast HĐĐT - Hóa đơn chính thức"
+
+# Mẫu email nêu chứng từ nguồn: hóa đơn bán, hoặc phiếu giao với bản ghi bản 2.0.
+_SOURCE_REF = "{{ doc.sales_invoice or doc.delivery_note }}"
+_SOURCE_PHRASE = "{% if doc.sales_invoice %}hóa đơn bán{% else %}phiếu giao{% endif %}"
+
+# Các đoạn của mẫu bản 2.0 và đoạn thay thế — chỉ dùng để nâng mẫu đã có trên site.
+_V2_SNIPPETS = (
+	("cho phiếu giao\n<b>{{ doc.delivery_note }}</b>", f"cho {_SOURCE_PHRASE}\n<b>{_SOURCE_REF}</b>"),
+	("{{ doc.delivery_note }}", _SOURCE_REF),
+)
 
 # Mẫu email hóa đơn chính thức: dòng mã tra cứu, và dòng link công khai tới PDF
 # chèn ngay sau nó. Mẫu đã tạo trên site từ trước được chèn thêm dòng link khi
@@ -34,6 +48,7 @@ _LINK_ROW = (
 
 
 def setup_einvoice():
+	_make_sales_invoice_fields()
 	_make_delivery_note_fields()
 	_make_roles()
 	_grant_permissions()
@@ -50,10 +65,10 @@ def _make_email_templates():
 	templates = (
 		(
 			DRAFT_TEMPLATE,
-			"[BẢN NHÁP hóa đơn] {{ doc.delivery_note }} — Miyano Việt Nam",
+			"[BẢN NHÁP hóa đơn] {{ doc.sales_invoice or doc.delivery_note }} — Miyano Việt Nam",
 			"""<p>Kính gửi Quý khách,</p>
-<p>Công ty TNHH Miyano Việt Nam xin gửi <b>BẢN NHÁP</b> hóa đơn cho phiếu giao
-<b>{{ doc.delivery_note }}</b> để Quý khách kiểm tra thông tin: tên đơn vị, mã số thuế,
+<p>Công ty TNHH Miyano Việt Nam xin gửi <b>BẢN NHÁP</b> hóa đơn cho {% if doc.sales_invoice %}hóa đơn bán{% else %}phiếu giao{% endif %}
+<b>{{ doc.sales_invoice or doc.delivery_note }}</b> để Quý khách kiểm tra thông tin: tên đơn vị, mã số thuế,
 địa chỉ, tên hàng, số lượng, đơn giá và thuế suất.</p>
 <table cellpadding="4">
 <tr><td>Đơn vị mua</td><td><b>{{ doc.customer_name }}</b></td></tr>
@@ -74,8 +89,8 @@ chính thức và gửi lại.</p>
 			ISSUED_TEMPLATE,
 			"[Hóa đơn điện tử] Số {{ doc.fast_invoice_no }} — Miyano Việt Nam",
 			"""<p>Kính gửi Quý khách,</p>
-<p>Công ty TNHH Miyano Việt Nam xin gửi hóa đơn điện tử cho phiếu giao
-<b>{{ doc.delivery_note }}</b>.</p>
+<p>Công ty TNHH Miyano Việt Nam xin gửi hóa đơn điện tử cho {% if doc.sales_invoice %}hóa đơn bán{% else %}phiếu giao{% endif %}
+<b>{{ doc.sales_invoice or doc.delivery_note }}</b>.</p>
 <table cellpadding="4">
 <tr><td>Số hóa đơn</td><td><b>{{ doc.fast_invoice_no }}</b></td></tr>
 <tr><td>Ký hiệu</td><td>{{ doc.fast_serial }}</td></tr>
@@ -96,6 +111,7 @@ cứu hóa đơn trên cổng của nhà cung cấp dịch vụ hóa đơn đi�
 		if frappe.db.exists("Email Template", name):
 			if name == ISSUED_TEMPLATE:
 				_add_public_link_row(name)
+			_retarget_to_sales_invoice(name)
 			continue
 		doc = frappe.get_doc(
 			{
@@ -109,6 +125,28 @@ cứu hóa đơn trên cổng của nhà cung cấp dịch vụ hóa đơn đi�
 		)
 		doc.flags.ignore_permissions = True
 		doc.insert()
+
+
+def _retarget_to_sales_invoice(name):
+	"""Mẫu đã tạo theo bản 2.0 nêu số phiếu giao: bản ghi mới không có phiếu giao nên tiêu đề ra trống.
+
+	Chỉ thay đúng các đoạn của mẫu gốc. Đoạn nào đã bị sửa tay thì để nguyên —
+	không đoán chỗ sửa trong nội dung người khác viết; kiểm tra tay mẫu trên site
+	sau khi triển khai (mục K7).
+	"""
+	template = frappe.get_doc("Email Template", name)
+	changed = False
+	for fieldname in ("subject", "response_html", "response"):
+		value = template.get(fieldname) or ""
+		updated = value
+		for old, new in _V2_SNIPPETS:
+			updated = updated.replace(old, new)
+		if updated != value:
+			template.set(fieldname, updated)
+			changed = True
+	if changed:
+		template.flags.ignore_permissions = True
+		template.save()
 
 
 def _add_public_link_row(name):
@@ -129,8 +167,85 @@ def _add_public_link_row(name):
 	template.save()
 
 
+def _make_sales_invoice_fields():
+	"""Mục C5 — bản sao số hóa đơn / trạng thái HĐĐT trên hóa đơn bán, chỉ để hiển thị.
+
+	Ba ràng buộc, mỗi cái sinh từ một lỗi đã mắc ở bản 2.0:
+
+	- **Không có Link trỏ ngược** về `Fast EInvoice Document`: hai Link trỏ vòng
+	  vào nhau từng làm không xóa được bản nháp, không hủy được chứng từ nguồn.
+	  Liên kết hiện qua mục Connections của hóa đơn bán.
+	- **`no_copy` ở mọi trường**: lõi chép mọi trường trùng tên khi lập hóa đơn
+	  bán từ phiếu giao, lập hóa đơn trả hàng hay sửa lại (amend).
+	- **Chỉ để hiển thị**: bản sao có thể trôi, không báo cáo nào đọc nó.
+	"""
+	create_custom_fields(
+		{
+			"Sales Invoice": [
+				dict(
+					fieldname="fast_einvoice_section",
+					fieldtype="Section Break",
+					label="Hóa đơn điện tử",
+					insert_after="amended_from",
+					collapsible=1,
+					depends_on="eval:doc.docstatus > 0",
+				),
+				dict(
+					fieldname="fast_invoice_no",
+					fieldtype="Data",
+					label="Số HĐĐT",
+					insert_after="fast_einvoice_section",
+					read_only=1,
+					no_copy=1,
+					in_standard_filter=1,
+				),
+				dict(
+					fieldname="fast_einvoice_status",
+					fieldtype="Select",
+					label="Trạng thái HĐĐT",
+					options=EINVOICE_STATUS_OPTIONS,
+					insert_after="fast_invoice_no",
+					read_only=1,
+					no_copy=1,
+					in_standard_filter=1,
+				),
+				dict(
+					fieldname="fast_einvoice_column",
+					fieldtype="Column Break",
+					insert_after="fast_einvoice_status",
+				),
+				dict(
+					fieldname="fast_key_search",
+					fieldtype="Data",
+					label="Mã tra cứu",
+					insert_after="fast_einvoice_column",
+					read_only=1,
+					no_copy=1,
+					hidden=1,
+					description="Bản sao dự phòng của keySearch, phòng khi chứng từ HĐĐT bị xóa.",
+				),
+				dict(
+					fieldname="fast_einvoice_pdf_url",
+					fieldtype="Data",
+					options="URL",
+					label="Link xem hóa đơn",
+					insert_after="fast_key_search",
+					read_only=1,
+					no_copy=1,
+					description="Link công khai tới PDF hóa đơn chính thức — gửi được cho khách.",
+				),
+			]
+		},
+		update=True,
+	)
+
+
 def _make_delivery_note_fields():
-	"""Mục C5 — bản sao trạng thái HĐĐT ngay trên phiếu giao hàng."""
+	"""Bảy trường của bản 2.0 trên phiếu giao — **ẩn, không xóa** (mục C5, K4 #6).
+
+	Sáu hóa đơn đã phát hành theo bản 2.0 vẫn ghi bản sao vào đây. Phiếu giao chỉ
+	hiển thị trạng thái suy ra qua hóa đơn bán (`form_state.get_delivery_note_state`).
+	"""
 	create_custom_fields(
 		{
 			"Delivery Note": [
@@ -140,6 +255,7 @@ def _make_delivery_note_fields():
 					label="Hóa đơn điện tử",
 					insert_after="is_return",
 					collapsible=1,
+					hidden=1,
 				),
 				dict(
 					fieldname="fast_einvoice",
@@ -149,6 +265,7 @@ def _make_delivery_note_fields():
 					insert_after="fast_einvoice_section",
 					read_only=1,
 					no_copy=1,
+					hidden=1,
 				),
 				dict(
 					fieldname="fast_invoice_no",
@@ -157,22 +274,23 @@ def _make_delivery_note_fields():
 					insert_after="fast_einvoice",
 					read_only=1,
 					no_copy=1,
-					in_standard_filter=1,
+					hidden=1,
 				),
 				dict(
 					fieldname="fast_einvoice_column",
 					fieldtype="Column Break",
 					insert_after="fast_invoice_no",
+					hidden=1,
 				),
 				dict(
 					fieldname="fast_einvoice_status",
 					fieldtype="Select",
 					label="Trạng thái HĐĐT",
-					options=DELIVERY_NOTE_STATUS_OPTIONS,
+					options=EINVOICE_STATUS_OPTIONS,
 					insert_after="fast_einvoice_column",
 					read_only=1,
 					no_copy=1,
-					in_standard_filter=1,
+					hidden=1,
 				),
 				dict(
 					fieldname="fast_key_search",
@@ -192,7 +310,7 @@ def _make_delivery_note_fields():
 					insert_after="fast_key_search",
 					read_only=1,
 					no_copy=1,
-					description="Link công khai tới PDF hóa đơn chính thức — gửi được cho khách.",
+					hidden=1,
 				),
 			]
 		},

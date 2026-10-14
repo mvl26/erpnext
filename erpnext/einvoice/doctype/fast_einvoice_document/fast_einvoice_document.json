@@ -8,8 +8,9 @@
  "engine": "InnoDB",
  "field_order": [
   "link_section",
-  "delivery_note",
+  "source_doctype",
   "sales_invoice",
+  "delivery_note",
   "customer",
   "column_break_link",
   "status",
@@ -129,23 +130,38 @@
    "label": "Liên kết"
   },
   {
-   "fieldname": "delivery_note",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Phiếu giao hàng",
-   "options": "Delivery Note",
+   "fieldname": "source_doctype",
+   "fieldtype": "Select",
+   "label": "Loại chứng từ nguồn",
+   "options": "Sales Invoice\nDelivery Note (v2)",
    "reqd": 1,
-   "search_index": 1,
    "read_only": 1,
-   "no_copy": 1
+   "description": "Đặt một lần lúc tạo, không sửa được."
   },
   {
    "fieldname": "sales_invoice",
    "fieldtype": "Link",
    "label": "Hóa đơn bán (ERP)",
    "options": "Sales Invoice",
-   "read_only_depends_on": "eval:doc.is_edit_locked",
-   "no_copy": 1
+   "no_copy": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "search_index": 1,
+   "mandatory_depends_on": "eval:doc.source_doctype=='Sales Invoice'",
+   "description": "Chứng từ nguồn của hóa đơn gốc (bản 3.0). Một hóa đơn bán có thể gồm nhiều phiếu giao."
+  },
+  {
+   "fieldname": "delivery_note",
+   "fieldtype": "Link",
+   "in_list_view": 0,
+   "label": "Phiếu giao hàng",
+   "options": "Delivery Note",
+   "search_index": 1,
+   "read_only": 1,
+   "no_copy": 1,
+   "depends_on": "eval:doc.delivery_note",
+   "description": "Chỉ có ở bản ghi lập theo bản 2.0 (nguồn phiếu giao)."
   },
   {
    "fieldname": "customer",
@@ -921,7 +937,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 0,
  "links": [],
- "modified": "2026-09-24 16:02:22.961238",
+ "modified": "2026-10-14 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Einvoice",
  "name": "Fast EInvoice Document",
@@ -940,11 +956,11 @@
    "write": 1
   }
  ],
- "search_fields": "delivery_note,customer,fast_invoice_no,status",
+ "search_fields": "sales_invoice,delivery_note,customer,fast_invoice_no,status",
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [],
- "title_field": "delivery_note",
+ "title_field": "sales_invoice",
  "track_changes": 1,
  "allow_copy": 1
 }

@@ -35,5 +35,8 @@ def get_data():
 			{"label": _("Returns"), "items": ["Sales Invoice"]},
 			{"label": _("Subscription"), "items": ["Auto Repeat"]},
 			{"label": _("Internal Transfers"), "items": ["Purchase Invoice"]},
+			# Liên kết hóa đơn bán ↔ chứng từ HĐĐT đi qua đây, không qua một Link trỏ
+			# ngược (đặc tả Fast bản 3.0, mục C5).
+			{"label": _("Hóa đơn điện tử"), "items": ["Fast EInvoice Document"]},
 		],
 	}

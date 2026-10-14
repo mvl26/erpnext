@@ -21,7 +21,7 @@ from erpnext.einvoice.actions import (
 	send_draft_to_customer,
 	send_invoice_to_customer,
 )
-from erpnext.einvoice.builder import create_from_delivery_note, resync_from_delivery_note
+from erpnext.einvoice.builder import create_from_sales_invoice, resync_from_source
 from erpnext.einvoice.constants import (
 	STATUS_ADJUSTED,
 	STATUS_AWAITING_CUSTOMER,
@@ -40,7 +40,7 @@ from erpnext.einvoice.reconcile import reconcile_invoice
 from erpnext.einvoice.tax_status import check_tax_status
 from erpnext.einvoice.tests.test_fast_approval import Mailbox
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.tests.test_fixtures import attach_official_xml, make_delivery_note, minimal_pdf_bytes
+from erpnext.einvoice.tests.test_fixtures import attach_official_xml, make_sales_invoice, minimal_pdf_bytes
 
 FEI = "Fast EInvoice Document"
 
@@ -59,8 +59,8 @@ class EndToEndBase(FrappeTestCase):
 		frappe.db.rollback()
 		configure(token="TOKEN-ABC", token_time=now_datetime(), auto_download_pdf=0)
 		self.mailbox = Mailbox()
-		self.dn = make_delivery_note()
-		self.fei = create_from_delivery_note(self.dn.name)
+		self.si = make_sales_invoice()
+		self.fei = create_from_sales_invoice(self.si.name)
 
 	def tearDown(self):
 		frappe.db.rollback()
@@ -122,7 +122,7 @@ class TestScenario9DraftRevisionCycle(EndToEndBase):
 		self.draft_round()
 		record_customer_feedback(self.fei, "Sửa tên đơn vị mua giúp anh")
 
-		resync_from_delivery_note(self.fei)
+		resync_from_source(self.fei)
 		self.assertEqual(frappe.db.get_value(FEI, self.fei, "revision_count"), 1)
 
 	def test_the_feedback_history_survives_the_whole_cycle(self):
@@ -139,7 +139,7 @@ class TestScenario9DraftRevisionCycle(EndToEndBase):
 class TestScenario1HappyPath(EndToEndBase):
 	"""Kịch bản 1: khách doanh nghiệp có MST, VAT 10% — trọn đường tới CQT."""
 
-	def test_from_delivery_note_to_tax_office_acceptance(self):
+	def test_from_sales_invoice_to_tax_office_acceptance(self):
 		self.draft_round()
 		mark_customer_approved(self.fei, approved_by="Chị Lan", channel="Email")
 		issue_invoice(self.fei, client=self.client(NOT_FOUND, ISSUE_OK))
@@ -154,14 +154,14 @@ class TestScenario1HappyPath(EndToEndBase):
 		check_tax_status(self.fei, client=self.client(self.tax_ok()))
 		self.assertEqual(self.status(), STATUS_TAX_ACCEPTED)
 
-	def test_the_delivery_note_mirrors_the_final_state(self):
+	def test_the_sales_invoice_mirrors_the_final_state(self):
 		self.draft_round()
 		mark_customer_approved(self.fei, approved_by="Chị Lan", channel="Email")
 		issue_invoice(self.fei, client=self.client(NOT_FOUND, ISSUE_OK))
 
-		self.dn.reload()
-		self.assertEqual(self.dn.fast_invoice_no, "2")
-		self.assertEqual(self.dn.fast_einvoice, self.fei)
+		self.si.reload()
+		self.assertEqual(self.si.fast_invoice_no, "2")
+		self.assertEqual(self.si.fast_einvoice_status, STATUS_ISSUED)
 
 
 class TestScenario7NetworkCutMidIssue(EndToEndBase):

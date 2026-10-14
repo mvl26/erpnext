@@ -31,6 +31,9 @@ email_css = "email_erpnext.bundle.css"
 
 doctype_js = {
 	"Address": "public/js/address.js",
+	# Hóa đơn điện tử (đặc tả Fast bản 3.0): nút tạo nằm trên hóa đơn bán — chứng
+	# từ nguồn duy nhất. Phiếu giao chỉ còn phần xem, không có nút tạo.
+	"Sales Invoice": "public/js/einvoice/sales_invoice.js",
 	"Delivery Note": [
 		"public/js/einvoice/delivery_note.js",
 		"public/js/warehouse_operations/delivery_note.js",
@@ -466,8 +469,12 @@ doc_events = {
 			"erpnext.regional.create_transaction_log",
 			"erpnext.regional.italy.utils.sales_invoice_on_submit",
 		],
+		# Hóa đơn điện tử (mục E1.1): chặn hủy hóa đơn bán khi hóa đơn đã (hoặc có
+		# thể đã) tiêu số thật; bản nháp chưa phát hành thì không được khóa việc hủy.
+		"before_cancel": "erpnext.einvoice.builder.before_sales_invoice_cancel",
 		"on_cancel": [
 			"erpnext.regional.italy.utils.sales_invoice_on_cancel",
+			"erpnext.einvoice.builder.on_sales_invoice_cancel",
 		],
 		"on_trash": "erpnext.regional.check_deletion_permission",
 	},
@@ -497,9 +504,10 @@ doc_events = {
 	"Integration Request": {
 		"validate": "erpnext.accounts.doctype.payment_request.payment_request.validate_payment"
 	},
-	# Chứng từ HĐĐT trỏ tới phiếu giao bằng một Link, nên mặc định Frappe từ chối
-	# hủy phiếu giao khi còn bất kỳ chứng từ nào trỏ tới — kể cả bản nháp. Hook này
-	# chỉ chặn khi hóa đơn đã thật sự tiêu số, và nói rõ vì sao.
+	# Chứng từ HĐĐT bản 2.0 trỏ tới phiếu giao bằng một Link, nên mặc định Frappe
+	# từ chối hủy phiếu giao khi còn bất kỳ chứng từ nào trỏ tới — kể cả bản nháp.
+	# Hook này chỉ chặn khi hóa đơn đã thật sự tiêu số, và nói rõ vì sao. Từ bản
+	# 3.0 chỉ còn bảo vệ phiếu giao của các hóa đơn lập theo bản 2.0.
 	"Delivery Note": {
 		"validate": "erpnext.warehouse_operations.vitri.lay_hang.kiem_phan_bo_khi_luu",
 		"before_submit": "erpnext.warehouse_operations.vitri.lay_hang.chan_duyet_chua_lay",

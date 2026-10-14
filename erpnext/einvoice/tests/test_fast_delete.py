@@ -1,10 +1,12 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Xóa chứng từ HĐĐT và hủy phiếu giao — gỡ vòng tham chiếu.
+"""Xóa chứng từ HĐĐT và hủy chứng từ nguồn — gỡ vòng tham chiếu.
 
-`Fast EInvoice Document.delivery_note` và custom field `Delivery Note.fast_einvoice`
-là hai Link trỏ vòng vào nhau, còn `Fast EInvoice Log.fei_document` là mắt xích
-thứ ba. Mặc định Frappe từ chối xóa **cả ba** đầu, không lối ra nào ngoài `force`.
+Bản ghi bản 2.0: `Fast EInvoice Document.delivery_note` và custom field
+`Delivery Note.fast_einvoice` là hai Link trỏ vòng vào nhau, còn
+`Fast EInvoice Log.fei_document` là mắt xích thứ ba. Mặc định Frappe từ chối xóa
+**cả ba** đầu, không lối ra nào ngoài `force`. Bản 3.0 không dựng lại vòng đó trên
+Sales Invoice (không có Link trỏ ngược) — lớp test cuối file khóa việc này.
 
 Ranh giới đúng không nằm ở "có ai trỏ tới không" mà ở **hóa đơn đã tiêu số thật
 hay chưa**: chưa phát hành thì xóa/hủy thoải mái, đã phát hành thì chặn kèm lời
@@ -14,11 +16,11 @@ giải thích và lối đi đúng.
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from erpnext.einvoice.builder import create_from_delivery_note
+from erpnext.einvoice.builder import create_from_sales_invoice
 from erpnext.einvoice.constants import STATUS_DRAFT, STATUS_ISSUED, STATUS_TAX_ACCEPTED
 from erpnext.einvoice.tests.test_fast_client import configure
 from erpnext.einvoice.tests.test_fast_log import make_log
-from erpnext.einvoice.tests.test_fixtures import make_delivery_note
+from erpnext.einvoice.tests.test_fixtures import make_delivery_note, make_legacy_fei, make_sales_invoice
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -29,8 +31,9 @@ class DeleteBase(FrappeTestCase):
 	def setUp(self):
 		frappe.db.rollback()
 		configure()
+		# Vòng Link hai chiều chỉ còn ở bản ghi bản 2.0 (nguồn phiếu giao).
 		self.dn = make_delivery_note()
-		self.fei = create_from_delivery_note(self.dn.name)
+		self.fei = make_legacy_fei(self.dn.name)
 
 	def tearDown(self):
 		frappe.db.rollback()
@@ -227,5 +230,33 @@ class TestAnIssuedInvoiceIsNeverDuplicated(DeleteBase):
 		self._smuggle_in_a_copy(source)
 		make_log(fei_document=self.fei, action=0, method=310, status="Thành công")
 
+		with self.assertRaises(frappe.PermissionError):
+			frappe.delete_doc(FEI, self.fei)
+
+
+class TestDeletingASalesInvoiceDraft(FrappeTestCase):
+	"""Bản 3.0: hóa đơn bán không trỏ ngược về chứng từ HĐĐT, nên không còn vòng nào để gỡ."""
+
+	def setUp(self):
+		frappe.db.rollback()
+		configure()
+		self.si = make_sales_invoice()
+		self.fei = create_from_sales_invoice(self.si.name)
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def test_a_draft_deletes_and_clears_the_copy_on_the_sales_invoice(self):
+		frappe.delete_doc(FEI, self.fei)
+
+		self.assertFalse(frappe.db.exists(FEI, self.fei))
+		self.assertFalse(frappe.db.get_value("Sales Invoice", self.si.name, "fast_einvoice_status"))
+
+	def test_after_deleting_a_new_draft_can_be_raised(self):
+		frappe.delete_doc(FEI, self.fei)
+		self.assertTrue(create_from_sales_invoice(self.si.name))
+
+	def test_an_issued_invoice_cannot_be_deleted(self):
+		frappe.db.set_value(FEI, self.fei, {"status": STATUS_ISSUED, "fast_invoice_no": "7"})
 		with self.assertRaises(frappe.PermissionError):
 			frappe.delete_doc(FEI, self.fei)

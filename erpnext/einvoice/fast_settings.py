@@ -40,6 +40,7 @@ def get_settings():
 			"auto_poll_tax_status": bool(doc.auto_poll_tax_status),
 			"draft_email_template": doc.draft_email_template,
 			"issued_email_template": doc.issued_email_template,
+			"vat_declaration_period": doc.get("vat_declaration_period") or "Quý",
 			"token": doc.token,
 			"token_time": doc.token_time,
 			"api_password": doc.get_password("api_password", raise_exception=False) or "",

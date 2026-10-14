@@ -6,7 +6,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_to_date, now_datetime, nowdate
 
-from erpnext.einvoice.builder import create_from_delivery_note
+from erpnext.einvoice.builder import create_from_sales_invoice
 from erpnext.einvoice.constants import (
 	STATUS_ERROR,
 	STATUS_ISSUED,
@@ -16,12 +16,19 @@ from erpnext.einvoice.constants import (
 )
 from erpnext.einvoice.report.doi_soat_hoa_don_dien_tu.doi_soat_hoa_don_dien_tu import (
 	ISSUE_ERROR,
+	ISSUE_NOT_BILLED,
 	ISSUE_NOT_INVOICED,
 	ISSUE_TAX_OVERDUE,
 	execute,
 )
 from erpnext.einvoice.tests.test_fast_client import configure
-from erpnext.einvoice.tests.test_fixtures import COMPANY, make_delivery_note
+from erpnext.einvoice.tests.test_fixtures import (
+	COMPANY,
+	make_delivery_note,
+	make_legacy_fei,
+	make_sales_invoice,
+	make_sales_invoice_from_delivery_note,
+)
 
 FEI = "Fast EInvoice Document"
 
@@ -55,25 +62,52 @@ class TestReconciliationReport(FrappeTestCase):
 
 	# --- Chưa xuất hóa đơn -------------------------------------------------
 
-	def test_a_delivery_note_without_an_invoice_is_listed(self):
-		dn = make_delivery_note()
-		self.assertIn(dn.name, [r["delivery_note"] for r in rows_of(ISSUE_NOT_INVOICED)])
+	def test_a_sales_invoice_without_an_einvoice_is_listed(self):
+		si = make_sales_invoice()
+		self.assertIn(si.name, [r["sales_invoice"] for r in rows_of(ISSUE_NOT_INVOICED)])
 
-	def test_a_delivery_note_with_a_live_invoice_drops_off(self):
-		dn = make_delivery_note()
-		create_from_delivery_note(dn.name)
-		self.assertNotIn(dn.name, [r["delivery_note"] for r in rows_of(ISSUE_NOT_INVOICED)])
+	def test_a_sales_invoice_with_a_live_einvoice_drops_off(self):
+		si = make_sales_invoice()
+		create_from_sales_invoice(si.name)
+		self.assertNotIn(si.name, [r["sales_invoice"] for r in rows_of(ISSUE_NOT_INVOICED)])
 
-	def test_a_return_note_is_never_flagged_as_uninvoiced(self):
+	def test_an_opening_sales_invoice_is_never_flagged(self):
+		"""Số dư đầu kỳ đã có hóa đơn ở hệ thống cũ — không phải việc phải dọn."""
+		si = make_sales_invoice()
+		frappe.db.set_value("Sales Invoice", si.name, "is_opening", "Yes")
+		self.assertNotIn(si.name, [r["sales_invoice"] for r in rows_of(ISSUE_NOT_INVOICED)])
+
+	def test_a_sale_invoiced_under_v2_is_not_flagged(self):
+		dn = make_delivery_note()
+		make_legacy_fei(dn.name)
+		si = make_sales_invoice_from_delivery_note(dn.name)
+		self.assertNotIn(si.name, [r["sales_invoice"] for r in rows_of(ISSUE_NOT_INVOICED)])
+
+	# --- Đã giao, chưa lập hóa đơn bán -------------------------------------
+
+	def test_a_delivery_note_without_a_sales_invoice_is_listed(self):
+		dn = make_delivery_note()
+		self.assertIn(dn.name, [r["delivery_note"] for r in rows_of(ISSUE_NOT_BILLED)])
+
+	def test_a_billed_delivery_note_drops_off(self):
+		dn = make_delivery_note()
+		make_sales_invoice_from_delivery_note(dn.name)
+		self.assertNotIn(dn.name, [r["delivery_note"] for r in rows_of(ISSUE_NOT_BILLED)])
+
+	def test_a_delivery_note_invoiced_under_v2_is_not_flagged(self):
+		dn = make_delivery_note()
+		make_legacy_fei(dn.name)
+		self.assertNotIn(dn.name, [r["delivery_note"] for r in rows_of(ISSUE_NOT_BILLED)])
+
+	def test_a_return_note_is_never_flagged(self):
 		"""Phiếu trả hàng không lập hóa đơn trực tiếp — không phải việc phải dọn."""
 		returned = make_delivery_note(is_return=True)
-		self.assertNotIn(returned.name, [r["delivery_note"] for r in rows_of(ISSUE_NOT_INVOICED)])
+		self.assertNotIn(returned.name, [r["delivery_note"] for r in rows_of(ISSUE_NOT_BILLED)])
 
 	# --- Chờ CQT quá 24 giờ ------------------------------------------------
 
 	def test_an_invoice_waiting_over_a_day_is_flagged(self):
-		dn = make_delivery_note()
-		fei = create_from_delivery_note(dn.name)
+		fei = create_from_sales_invoice(make_sales_invoice().name)
 		frappe.db.set_value(
 			FEI,
 			fei,
@@ -87,8 +121,7 @@ class TestReconciliationReport(FrappeTestCase):
 		self.assertIn(fei, [r["fei_document"] for r in rows_of(ISSUE_TAX_OVERDUE)])
 
 	def test_a_freshly_issued_invoice_is_not_flagged_yet(self):
-		dn = make_delivery_note()
-		fei = create_from_delivery_note(dn.name)
+		fei = create_from_sales_invoice(make_sales_invoice().name)
 		frappe.db.set_value(
 			FEI,
 			fei,
@@ -97,8 +130,7 @@ class TestReconciliationReport(FrappeTestCase):
 		self.assertNotIn(fei, [r["fei_document"] for r in rows_of(ISSUE_TAX_OVERDUE)])
 
 	def test_an_accepted_invoice_is_not_flagged(self):
-		dn = make_delivery_note()
-		fei = create_from_delivery_note(dn.name)
+		fei = create_from_sales_invoice(make_sales_invoice().name)
 		frappe.db.set_value(
 			FEI,
 			fei,
@@ -113,8 +145,7 @@ class TestReconciliationReport(FrappeTestCase):
 	# --- Lỗi / cần đối soát ------------------------------------------------
 
 	def test_a_failed_invoice_is_listed_with_its_reason(self):
-		dn = make_delivery_note()
-		fei = create_from_delivery_note(dn.name)
+		fei = create_from_sales_invoice(make_sales_invoice().name)
 		frappe.db.set_value(FEI, fei, {"status": STATUS_ERROR, "error_message": "Thiếu mã số thuế người mua"})
 
 		row = next(r for r in rows_of(ISSUE_ERROR) if r["fei_document"] == fei)
@@ -122,8 +153,7 @@ class TestReconciliationReport(FrappeTestCase):
 
 	def test_a_needs_reconcile_invoice_shouts_about_the_370_query(self):
 		"""Nhóm nguy hiểm nhất: chưa biết đã tiêu số hóa đơn hay chưa."""
-		dn = make_delivery_note()
-		fei = create_from_delivery_note(dn.name)
+		fei = create_from_sales_invoice(make_sales_invoice().name)
 		frappe.db.set_value(FEI, fei, "status", STATUS_NEEDS_RECONCILE)
 
 		row = next(r for r in rows_of(ISSUE_ERROR) if r["fei_document"] == fei)
@@ -132,6 +162,7 @@ class TestReconciliationReport(FrappeTestCase):
 	# --- Lọc ---------------------------------------------------------------
 
 	def test_the_issue_type_filter_narrows_the_result(self):
+		make_sales_invoice()
 		make_delivery_note()
 		_, rows = execute(
 			{

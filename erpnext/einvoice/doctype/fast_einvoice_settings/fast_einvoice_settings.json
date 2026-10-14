@@ -23,6 +23,7 @@
   "behaviour_section",
   "default_human_name",
   "require_customer_approval",
+  "vat_declaration_period",
   "column_break_behaviour",
   "auto_download_pdf",
   "auto_poll_tax_status",
@@ -147,6 +148,14 @@
    "label": "Bắt buộc khách duyệt trước khi phát hành"
   },
   {
+   "default": "Quý",
+   "fieldname": "vat_declaration_period",
+   "fieldtype": "Select",
+   "label": "Kỳ kê khai thuế GTGT",
+   "options": "Quý\nTháng",
+   "description": "Quy tắc 19 cảnh báo khi ngày ghi sổ hóa đơn bán và ngày hóa đơn điện tử rơi vào hai kỳ kê khai khác nhau."
+  },
+  {
    "fieldname": "column_break_behaviour",
    "fieldtype": "Column Break"
   },
@@ -191,7 +200,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-08-07 09:00:00.000000",
+ "modified": "2026-10-14 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Einvoice",
  "name": "Fast EInvoice Settings",

@@ -3,7 +3,7 @@
 """Tờ khai thuế GTGT — mẫu 01/GTGT (VN VAT return).
 
 Output VAT from TK 33311 (thuế GTGT đầu ra) and deductible input VAT from TK 133x
-(thuế GTGT được khấu trừ) over the period; số thuế phải nộp = đầu ra − khấu trừ.
+(thuế GTGT được khấu trừ) over the period; số thuế phải nộp = đầu ra - khấu trừ.
 Assumes full deduction (khấu trừ toàn bộ). Indicator codes are RESEARCH-DERIVED
 and must be verified by a kế toán before filing.
 """
@@ -130,12 +130,10 @@ def _bang_ke(company, from_date, to_date, kind):
 	if not invoices:
 		return []
 
-	# Số hóa đơn điện tử: bán ra lấy từ chứng từ HĐĐT Fast (phát hành trên phiếu
-	# giao, không phải trên hóa đơn bán). Mua vào không có nguồn này — số hóa đơn
-	# của người bán do kế toán nhập tay.
-	einvoice_numbers = (
-		invoice_numbers_for([inv.name for inv in invoices]) if kind == "ban_ra" else {}
-	)
+	# Số hóa đơn điện tử: bán ra lấy từ chứng từ HĐĐT Fast lập từ chính hóa đơn
+	# bán (`einvoice.lookup`). Mua vào không có nguồn này — số hóa đơn của người
+	# bán do kế toán nhập tay.
+	einvoice_numbers = invoice_numbers_for([inv.name for inv in invoices]) if kind == "ban_ra" else {}
 
 	taxes = frappe.get_all(
 		tax_doctype,
@@ -158,7 +156,8 @@ def _bang_ke(company, from_date, to_date, kind):
 		einvoice = einvoice_numbers.get(inv.name) or {}
 		rows.append(
 			{
-				"so_hoa_don": einvoice.get("number") or inv.name,
+				"so_hoa_don": _so_hoa_don(kind, inv, einvoice),
+				"chung_tu": inv.name,
 				"ky_hieu": einvoice.get("symbol") or "",
 				"ngay": str(inv.posting_date),
 				"doi_tac": inv.get(partner_field),
@@ -169,6 +168,18 @@ def _bang_ke(company, from_date, to_date, kind):
 			}
 		)
 	return rows
+
+
+def _so_hoa_don(kind, inv, einvoice):
+	"""Bán ra: chỉ số hóa đơn điện tử thật. Hóa đơn bán chưa có HĐĐT thì để **trống**.
+
+	Lấy tên chứng từ ERP thế vào là che mất lỗ hổng: dòng bảng kê trông như đã có
+	hóa đơn trong khi khoản doanh thu đó chưa xuất hóa đơn nào. Mua vào giữ tên
+	chứng từ — số hóa đơn của người bán do kế toán nhập tay ở nơi khác.
+	"""
+	if kind == "ban_ra":
+		return einvoice.get("number") or ""
+	return inv.name
 
 
 @frappe.whitelist()

@@ -13,7 +13,7 @@ from pathlib import Path
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from erpnext.einvoice.builder import create_from_delivery_note
+from erpnext.einvoice.builder import create_from_sales_invoice
 from erpnext.einvoice.constants import (
 	STATUS_ADJUSTED,
 	STATUS_AWAITING_CUSTOMER,
@@ -33,9 +33,19 @@ from erpnext.einvoice.constants import (
 	TAX_STATUS_ACCEPTED,
 	TAX_STATUS_PENDING,
 )
-from erpnext.einvoice.form_state import BUTTONS, get_form_state
+from erpnext.einvoice.form_state import (
+	BUTTONS,
+	get_delivery_note_state,
+	get_form_state,
+	get_sales_invoice_state,
+)
 from erpnext.einvoice.tests.test_fast_client import configure
-from erpnext.einvoice.tests.test_fixtures import make_delivery_note
+from erpnext.einvoice.tests.test_fixtures import (
+	make_delivery_note,
+	make_legacy_fei,
+	make_sales_invoice,
+	make_sales_invoice_from_delivery_note,
+)
 
 FEI = "Fast EInvoice Document"
 
@@ -95,8 +105,8 @@ class FormStateBase(FrappeTestCase):
 	def setUp(self):
 		frappe.db.rollback()
 		configure()
-		self.dn = make_delivery_note()
-		self.fei = create_from_delivery_note(self.dn.name)
+		self.si = make_sales_invoice()
+		self.fei = create_from_sales_invoice(self.si.name)
 
 	def tearDown(self):
 		frappe.db.rollback()
@@ -331,57 +341,113 @@ class TestValidationSummary(FormStateBase):
 		self.assertEqual(self.state_at(STATUS_TAX_ACCEPTED)["validation"]["issues"], [])
 
 
-class TestDeliveryNoteState(FormStateBase):
-	"""Nút "Tạo hóa đơn điện tử" trên phiếu giao (mục E1)."""
+class TestSalesInvoiceState(FormStateBase):
+	"""Nút "Tạo hóa đơn điện tử" trên hóa đơn bán (mục E1)."""
 
 	def setUp(self):
 		frappe.db.rollback()
 		configure()
 
-	def test_a_fresh_submitted_note_can_raise_an_invoice(self):
-		from erpnext.einvoice.form_state import get_delivery_note_state
+	def tearDown(self):
+		frappe.db.rollback()
 
-		dn = make_delivery_note()
-		state = get_delivery_note_state(dn.name)
+	def test_a_fresh_submitted_invoice_can_raise_an_einvoice(self):
+		si = make_sales_invoice()
+		state = get_sales_invoice_state(si.name)
 		self.assertTrue(state["can_create"])
-		self.assertEqual(state["grand_total"], dn.grand_total)
+		self.assertEqual(state["grand_total"], si.rounded_total or si.grand_total)
 
-	def test_a_draft_note_cannot(self):
-		from erpnext.einvoice.form_state import get_delivery_note_state
-
-		dn = make_delivery_note(submit=False)
-		state = get_delivery_note_state(dn.name)
+	def test_a_draft_invoice_cannot(self):
+		si = make_sales_invoice(submit=False)
+		state = get_sales_invoice_state(si.name)
 		self.assertFalse(state["can_create"])
 		self.assertIn("submit", state["reason"])
 
-	def test_a_return_note_cannot(self):
-		from erpnext.einvoice.form_state import get_delivery_note_state
+	def test_an_opening_invoice_cannot_and_says_why(self):
+		si = make_sales_invoice()
+		frappe.db.set_value("Sales Invoice", si.name, "is_opening", "Yes")
+		state = get_sales_invoice_state(si.name)
+		self.assertFalse(state["can_create"])
+		self.assertIn("số dư đầu kỳ", state["reason"])
 
-		dn = make_delivery_note(is_return=True)
-		self.assertFalse(get_delivery_note_state(dn.name)["can_create"])
+	def test_an_invoice_that_already_has_a_live_einvoice_cannot(self):
+		si = make_sales_invoice()
+		fei = create_from_sales_invoice(si.name)
 
-	def test_a_note_that_already_has_a_live_invoice_cannot(self):
-		from erpnext.einvoice.form_state import get_delivery_note_state
-
-		dn = make_delivery_note()
-		fei = create_from_delivery_note(dn.name)
-
-		state = get_delivery_note_state(dn.name)
+		state = get_sales_invoice_state(si.name)
 		self.assertFalse(state["can_create"])
 		self.assertEqual(state["existing"]["name"], fei)
+		self.assertFalse(state["reason"])
 
-	def test_a_cancelled_invoice_frees_the_note_again(self):
-		from erpnext.einvoice.form_state import get_delivery_note_state
-
-		dn = make_delivery_note()
-		fei = create_from_delivery_note(dn.name)
+	def test_a_cancelled_einvoice_frees_the_invoice_again(self):
+		si = make_sales_invoice()
+		fei = create_from_sales_invoice(si.name)
 		frappe.db.set_value(FEI, fei, "status", STATUS_CANCELLED)
 
-		self.assertTrue(get_delivery_note_state(dn.name)["can_create"])
+		self.assertTrue(get_sales_invoice_state(si.name)["can_create"])
+
+	def test_a_v2_invoice_on_its_delivery_note_points_to_the_old_record(self):
+		dn = make_delivery_note()
+		legacy = make_legacy_fei(dn.name)
+		si = make_sales_invoice_from_delivery_note(dn.name)
+
+		state = get_sales_invoice_state(si.name)
+		self.assertFalse(state["can_create"])
+		self.assertEqual(state["existing"]["name"], legacy)
+		self.assertIn(legacy, state["reason"])
 
 	def test_a_disabled_integration_hides_the_button(self):
-		from erpnext.einvoice.form_state import get_delivery_note_state
-
-		dn = make_delivery_note()
+		si = make_sales_invoice()
 		configure(enabled=0)
-		self.assertFalse(get_delivery_note_state(dn.name)["can_create"])
+		self.assertFalse(get_sales_invoice_state(si.name)["can_create"])
+
+
+class TestDeliveryNoteIsViewOnly(FormStateBase):
+	"""Phiếu giao không còn nút tạo — chỉ hiện hóa đơn suy ra qua hóa đơn bán (mục C5)."""
+
+	def setUp(self):
+		frappe.db.rollback()
+		configure()
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def test_a_note_without_a_sales_invoice_points_to_the_sales_invoice(self):
+		dn = make_delivery_note()
+		state = get_delivery_note_state(dn.name)
+		self.assertNotIn("can_create", state)
+		self.assertEqual(state["documents"], [])
+		self.assertIn("hóa đơn bán", state["message"])
+
+	def test_the_einvoice_is_found_through_the_sales_invoice(self):
+		dn = make_delivery_note()
+		si = make_sales_invoice_from_delivery_note(dn.name)
+		fei = create_from_sales_invoice(si.name)
+
+		state = get_delivery_note_state(dn.name)
+		self.assertEqual([doc.name for doc in state["documents"]], [fei])
+
+	def test_a_v2_record_still_shows_on_its_note(self):
+		dn = make_delivery_note()
+		legacy = make_legacy_fei(dn.name)
+		self.assertEqual([doc.name for doc in get_delivery_note_state(dn.name)["documents"]], [legacy])
+
+
+class TestLinkSalesInvoiceButton(FormStateBase):
+	"""Nút "Gắn hóa đơn bán" chỉ có ở hóa đơn gốc bản 2.0 chưa gắn hóa đơn bán."""
+
+	def test_a_v2_record_offers_it(self):
+		legacy = make_legacy_fei()
+		names = [b["name"] for b in get_form_state(legacy)["buttons"]]
+		self.assertIn("link_sales_invoice", names)
+
+	def test_a_v3_record_does_not(self):
+		names = [b["name"] for b in get_form_state(self.fei)["buttons"]]
+		self.assertNotIn("link_sales_invoice", names)
+
+	def test_the_resync_label_names_the_real_source(self):
+		labels = {b["name"]: b["label"] for b in get_form_state(self.fei)["buttons"]}
+		self.assertIn("hóa đơn bán", labels["resync"])
+		legacy = make_legacy_fei()
+		labels = {b["name"]: b["label"] for b in get_form_state(legacy)["buttons"]}
+		self.assertIn("phiếu giao", labels["resync"])
