@@ -582,3 +582,48 @@ test("M1 — ô chỉ còn NỬA đơn vị đóng gói: rơi về đơn vị t�
 	assert.equal(da_goi[1].don_vi, "Cái");
 	assert.equal(da_goi[1].lay_toi_da_theo_o, 1, "vẫn là số MẶC ĐỊNH — máy chủ được phép cắt theo tồn ô B");
 });
+
+// HSD tối thiểu khách yêu cầu (19/10/2026) — máy chủ chỉ trả các khoá này khi đơn có
+// yêu cầu; không có thì màn y như cũ.
+test("quét lô DƯỚI HSD khách bị CHẶN như lô hết hạn, không chuyển sang chờ ô", async () => {
+	for (const loai of ["lo", "lo_khac"]) {
+		const l = tao({ goi: gia_lap({
+			mo_phieu_giao: () => PHIEU,
+			quet_de_lay: () => ({
+				loai, dong_hang: "d1", so_lo: "LO-GAN", so_lo_dang_chot: "LO-1",
+				hsd: "2026-12-01", het_han: false, duoi_han_khach: true, han_khach: "2027-10-19",
+			}),
+		}), ngay: (x) => x.split("-").reverse().join("/") });
+		await l.mo("MAT-DN-1");
+		const kq = await l.quet("LO-GAN");
+		assert.equal(kq.buoc, "cho_lo", loai);
+		assert.equal(kq.muc, "do");
+		assert.match(kq.bao, /LO-GAN\*\* HSD 01\/12\/2026 thấp hơn HSD khách yêu cầu \(đến 19\/10\/2027\)/);
+		assert.equal(kq.can_xac_nhan, undefined);
+	}
+});
+
+test("dòng có sàn HSD khách: câu yêu cầu, hết lô đạt, lô đang chốt dưới sàn; không sàn thì null", async () => {
+	const ngay = (x) => x.split("-").reverse().join("/");
+	const mo = async (them) => {
+		const l = tao({ goi: gia_lap({ mo_phieu_giao: () => _phieu((x) => Object.assign(x, them)) }), ngay });
+		await l.mo("MAT-DN-1");
+		return l.trang_thai().dong[0];
+	};
+	const khong_san = await mo({});
+	assert.equal(khong_san.cau_han_khach, null);
+	assert.equal(khong_san.canh_bao_han_khach, null);
+
+	const dat = await mo({ han_khach: "2027-10-19", khong_con_lo_dat_han: false, lo_dang_chot_duoi_han: false });
+	assert.equal(dat.cau_han_khach, "Khách yêu cầu HSD đến 19/10/2027");
+	assert.equal(dat.canh_bao_han_khach, null);
+
+	const het = await mo({ han_khach: "2027-10-19", khong_con_lo_dat_han: true, lo_dang_chot_duoi_han: true });
+	assert.equal(
+		het.canh_bao_han_khach,
+		"Không còn lô đạt HSD khách yêu cầu (đến 19/10/2027) — báo kinh doanh ghi ngoại lệ hoặc chờ hàng."
+	);
+
+	const duoi = await mo({ han_khach: "2027-10-19", khong_con_lo_dat_han: false, lo_dang_chot_duoi_han: true });
+	assert.match(duoi.canh_bao_han_khach, /^Lô LO-1 trên phiếu thấp hơn HSD khách yêu cầu \(đến 19\/10\/2027\)/);
+});

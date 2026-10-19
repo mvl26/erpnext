@@ -45,6 +45,28 @@ def san_gia(doc, d):
 	return SAN["gia_tri"]
 
 
+def hook_no(doc, d):
+	frappe.throw("hook HSD hỏng")
+
+
+HAM_NO = "erpnext.warehouse_operations.tests.test_lay_hang_han_khach.hook_no"
+
+# Khoá của một dòng `mo_phieu_giao` và của kết quả `quet_de_lay` TRƯỚC tính năng —
+# không hook thì phải y nguyên, không thêm khoá nào.
+KHOA_DONG_CU = {
+	"dong_hang", "vat_tu", "ten_hang", "don_vi", "don_vi_dong", "he_so_dong", "don_vi_ton",
+	"can_lay_ton", "da_lay_ton", "don_vi_chon", "so_lo", "hsd", "lo_nen_lay", "lo_nen_lay_hsd",
+	"lo_tren_phieu_muon_hon", "can_lay", "da_lay", "can_quet", "ly_do_khong_quet",
+	"thieu_trong_lo", "da_chot_thieu", "chot_thieu_boi", "chot_thieu_luc", "o_nen_lay", "da_lay_o",
+}  # fmt: skip
+KHOA_HAN_KHACH = {"han_khach", "khong_con_lo_dat_han", "lo_dang_chot_duoi_han"}
+KHOA_QUET_LO_CU = {"loai", "so_lo", "dong_hang", "vat_tu", "nhieu_dong", "hsd", "het_han"}
+KHOA_QUET_LO_KHAC_CU = {
+	"loai", "so_lo", "dong_hang", "vat_tu", "hsd", "hsd_dang_chot", "so_lo_dang_chot",
+	"han_xa_hon", "nhieu_dong", "het_han",
+}  # fmt: skip
+
+
 _get_hooks_goc = frappe.get_hooks
 
 
@@ -93,9 +115,14 @@ def _phieu_giao_lo(so_lo, so_luong=12):
 
 
 def _cau_chan(so_lo, hsd, san):
-	hsd_chu = formatdate(hsd, "dd/mm/yyyy") if hsd else "(không có)"
+	if not hsd:
+		return (
+			f"Lô {so_lo} không có HSD — không đạt HSD khách yêu cầu (đến {formatdate(san, 'dd/mm/yyyy')}) "
+			"— lấy lô khác, hoặc nhờ kinh doanh ghi ngoại lệ trên đơn."
+		)
 	return (
-		f"Lô {so_lo} HSD {hsd_chu} thấp hơn HSD khách yêu cầu (đến {formatdate(san, 'dd/mm/yyyy')}) "
+		f"Lô {so_lo} HSD {formatdate(hsd, 'dd/mm/yyyy')} thấp hơn HSD khách yêu cầu "
+		f"(đến {formatdate(san, 'dd/mm/yyyy')}) "
 		"— lấy lô khác, hoặc nhờ kinh doanh ghi ngoại lệ trên đơn."
 	)
 
@@ -234,3 +261,83 @@ class TestLayHangHanKhach(FrappeTestCase):
 				tach_dong_theo_lo(dn.name, dong, LO_GAN_HAN)
 		self.assertIn(_cau_chan(LO_GAN_HAN, self.hsd_gan, self.san), str(ctx.exception))
 		self.assertEqual(len(frappe.get_doc("Delivery Note", dn.name).items), 1)
+
+	# ------------------------------------------------------------------
+	# Vòng sửa 1 (spec §4.4): báo thủ kho sàn khách / hết lô đạt / lô dưới sàn.
+	# ------------------------------------------------------------------
+
+	def test_mo_phieu_co_san_tra_khoa_han_khach(self):
+		from erpnext.warehouse_operations.vitri.lay_hang import mo_phieu_giao
+
+		dn_dat = _phieu_giao_lo(LO, 5)
+		dn_duoi = _phieu_giao_lo(LO_GAN_HAN, 5)
+		with _hook([HAM_GIA]):
+			dat = mo_phieu_giao(dn_dat.name)["dong"][0]
+			duoi = mo_phieu_giao(dn_duoi.name)["dong"][0]
+		self.assertEqual(set(dat), KHOA_DONG_CU | KHOA_HAN_KHACH)
+		self.assertEqual(dat["han_khach"], self.san)
+		self.assertFalse(dat["khong_con_lo_dat_han"])
+		self.assertFalse(dat["lo_dang_chot_duoi_han"])
+		self.assertEqual(duoi["han_khach"], self.san)
+		self.assertFalse(duoi["khong_con_lo_dat_han"])
+		self.assertTrue(duoi["lo_dang_chot_duoi_han"])
+		self.assertEqual(duoi["lo_nen_lay"], LO)
+
+	def test_mo_phieu_het_lo_dat_han_bao_ly_do(self):
+		"""Còn hàng nhưng không lô nào đạt sàn → `khong_con_lo_dat_han`, không gợi ý lô."""
+		from erpnext.warehouse_operations.vitri.lay_hang import mo_phieu_giao
+
+		SAN["gia_tri"] = getdate("2030-01-01")  # xa hơn cả LO (31/01/2029)
+		dn = _phieu_giao_lo(LO, 5)
+		with _hook([HAM_GIA]):
+			dong = mo_phieu_giao(dn.name)["dong"][0]
+		self.assertTrue(dong["khong_con_lo_dat_han"])
+		self.assertTrue(dong["lo_dang_chot_duoi_han"])
+		self.assertIsNone(dong["lo_nen_lay"])
+		self.assertEqual(dong["han_khach"], getdate("2030-01-01"))
+
+	def test_khong_hook_payload_khong_doi(self):
+		from erpnext.warehouse_operations.vitri.lay_hang import mo_phieu_giao, quet_de_lay
+
+		dn = _phieu_giao_lo(LO, 5)
+		with _hook([]):
+			dong = mo_phieu_giao(dn.name)["dong"][0]
+			lo = quet_de_lay(dn.name, LO)
+			lo_khac = quet_de_lay(dn.name, LO_GAN_HAN)
+		self.assertEqual(set(dong), KHOA_DONG_CU)
+		self.assertEqual(lo["loai"], "lo")
+		self.assertEqual(set(lo), KHOA_QUET_LO_CU)
+		self.assertEqual(lo_khac["loai"], "lo_khac")
+		self.assertEqual(set(lo_khac), KHOA_QUET_LO_KHAC_CU)
+
+	def test_quet_de_lay_bao_duoi_han_khach(self):
+		from erpnext.warehouse_operations.vitri.lay_hang import quet_de_lay
+
+		dn = _phieu_giao_lo(LO, 5)
+		with _hook([HAM_GIA]):
+			lo = quet_de_lay(dn.name, LO)
+			lo_khac = quet_de_lay(dn.name, LO_GAN_HAN)
+		self.assertEqual(lo["loai"], "lo")
+		self.assertFalse(lo["duoi_han_khach"])
+		self.assertEqual(lo["han_khach"], self.san)
+		self.assertEqual(lo_khac["loai"], "lo_khac")
+		self.assertTrue(lo_khac["duoi_han_khach"])
+		self.assertEqual(lo_khac["han_khach"], self.san)
+
+	def test_hook_loi_mo_phieu_khong_goi_y_va_ghi_van_chan(self):
+		"""Hook nổ: màn vẫn mở, KHÔNG gợi ý lô (không bao giờ gợi ý chưa lọc), có log
+		lỗi; quét vẫn nhận ra lô; các hàm ghi thì nổ (chặn, không cho qua)."""
+		from erpnext.warehouse_operations.vitri.lay_hang import doi_lo, mo_phieu_giao, quet_de_lay
+
+		dn = _phieu_giao_lo(LO, 5)
+		so_log = frappe.db.count("Error Log")
+		with _hook([HAM_NO]):
+			dong = mo_phieu_giao(dn.name)["dong"][0]
+			lo = quet_de_lay(dn.name, LO)
+			with self.assertRaisesRegex(frappe.ValidationError, "hook HSD hỏng"):
+				doi_lo(dn.name, dn.items[0].name, LO_GAN_HAN)
+		self.assertEqual(set(dong), KHOA_DONG_CU)
+		self.assertIsNone(dong["lo_nen_lay"])
+		self.assertEqual(set(lo), KHOA_QUET_LO_CU)
+		self.assertGreater(frappe.db.count("Error Log"), so_log)
+		self.assertEqual(frappe.db.get_value("Delivery Note Item", dn.items[0].name, "batch_no"), LO)

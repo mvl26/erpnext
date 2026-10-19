@@ -144,6 +144,18 @@ erpnext.warehouse_operations.lay_hang_dialog = (function () {
 					const hsd = d.hsd ? frappe.datetime.str_to_user(d.hsd) : "—";
 					return this.bao(__("CHẶN: lô <b>{0}</b> đã hết hạn ngày {1}.", [e(d.so_lo), e(hsd)]), "do");
 				}
+				// HSD khách yêu cầu (19/10/2026): máy chủ cũng chặn khi ghi/đổi/tách lô.
+				if ((d.loai === "lo" || d.loai === "lo_khac") && d.duoi_han_khach) {
+					const ngay = (x) => (x ? frappe.datetime.str_to_user(x) : "—");
+					return this.bao(
+						__("CHẶN: lô <b>{0}</b> HSD {1} thấp hơn HSD khách yêu cầu (đến {2}) — lấy lô khác, hoặc nhờ kinh doanh ghi ngoại lệ trên đơn.", [
+							e(d.so_lo),
+							e(ngay(d.hsd)),
+							e(ngay(d.han_khach)),
+						]),
+						"do"
+					);
+				}
 				if (d.loai === "lo") return this.nhan_lo(d);
 				if (d.loai === "lo_khac") return this.hoi_doi_lo(d);
 				if (d.loai === "o") return this.nhan_o(d);
@@ -375,6 +387,21 @@ erpnext.warehouse_operations.lay_hang_dialog = (function () {
 				</table>`;
 		}
 
+		// HSD khách yêu cầu (19/10/2026) — chỉ có khi đơn có yêu cầu (`han_khach`).
+		html_han_khach(d) {
+			if (!d.han_khach) return "";
+			const han = e(frappe.datetime.str_to_user(d.han_khach));
+			let canh_bao = "";
+			if (d.khong_con_lo_dat_han) {
+				canh_bao = __("Không còn lô đạt HSD khách yêu cầu (đến {0}) — báo kinh doanh ghi ngoại lệ hoặc chờ hàng.", [han]);
+			} else if (d.lo_dang_chot_duoi_han) {
+				canh_bao = __("Lô {0} trên phiếu thấp hơn HSD khách yêu cầu (đến {1}) — đổi lô khác.", [e(d.so_lo || "—"), han]);
+			}
+			return `<div class="small">${__("Khách yêu cầu HSD đến {0}", [han])}</div>${
+				canh_bao ? `<div class="lhd-canh-bao">${canh_bao}</div>` : ""
+			}`;
+		}
+
 		html_dong(d) {
 			const ten = `<div>${e(d.ten_hang)}</div><div class="text-muted small">${e(d.vat_tu)}</div>`;
 			if (!d.can_quet) {
@@ -395,7 +422,8 @@ erpnext.warehouse_operations.lay_hang_dialog = (function () {
 					d.lo_tren_phieu_muon_hon
 						? `<div class="lhd-canh-bao">${__("Lô trên phiếu hết hạn muộn hơn lô {0}", [e(d.lo_nen_lay)])}</div>`
 						: ""
-				}`;
+				}
+				${this.html_han_khach(d)}`;
 			const khac_dv = d.don_vi_dong !== d.don_vi_ton;
 			const sl = `
 				<b>${so(d.da_lay)}/${so(d.can_lay)}</b> ${e(d.don_vi_dong)}

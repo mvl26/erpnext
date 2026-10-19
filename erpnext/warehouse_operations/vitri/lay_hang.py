@@ -957,12 +957,30 @@ def mo_phieu_giao(phieu: str) -> dict:
 						frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: mo_phieu_giao goi y loi ({phieu})"))
 						goi_y = []
 		co_chot = da_chot.get(d.name)
-		lo_nen = (
-			_lo_nen_lay(d.warehouse, d.item_code, han_toi_thieu=_han_toi_thieu(doc, d)) if can_quet else None
-		)
 		hsd_dong = frappe.db.get_value("Batch", d.batch_no, "expiry_date") if d.batch_no else None
+		# HSD tối thiểu khách yêu cầu (19/10/2026, spec §4.4): có sàn thì chỉ gợi ý
+		# lô đạt sàn, và nói rõ cho thủ kho khi hết lô đạt (thiếu hàng VÌ HSD) hay
+		# lô đang chốt dưới sàn. Không sàn → không thêm khoá nào, payload y như cũ.
+		them_han_khach = {}
+		lo_nen = None
+		if can_quet:
+			# Hook lỗi (`hook_loi`): KHÔNG gợi ý gì — gợi ý không lọc có thể chỉ thủ
+			# kho tới đúng lô khách từ chối. Các hàm ghi vẫn tự chặn (gọi lại hook).
+			san, hook_loi = _han_toi_thieu_an_toan(doc, d)
+			if san:
+				lo_nen = _lo_nen_lay(d.warehouse, d.item_code, han_toi_thieu=san)
+				them_han_khach = {
+					"han_khach": san,
+					"khong_con_lo_dat_han": bool(
+						not lo_nen and _lo_nen_lay(d.warehouse, d.item_code) is not None
+					),
+					"lo_dang_chot_duoi_han": bool(d.batch_no and not _dat_han_khach(hsd_dong, san)),
+				}
+			elif not hook_loi:
+				lo_nen = _lo_nen_lay(d.warehouse, d.item_code)
 		dong.append(
 			{
+				**them_han_khach,
 				"dong_hang": d.name,
 				"vat_tu": d.item_code,
 				"ten_hang": d.item_name,
@@ -1109,6 +1127,18 @@ def _da_het_han(hsd) -> bool:
 	return getdate(hsd) < getdate(nowdate())
 
 
+def _co_duoi_han_khach(doc, d, hsd) -> dict:
+	"""Khoá thêm cho kết quả `quet_de_lay` (19/10/2026): có sàn HSD khách thì
+	`{"han_khach": sàn, "duoi_han_khach": bool}` để trang cảnh báo như `het_han`
+	(các hàm ghi vẫn tự chặn ở máy chủ). Không sàn, hoặc hook lỗi → `{}`: kết quả
+	quét y như cũ.
+	"""
+	san, _hook_loi = _han_toi_thieu_an_toan(doc, d)
+	if not san:
+		return {}
+	return {"han_khach": san, "duoi_han_khach": not _dat_han_khach(hsd, san)}
+
+
 def _han_xa_hon(hsd_moi, hsd_cu) -> bool:
 	"""Lô MỚI quét có "xa hạn hơn" lô ĐANG CHỐT trên dòng hay không.
 
@@ -1240,6 +1270,7 @@ def quet_de_lay(phieu: str, ma: str, dong_hang: str | None = None) -> dict:
 					"nhieu_dong": len(ung_vien_lo) > 1,
 					"hsd": hsd,
 					"het_han": _da_het_han(hsd),
+					**_co_duoi_han_khach(doc, d, hsd),
 				}
 			vat_tu = frappe.db.get_value("Batch", so_lo, "item")
 			cung_hang = [d for d in doc.items if d.item_code == vat_tu]
@@ -1265,6 +1296,7 @@ def quet_de_lay(phieu: str, ma: str, dong_hang: str | None = None) -> dict:
 					# hết hạn) lại dễ nhất. Kiểm ĐỘC LẬP với `han_xa_hon`, so lô MỚI
 					# quét với HÔM NAY thật, không phải với lô đang chốt.
 					"het_han": _da_het_han(hsd_moi),
+					**_co_duoi_han_khach(doc, d, hsd_moi),
 				}
 			return {"loai": None}
 
@@ -1419,6 +1451,28 @@ def _chan_lo_het_han(so_lo: str | None) -> None:
 		)
 
 
+def _han_toi_thieu_an_toan(doc, d):
+	"""`(sàn, hook_loi)` cho các đường ĐỌC (`mo_phieu_giao`, `quet_de_lay`): hook của
+	app ngoài nổ thì ghi log và trả `(None, True)` — màn lấy hàng vẫn mở được, cùng
+	khuôn nuốt-và-ghi-log của phần gợi ý ô. Các hàm GHI không dùng hàm này: chúng
+	gọi thẳng `_han_toi_thieu` và để lỗi nổi lên (chặn, không cho qua).
+	"""
+	do_dai_truoc = len(frappe.local.message_log)
+	try:
+		return _han_toi_thieu(doc, d), False
+	except Exception:
+		# Hook `frappe.throw` thì câu báo đã nằm trong `message_log` — bỏ đi, kẻo
+		# trang bật hộp lỗi dù màn vẫn mở (cùng lưới an toàn của phần gợi ý ô).
+		del frappe.local.message_log[do_dai_truoc:]
+		frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: han_toi_thieu_lo_xuat loi ({doc.name})"))
+		return None, True
+
+
+def _dat_han_khach(hsd, san) -> bool:
+	"""Lô có HSD `hsd` đạt sàn `san` không — lô không có HSD thì KHÔNG đạt."""
+	return bool(hsd) and getdate(hsd) >= getdate(san)
+
+
 def _chan_lo_duoi_han_khach(doc, d, so_lo: str | None) -> None:
 	"""CHẶN lô không đạt HSD khách yêu cầu (19/10/2026) cho dòng `d` — lô có HSD
 	thấp hơn sàn `_han_toi_thieu`, hoặc lô KHÔNG có HSD (không chứng minh được đạt).
@@ -1434,17 +1488,20 @@ def _chan_lo_duoi_han_khach(doc, d, so_lo: str | None) -> None:
 	if not san:
 		return
 	hsd = frappe.get_cached_value("Batch", so_lo, "expiry_date")
-	if hsd and getdate(hsd) >= san:
+	if _dat_han_khach(hsd, san):
 		return
+	if not hsd:
+		frappe.throw(
+			_(
+				"Lô {0} không có HSD — không đạt HSD khách yêu cầu (đến {1}) — lấy lô khác, hoặc "
+				"nhờ kinh doanh ghi ngoại lệ trên đơn."
+			).format(so_lo, formatdate(san, "dd/mm/yyyy"))
+		)
 	frappe.throw(
 		_(
 			"Lô {0} HSD {1} thấp hơn HSD khách yêu cầu (đến {2}) — lấy lô khác, hoặc nhờ kinh "
 			"doanh ghi ngoại lệ trên đơn."
-		).format(
-			so_lo,
-			formatdate(hsd, "dd/mm/yyyy") if hsd else _("(không có)"),
-			formatdate(san, "dd/mm/yyyy"),
-		)
+		).format(so_lo, formatdate(hsd, "dd/mm/yyyy"), formatdate(san, "dd/mm/yyyy"))
 	)
 
 
