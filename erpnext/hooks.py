@@ -534,6 +534,10 @@ naming_series_variables = {
 # if payment entry not in auto cancel exempted doctypes it will cancel payment entry.
 auto_cancel_exempted_doctypes = [
 	"Payment Entry",
+	# `Batch Entry` chỉ huỷ được SAU khi phiếu nhập đã huỷ (guard `on_cancel`).
+	# Hộp "Cancel All" trên form phiếu nhập huỷ chứng từ liên kết TRƯỚC phiếu
+	# gốc, nên để nó huỷ BE là khoá chết cả hai (PNL-2026-00006, 19/10/2026).
+	"Batch Entry",
 ]
 
 scheduler_events = {

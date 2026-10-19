@@ -423,6 +423,38 @@ class TestSubmit(FrappeTestCase):
 
 		self.assertTrue(frappe.db.exists("Batch", "LO-KHOA-1"))
 
+	def test_huy_pr_qua_nut_cancel_tren_form_khong_khoa_chet(self):
+		"""Hotfix 19/10/2026 — khoá chết thứ hai, đo thật trên PNL-2026-00006.
+		Bấm Cancel trên FORM phiếu nhập không gọi thẳng `pr.cancel()` như bài
+		trên: `form.js::savecancel` hỏi `get_submitted_linked_docs`, thấy BE đã
+		duyệt nên mở hộp "Cancel All", và `cancel_all_linked_docs` huỷ BE
+		TRƯỚC — lúc đó PR vẫn docstatus=1 nên guard `on_cancel` của BE ném
+		"đã duyệt nên không huỷ phiếu nhập lô được". Huỷ BE riêng cũng ra đúng
+		câu đó, nên người dùng thấy hai nút Cancel cùng chặn nhau.
+
+		Bài này đi lại đúng đường của form, với danh sách bỏ qua mà
+		`transaction.js` gửi lên (chỉ "Serial and Batch Bundle")."""
+		from frappe.desk.form.linked_with import cancel_all_linked_docs, get_submitted_linked_docs
+
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-KHOA-2")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+
+		self.pr.reload()
+		self.pr.submit()
+
+		bo_qua = ["Serial and Batch Bundle"]
+		lien_ket = get_submitted_linked_docs("Purchase Receipt", self.pr.name, bo_qua)
+		cancel_all_linked_docs(frappe.as_json(lien_ket["docs"]), frappe.as_json(bo_qua))
+		self.pr.reload()
+		self.pr.cancel()
+
+		# BE ở lại docstatus=1 cho thủ kho huỷ sau — giờ PR đã huỷ nên được.
+		be.reload()
+		self.assertEqual(be.docstatus, 1)
+		be.cancel()
+		self.assertTrue(frappe.db.exists("Batch", "LO-KHOA-2"))
+
 	def test_dung_lai_lo_dien_manufacturing_date_dang_trong(self):
 		"""Vòng sửa 1, Việc 2 — mặt lật của `test_dung_lai_lo_da_co_cua_chinh_
 		mat_hang_nay`: ở đó `expiry_date` được điền còn `manufacturing_date`
