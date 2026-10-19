@@ -21,6 +21,16 @@ const PHUONG_THUC_CHAN_DOAN = "erpnext.warehouse_operations.vitri.phieu_nhap.cha
 const PHUONG_THUC_TIEN_DO = "erpnext.warehouse_operations.vitri.luong_nhap.tien_do_nhap_kho";
 
 frappe.ui.form.on("Purchase Receipt", {
+	onload(frm) {
+		// Không liệt kê `Batch Entry` trong hộp "Cancel All": nó chỉ huỷ được sau
+		// phiếu nhập, nên máy chủ bỏ qua nó (`auto_cancel_exempted_doctypes`) —
+		// để trong hộp thì người dùng tưởng nó đã huỷ theo. Huỷ phiếu nhập xong,
+		// thủ kho huỷ phiếu nhập lô riêng.
+		frm.ignore_doctypes_on_cancel_all = frm.ignore_doctypes_on_cancel_all || [];
+		if (!frm.ignore_doctypes_on_cancel_all.includes("Batch Entry")) {
+			frm.ignore_doctypes_on_cancel_all.push("Batch Entry");
+		}
+	},
 	refresh(frm) {
 		ve_tien_do(frm);
 		if (frm.doc.docstatus === 0) {
