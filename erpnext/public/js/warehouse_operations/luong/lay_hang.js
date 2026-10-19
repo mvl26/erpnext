@@ -118,6 +118,16 @@ const CAU_CHUA_CHON_PHIEU = "Chọn phiếu giao trước khi quét.";
 const CAU_LO_HET_HAN =
 	"CHẶN: lô **{0}** đã hết hạn ngày {1} — không lấy được trên PDA. Muốn xuất lô hết hạn " +
 	"thì thao tác trên form Phiếu giao hàng (máy tính).";
+// HSD tối thiểu khách yêu cầu (19/10/2026): máy chủ trả `duoi_han_khach`/`han_khach`
+// (quét) và `han_khach`/`khong_con_lo_dat_han`/`lo_dang_chot_duoi_han` (dòng) CHỈ khi
+// đơn có yêu cầu — không có thì các câu dưới đây không bao giờ hiện.
+const CAU_LO_DUOI_HAN_KHACH =
+	"CHẶN: lô **{0}** HSD {1} thấp hơn HSD khách yêu cầu (đến {2}) — lấy lô khác, hoặc " +
+	"nhờ kinh doanh ghi ngoại lệ trên đơn.";
+const CAU_HAN_KHACH = "Khách yêu cầu HSD đến {0}";
+const CAU_KHONG_CON_LO_DAT_HAN =
+	"Không còn lô đạt HSD khách yêu cầu (đến {0}) — báo kinh doanh ghi ngoại lệ hoặc chờ hàng.";
+const CAU_LO_DANG_CHOT_DUOI_HAN = "Lô {0} trên phiếu thấp hơn HSD khách yêu cầu (đến {1}) — đổi lô khác.";
 const CAU_PHIEU_VUA_DOI = "Phiếu vừa thay đổi — đang nạp lại.";
 const CAU_DA_LAY_DU = "Dòng này đã lấy đủ.";
 const CAU_CAN_QUET_LO = "{0} có quản lý lô — quét tem LÔ trên thùng, không quét mã hàng.";
@@ -424,6 +434,15 @@ function tao({ goi, ngay }) {
 			return {
 				buoc: _buoc(),
 				bao: _dich(CAU_LO_HET_HAN, [d.so_lo, _ngay(d.hsd) || "—"]),
+				muc: "do",
+			};
+		}
+		// HSD khách: cùng cách chặn với lô hết hạn — máy chủ (`ghi_da_lay`/`doi_lo`/
+		// `tach_dong_theo_lo`) cũng chặn, đây chỉ là báo sớm cho thủ kho.
+		if ((d.loai === "lo" || d.loai === "lo_khac") && d.duoi_han_khach) {
+			return {
+				buoc: _buoc(),
+				bao: _dich(CAU_LO_DUOI_HAN_KHACH, [d.so_lo, _ngay(d.hsd) || "—", _ngay(d.han_khach) || "—"]),
 				muc: "do",
 			};
 		}
@@ -846,6 +865,14 @@ function tao({ goi, ngay }) {
 				? _dich(CAU_LO_TREN_PHIEU_MUON_HON, [d.lo_nen_lay])
 				: null,
 			hsd_chu: _ngay(d.hsd),
+			cau_han_khach: d.han_khach ? _dich(CAU_HAN_KHACH, [_ngay(d.han_khach)]) : null,
+			canh_bao_han_khach: !d.han_khach
+				? null
+				: d.khong_con_lo_dat_han
+					? _dich(CAU_KHONG_CON_LO_DAT_HAN, [_ngay(d.han_khach)])
+					: d.lo_dang_chot_duoi_han
+						? _dich(CAU_LO_DANG_CHOT_DUOI_HAN, [d.so_lo || "—", _ngay(d.han_khach)])
+						: null,
 			// Dòng bán theo đơn vị KHÁC đơn vị tồn: hiện thêm dòng phụ theo đơn vị tồn.
 			khac_don_vi: !!(d.don_vi_dong && d.don_vi_ton && d.don_vi_dong !== d.don_vi_ton),
 		};

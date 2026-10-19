@@ -629,6 +629,11 @@
 				  }`
 				: "";
 
+			// HSD khách yêu cầu (19/10/2026) — chỉ có khi đơn có yêu cầu.
+			const han_khach =
+				(d.cau_han_khach ? `<div class="lh-mo">${e(d.cau_han_khach)}</div>` : "") +
+				(d.canh_bao_han_khach ? `<div class="lh-canh-bao-han">${e(d.canh_bao_han_khach)}</div>` : "");
+
 			const nut_chot_thieu = d.hien_nut_chot_thieu
 				? `<button type="button" class="lh-chot-thieu" data-dong="${e(d.dong_hang)}">${__("Chốt thiếu")}</button>`
 				: "";
@@ -646,6 +651,7 @@
 					<div class="lh-mo">${e(d.vat_tu)}${d.so_lo ? " · lô " + e(d.so_lo) : ""}${
 				d.hsd_chu ? " · HSD " + e(d.hsd_chu) : ""
 			}</div>
+					${han_khach}
 					${lo_nen}
 					${chot}
 					${goi_y}
