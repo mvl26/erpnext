@@ -14,9 +14,16 @@ from erpnext.stock.tests.test_item_code_rule import use_naming_mode
 class KiemChungTuCase(FrappeTestCase):
 	def setUp(self):
 		self.addCleanup(frappe.clear_document_cache, "Selling Settings", "Selling Settings")
+		self.addCleanup(frappe.clear_document_cache, "Stock Settings", "Stock Settings")
 		frappe.db.savepoint("kiem_gia_chung_tu")
 		self.addCleanup(frappe.db.rollback, save_point="kiem_gia_chung_tu")
 		use_naming_mode(self, "Item Code")
+		# Như production (P7): chứng từ không tự thêm/ghi đè Item Price.
+		frappe.db.set_single_value(
+			"Stock Settings",
+			{"auto_insert_price_list_rate_if_missing": 0, "update_existing_price_list_rate": 0},
+		)
+		frappe.clear_document_cache("Stock Settings", "Stock Settings")
 		self.d = getdate(nowdate())
 		self.sfx = frappe.generate_hash(length=6)
 		self.company = frappe.db.get_value("Company", {}, "name")
