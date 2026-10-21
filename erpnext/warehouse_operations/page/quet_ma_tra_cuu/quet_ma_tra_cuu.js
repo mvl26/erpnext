@@ -122,6 +122,11 @@
 			this.$lich_su.on("click", ".qmtc-dong-lich-su", (ev) => {
 				this.tra_cuu(String($(ev.currentTarget).attr("data-ma")));
 			});
+			// Bấm một lô trong danh sách `chon_lo`: tra lại bằng MÃ LÔ, không bằng
+			// số lô vừa gõ — số lô đó chính là thứ đang khớp nhiều lô.
+			this.$ket_qua.on("click", ".qmtc-dong-chon-lo", (ev) => {
+				this.tra_cuu(String($(ev.currentTarget).attr("data-ma")));
+			});
 
 			this.ve_cho();
 			this.giu_focus();
@@ -191,7 +196,9 @@
 		// nhưng phán quyết đó KHÔNG ĐƯỢC im lặng biến mất nếu một ngày lớp luồng
 		// bắt đầu gắn thêm cảnh báo cho dữ liệu đã biết, ví dụ "lô sắp hết hạn").
 		ve_ket_qua(ma, kq) {
-			const ve = { lo: the_lo, vat_tu: the_vat_tu, o: the_o, kho: the_kho }[kq.loai];
+			const ve = { lo: the_lo, vat_tu: the_vat_tu, o: the_o, kho: the_kho, chon_lo: the_chon_lo }[
+				kq.loai
+			];
 			if (ve) {
 				const canh_bao = kq.bao ? `<div class="qmtc-canh-bao">${e(kq.bao)}</div>` : "";
 				this.$ket_qua.html(canh_bao + ve(kq.du_lieu));
@@ -233,7 +240,12 @@
 			<div class="qmtc-the qmtc-the-lo muc-${han.muc}">
 				<div class="qmtc-dau">
 					<span class="qmtc-nhan-loai loai-lo">${nhan_loai("lo")}</span>
-					<a class="qmtc-ma-to" href="${lien_ket("batch", d.so_lo)}">${e(d.so_lo)}</a>
+					<a class="qmtc-ma-to" href="${lien_ket("batch", d.so_lo)}">${e(d.so_lo_hien_thi || d.so_lo)}</a>
+					${
+						d.so_lo_hien_thi && d.so_lo_hien_thi !== d.so_lo
+							? `<div class="qmtc-mo">${__("Mã lô")} ${e(d.so_lo)}</div>`
+							: ""
+					}
 					<div class="qmtc-ten-hang">${e(d.ten_hang || d.vat_tu)}</div>
 					<div class="qmtc-mo">${e(d.vat_tu)}${d.don_vi ? " · " + e(d.don_vi) : ""}</div>
 				</div>
@@ -416,6 +428,36 @@
 	// vì một — đổi lại để công cụ dịch nhìn thấy được câu, đúng đánh đổi người
 	// soát chọn. Hằng số trong lớp luồng vẫn là NGUỒN Ý NGHĨA (đổi câu thì sửa ở
 	// đó trước, hai chỗ `__("...")` dưới đây phải tự tay khớp lại theo).
+	// Số lô NCC trùng được giữa các mặt hàng (và trùng tên lô cũ in trước
+	// 19/10/2026): máy chủ trả hết các lô khớp, người dùng chọn — không đoán hộ.
+	function the_chon_lo(d) {
+		const ds = d.ds || [];
+		return `
+			<div class="qmtc-the">
+				<div class="qmtc-dau">
+					<span class="qmtc-nhan-loai loai-chon_lo">${nhan_loai("chon_lo")}</span>
+					<div class="qmtc-ten-hang">${__("{0} lô cùng số lô này — chọn đúng lô", [ds.length])}</div>
+				</div>
+				<div class="qmtc-bang">
+					${ds
+						.map(
+							(x) => `
+					<div class="qmtc-dong qmtc-dong-chon-lo" data-ma="${e(x.ma_lo)}" role="button">
+						<div class="qmtc-dong-chinh">
+							<div class="qmtc-dong-ten">${e(x.ten_hang || x.vat_tu)}</div>
+							<div class="qmtc-dong-lo">${e(x.so_lo_hien_thi || x.ma_lo)}</div>
+							<div class="qmtc-dong-phu">
+								<span>${e(x.vat_tu)} · ${e(x.ma_lo)}</span>
+								${x.hsd ? `<span class="qmtc-han-nho">HSD ${e(ngay(x.hsd))}</span>` : ""}
+							</div>
+						</div>
+					</div>`
+						)
+						.join("")}
+				</div>
+			</div>`;
+	}
+
 	function the_khong_thay(ma, bao) {
 		return `
 			<div class="qmtc-the qmtc-khong-thay">
@@ -436,7 +478,7 @@
 			<div class="qmtc-dong qmtc-dong-hang">
 				<div class="qmtc-dong-chinh">
 					${hien_ten ? `<div class="qmtc-dong-ten">${e(x.ten_hang || x.vat_tu)}</div>` : ""}
-					${hien_lo ? `<div class="qmtc-dong-lo">${e(x.so_lo)}</div>` : ""}
+					${hien_lo ? `<div class="qmtc-dong-lo">${e(x.so_lo_hien_thi || x.so_lo)}</div>` : ""}
 					<div class="qmtc-dong-phu">
 						${hien_o ? `<span class="qmtc-ma-o">${e(x.o)}</span>` : ""}
 						${x.hsd ? `<span class="qmtc-han-nho muc-${han.muc}">HSD ${e(ngay(x.hsd))}</span>` : ""}
@@ -486,6 +528,7 @@
 	function tieu_de_ngan(d) {
 		if (d.loai === "lo" || d.loai === "vat_tu") return d.ten_hang || d.vat_tu;
 		if (d.loai === "o") return d.kho;
+		if (d.loai === "chon_lo") return __("{0} lô", [(d.ds || []).length]);
 		if (d.loai === "kho") return d.ten_kho !== d.kho ? d.ten_kho : "";
 		return "";
 	}

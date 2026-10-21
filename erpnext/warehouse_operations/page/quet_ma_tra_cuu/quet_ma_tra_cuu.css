@@ -140,6 +140,16 @@
 	background: var(--bg-purple);
 	color: var(--text-on-purple);
 }
+.qmtc-nhan-loai.loai-chon_lo {
+	background: var(--bg-orange);
+	color: var(--text-on-orange);
+}
+.qmtc-dong-chon-lo {
+	cursor: pointer;
+}
+.qmtc-dong-chon-lo:active {
+	background: var(--control-bg);
+}
 .qmtc-nhan-loai.loai-vat_tu {
 	background: var(--bg-blue);
 	color: var(--text-on-blue);

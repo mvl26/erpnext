@@ -1253,3 +1253,12 @@ class TestSoLoTachMaLo(FrappeTestCase):
 	def test_hai_dong_cung_khoa_trong_mot_phieu_ra_mot_lo(self):
 		lo1, lo2 = self._nhap(self.a, self._so("DOI"), so_dong=2)
 		self.assertEqual(lo1, lo2)
+
+	def test_tem_lo_in_so_lo_ma_vach_in_ma_lo(self):
+		"""F6 người đọc là SỐ LÔ; F10 (mã vạch) và F11 (chữ dưới vạch) là MÃ LÔ."""
+		so = self._so("TEM-SOLO")
+		(lo,) = self._nhap(self.a, so)
+		(t,) = du_lieu_tem(lo)
+		self.assertEqual(t["F6"], f"Lô {so}")
+		self.assertEqual((t["F10"], t["F11"]), (lo, lo))
+		self.assertNotEqual(t["F10"], so)

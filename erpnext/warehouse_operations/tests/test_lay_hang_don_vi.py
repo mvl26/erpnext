@@ -351,6 +351,18 @@ class TestTemKien(FrappeTestCase):
 		self.assertIn("DEMO", t["F7"])  # tên khách
 		self.assertEqual(t["F5"], "HSD 2029/06/30")
 
+	def test_tem_kien_in_so_lo_ma_vach_in_ma_lo(self):
+		"""Spec tách số lô 19/10/2026: F6 hiện số lô NCC, mã vạch vẫn mã hoá mã lô."""
+		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay
+		from erpnext.warehouse_operations.vitri.tem_kien import du_lieu_tem_kien
+
+		frappe.db.set_value("Batch", LO_DV, "custom_so_lo", "SO-NCC-DV")
+		ghi_da_lay(self.dn.name, self.dong, LO_DV, O_GAN, 5, don_vi=HOP)
+		t = du_lieu_tem_kien(self.dn.name)[0]
+		self.assertEqual(t["F6"], "Lô SO-NCC-DV")
+		self.assertEqual((t["so_lo"], t["ma_vach"], t["F10"], t["F11"]), (LO_DV,) * 4)
+		self.assertEqual(t["so_lo_hien_thi"], "SO-NCC-DV")
+
 	def test_300_cai_chia_3_kien_va_danh_so_noi_tiep_ca_phieu(self):
 		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay
 		from erpnext.warehouse_operations.vitri.tem_kien import du_lieu_tem_kien
