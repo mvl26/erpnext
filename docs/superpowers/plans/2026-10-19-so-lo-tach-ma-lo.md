@@ -207,5 +207,5 @@ Thuật toán `_tim_lo_co_san`:
 - [x] **Step 1:** xác định `miyano_wms` còn dùng không: báo cáo/trang của nó có trong workspace đang hiện không; `hooks.py` của nó còn `doc_events` không; module Warehouse Operations đã thay chưa. Còn dùng thì áp Task 5 cho các báo cáo trùng tên. Không dùng thì ghi lý do vào PR erpnext, không sửa.
 - [x] **Step 2:** chạy toàn bộ `erpnext.warehouse_operations.tests.*` từng module, tuần tự. So với baseline develop chạy cùng ngày. Liệt kê module đỏ kèm lý do (môi trường hay hồi quy).
 - [ ] **Step 3:** cập nhật seed `miyano_portal/setup/seed_100_vat_tu.py` chỉ nếu nó gãy (nó truyền `batch_id`, hook Task 1 tự điền số lô).
-- [ ] **Step 4:** ghi vào PR portal: `han_dung_khach.py` và `doi_sanh_ton.py` (nhánh `feat/hsd-toi-thieu`, `feat/doi-sanh-ton-kho-so`, chưa vào develop) có câu báo in `batch_no`. Khi các nhánh đó merge thì phải đổi sang `so_lo_cua`.
-- [ ] **Step 5:** push 3 nhánh, mở 3 PR. PR erpnext ghi thứ tự deploy: **erpnext trước** (migrate chạy patch Task 1), rồi `miyano_portal`, rồi `miyano_pda`. Sau đó `bench build` cả ba và `bench restart`.
+- [x] **Step 4:** ghi vào PR portal: `han_dung_khach.py` và `doi_sanh_ton.py` (nhánh `feat/hsd-toi-thieu`, `feat/doi-sanh-ton-kho-so`, chưa vào develop) có câu báo in `batch_no`. Khi các nhánh đó merge thì phải đổi sang `so_lo_cua`.
+- [x] **Step 5:** push 3 nhánh, mở 3 PR. PR erpnext ghi thứ tự deploy: **erpnext trước** (migrate chạy patch Task 1), rồi `miyano_portal`, rồi `miyano_pda`. Sau đó `bench build` cả ba và `bench restart`.
