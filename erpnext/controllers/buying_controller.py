@@ -11,6 +11,7 @@ from erpnext.accounts.party import get_party_details
 from erpnext.buying.utils import update_last_purchase_rate, validate_for_items
 from erpnext.controllers.sales_and_purchase_return import get_rate_for_return
 from erpnext.controllers.subcontracting_controller import SubcontractingController
+from erpnext.selling.kiem_gia.kiem_po import kiem_po
 from erpnext.stock.get_item_details import get_conversion_factor
 from erpnext.stock.utils import get_incoming_rate
 
@@ -39,6 +40,7 @@ class BuyingController(SubcontractingController):
 		self.validate_asset_return()
 		self.validate_auto_repeat_subscription_dates()
 		self.create_package_for_transfer()
+		kiem_po(self)
 
 		if self.doctype == "Purchase Invoice":
 			self.validate_purchase_receipt_if_update_stock()
