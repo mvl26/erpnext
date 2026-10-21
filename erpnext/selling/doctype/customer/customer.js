@@ -122,6 +122,12 @@ frappe.ui.form.on("Customer", {
 	},
 
 	refresh: function (frm) {
+		// % lãi: chỉ vai trò ở Selling Settings > "Vai trò được sửa % lãi" được sửa (server cũng chặn).
+		frappe.xcall("erpnext.selling.kiem_gia.cau_hinh.co_quyen_sua_ty_le_lai").then((ok) => {
+			["kiem_gia_ban", "ty_le_lai_rieng", "ty_le_lai"].forEach((f) =>
+				frm.set_df_property(f, "read_only", ok ? 0 : 1)
+			);
+		});
 		if (frappe.defaults.get_default("cust_master_name") != "Naming Series") {
 			frm.toggle_display("naming_series", false);
 		} else {

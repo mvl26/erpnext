@@ -84,6 +84,10 @@
   "column_break_53",
   "is_frozen",
   "disabled",
+  "kiem_gia_ban_section",
+  "kiem_gia_ban",
+  "ty_le_lai_rieng",
+  "ty_le_lai",
   "portal_users_tab",
   "portal_users"
  ],
@@ -581,6 +585,32 @@
    "no_copy": 1,
    "options": "Prospect",
    "print_hide": 1
+  },
+  {
+   "fieldname": "kiem_gia_ban_section",
+   "fieldtype": "Section Break",
+   "label": "Kiểm giá bán theo % lãi"
+  },
+  {
+   "default": "1",
+   "fieldname": "kiem_gia_ban",
+   "fieldtype": "Check",
+   "label": "Kiểm giá bán"
+  },
+  {
+   "default": "0",
+   "depends_on": "kiem_gia_ban",
+   "description": "Không tích: dùng % lãi mặc định ở Selling Settings.",
+   "fieldname": "ty_le_lai_rieng",
+   "fieldtype": "Check",
+   "label": "% lãi riêng"
+  },
+  {
+   "depends_on": "eval:doc.kiem_gia_ban && doc.ty_le_lai_rieng",
+   "fieldname": "ty_le_lai",
+   "fieldtype": "Percent",
+   "label": "% lãi",
+   "non_negative": 1
   }
  ],
  "icon": "fa fa-user",
@@ -594,7 +624,7 @@
    "link_fieldname": "party"
   }
  ],
- "modified": "2024-06-17 03:24:59.612974",
+ "modified": "2026-10-21 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Customer",

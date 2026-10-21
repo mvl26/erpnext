@@ -16,6 +16,7 @@ from frappe.utils.user import get_users_with_role
 
 from erpnext.accounts.party import get_dashboard_info, validate_party_accounts
 from erpnext.controllers.website_list_for_contact import add_role_for_portal_user
+from erpnext.selling.kiem_gia.cau_hinh import kiem_khach
 from erpnext.utilities.transaction_base import TransactionBase
 
 
@@ -62,6 +63,7 @@ class Customer(TransactionBase):
 		industry: DF.Link | None
 		is_frozen: DF.Check
 		is_internal_customer: DF.Check
+		kiem_gia_ban: DF.Check
 		language: DF.Link | None
 		lead_name: DF.Link | None
 		loyalty_program: DF.Link | None
@@ -82,6 +84,8 @@ class Customer(TransactionBase):
 		tax_id: DF.Data | None
 		tax_withholding_category: DF.Link | None
 		territory: DF.Link | None
+		ty_le_lai: DF.Percent
+		ty_le_lai_rieng: DF.Check
 		website: DF.Data | None
 	# end: auto-generated types
 
@@ -142,6 +146,7 @@ class Customer(TransactionBase):
 		self.validate_internal_customer()
 		self.add_role_for_user()
 		self.validate_currency_for_receivable_payable_and_advance_account()
+		kiem_khach(self)
 
 		# set loyalty program tier
 		if frappe.db.exists("Customer", self.name):

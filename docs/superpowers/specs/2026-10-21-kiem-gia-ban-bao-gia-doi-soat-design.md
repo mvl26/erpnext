@@ -234,8 +234,8 @@ PR → PI                       ← YC5 đối soát (maintain_same_rate giữ W
 |---|---|---|
 | Selling Settings | `ty_le_lai_mac_dinh` = 1; công tắc bật/tắt toàn bộ tính năng; `vai_tro_sua_ty_le_lai` (Link Role, "Giám đốc"); `vai_tro_duyet_gia_lech` (Link Role, mặc định "Duyệt giá Himedic") | Chọn vai trò có sẵn, không tạo vai trò mới |
 | Price List | (không thêm) | P8: giả định giá chưa gồm VAT. Chỉ thêm `gia_gom_thue` khi phát sinh bảng giá gồm VAT |
-| Customer | `kiem_gia_ban` (mặc định bật); `ty_le_lai` | **Chỉ vai trò được chọn ở ô `vai_tro_sua_ty_le_lai` (Selling Settings) được sửa**; server kiểm khi lưu (chặn cả API, import), form hiển thị chỉ đọc với người khác |
-| Item → bảng Item Customer Detail | Cột `ty_le_lai` | Ghi đè % cho một cặp (khách, item). Cũng chỉ vai trò ở `vai_tro_sua_ty_le_lai` được sửa |
+| Customer | `kiem_gia_ban` (mặc định bật); `ty_le_lai_rieng` (Check) + `ty_le_lai` — cần ô Check vì trường số không phân biệt "trống" với 0% | **Chỉ vai trò được chọn ở ô `vai_tro_sua_ty_le_lai` (Selling Settings) được sửa**; server kiểm khi lưu (chặn cả API, import), form hiển thị chỉ đọc với người khác |
+| Item → bảng Item Customer Detail | Cột `ty_le_lai_rieng` + `ty_le_lai`; `ref_code` thôi bắt buộc (dòng chỉ khai % lãi không có mã hàng của khách; mỗi dòng phải có một trong hai) | Ghi đè % cho một cặp (khách, item). Cũng chỉ vai trò ở `vai_tro_sua_ty_le_lai` được sửa |
 
 - **Thứ tự ưu tiên:** (khách, item) → khách → mặc định.
 - **Lịch sử:** bật `track_changes` trên Customer và Item.
