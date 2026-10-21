@@ -49,26 +49,47 @@ def ty_le_lai_ap_dung(customer, item_code):
 
 	`kiem` = 0 khi khách tắt kiểm; khi đó `ty_le_lai` là None.
 	"""
+	return ty_le_lai_nhieu(customer, [item_code])[item_code]
+
+
+def ty_le_lai_nhieu(customer, item_codes):
+	"""{mã hàng: `_dict(kiem, ty_le_lai, nguon)`} cho một khách, một lượt truy vấn."""
 	ch = cau_hinh()
 	khach = (
 		frappe.get_cached_value("Customer", customer, list(TRUONG_KHACH), as_dict=True) if customer else None
 	)
 	if khach and not cint(khach.kiem_gia_ban):
-		return frappe._dict(kiem=0, ty_le_lai=None, nguon=_("Khách tắt kiểm giá"))
+		tat = frappe._dict(kiem=0, ty_le_lai=None, nguon=_("Khách tắt kiểm giá"))
+		return {code: tat for code in item_codes}
 
-	if customer and item_code:
-		rieng = frappe.db.get_value(
-			"Item Customer Detail",
-			{"parenttype": "Item", "parent": item_code, "customer_name": customer, "ty_le_lai_rieng": 1},
-			"ty_le_lai",
+	rieng = {}
+	codes = [c for c in item_codes if c]
+	if customer and codes:
+		rieng = dict(
+			frappe.get_all(
+				"Item Customer Detail",
+				filters={
+					"parenttype": "Item",
+					"parent": ("in", codes),
+					"customer_name": customer,
+					"ty_le_lai_rieng": 1,
+				},
+				fields=["parent", "ty_le_lai"],
+				as_list=True,
+			)
 		)
-		if rieng is not None:
-			return frappe._dict(kiem=1, ty_le_lai=flt(rieng), nguon=_("Mặt hàng - khách"))
 
 	if khach and cint(khach.ty_le_lai_rieng):
-		return frappe._dict(kiem=1, ty_le_lai=flt(khach.ty_le_lai), nguon=_("Khách"))
+		chung = frappe._dict(kiem=1, ty_le_lai=flt(khach.ty_le_lai), nguon=_("Khách"))
+	else:
+		chung = frappe._dict(kiem=1, ty_le_lai=ch.ty_le_lai_mac_dinh, nguon=_("Mặc định"))
 
-	return frappe._dict(kiem=1, ty_le_lai=ch.ty_le_lai_mac_dinh, nguon=_("Mặc định"))
+	return {
+		code: frappe._dict(kiem=1, ty_le_lai=flt(rieng[code]), nguon=_("Mặt hàng - khách"))
+		if code in rieng
+		else chung
+		for code in item_codes
+	}
 
 
 @frappe.whitelist()

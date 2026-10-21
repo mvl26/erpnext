@@ -23,6 +23,7 @@ class QuotationItem(Document):
 		blanket_order: DF.Link | None
 		blanket_order_rate: DF.Currency
 		brand: DF.Link | None
+		chenh_lech: DF.Currency
 		company_total_stock: DF.Float
 		conversion_factor: DF.Float
 		customer_item_code: DF.Data | None
@@ -30,6 +31,9 @@ class QuotationItem(Document):
 		discount_amount: DF.Currency
 		discount_percentage: DF.Percent
 		distributed_discount_amount: DF.Currency
+		ghi_chu_gia: DF.SmallText | None
+		gia_chuan: DF.Currency
+		gia_goc: DF.Currency
 		gross_profit: DF.Currency
 		has_alternative_item: DF.Check
 		image: DF.Attach | None
@@ -44,6 +48,7 @@ class QuotationItem(Document):
 		margin_type: DF.Literal["", "Percentage", "Amount"]
 		net_amount: DF.Currency
 		net_rate: DF.Currency
+		nguon_gia_goc: DF.Link | None
 		page_break: DF.Check
 		parent: DF.Data
 		parentfield: DF.Data
@@ -60,6 +65,8 @@ class QuotationItem(Document):
 		stock_uom: DF.Link | None
 		stock_uom_rate: DF.Currency
 		total_weight: DF.Float
+		trang_thai_gia: DF.Literal["", "Khớp", "Thấp hơn", "Cao hơn", "Chưa xác định giá gốc", "Bỏ qua"]
+		ty_le_lai_ap_dung: DF.Percent
 		uom: DF.Link
 		valuation_rate: DF.Currency
 		warehouse: DF.Link | None

@@ -26,6 +26,7 @@ class SalesOrderItem(Document):
 		blanket_order_rate: DF.Currency
 		bom_no: DF.Link | None
 		brand: DF.Link | None
+		chenh_lech: DF.Currency
 		company_total_stock: DF.Float
 		conversion_factor: DF.Float
 		cost_center: DF.Link | None
@@ -38,6 +39,9 @@ class SalesOrderItem(Document):
 		discount_percentage: DF.Percent
 		distributed_discount_amount: DF.Currency
 		ensure_delivery_based_on_produced_serial_no: DF.Check
+		ghi_chu_gia: DF.SmallText | None
+		gia_chuan: DF.Currency
+		gia_goc: DF.Currency
 		grant_commission: DF.Check
 		gross_profit: DF.Currency
 		image: DF.Attach | None
@@ -54,6 +58,7 @@ class SalesOrderItem(Document):
 		material_request_item: DF.Data | None
 		net_amount: DF.Currency
 		net_rate: DF.Currency
+		nguon_gia_goc: DF.Link | None
 		ordered_qty: DF.Float
 		page_break: DF.Check
 		parent: DF.Data
@@ -83,7 +88,9 @@ class SalesOrderItem(Document):
 		supplier: DF.Link | None
 		target_warehouse: DF.Link | None
 		total_weight: DF.Float
+		trang_thai_gia: DF.Literal["", "Khớp", "Thấp hơn", "Cao hơn", "Chưa xác định giá gốc", "Bỏ qua"]
 		transaction_date: DF.Date | None
+		ty_le_lai_ap_dung: DF.Percent
 		uom: DF.Link
 		valuation_rate: DF.Currency
 		warehouse: DF.Link | None

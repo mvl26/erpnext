@@ -245,7 +245,7 @@ PR → PI                       ← YC5 đối soát (maintain_same_rate giữ W
 
 Theo P1 (đã chốt hướng 21/10/2026): **giá gốc = giá mua trong Item Price của bảng giá mua, có hiệu lực tại ngày SO.** Số liệu production: 195/195 mặt hàng đã bán đều có giá trong bảng giá mua; mọi dòng Item Price đều có `valid_from`.
 
-1. Nếu dòng có liên kết Supplier Quotation (SO → `quotation_item` → Quotation → `supplier_quotation`, hoặc Quotation → `supplier_quotation`) → lấy đơn giá của dòng cùng mặt hàng trong SQ đó (quy đổi ĐVT bằng `conversion_factor`).
+1. ~~Lần theo SO → Quotation → Supplier Quotation~~ — **bỏ khi code (bước 1.4)**: SQ Submit ghi giá vào bảng giá mua (bước 1.6), nên mọi nguồn giá NCC đều nằm ở Item Price; `nguon_gia_goc` luôn là một dòng Item Price.
 2. Nếu không: tìm Item Price có `buying = 1`, cùng mặt hàng, `valid_from` ≤ ngày SO và (`valid_upto` trống hoặc ≥ ngày SO), theo thứ tự ưu tiên:
    1. giá của **NCC mặc định** của mặt hàng (khớp `Item Price.supplier`). NCC mặc định lấy bằng hàm có sẵn của fork `erpnext.stock.doctype.item_supplier.item_supplier.get_default_supplier` (dòng `is_default` trong bảng Supplier Items, commit 50bab31) — **không** đọc `Item Default.default_supplier` (fork luôn để trống ô này);
    2. nếu không có NCC mặc định, hoặc NCC mặc định không có giá hiệu lực: dòng có `valid_from` **mới nhất** trong mọi bảng giá mua (kể cả "Bảng giá mua" chung).
