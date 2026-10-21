@@ -164,11 +164,13 @@ function tao({ goi }) {
 		o_dat = {};
 	}
 
-	// Một dòng có khớp ô lọc không — so trên số lô, tên hàng, mã vật tư. Bộ lọc
-	// rỗng khớp MỌI dòng (đường Desk, và app lúc chưa gõ gì).
+	// Một dòng có khớp ô lọc không — so trên số lô NCC, mã lô, tên hàng, mã vật
+	// tư. Bộ lọc rỗng khớp MỌI dòng (đường Desk, và app lúc chưa gõ gì).
 	function _khop_loc(d) {
 		if (!bo_loc) return true;
-		const gop = `${d.so_lo || ""} ${d.ten_hang || ""} ${d.vat_tu || ""}`.toLowerCase();
+		const gop = `${d.so_lo_hien_thi || ""} ${d.so_lo || ""} ${d.ten_hang || ""} ${
+			d.vat_tu || ""
+		}`.toLowerCase();
 		return gop.includes(bo_loc.trim().toLowerCase());
 	}
 
@@ -346,6 +348,7 @@ function tao({ goi }) {
 		const da_dat = nguon_dat.map((x) => (typeof x === "string" ? { so_lo: x } : x));
 		const loi = (r.loi || []).map((x) => ({
 			so_lo: x.so_lo,
+			so_lo_hien_thi: x.so_lo_hien_thi || x.so_lo,
 			ly_do: x.ly_do != null ? x.ly_do : x.loi || "",
 		}));
 		return { da_dat, loi };
@@ -407,6 +410,8 @@ function tao({ goi }) {
 	function trang_thai() {
 		const the_dong = dong.map((d) => ({
 			so_lo: d.so_lo,
+			// Chữ cho người đọc (spec tách số lô 19/10/2026); `so_lo` giữ mã lô làm khoá.
+			so_lo_hien_thi: d.so_lo_hien_thi || d.so_lo,
 			vat_tu: d.vat_tu,
 			ten_hang: d.ten_hang,
 			ton: d.ton,

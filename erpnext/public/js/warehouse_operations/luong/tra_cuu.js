@@ -45,7 +45,8 @@ function _dich(chu, doi_so) {
 // object `{lo, vat_tu, o, kho}` — thêm một `loai` mới ở máy chủ phải nhớ sửa hai
 // nơi). Trả chuỗi ĐÃ DỊCH — gọi trực tiếp lúc vẽ, không cần lớp vẽ tự bọc `__()`
 // thêm lần nữa (khác `MO_TA_KHONG_RO` bên dưới, xem lý do ở đó).
-const _NHAN_LOAI = { lo: "Lô", vat_tu: "Vật tư", o: "Vị trí", kho: "Kho" };
+// `chon_lo` (spec tách số lô 19/10/2026): gõ tay một số lô mà nhiều lô mang nó.
+const _NHAN_LOAI = { lo: "Lô", vat_tu: "Vật tư", o: "Vị trí", kho: "Kho", chon_lo: "Chọn lô" };
 function nhan_loai(loai) {
 	return _dich(_NHAN_LOAI[loai] || "Không rõ");
 }

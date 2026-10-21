@@ -213,7 +213,7 @@
 			if (!d) return;
 			hoi({
 				noi_dung: __("Bỏ dòng <b>{0}</b> · {1} → {2} khỏi phiếu?", [
-					e(d.so_lo || d.ten_hang),
+					e(d.so_lo_hien_thi || d.so_lo || d.ten_hang),
 					so(d.so_luong),
 					e(d.den_o),
 				]),
@@ -372,7 +372,7 @@
 				$k.html(`
 					<div class="xh-the xh-the-dat-o">
 						<span class="xh-nhan-loai loai-o">${__("Đang chờ quét ô")}</span>
-						<div class="xh-ma-to">${e(o.so_lo || o.ten_hang)}</div>
+						<div class="xh-ma-to">${e(o.so_lo_hien_thi || o.so_lo || o.ten_hang)}</div>
 						<div class="xh-mo">${__("Quét tem Ô muốn đặt lên tem lô này.")}</div>
 						<button type="button" class="xh-lien-ket-nho xh-huy-dat-o">${__("Huỷ")}</button>
 					</div>`);
@@ -381,7 +381,7 @@
 			$k.html(`
 				<div class="xh-the xh-the-dat-o">
 					<span class="xh-nhan-loai loai-o">${__("Chưa có ô trên tem")}</span>
-					<div class="xh-ma-to">${e(o.so_lo || o.ten_hang)}</div>
+					<div class="xh-ma-to">${e(o.so_lo_hien_thi || o.so_lo || o.ten_hang)}</div>
 					<button type="button" class="xh-nut-trong-bao xh-dat-o-tem">${__("Đặt ô trên tem")}</button>
 				</div>`);
 		}
@@ -420,7 +420,7 @@
 							<span class="xh-nhan-loai">${c.so_lo ? __("Lô") : __("Hàng không lô")}</span>
 							<button type="button" class="xh-lien-ket-nho xh-bo-lo">${__("Bỏ lô này")}</button>
 						</div>
-						${c.so_lo ? `<div class="xh-ma-to">${e(c.so_lo)}</div>` : ""}
+						${c.so_lo ? `<div class="xh-ma-to">${e(c.so_lo_hien_thi || c.so_lo)}</div>` : ""}
 						<div class="xh-ten-hang">${e(c.ten_hang)}</div>
 						<div class="xh-mo">${e(c.vat_tu)}${c.hsd ? " · HSD " + e(frappe.datetime.str_to_user(c.hsd)) : ""}</div>
 					</div>
@@ -463,7 +463,7 @@
 					<div class="xh-dong">
 						<div class="xh-dong-chinh">
 							<div class="xh-dong-ten">${e(d.ten_hang || d.vat_tu)}</div>
-							${d.so_lo ? `<div class="xh-dong-lo">${e(d.so_lo)}</div>` : ""}
+							${d.so_lo ? `<div class="xh-dong-lo">${e(d.so_lo_hien_thi || d.so_lo)}</div>` : ""}
 							<div class="xh-dong-duong">
 								${d.tu_o_chua_xep ? `<span>${__("Chưa xếp")}</span>` : `<span class="xh-ma">${e(d.tu_o)}</span>`}
 								<span class="xh-mui-ten">→</span>

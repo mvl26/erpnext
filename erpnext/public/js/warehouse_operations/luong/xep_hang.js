@@ -25,6 +25,12 @@
 // Đúng tinh thần `man_tra_cuu.js`: "goi() đã tự lo phiên hết hạn/mất mạng — màn chỉ
 // còn lỗi nghiệp vụ thật sự bất ngờ phải tự bắt".
 
+// Chữ hiển thị của mã lô: máy chủ kèm `so_lo_hien_thi` = số lô NCC (spec tách số
+// lô 19/10/2026). `so_lo` giữ MÃ LÔ để gửi ngược lên; chỉ câu chữ dùng hàm này.
+function _lo_ht(x) {
+	return (x && (x.so_lo_hien_thi || x.so_lo)) || "";
+}
+
 function _dich(chu, doi_so) {
 	if (typeof __ === "function") return __(chu, doi_so);
 	if (!doi_so) return chu;
@@ -108,14 +114,14 @@ function tao({ goi }) {
 	function _goi_y_o_quet() {
 		if (!kho) return { chu: _dich("Chọn kho để bắt đầu"), nhan_manh: false };
 		if (cho_quet_dat_o && dat_o) {
-			return { chu: _dich("Quét tem Ô để đặt lên tem lô {0}", [dat_o.so_lo]), nhan_manh: true };
+			return { chu: _dich("Quét tem Ô để đặt lên tem lô {0}", [_lo_ht(dat_o)]), nhan_manh: true };
 		}
 		if (cho) {
 			const g = cho.goi_y || {};
 			return g.theo_tem
 				? { chu: _dich("② Quét tem ô {0} (ô trên tem lô)", [g.ma_in_nhan || g.den_o]), nhan_manh: true }
 				: {
-						chu: _dich("② Quét tem Ô trên kệ để xếp {0}", [cho.so_lo || cho.ten_hang]),
+						chu: _dich("② Quét tem Ô trên kệ để xếp {0}", [_lo_ht(cho) || cho.ten_hang]),
 						nhan_manh: true,
 				  };
 		}
@@ -138,7 +144,7 @@ function tao({ goi }) {
 		cho_quet_dat_o = false;
 		if (!d.nguon || !d.nguon.length) {
 			cho = null;
-			return { buoc: "cho_lo", bao: _dich(CAU_LO_HET_HANG, [d.so_lo || d.vat_tu]), muc: "cam" };
+			return { buoc: "cho_lo", bao: _dich(CAU_LO_HET_HANG, [_lo_ht(d) || d.vat_tu]), muc: "cam" };
 		}
 		const t = d.o_tem || {};
 		if (t.kiem && t.loi) {
@@ -147,7 +153,7 @@ function tao({ goi }) {
 			// 20/09/2026) — `can_xac_nhan` báo cho lớp vẽ biết hiện nút "Đặt ô trên
 			// tem". Ô trên tem HỎNG là ca khác: đổi ô đã có là quyền trưởng kho, làm
 			// trên máy tính — không có nút, không có `can_xac_nhan`.
-			dat_o = t.chua_co_o ? { vat_tu: d.vat_tu, so_lo: d.so_lo, ten_hang: d.ten_hang } : null;
+			dat_o = t.chua_co_o ? { vat_tu: d.vat_tu, so_lo: d.so_lo, so_lo_hien_thi: d.so_lo_hien_thi, ten_hang: d.ten_hang } : null;
 			return {
 				buoc: "cho_lo",
 				bao: t.loi,
@@ -184,7 +190,7 @@ function tao({ goi }) {
 		const bao = _dich(CAU_DA_XEP, [
 			String(c.so_luong),
 			c.don_vi || "",
-			c.so_lo || c.ten_hang,
+			_lo_ht(c) || c.ten_hang,
 			o.ma_in_nhan || o.ma_o,
 		]);
 		cho = null;
@@ -209,7 +215,7 @@ function tao({ goi }) {
 		if (g.theo_tem && o.ma_o !== g.den_o) {
 			return {
 				buoc: "cho_o",
-				bao: _dich(CAU_SAI_O, [o.ma_in_nhan || o.ma_o, cho.so_lo, g.ma_in_nhan || g.den_o]),
+				bao: _dich(CAU_SAI_O, [o.ma_in_nhan || o.ma_o, _lo_ht(cho), g.ma_in_nhan || g.den_o]),
 				muc: "do",
 			};
 		}
@@ -223,7 +229,7 @@ function tao({ goi }) {
 		const kq = await goi(API_DOI_O_TREN_TEM, { so_lo: lo.so_lo, o_moi: o.ma_o });
 		cho_quet_dat_o = false;
 		dat_o = null;
-		const bao = _dich(CAU_DA_DAT_O_TEM, [lo.so_lo, kq.ma_in_nhan || kq.o]);
+		const bao = _dich(CAU_DA_DAT_O_TEM, [_lo_ht(lo), kq.ma_in_nhan || kq.o]);
 		// Nạp lại thẻ lô: giờ đã có ô trên tem nên xếp được ngay — thủ kho không
 		// phải quét lại tem LÔ lần hai chỉ để hệ tự xác nhận việc mình vừa làm.
 		const d = await goi(API_QUET_DE_XEP, { kho, ma: lo.so_lo });
@@ -245,7 +251,7 @@ function tao({ goi }) {
 			// xem quyết định này trong báo cáo Task 3.)
 			return {
 				buoc: "cho_lo",
-				bao: _dich(CAU_QUET_O_DE_DAT_TEM, [dat_o.so_lo]),
+				bao: _dich(CAU_QUET_O_DE_DAT_TEM, [_lo_ht(dat_o)]),
 				muc: "cam",
 				can_xac_nhan: "dat_o_tren_tem",
 			};

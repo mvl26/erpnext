@@ -18,7 +18,7 @@
   {"fieldname": "kho", "fieldtype": "Link", "label": "Kho", "options": "Warehouse", "read_only": 1},
   {"fieldname": "so_luong", "fieldtype": "Float", "label": "Số lượng", "read_only": 1, "in_list_view": 1, "columns": 1},
   {"fieldname": "col_1", "fieldtype": "Column Break"},
-  {"fieldname": "so_lo", "fieldtype": "Data", "label": "Số lô", "reqd": 1, "in_list_view": 1, "columns": 2, "length": 26, "description": "Tối đa 13 ký tự nếu có chữ; chỉ chữ số thì tối đa 23 (độ dài lẻ) hoặc 26 (độ dài chẵn). Chữ không dấu, không dùng gạch ngang dài –. Quá giới hạn thì tem 50×30 không in được mã vạch."},
+  {"fieldname": "so_lo", "fieldtype": "Data", "label": "Số lô", "reqd": 1, "in_list_view": 1, "columns": 2, "length": 140, "description": "Số lô in trên bao bì nhà cung cấp — gõ đúng như trên bao bì. Được trùng giữa các mặt hàng; mã lô (in trên mã vạch) do hệ thống tự sinh."},
   {"fieldname": "ngay_san_xuat", "fieldtype": "Date", "label": "Ngày sản xuất"},
   {"fieldname": "hsd", "fieldtype": "Date", "label": "Hạn dùng", "in_list_view": 1, "columns": 1},
   {"fieldname": "sec_goi_y", "fieldtype": "Section Break", "label": "Gợi ý vị trí"},

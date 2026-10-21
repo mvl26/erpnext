@@ -60,7 +60,8 @@ def execute(filters=None):
 	dong_la = frappe.db.sql(
 		f"""
 		select lb.o as o, sl.ten_o as ten_o, lb.kho as kho, lb.vat_tu as vat_tu,
-		       lb.so_lo as so_lo, b.expiry_date as expiry_date, lb.so_luong as so_luong,
+		       lb.so_lo as so_lo, ifnull(nullif(b.custom_so_lo, ''), lb.so_lo) as so_lo_hien_thi,
+		       b.expiry_date as expiry_date, lb.so_luong as so_luong,
 		       sl.parent_storage_location as parent_o
 		from `tabLocation Balance` lb
 		join `tabStorage Location` sl on sl.name = lb.o
@@ -127,6 +128,7 @@ def _gop_theo_cap(dong_la: list[dict]) -> dict[str, dict]:
 			"kho": hang.get("kho"),
 			"vat_tu": None,
 			"so_lo": None,
+			"so_lo_hien_thi": None,
 			"expiry_date": None,
 			"so_luong": so_luong,
 			"parent_o": hang.get("parent_storage_location"),
@@ -185,7 +187,17 @@ def _cot():
 		{"label": _("Tên ô"), "fieldname": "ten_o", "fieldtype": "Data", "width": 160},
 		{"label": _("Kho"), "fieldname": "kho", "fieldtype": "Link", "options": "Warehouse", "width": 160},
 		{"label": _("Mặt hàng"), "fieldname": "vat_tu", "fieldtype": "Link", "options": "Item", "width": 220},
-		{"label": _("Số lô"), "fieldname": "so_lo", "fieldtype": "Link", "options": "Batch", "width": 170},
+		{
+			"label": _("Mã lô"),
+			"fieldname": "so_lo",
+			"fieldtype": "Link",
+			"options": "Batch",
+			"width": 170,
+			"hidden": 1,
+		},
+		# Spec tách số lô 19/10/2026: cột Link giữ MÃ LÔ để nối/lọc, ẩn đi; người
+		# đọc thấy SỐ LÔ NCC ở cột ngay sau, đúng chỗ cột "Số lô" cũ.
+		{"label": _("Số lô"), "fieldname": "so_lo_hien_thi", "fieldtype": "Data", "width": 170},
 		{"label": _("Hạn dùng"), "fieldname": "expiry_date", "fieldtype": "Date", "width": 110},
 		{"label": _("Số lượng"), "fieldname": "so_luong", "fieldtype": "Float", "width": 110},
 		{

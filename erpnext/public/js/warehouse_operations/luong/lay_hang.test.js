@@ -627,3 +627,31 @@ test("dòng có sàn HSD khách: câu yêu cầu, hết lô đạt, lô đang ch
 	const duoi = await mo({ han_khach: "2027-10-19", khong_con_lo_dat_han: false, lo_dang_chot_duoi_han: true });
 	assert.match(duoi.canh_bao_han_khach, /^Lô LO-1 trên phiếu thấp hơn HSD khách yêu cầu \(đến 19\/10\/2027\)/);
 });
+
+test("câu báo hiện SỐ LÔ NCC, lượt ghi vẫn gửi MÃ LÔ (spec tách số lô 19/10/2026)", async () => {
+	const goi_da = [];
+	const l = tao({ goi: gia_lap({
+		mo_phieu_giao: () => PHIEU,
+		quet_de_lay: () => ({
+			loai: "lo_khac", dong_hang: "d1", so_lo: "L26-000002", so_lo_hien_thi: "NCC-2",
+			so_lo_dang_chot: "L26-000001", so_lo_dang_chot_hien_thi: "NCC-1",
+		}),
+	}) });
+	await l.mo("MAT-DN-1");
+	const kq = await l.quet("L26-000002");
+	assert.match(kq.bao, /NCC-2/);
+	assert.match(kq.bao, /NCC-1/);
+	assert.doesNotMatch(kq.bao, /L26-/, "người đọc thấy số lô, không thấy mã lô");
+
+	const l2 = tao({ goi: gia_lap({
+		mo_phieu_giao: () => _phieu(),
+		quet_de_lay: ({ ma }) =>
+			ma === "L26-000001" ? { ..._lo("L26-000001"), so_lo_hien_thi: "NCC-1" } : _o(ma),
+		ghi_da_lay: (d) => { goi_da.push(d); return _phieu((x) => { x.da_lay_ton = 600; x.da_lay = 6; }); },
+	}) });
+	await l2.mo("MAT-DN-1");
+	await l2.quet("L26-000001");
+	const kq2 = await l2.quet("1A01");
+	assert.equal(goi_da[0].so_lo, "L26-000001", "máy chủ nhận MÃ LÔ");
+	assert.match(kq2.bao, /NCC-1/);
+});

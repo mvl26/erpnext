@@ -451,3 +451,4 @@ erpnext.patches.v15_0.mark_default_item_supplier
 erpnext.patches.v15_0.move_default_supplier_to_item_supplier
 erpnext.patches.v15_0.einvoice_source_sales_invoice
 erpnext.warehouse_operations.patches.v1_0.so_goi_theo_phieu_nhap
+erpnext.warehouse_operations.patches.v1_0.them_so_lo_ncc

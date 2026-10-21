@@ -126,22 +126,27 @@ class TestTraCuu(FrappeTestCase):
 		)
 		be.insert(ignore_permissions=True)
 		be.submit()
+		be.reload()
+		# Từ 19/10/2026 tên lô là mã tự sinh, không còn là số lô đã khai.
+		ma_lo = be.items[0].lo_da_tao
 
 		# Tem ĐÃ IN cho lô này — đặt thẳng xuống CSDL đúng cách `dat_o_in_tem`
 		# (`nhap_lo.py`) tự làm, vì trường `custom_o_in_tem` là `read_only: 1`
 		# trên lược đồ. Đặt tường minh (không để trống) để bài kiểm ĐƯỢC giá
 		# trị THẬT của trường, không phải chỉ "không phải lỗi" — một cài đặt
 		# luôn trả `o_in_tem = None` vẫn qua được nếu bài chỉ `assertIsNone`.
-		frappe.db.set_value("Batch", SO_LO, "custom_o_in_tem", VI_TRI)
+		frappe.db.set_value("Batch", ma_lo, "custom_o_in_tem", VI_TRI)
 
-		_ton_lo(VI_TRI, self.item, SO_LO, 6)
+		_ton_lo(VI_TRI, self.item, ma_lo, 6)
 
+		# Gõ tay số lô in trên bao bì: chỉ một lô mang số lô đó nên vào thẳng lô.
 		ket_qua = tra_cuu(SO_LO)
 
 		ten_hang_that = frappe.db.get_value("Item", self.item, "item_name")
 
 		self.assertEqual(ket_qua["loai"], "lo")
-		self.assertEqual(ket_qua["so_lo"], SO_LO)
+		self.assertEqual(ket_qua["so_lo"], ma_lo)
+		self.assertEqual(ket_qua["so_lo_hien_thi"], SO_LO)
 		self.assertEqual(ket_qua["vat_tu"], self.item)
 		self.assertEqual(ket_qua["ten_hang"], ten_hang_that)
 		self.assertEqual(str(ket_qua["hsd"]), "2030-01-31")
@@ -156,6 +161,11 @@ class TestTraCuu(FrappeTestCase):
 		self.assertEqual(len(ket_qua["ton_theo_o"]), 1)
 		self.assertEqual(ket_qua["ton_theo_o"][0]["o"], VI_TRI)
 		self.assertEqual(float(ket_qua["ton_theo_o"][0]["so_luong"]), 6.0)
+		self.assertEqual(ket_qua["ton_theo_o"][0]["so_lo_hien_thi"], SO_LO)
+
+		# Quét mã vạch trên tem (mã lô) ra đúng lô đó.
+		frappe.cache().delete_value(f"erpnext:barcode_scan:{ma_lo}")
+		self.assertEqual(tra_cuu(ma_lo)["so_lo"], ma_lo)
 
 	def test_quet_ma_khong_ton_tai_thi_tra_rong_chu_khong_no(self):
 		"""Thủ kho quét nhầm một mã bất kỳ trong kho. Nổ ra traceback giữa màn
@@ -417,3 +427,42 @@ class TestTraCuuNhieuViTri(FrappeTestCase):
 		ket_qua = tra_cuu(item)
 		self.assertEqual(ket_qua["vi_tri_co_dinh"], "9Q530101; 9Q52010101")
 		self.assertEqual(ket_qua["kho_co_dinh"], KHO)
+
+
+class TestTraCuuSoLo(FrappeTestCase):
+	"""Spec tách số lô 19/10/2026: mã vạch in mã lô, người gõ tay có thể gõ số lô
+	bao bì — trùng được giữa các mặt hàng — hoặc tên lô cũ (tem in trước 19/10)."""
+
+	MA = ("QSL-CU-QUET-1", "QSL-ABC", "QSL-L26-1", "QSL-DUY-1", "QSL-L26-2")
+
+	def setUp(self):
+		for ma in self.MA:
+			frappe.cache().delete_value(f"erpnext:barcode_scan:{ma}")
+		self.x = _tao_item("_Test Quet So Lo X", co_lo=1)
+		self.y = _tao_item("_Test Quet So Lo Y", co_lo=1)
+
+	def _lo(self, ten, item, **kw):
+		return frappe.get_doc({"doctype": "Batch", "batch_id": ten, "item": item, **kw}).insert(
+			ignore_permissions=True
+		)
+
+	def test_tem_cu_quet_van_ra_lo(self):
+		"""Lô cũ: tên = số lô (patch Task 1). Mã vạch tem cũ là tên đó."""
+		self._lo("QSL-CU-QUET-1", self.x)
+		kq = tra_cuu("QSL-CU-QUET-1")
+		self.assertEqual(kq["loai"], "lo")
+		self.assertEqual((kq["so_lo"], kq["so_lo_hien_thi"]), ("QSL-CU-QUET-1", "QSL-CU-QUET-1"))
+
+	def test_go_tay_so_lo_trung_cho_chon(self):
+		"""E3: "ABC" vừa là tên lô cũ của X vừa là số lô lô mới của Y — không đoán."""
+		self._lo("QSL-ABC", self.x)
+		self._lo("QSL-L26-1", self.y, custom_so_lo="QSL-ABC")
+		kq = tra_cuu("QSL-ABC")
+		self.assertEqual(kq["loai"], "chon_lo")
+		self.assertEqual(sorted(x["ma_lo"] for x in kq["ds"]), ["QSL-ABC", "QSL-L26-1"])
+
+	def test_go_tay_so_lo_duy_nhat_vao_thang(self):
+		self._lo("QSL-L26-2", self.x, custom_so_lo="QSL-DUY-1")
+		kq = tra_cuu("QSL-DUY-1")
+		self.assertEqual(kq["loai"], "lo")
+		self.assertEqual((kq["so_lo"], kq["so_lo_hien_thi"]), ("QSL-L26-2", "QSL-DUY-1"))

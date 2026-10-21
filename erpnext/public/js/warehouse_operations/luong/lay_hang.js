@@ -52,6 +52,14 @@ function _dich(chu, doi_so) {
 	return chu.replace(/\{(\d+)\}/g, (_, i) => (doi_so[i] !== undefined ? doi_so[i] : ""));
 }
 
+// Chữ hiển thị của một khoá mã lô (`so_lo`, `so_lo_dang_chot`, `lo_nen_lay`):
+// máy chủ kèm `<khoá>_hien_thi` = số lô NCC (spec tách số lô 19/10/2026). Khoá
+// gốc giữ MÃ LÔ để gửi ngược lên; chỉ câu chữ cho người đọc dùng hàm này.
+function _lo_ht(x, khoa = "so_lo") {
+	if (!x) return "";
+	return x[khoa + "_hien_thi"] || x[khoa] || "";
+}
+
 // `frappe.utils.flt` không có trong Node — bản rút gọn đủ dùng cho số lượng gõ tay
 // (có thể là chuỗi từ một ô nhập số, hoặc số thật từ máy chủ).
 function _flt(gia_tri) {
@@ -304,6 +312,7 @@ function tao({ goi, ngay }) {
 		cho = {
 			dong_hang: d.dong_hang,
 			so_lo: d.so_lo === undefined ? null : d.so_lo,
+			so_lo_hien_thi: d.so_lo_hien_thi || null,
 			vat_tu: d.vat_tu,
 			ten_hang: dong.ten_hang,
 			don_vi: dong.don_vi_dong,
@@ -331,9 +340,9 @@ function tao({ goi, ngay }) {
 		return {
 			buoc: "cho_lo",
 			bao: _dich(CAU_LO_KHAC, [
-				d.so_lo,
+				_lo_ht(d),
 				_ngay(d.hsd) || "—",
-				d.so_lo_dang_chot || "—",
+				_lo_ht(d, "so_lo_dang_chot") || "—",
 				_ngay(d.hsd_dang_chot) || "—",
 			]),
 			muc: "cam",
@@ -433,7 +442,7 @@ function tao({ goi, ngay }) {
 		if ((d.loai === "lo" || d.loai === "lo_khac") && d.het_han) {
 			return {
 				buoc: _buoc(),
-				bao: _dich(CAU_LO_HET_HAN, [d.so_lo, _ngay(d.hsd) || "—"]),
+				bao: _dich(CAU_LO_HET_HAN, [_lo_ht(d), _ngay(d.hsd) || "—"]),
 				muc: "do",
 			};
 		}
@@ -442,7 +451,7 @@ function tao({ goi, ngay }) {
 		if ((d.loai === "lo" || d.loai === "lo_khac") && d.duoi_han_khach) {
 			return {
 				buoc: _buoc(),
-				bao: _dich(CAU_LO_DUOI_HAN_KHACH, [d.so_lo, _ngay(d.hsd) || "—", _ngay(d.han_khach) || "—"]),
+				bao: _dich(CAU_LO_DUOI_HAN_KHACH, [_lo_ht(d), _ngay(d.hsd) || "—", _ngay(d.han_khach) || "—"]),
 				muc: "do",
 			};
 		}
@@ -494,7 +503,7 @@ function tao({ goi, ngay }) {
 		});
 		phieu = p;
 		cho = null;
-		return { buoc: "cho_lo", bao: _dich(CAU_DA_CHUYEN_LO, [lk.so_lo]), muc: "xanh" };
+		return { buoc: "cho_lo", bao: _dich(CAU_DA_CHUYEN_LO, [_lo_ht(lk)]), muc: "xanh" };
 	}
 
 	/** Ghi một lượt lấy vào ô `o`. Gọi từ `quet()` khi quét trúng tem ô; công bố ra
@@ -562,6 +571,7 @@ function tao({ goi, ngay }) {
 			cho = {
 				dong_hang: c.dong_hang,
 				so_lo: c.so_lo,
+				so_lo_hien_thi: c.so_lo_hien_thi,
 				vat_tu: c.vat_tu,
 				ten_hang: c.ten_hang,
 				don_vi: c.don_vi,
@@ -585,7 +595,7 @@ function tao({ goi, ngay }) {
 			bao: _dich(CAU_DA_LAY, [
 				String(da_ghi),
 				dv_ghi,
-				c.so_lo || c.ten_hang || c.vat_tu || "",
+				_lo_ht(c) || c.ten_hang || c.vat_tu || "",
 				ma_in_nhan || o,
 			]),
 			muc: "xanh",
@@ -750,14 +760,14 @@ function tao({ goi, ngay }) {
 		if (!kho) return { chu: _dich(GOI_Y_CHON_KHO), nhan_manh: false };
 		if (!phieu) return { chu: _dich(GOI_Y_CHON_PHIEU), nhan_manh: false };
 		if (cho && cho.lo_khac) {
-			return { chu: _dich(GOI_Y_QUET_LAI_DOI_LO, [cho.lo_khac.so_lo]), nhan_manh: true };
+			return { chu: _dich(GOI_Y_QUET_LAI_DOI_LO, [_lo_ht(cho.lo_khac)]), nhan_manh: true };
 		}
 		if (cho) {
 			// `so_lo` có thể là `null` (mặt hàng không quản lý lô) — nhắc theo tên hàng
 			// thay vì in ra "lô null".
 			return {
 				chu: cho.so_lo
-					? _dich(GOI_Y_QUET_O_CHO_LO, [cho.so_lo])
+					? _dich(GOI_Y_QUET_O_CHO_LO, [_lo_ht(cho)])
 					: _dich(GOI_Y_QUET_O_CHO_HANG, [cho.ten_hang || cho.vat_tu || ""]),
 				nhan_manh: true,
 			};
@@ -777,16 +787,17 @@ function tao({ goi, ngay }) {
 		const viec = _viec_doi_lo(dong);
 		return {
 			so_lo: lk.so_lo,
+			so_lo_hien_thi: _lo_ht(lk),
 			dong_hang: lk.dong_hang,
 			cau: _dich(CAU_LO_KHAC, [
-				lk.so_lo,
+				_lo_ht(lk),
 				_ngay(lk.hsd) || "—",
-				lk.so_lo_dang_chot || "—",
+				_lo_ht(lk, "so_lo_dang_chot") || "—",
 				_ngay(lk.hsd_dang_chot) || "—",
 			]),
 			canh_bao: lk.han_xa_hon ? _dich(CAU_HAN_XA_HON) : null,
-			nhac: _dich(CAU_QUET_LAI_DE_DOI_LO, [lk.so_lo]),
-			nhan_nut: _dich(viec === "tach_dong" ? NHAN_NUT_TACH_DONG : NHAN_NUT_DOI_LO, [lk.so_lo]),
+			nhac: _dich(CAU_QUET_LAI_DE_DOI_LO, [_lo_ht(lk)]),
+			nhan_nut: _dich(viec === "tach_dong" ? NHAN_NUT_TACH_DONG : NHAN_NUT_DOI_LO, [_lo_ht(lk)]),
 			viec,
 		};
 	}
@@ -799,6 +810,7 @@ function tao({ goi, ngay }) {
 		return {
 			dong_hang: cho.dong_hang,
 			so_lo: cho.so_lo,
+			so_lo_hien_thi: _lo_ht(cho),
 			vat_tu: cho.vat_tu,
 			ten_hang: cho.ten_hang,
 			don_vi: cho.don_vi,
@@ -838,7 +850,7 @@ function tao({ goi, ngay }) {
 			const lay_duoc = _lam_tron(con_ton - thieu_trong_lo, 3) + " " + don_vi_ton;
 			const con_thieu = _lam_tron(thieu_trong_lo, 3) + " " + don_vi_ton;
 			cau_thieu = d.so_lo
-				? _dich(CAU_THIEU_TRONG_LO, [d.so_lo, lay_duoc, con_thieu])
+				? _dich(CAU_THIEU_TRONG_LO, [_lo_ht(d), lay_duoc, con_thieu])
 				: _dich(CAU_THIEU_TRONG_KHO, [lay_duoc, con_thieu]);
 		}
 		const lo_nen = d.lo_nen_lay && d.lo_nen_lay !== d.so_lo;
@@ -858,11 +870,11 @@ function tao({ goi, ngay }) {
 				: null,
 			cau_thieu_trong_lo: cau_thieu,
 			cau_lo_nen_lay: lo_nen
-				? _dich(CAU_LO_NEN_LAY, [d.lo_nen_lay]) +
+				? _dich(CAU_LO_NEN_LAY, [_lo_ht(d, "lo_nen_lay")]) +
 				  (d.lo_nen_lay_hsd ? " · HSD " + _ngay(d.lo_nen_lay_hsd) : "")
 				: null,
 			canh_bao_han: lo_nen && d.lo_tren_phieu_muon_hon
-				? _dich(CAU_LO_TREN_PHIEU_MUON_HON, [d.lo_nen_lay])
+				? _dich(CAU_LO_TREN_PHIEU_MUON_HON, [_lo_ht(d, "lo_nen_lay")])
 				: null,
 			hsd_chu: _ngay(d.hsd),
 			cau_han_khach: d.han_khach ? _dich(CAU_HAN_KHACH, [_ngay(d.han_khach)]) : null,
@@ -871,7 +883,7 @@ function tao({ goi, ngay }) {
 				: d.khong_con_lo_dat_han
 					? _dich(CAU_KHONG_CON_LO_DAT_HAN, [_ngay(d.han_khach)])
 					: d.lo_dang_chot_duoi_han
-						? _dich(CAU_LO_DANG_CHOT_DUOI_HAN, [d.so_lo || "—", _ngay(d.han_khach)])
+						? _dich(CAU_LO_DANG_CHOT_DUOI_HAN, [_lo_ht(d) || "—", _ngay(d.han_khach)])
 						: null,
 			// Dòng bán theo đơn vị KHÁC đơn vị tồn: hiện thêm dòng phụ theo đơn vị tồn.
 			khac_don_vi: !!(d.don_vi_dong && d.don_vi_ton && d.don_vi_dong !== d.don_vi_ton),

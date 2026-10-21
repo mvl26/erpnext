@@ -18,6 +18,7 @@ from erpnext.warehouse_operations.vitri.fefo import chon_o_xuat
 from erpnext.warehouse_operations.vitri.kho import kho_co_quan_ly_vi_tri
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
 from erpnext.warehouse_operations.vitri.so import ton_o, tong_ton_vi_tri
+from erpnext.warehouse_operations.vitri.so_lo import kem_so_lo_hien_thi
 
 _SAI_SO = 1e-9
 
@@ -748,6 +749,7 @@ def danh_sach_phieu_giao(kho: str | None = None) -> dict:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def mo_phieu_giao(phieu: str) -> dict:
 	"""Chi tiết một phiếu giao để lấy hàng: từng dòng cần bao nhiêu, nên tới ô nào.
 
@@ -1186,6 +1188,7 @@ def _chon_dong_ung_vien(ung_vien: list, da_lay: dict, dong_hang: str | None):
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def quet_de_lay(phieu: str, ma: str, dong_hang: str | None = None) -> dict:
 	"""Nhận diện một mã quét trên trang lấy hàng.
 
@@ -1524,6 +1527,7 @@ def _ton_o_con_lai_tren_phieu(doc, o: str, vat_tu: str, so_lo: str | None) -> fl
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def ghi_da_lay(
 	phieu: str,
 	dong_hang: str,
@@ -1660,6 +1664,7 @@ def ghi_da_lay(
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def bo_dong_da_lay(phieu: str, ten_dong: str) -> dict:
 	"""Quét nhầm thì gỡ đúng dòng phân bổ đó.
 
@@ -1691,6 +1696,7 @@ def bo_dong_da_lay(phieu: str, ten_dong: str) -> dict:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def doi_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 	"""Đổi lô của một dòng phiếu giao sang lô thủ kho thật sự cầm trên tay.
 
@@ -1719,6 +1725,7 @@ def doi_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 	"""Lô cũ hết giữa chừng: chốt dòng cũ ở số ĐÃ LẤY, đẻ dòng mới cho phần còn lại.
 
@@ -1833,6 +1840,7 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def chot_thieu(phieu: str, dong_hang: str) -> dict:
 	"""Đánh dấu dòng này lấy được bao nhiêu thì tính bấy nhiêu.
 
@@ -1899,6 +1907,7 @@ def chot_thieu(phieu: str, dong_hang: str) -> dict:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def bo_chot_thieu(phieu: str, dong_hang: str) -> dict:
 	"""Gỡ cờ "chốt thiếu" — bấm nhầm thì phải gỡ lại được (VÒNG SỬA 1/5,
 	Critical, review điều phối). Trước sửa này, cách DUY NHẤT gỡ một cờ chốt
@@ -1926,6 +1935,7 @@ def bo_chot_thieu(phieu: str, dong_hang: str) -> dict:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def hoan_tat(phieu: str) -> dict:
 	"""Chỉnh số lượng theo số lấy thật (nếu có chốt thiếu) rồi DUYỆT phiếu giao.
 
@@ -2066,6 +2076,7 @@ def hoan_tat(phieu: str) -> dict:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def tien_do_lay_hang(phieu: str) -> dict:
 	"""Tiến độ lấy hàng cho dòng tóm tắt trên FORM Phiếu giao (19/09/2026).
 

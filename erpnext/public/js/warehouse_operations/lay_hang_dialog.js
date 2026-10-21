@@ -142,7 +142,7 @@ erpnext.warehouse_operations.lay_hang_dialog = (function () {
 				d = d || { loai: null };
 				if ((d.loai === "lo" || d.loai === "lo_khac") && d.het_han) {
 					const hsd = d.hsd ? frappe.datetime.str_to_user(d.hsd) : "—";
-					return this.bao(__("CHẶN: lô <b>{0}</b> đã hết hạn ngày {1}.", [e(d.so_lo), e(hsd)]), "do");
+					return this.bao(__("CHẶN: lô <b>{0}</b> đã hết hạn ngày {1}.", [e(lo_ht(d)), e(hsd)]), "do");
 				}
 				// HSD khách yêu cầu (19/10/2026): máy chủ cũng chặn khi ghi/đổi/tách lô.
 				if ((d.loai === "lo" || d.loai === "lo_khac") && d.duoi_han_khach) {
@@ -173,6 +173,7 @@ erpnext.warehouse_operations.lay_hang_dialog = (function () {
 			this.cho = {
 				dong_hang: d.dong_hang,
 				so_lo: d.so_lo,
+				so_lo_hien_thi: d.so_lo_hien_thi,
 				vat_tu: d.vat_tu,
 				ten_hang: dong.ten_hang,
 				o: null,
@@ -259,7 +260,7 @@ erpnext.warehouse_operations.lay_hang_dialog = (function () {
 							so(p.so_luong_da_ghi != null ? p.so_luong_da_ghi : c.so_luong),
 							e(p.don_vi_da_ghi || c.don_vi),
 							cint(c.so_kien),
-							e(c.so_lo || c.vat_tu),
+							e(lo_ht(c) || c.vat_tu),
 							e(c.ma_in_nhan),
 						]),
 						"xanh"
@@ -321,8 +322,8 @@ erpnext.warehouse_operations.lay_hang_dialog = (function () {
 			this.$goc.find(".lhd-chan").html(this.html_chan());
 			const c = this.cho;
 			if (!c) this.o_quet.dat_goi_y(__("① Quét tem LÔ trên hàng"));
-			else if (c.lo_khac) this.o_quet.dat_goi_y(__("Quét LẠI tem {0} để đổi lô", [c.lo_khac.so_lo]), "nhan-manh");
-			else if (!c.o) this.o_quet.dat_goi_y(__("② Quét tem Ô nơi lấy lô {0}", [c.so_lo || c.vat_tu]), "nhan-manh");
+			else if (c.lo_khac) this.o_quet.dat_goi_y(__("Quét LẠI tem {0} để đổi lô", [lo_ht(c.lo_khac)]), "nhan-manh");
+			else if (!c.o) this.o_quet.dat_goi_y(__("② Quét tem Ô nơi lấy lô {0}", [lo_ht(c) || c.vat_tu]), "nhan-manh");
 			else this.o_quet.dat_goi_y(__("③ Chọn đơn vị, số lượng, số kiện rồi bấm Ghi (hoặc Enter)"), "nhan-manh");
 		}
 
@@ -334,13 +335,13 @@ erpnext.warehouse_operations.lay_hang_dialog = (function () {
 				return `
 					<div class="lhd-cho">
 						<div>${__("Lô <b>{0}</b> (HSD {1}) KHÁC lô đang chốt <b>{2}</b> trên dòng này.", [
-							e(lk.so_lo),
+							e(lo_ht(lk)),
 							lk.hsd ? e(frappe.datetime.str_to_user(lk.hsd)) : "—",
-							e(lk.so_lo_dang_chot || "—"),
+							e(lo_ht(lk, "so_lo_dang_chot") || "—"),
 						])}</div>
 						${lk.han_xa_hon ? `<div class="lhd-canh-bao">${__("Lô mới có hạn XA HƠN lô đang chốt — kiểm tra kỹ trước khi đổi.")}</div>` : ""}
 						<div class="lhd-chan" style="justify-content:flex-start">
-							<button type="button" class="btn btn-sm btn-primary lhd-doi-lo">${__("Đổi sang lô {0}", [e(lk.so_lo)])}</button>
+							<button type="button" class="btn btn-sm btn-primary lhd-doi-lo">${__("Đổi sang lô {0}", [e(lo_ht(lk))])}</button>
 							<button type="button" class="btn btn-sm btn-default lhd-huy-cho">${__("Thôi")}</button>
 						</div>
 					</div>`;
@@ -359,7 +360,7 @@ erpnext.warehouse_operations.lay_hang_dialog = (function () {
 			return `
 				<div class="lhd-cho">
 					<div style="margin-bottom:8px">
-						${__("Đang lấy")} <span class="lhd-ma">${e(c.so_lo || "")}</span> · ${e(c.ten_hang || c.vat_tu)}
+						${__("Đang lấy")} <span class="lhd-ma">${e(lo_ht(c))}</span> · ${e(c.ten_hang || c.vat_tu)}
 						· ${__("Ô")}: ${c.o ? `<span class="lhd-ma">${e(c.ma_in_nhan)}</span>` : `<i class="text-muted">${__("chưa quét")}</i>`}
 					</div>
 					<div class="lhd-cho-hang">
@@ -409,18 +410,18 @@ erpnext.warehouse_operations.lay_hang_dialog = (function () {
 			}
 			const du = flt(d.da_lay_ton) >= flt(d.can_lay_ton) - 1e-9;
 			const lo = `
-				<div class="lhd-ma">${e(d.so_lo || "—")}</div>
+				<div class="lhd-ma">${e(lo_ht(d) || "—")}</div>
 				${d.hsd ? `<div class="text-muted small">HSD ${e(frappe.datetime.str_to_user(d.hsd))}</div>` : ""}
 				${
 					d.lo_nen_lay && d.lo_nen_lay !== d.so_lo
-						? `<div class="small">${__("Nên lấy lô")} <span class="lhd-ma">${e(d.lo_nen_lay)}</span>${
+						? `<div class="small">${__("Nên lấy lô")} <span class="lhd-ma">${e(lo_ht(d, "lo_nen_lay"))}</span>${
 								d.lo_nen_lay_hsd ? ` (HSD ${e(frappe.datetime.str_to_user(d.lo_nen_lay_hsd))})` : ""
 						  }</div>`
 						: ""
 				}
 				${
 					d.lo_tren_phieu_muon_hon
-						? `<div class="lhd-canh-bao">${__("Lô trên phiếu hết hạn muộn hơn lô {0}", [e(d.lo_nen_lay)])}</div>`
+						? `<div class="lhd-canh-bao">${__("Lô trên phiếu hết hạn muộn hơn lô {0}", [e(lo_ht(d, "lo_nen_lay"))])}</div>`
 						: ""
 				}
 				${this.html_han_khach(d)}`;
@@ -488,6 +489,12 @@ erpnext.warehouse_operations.lay_hang_dialog = (function () {
 
 	function so(x) {
 		return e(flt(x).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
+	}
+
+	// Chữ hiển thị của khoá mã lô: máy chủ kèm `<khoá>_hien_thi` = số lô NCC (spec
+	// tách số lô 19/10/2026). Khoá gốc giữ MÃ LÔ để gửi ngược lên.
+	function lo_ht(x, khoa = "so_lo") {
+		return (x && (x[khoa + "_hien_thi"] || x[khoa])) || "";
 	}
 
 	function e(x) {
