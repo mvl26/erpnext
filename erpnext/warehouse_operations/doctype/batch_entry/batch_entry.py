@@ -37,10 +37,14 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.model.naming import make_autoname
 
-from erpnext.warehouse_operations.vitri.ma_vach import kiem_tra_do_dai, kiem_tra_ky_tu
-
 #: Tiền tố chỉ để `make_autoname` có khoá đếm riêng; nó bị cắt khỏi giá trị lưu.
 _SERIES_SO_GOI = "SOGOI-.####"
+
+#: Mã lô tự sinh — `L26-000123` (anh chốt 19/10/2026). Luôn 10 ký tự nên vừa mã
+#: vạch trên tem 50×30, bất kể số lô NCC dài bao nhiêu. Đặt ở đây chứ không dựa
+#: vào `Item.batch_number_series`: lô do phiếu nhập lô tạo phải CÙNG một mẫu, không
+#: tuỳ cấu hình từng mặt hàng.
+_SERIES_MA_LO = "L.YY.-.######"
 
 
 def _sinh_so_goi() -> str:
@@ -77,9 +81,7 @@ def _so_goi_tu_phieu_nhap(phieu_nhap: str) -> str:
 class BatchEntry(Document):
 	def validate(self):
 		# Thứ tự này là một phần của spec (§5.5), không phải chi tiết cài đặt:
-		# câu báo lỗi ĐẦU TIÊN người dùng thấy phải chỉ đúng chỗ sai. Kiểm trùng
-		# số lô trước khi kiểm độ dài thì người gõ một số lô quá dài được bảo là
-		# "trùng" và đi sửa sai chỗ.
+		# câu báo lỗi ĐẦU TIÊN người dùng thấy phải chỉ đúng chỗ sai.
 		self.kiem_tra_phieu_nhap_con_nhap()
 		self.kiem_tra_dong_thuoc_phieu()
 		self.kiem_tra_dong_chua_bi_be_khac_phu()
@@ -164,23 +166,10 @@ class BatchEntry(Document):
 			d.so_lo = (d.so_lo or "").strip()
 			if not d.so_lo:
 				frappe.throw(_("Dòng {0}: chưa có số lô.").format(d.idx))
-
-			# Ký tự TRƯỚC, độ dài sau: một số lô có dấu tiếng Việt vừa sai ký tự
-			# vừa có thể quá dài, mà câu báo về ký tự là câu chỉ đúng việc phải
-			# làm (gõ lại không dấu). Báo độ dài trước thì thủ kho đi cắt bớt ký
-			# tự — và số lô cắt bớt là số lô sai dán lên hàng.
-			kiem_tra_ky_tu(d.so_lo, _("lô"))
-			kiem_tra_do_dai(d.so_lo, _("lô"))
-
-			chu_lo = frappe.db.get_value("Batch", d.so_lo, "item")
-			if chu_lo and chu_lo != d.vat_tu:
-				frappe.throw(
-					_(
-						"Dòng {0}: số lô '{1}' đã thuộc mặt hàng {2}. Số lô là tên bản ghi "
-						"trong ERPNext nên duy nhất toàn hệ, hai mặt hàng không dùng chung "
-						"được."
-					).format(d.idx, d.so_lo, chu_lo)
-				)
+			# Không còn kiểm ký tự/độ dài theo mã vạch, cũng không chặn số lô đã
+			# thuộc mặt hàng khác (spec tách số lô 19/10/2026): mã vạch giờ in MÃ
+			# LÔ tự sinh, còn số lô NCC được trùng giữa các mặt hàng — hai mặt hàng
+			# chung số lô là chuyện thật, gặp nhiều lần.
 
 	def kiem_tra_ngay(self):
 		for d in self.items:
@@ -208,11 +197,12 @@ class BatchEntry(Document):
 		"""Trả về bản ghi `Batch` cho dòng `d` — dùng lại nếu đã có.
 
 		Dùng lại chứ không tạo mới vì NCC giao làm hai đợt cùng một số lô là
-		chuyện thật. `validate` đã chặn ca số lô thuộc mặt hàng KHÁC, nên tới
-		đây mà đã tồn tại thì chắc chắn là lô của chính mặt hàng này.
+		chuyện thật. Lô nhận diện theo (mặt hàng, số lô, HSD) — xem
+		`_tim_lo_co_san`.
 		"""
-		if frappe.db.exists("Batch", d.so_lo):
-			lo = frappe.get_doc("Batch", d.so_lo)
+		ma_lo = self._tim_lo_co_san(d)
+		if ma_lo:
+			lo = frappe.get_doc("Batch", ma_lo)
 			# Chỉ ĐIỀN CHỖ TRỐNG, không ghi đè: lô cũ có thể đã in tem với HSD cũ.
 			# `supplier`/`reference_doctype`/`reference_name` vào chung vòng này
 			# (vòng sửa 1, Việc 6): lô do hộp thoại lô sẵn có của ERPNext tạo có
@@ -240,7 +230,8 @@ class BatchEntry(Document):
 		return frappe.get_doc(
 			{
 				"doctype": "Batch",
-				"batch_id": d.so_lo,
+				"batch_id": make_autoname(_SERIES_MA_LO),
+				"custom_so_lo": d.so_lo,
 				"item": d.vat_tu,
 				"expiry_date": d.hsd,
 				"manufacturing_date": d.ngay_san_xuat,
@@ -250,6 +241,36 @@ class BatchEntry(Document):
 				"custom_so_goi": _so_goi_tu_phieu_nhap(self.phieu_nhap),
 			}
 		).insert(ignore_permissions=True)
+
+	def _tim_lo_co_san(self, d) -> str | None:
+		"""Mã lô đã có cho (mặt hàng, số lô, HSD) của dòng `d`, hoặc None.
+
+		Anh chốt 19/10/2026: cùng mặt hàng + số lô + HSD là MỘT lô; khác HSD
+		thì tách lô mới; khác NCC vẫn là một lô. HSD rỗng coi như một giá trị.
+
+		Ngoại lệ (E1): không có lô đúng HSD mà có ĐÚNG MỘT lô cùng mặt hàng +
+		số lô CHƯA có HSD (lô cũ, tạo trước khi khai HSD) thì dùng lại lô đó —
+		nhánh "chỉ điền chỗ trống" của `_dam_bao_lo` điền HSD vào. Không vậy
+		một lô thật bị tách đôi, sai FEFO, sai truy vết thu hồi, sai kiểm kê.
+
+		Nhiều hơn một lô khớp là dữ liệu đã lệch — báo, không đoán.
+		"""
+		dieu_kien = {"item": d.vat_tu, "custom_so_lo": d.so_lo}
+		lan_tim = [d.hsd or ("is", "not set")]
+		if d.hsd:
+			lan_tim.append(("is", "not set"))
+		for hsd in lan_tim:
+			ds = frappe.get_all("Batch", filters={**dieu_kien, "expiry_date": hsd}, pluck="name")
+			if len(ds) > 1:
+				frappe.throw(
+					_(
+						"Dòng {0}: mặt hàng {1} có {2} lô cùng số lô '{3}' ({4}) — không biết "
+						"dùng lô nào. Báo quản trị gộp hoặc sửa các lô đó trước."
+					).format(d.idx, d.vat_tu, len(ds), d.so_lo, ", ".join(ds))
+				)
+			if ds:
+				return ds[0]
+		return None
 
 	def on_cancel(self):
 		trang_thai = frappe.db.get_value("Purchase Receipt", self.phieu_nhap, "docstatus")

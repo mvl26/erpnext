@@ -224,14 +224,17 @@ def _du_lieu_mot_lo(so_lo: str) -> dict:
 		# hàng dưới lên.
 		"F4": item.custom_thong_so_tem or "",
 		"F5": f"HSD {_dinh_dang_ngay(lo.expiry_date)}" if lo.expiry_date else "",
-		"F6": f"Lô {lo.batch_id}",
+		# F6 là SỐ LÔ NCC (anh chốt 19/10/2026: mọi chỗ người đọc hiện số lô).
+		"F6": f"Lô {lo.custom_so_lo or lo.name}",
 		"F7": f"NHẬP {_dinh_dang_ngay(ngay_nhap)}" if ngay_nhap else "",
 		"F8": _f8_xem_truoc(lo, kho),
 		"F9": lo.custom_so_goi or "",
-		# F10/F11 mã hoá và in lại đúng SỐ LÔ — nguyên văn, JS chỉ đặt vào
-		# `JsBarcode` (F10) và dưới mã vạch (F11), không tự định dạng gì thêm.
-		"F10": lo.batch_id,
-		"F11": lo.batch_id,
+		# F10/F11 là MÃ LÔ tự sinh (`L26-…`), không phải số lô: quét vào phải ra
+		# đúng MỘT lô của đúng MỘT mặt hàng, mà số lô NCC thì trùng được. F11 in
+		# lại mã dưới vạch để gõ tay khi vạch mờ (anh chốt 19/10/2026). JS chỉ
+		# đặt vào `JsBarcode` (F10) và dưới mã vạch (F11), không định dạng thêm.
+		"F10": lo.name,
+		"F11": lo.name,
 	}
 
 
