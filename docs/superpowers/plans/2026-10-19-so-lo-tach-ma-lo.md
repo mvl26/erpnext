@@ -107,13 +107,13 @@ Thuật toán `_tim_lo_co_san`:
   - `gan_so_lo_hien_thi(dong: list[dict], khoa: str = "so_lo") -> list[dict]`: thêm `so_lo_hien_thi` cho từng dict, sửa tại chỗ và trả lại.
   - `tim_lo(ma_go: str) -> list[dict]`: mọi `Batch` có `name == ma_go` **hoặc** `custom_so_lo == ma_go`, mỗi phần tử `{ma_lo, so_lo_hien_thi, vat_tu, ten_hang, hsd}`, sắp theo `vat_tu`, `hsd` (E3).
 
-- [ ] **Step 1: Test hỏng:**
+- [x] **Step 1: Test hỏng:**
   - `test_so_lo_theo_ma_mot_truy_van`: dùng `self.assertQueryCount(1)` nếu FrappeTestCase của bench có; không có thì kiểm kết quả đúng cho 3 mã, trong đó 1 mã không tồn tại thì trả lại chính nó.
   - `test_tim_lo_tra_ca_ten_cu_lan_so_lo_moi`: lô X tên `"ABC"`, và lô Y mã `L..` có `custom_so_lo="ABC"`. `tim_lo("ABC")` trả 2 phần tử.
-- [ ] **Step 2:** chạy `test_so_lo`. Kỳ vọng: FAIL (import).
-- [ ] **Step 3:** cài đặt `so_lo.py`.
-- [ ] **Step 4:** chạy lại. Kỳ vọng: PASS.
-- [ ] **Step 5: Commit** `feat(warehouse_operations): helper hien thi so lo`.
+- [x] **Step 2:** chạy `test_so_lo`. Kỳ vọng: FAIL (import).
+- [x] **Step 3:** cài đặt `so_lo.py`.
+- [x] **Step 4:** chạy lại. Kỳ vọng: PASS.
+- [x] **Step 5: Commit** `feat(warehouse_operations): helper hien thi so lo`.
 
 ### Task 4: Tem và tra cứu quét
 
@@ -127,16 +127,16 @@ Thuật toán `_tim_lo_co_san`:
 - Consumes: `so_lo_cua`, `gan_so_lo_hien_thi`, `tim_lo` (Task 3).
 - Produces: `_du_lieu_mot_lo`: `F6 = f"Lô {so_lo_cua(lo.name)}"`, `F10 = F11 = lo.name`. `tem_kien`: `F6` dùng số lô; `F10`/`F11`/`ma_vach` giữ `p.so_lo or p.vat_tu`, tức mã lô. `_tra_cuu_lo` thêm `"so_lo_hien_thi"`. Gõ tay không khớp đường nào mà `tim_lo` ra ≥2 kết quả thì trả `{"loai": "chon_lo", "ds": tim_lo(ma)}`, ra 1 kết quả thì `_tra_cuu_lo(ds[0]["ma_lo"])`. Với E3 (mã vừa là tên lô vừa là số lô lô khác), kiểm `tim_lo` **trước** khi tin nhánh `batch_no` của `scan_barcode`: `len(tim_lo(ma)) >= 2` thì trả `chon_lo`.
 
-- [ ] **Step 1: Test hỏng:**
+- [x] **Step 1: Test hỏng:**
   - tem lô từ BE số lô `"TEM-SOLO-1"` có `F6 == "Lô TEM-SOLO-1"`, `F10 == F11 == lo_da_tao`, và `F10 != "TEM-SOLO-1"`;
   - `test_tem_cu_quet_van_ra_lo` (Review Focus 3): `Batch` tên `"CU-QUET-1"` qua patch Task 1 thì `tra_cuu("CU-QUET-1")["loai"] == "lo"`, và `so_lo_hien_thi == "CU-QUET-1"`;
   - `test_go_tay_so_lo_trung_cho_chon` (Review Focus 4): lô cũ `"ABC"` (X) và lô mới số lô `"ABC"` (Y) thì `tra_cuu("ABC")["loai"] == "chon_lo"`, `len(ds) == 2`;
   - `test_go_tay_so_lo_duy_nhat_vao_thang`: một lô `L..` số lô `"DUY-1"` thì `tra_cuu("DUY-1")["loai"] == "lo"`.
-- [ ] **Step 2:** chạy `test_quet` và các test tem. Kỳ vọng: FAIL.
-- [ ] **Step 3:** sửa Python theo Interfaces. Sửa comment F10/F11 ("mã hoá mã lô, chữ dưới vạch là mã lô để gõ tay khi vạch mờ — anh chốt 19/10/2026"). `tem_lo.js`: ô F6 cho số lô dài tới 40 ký tự hiển thị đủ (xuống 2 dòng hoặc co cỡ chữ), theo tiền lệ co chữ đã có trong file.
-- [ ] **Step 4:** chạy lại. Kỳ vọng: PASS. Chạy `test_giao_dien`, kỳ vọng PASS.
+- [x] **Step 2:** chạy `test_quet` và các test tem. Kỳ vọng: FAIL.
+- [x] **Step 3:** sửa Python theo Interfaces. Sửa comment F10/F11 ("mã hoá mã lô, chữ dưới vạch là mã lô để gõ tay khi vạch mờ — anh chốt 19/10/2026"). `tem_lo.js`: ô F6 cho số lô dài tới 40 ký tự hiển thị đủ (xuống 2 dòng hoặc co cỡ chữ), theo tiền lệ co chữ đã có trong file.
+- [x] **Step 4:** chạy lại. Kỳ vọng: PASS. Chạy `test_giao_dien`, kỳ vọng PASS.
 - [ ] **Step 5:** in thử một tem trên erptest (desk, nút in tem trên Batch Entry) với số lô 30 ký tự. Chụp màn hình đính vào PR. Không có trình duyệt thì ghi rõ trong PR là chưa in thử.
-- [ ] **Step 6: Commit** `feat(warehouse_operations): tem in so lo, ma vach va tra cuu theo ma lo`.
+- [x] **Step 6: Commit** `feat(warehouse_operations): tem in so lo, ma vach va tra cuu theo ma lo`.
 
 ### Task 5: Hiển thị số lô ở báo cáo và dữ liệu màn kho (erpnext)
 
@@ -150,14 +150,14 @@ Thuật toán `_tim_lo_co_san`:
 - Consumes: `gan_so_lo_hien_thi`, `so_lo_theo_ma` (Task 3).
 - Produces: mỗi dòng dữ liệu có `so_lo` (mã lô) thì có thêm `so_lo_hien_thi`. Báo cáo: cột Link `so_lo` thêm `"hidden": 1`, thêm cột Data `so_lo_hien_thi` nhãn "Số lô" đặt đúng vị trí cũ. JS hiện `so_lo_hien_thi || so_lo` mọi chỗ đang in số lô ra màn. **Không** đổi giá trị gửi ngược lên máy chủ.
 
-- [ ] **Step 1: Test hỏng:**
+- [x] **Step 1: Test hỏng:**
   - mỗi báo cáo trong 4 báo cáo: một lô `L..` có `custom_so_lo="BC-1"` thì dòng ra có `so_lo_hien_thi == "BC-1"` và cột `so_lo_hien_thi` nhãn "Số lô" có trong `columns`;
   - `test_lay_hang`: endpoint gợi ý lô trả `so_lo_hien_thi`.
-- [ ] **Step 2:** chạy các module test trên. Kỳ vọng: FAIL.
-- [ ] **Step 3:** sửa Python. Rà JS bằng `grep -n "so_lo" <file>` và đổi **chỉ** những chỗ render ra màn.
-- [ ] **Step 4:** chạy lại 4 module test, rồi `test_giao_dien`, `test_fefo_pham_vi`, `test_lay_hang_don_vi`. Kỳ vọng: PASS.
+- [x] **Step 2:** chạy các module test trên. Kỳ vọng: FAIL.
+- [x] **Step 3:** sửa Python. Rà JS bằng `grep -n "so_lo" <file>` và đổi **chỉ** những chỗ render ra màn.
+- [x] **Step 4:** chạy lại 4 module test, rồi `test_giao_dien`, `test_fefo_pham_vi`, `test_lay_hang_don_vi`. Kỳ vọng: PASS.
 - [ ] **Step 5:** mở thử trên desk erptest một báo cáo và hộp lấy hàng trên Delivery Note. Xác nhận hiện số lô, kể cả ô Link Batch trên lưới Purchase Receipt/Delivery Note (title field Task 1). Ô nào vẫn hiện mã thì ghi vào PR.
-- [ ] **Step 6: Commit** `feat(warehouse_operations): man kho va bao cao hien so lo`.
+- [x] **Step 6: Commit** `feat(warehouse_operations): man kho va bao cao hien so lo`.
 
 ### Task 6: PDA (`miyano_pda`)
 
@@ -167,10 +167,10 @@ Thuật toán `_tim_lo_co_san`:
 **Interfaces:**
 - Consumes: payload có `so_lo_hien_thi` (Task 4, 5) và `{"loai":"chon_lo","ds":[{ma_lo,so_lo_hien_thi,vat_tu,ten_hang,hsd}]}` (Task 4).
 
-- [ ] **Step 1:** đổi mọi chỗ render số lô thành `x.so_lo_hien_thi || x.so_lo`. `man_tra_cuu.js`: xử lý `loai == "chon_lo"` bằng danh sách bấm chọn, mỗi dòng có số lô, mã hàng, tên hàng, HSD. Bấm vào thì gọi lại tra cứu với `ma_lo`.
-- [ ] **Step 2:** `bench build --app miyano_pda`. Kỳ vọng: không lỗi.
+- [x] **Step 1:** đổi mọi chỗ render số lô thành `x.so_lo_hien_thi || x.so_lo`. `man_tra_cuu.js`: xử lý `loai == "chon_lo"` bằng danh sách bấm chọn, mỗi dòng có số lô, mã hàng, tên hàng, HSD. Bấm vào thì gọi lại tra cứu với `ma_lo`.
+- [x] **Step 2:** `bench build --app miyano_pda`. Kỳ vọng: không lỗi.
 - [ ] **Step 3:** mở `/kho` trên erptest (hoặc chạy test JS nếu repo có), tra cứu một số lô trùng thì thấy danh sách chọn. Không có trình duyệt thì ghi rõ trong PR.
-- [ ] **Step 4: Commit** (repo `miyano_pda`) `feat(kho_pda): hien so lo, chon lo khi so lo trung`.
+- [x] **Step 4: Commit** (repo `miyano_pda`) `feat(kho_pda): hien so lo, chon lo khi so lo trung`.
 
 ### Task 7: Portal — sổ kho khách khoá theo (vật tư, số lô, HSD)
 
@@ -188,24 +188,24 @@ Thuật toán `_tim_lo_co_san`:
 
   `_current_qty`/`get_lot_balance` nhận thêm `han_su_dung`. `autoname` băm `kho::vat_tu::so_lo::han_su_dung`; bản ghi cũ giữ tên cũ. `_lo_cua_dong` trả `(so_lo_ncc, hsd, qty)` với `so_lo_ncc = Batch.custom_so_lo` (fallback mã lô), và gộp theo **(số lô, HSD)**. `LOT_KHONG_CO` giữ nguyên.
 
-- [ ] **Step 1: Test hỏng:**
+- [x] **Step 1: Test hỏng:**
   - `test_phieu_giao_ghi_so_lo_khong_ghi_ma`: DN xuất lô `L..` có `custom_so_lo="PG-1"` thì phiếu nhập kho khách có dòng `so_lo == "PG-1"`;
   - `test_xuat_go_so_lo_tru_dung_ton_phieu_giao` (Review Focus 5): sau phiếu giao trên, phiếu xuất bệnh viện gõ `so_lo="PG-1"` cùng HSD thì trừ được và tồn giảm đúng;
   - `test_cung_so_lo_khac_hsd_hai_dong_ton`: nhập (A, `"X"`, `2027-01-31`) và (A, `"X"`, `2027-06-30`) thì 2 bản ghi `Customer Stock Lot Balance`;
   - `test_ton_cu_khong_hsd_khop_va_dien_hsd`: dòng tồn (A, `"Y"`, HSD rỗng), nhập thêm (A, `"Y"`, `2027-01-31`) thì vẫn 1 bản ghi, HSD được điền.
-- [ ] **Step 2:** `bench --site erptest.local run-tests --app miyano_portal --module miyano_portal.tests.test_kho_ledger` (và 2 module kia). Kỳ vọng: FAIL.
-- [ ] **Step 3:** sửa theo Interfaces. Mọi nơi gọi `_current_qty`/`get_lot_balance` truyền HSD của dòng. Tìm bằng `grep -rn "_current_qty\|get_lot_balance\|_lot_balance_name" miyano_portal`.
-- [ ] **Step 4:** chạy cả nhóm `test_kho_*`. Kỳ vọng: PASS.
-- [ ] **Step 5:** kiểm dữ liệu erptest: `SELECT kho, vat_tu, so_lo, COUNT(*) FROM tabCustomer Stock Lot Balance GROUP BY 1,2,3 HAVING COUNT(*)>1`. Kỳ vọng 0 dòng. Có dòng thì dừng, báo lại.
-- [ ] **Step 6:** màn Vue (`Kho.vue`, `PhieuXuatDetail.vue`, `PhieuNhapDetail.vue`, `BaoCaoNXT.vue`) đã hiện `so_lo`, và giờ trường đó chứa số lô, nên không cần đổi. Chỉ kiểm chỗ nào số lô trùng trong cùng một vật tư mà chưa hiện HSD kèm theo thì thêm HSD.
-- [ ] **Step 7: Commit** (repo `miyano_portal`) `feat(kho): so kho khach khoa lo theo (vat tu, so lo, HSD), phieu giao ghi so lo`.
+- [x] **Step 2:** `bench --site erptest.local run-tests --app miyano_portal --module miyano_portal.tests.test_kho_ledger` (và 2 module kia). Kỳ vọng: FAIL.
+- [x] **Step 3:** sửa theo Interfaces. Mọi nơi gọi `_current_qty`/`get_lot_balance` truyền HSD của dòng. Tìm bằng `grep -rn "_current_qty\|get_lot_balance\|_lot_balance_name" miyano_portal`.
+- [x] **Step 4:** chạy cả nhóm `test_kho_*`. Kỳ vọng: PASS.
+- [x] **Step 5:** kiểm dữ liệu erptest: `SELECT kho, vat_tu, so_lo, COUNT(*) FROM tabCustomer Stock Lot Balance GROUP BY 1,2,3 HAVING COUNT(*)>1`. Kỳ vọng 0 dòng. Có dòng thì dừng, báo lại.
+- [x] **Step 6:** màn Vue (`Kho.vue`, `PhieuXuatDetail.vue`, `PhieuNhapDetail.vue`, `BaoCaoNXT.vue`) đã hiện `so_lo`, và giờ trường đó chứa số lô, nên không cần đổi. Chỉ kiểm chỗ nào số lô trùng trong cùng một vật tư mà chưa hiện HSD kèm theo thì thêm HSD.
+- [x] **Step 7: Commit** (repo `miyano_portal`) `feat(kho): so kho khach khoa lo theo (vat tu, so lo, HSD), phieu giao ghi so lo`.
 
 ### Task 8: `miyano_wms`, dọn và tích hợp
 
 **Files:** tuỳ kết quả Step 1.
 
-- [ ] **Step 1:** xác định `miyano_wms` còn dùng không: báo cáo/trang của nó có trong workspace đang hiện không; `hooks.py` của nó còn `doc_events` không; module Warehouse Operations đã thay chưa. Còn dùng thì áp Task 5 cho các báo cáo trùng tên. Không dùng thì ghi lý do vào PR erpnext, không sửa.
-- [ ] **Step 2:** chạy toàn bộ `erpnext.warehouse_operations.tests.*` từng module, tuần tự. So với baseline develop chạy cùng ngày. Liệt kê module đỏ kèm lý do (môi trường hay hồi quy).
+- [x] **Step 1:** xác định `miyano_wms` còn dùng không: báo cáo/trang của nó có trong workspace đang hiện không; `hooks.py` của nó còn `doc_events` không; module Warehouse Operations đã thay chưa. Còn dùng thì áp Task 5 cho các báo cáo trùng tên. Không dùng thì ghi lý do vào PR erpnext, không sửa.
+- [x] **Step 2:** chạy toàn bộ `erpnext.warehouse_operations.tests.*` từng module, tuần tự. So với baseline develop chạy cùng ngày. Liệt kê module đỏ kèm lý do (môi trường hay hồi quy).
 - [ ] **Step 3:** cập nhật seed `miyano_portal/setup/seed_100_vat_tu.py` chỉ nếu nó gãy (nó truyền `batch_id`, hook Task 1 tự điền số lô).
 - [ ] **Step 4:** ghi vào PR portal: `han_dung_khach.py` và `doi_sanh_ton.py` (nhánh `feat/hsd-toi-thieu`, `feat/doi-sanh-ton-kho-so`, chưa vào develop) có câu báo in `batch_no`. Khi các nhánh đó merge thì phải đổi sang `so_lo_cua`.
 - [ ] **Step 5:** push 3 nhánh, mở 3 PR. PR erpnext ghi thứ tự deploy: **erpnext trước** (migrate chạy patch Task 1), rồi `miyano_portal`, rồi `miyano_pda`. Sau đó `bench build` cả ba và `bench restart`.
