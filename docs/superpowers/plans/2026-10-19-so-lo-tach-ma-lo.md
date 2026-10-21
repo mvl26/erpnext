@@ -44,19 +44,19 @@
 - Produces: field `Batch.custom_so_lo` (Data, length 140, `read_only` 1, `bold`, `in_list_view`, `in_standard_filter`, `search_index` 1, `insert_after` `batch_id`, label "Số lô", description "Số lô in trên bao bì nhà cung cấp. Có thể trùng giữa các mặt hàng — mã lô (tên bản ghi) mới là khoá."). Property Setter trên `Batch`: `title_field`=`custom_so_lo`, `show_title_field_in_link`=1, `search_fields`=`custom_so_lo,item,expiry_date`.
 - Produces: `lo_ncc.dien_so_lo_neu_trong(doc, method=None) -> None`, gán `doc.custom_so_lo = doc.batch_id or doc.name` khi rỗng (E2).
 
-- [ ] **Step 1: Viết test hỏng** trong `test_so_lo.py`, class `TestTruongSoLo`:
+- [x] **Step 1: Viết test hỏng** trong `test_so_lo.py`, class `TestTruongSoLo`:
   - `test_lo_tao_tay_tu_dien_so_lo_bang_ma`: insert `Batch` (`batch_id="SOLO-TAY-1"`, item có lô) thì `custom_so_lo == "SOLO-TAY-1"`.
   - `test_title_field_la_so_lo`: `frappe.get_meta("Batch").title_field == "custom_so_lo"` và `show_title_field_in_link == 1`.
   - `test_patch_dien_lo_cu`: tạo `Batch` rồi `frappe.db.set_value(... "custom_so_lo", None)`, chạy `them_so_lo_ncc.execute()` thì `custom_so_lo == name`. Chạy lại lần hai không lỗi, giá trị không đổi.
-- [ ] **Step 2:** `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_so_lo`. Kỳ vọng: FAIL (thiếu field).
-- [ ] **Step 3: Viết patch `execute()`**:
+- [x] **Step 2:** `bench --site erptest.local run-tests --module erpnext.warehouse_operations.tests.test_so_lo`. Kỳ vọng: FAIL (thiếu field).
+- [x] **Step 3: Viết patch `execute()`**:
   - `create_custom_field` theo Interfaces;
   - 3 `make_property_setter` (`for_doctype=True`);
   - `UPDATE tabBatch SET custom_so_lo = name WHERE IFNULL(custom_so_lo,'') = ''`.
 
   Viết docstring giải thích lý do giống `them_so_goi_va_o_in_tem.py`. Thêm hàm hook vào `lo_ncc.py`. `hooks.py`: `"before_insert": [<hàm cũ>, "erpnext.warehouse_operations.vitri.lo_ncc.dien_so_lo_neu_trong"]`, giữ nguyên comment "đúng dict con".
-- [ ] **Step 4:** `bench --site erptest.local migrate`, rồi chạy lại test ở Step 2. Kỳ vọng: PASS. Chạy thêm `test_lo_ncc`, kỳ vọng PASS.
-- [ ] **Step 5: Commit** `feat(warehouse_operations): them so lo NCC tren Batch, lo cu so lo = ma`.
+- [x] **Step 4:** `bench --site erptest.local migrate`, rồi chạy lại test ở Step 2. Kỳ vọng: PASS. Chạy thêm `test_lo_ncc`, kỳ vọng PASS.
+- [x] **Step 5: Commit** `feat(warehouse_operations): them so lo NCC tren Batch, lo cu so lo = ma`.
 
 ### Task 2: `Batch Entry` sinh mã lô và nhận diện lô theo (item, số lô, HSD)
 
@@ -74,25 +74,25 @@ Thuật toán `_tim_lo_co_san`:
 2. Không có kết quả và `d.hsd` có giá trị: lọc lại với `expiry_date` `("is","not set")`. Đúng một kết quả thì trả nó (E1, nhánh điền chỗ trống sẵn có sẽ điền HSD). Nhiều hơn một thì throw.
 3. Còn lại: `None`, tức tạo lô mới.
 
-- [ ] **Step 1: Viết test hỏng** (class đang chứa `test_huy_ca_pr_lan_be_khong_khoa_chet_nhau`, dùng lại `_phieu_nhap_lo`/`self._dong`):
+- [x] **Step 1: Viết test hỏng** (class đang chứa `test_huy_ca_pr_lan_be_khong_khoa_chet_nhau`, dùng lại `_phieu_nhap_lo`/`self._dong`):
   - `test_hai_mat_hang_chung_so_lo_duoc_nhap`: phiếu lô cho mặt hàng A số lô `"TRUNG-1"`, rồi mặt hàng B cũng `"TRUNG-1"`. Cả hai submit được. Hai `lo_da_tao` khác nhau, cả hai khớp `^L\d{2}-\d{6}$`, và `custom_so_lo` đều `"TRUNG-1"`.
   - `test_cung_hang_so_lo_hsd_thi_dung_lai_lo`: hai phiếu cùng (A, `"LAI-1"`, `2027-01-31`) thì cùng `lo_da_tao`.
   - `test_khac_hsd_thi_tach_lo_moi`: (A, `"LAI-2"`, `2027-01-31`) và (A, `"LAI-2"`, `2027-06-30`) thì khác `lo_da_tao`.
   - `test_lo_cu_khong_hsd_duoc_dung_lai_va_dien_hsd` (E1): tạo trước `Batch` của A, `custom_so_lo` `"CU-1"`, không HSD. Phiếu (A, `"CU-1"`, `2027-01-31`) thì `lo_da_tao` = lô đó, và `expiry_date` của lô = `2027-01-31`.
   - `test_hai_dong_cung_khoa_trong_mot_phieu_ra_mot_lo`: PR hai dòng cùng mặt hàng; BE hai dòng (A, `"DOI-1"`, cùng HSD) thì hai `lo_da_tao` bằng nhau.
-- [ ] **Step 2:** chạy `test_nhap_lo`. Kỳ vọng: 5 bài mới FAIL. Ghi lại các bài cũ đỏ do đổi hành vi.
-- [ ] **Step 3: Sửa code.**
+- [x] **Step 2:** chạy `test_nhap_lo`. Kỳ vọng: 5 bài mới FAIL. Ghi lại các bài cũ đỏ do đổi hành vi.
+- [x] **Step 3: Sửa code.**
   - `kiem_tra_so_lo`: giữ strip và kiểm rỗng. Bỏ `kiem_tra_ky_tu`/`kiem_tra_do_dai` và bỏ kiểm "đã thuộc mặt hàng"; nếu import không còn dùng thì gỡ.
   - `_dam_bao_lo`: dùng `_tim_lo_co_san`. Nhánh dùng lại giữ nguyên vòng "chỉ điền chỗ trống". Nhánh tạo mới thêm `batch_id` sinh và `custom_so_lo`.
   - Cập nhật docstring đầu file và comment `validate` cho khớp (bỏ lý lẽ "kiểm trùng trước độ dài").
-- [ ] **Step 4: Sửa các bài cũ** đang giả định tên lô = số lô:
+- [x] **Step 4: Sửa các bài cũ** đang giả định tên lô = số lô:
   - `frappe.db.exists("Batch", "<số lô>")` / `get_doc("Batch", "<số lô>")` sau một BE thì đổi sang đọc `lo_da_tao`;
   - bài chặn trùng giữa hai mặt hàng thì đổi thành khẳng định **cho phép**;
   - các bài kiểm độ dài/ký tự số lô ở BE thì xoá chỉ khi spec đã bỏ đúng luật đó, và ghi tên bài trong commit.
 
   Tìm thêm trong cả thư mục tests: `grep -rn "Batch Entry\|_phieu_nhap_lo" erpnext/warehouse_operations/tests`.
-- [ ] **Step 5:** chạy `test_nhap_lo`, `test_loi_vao_nhap_lo`, `test_luong_nhap`, `test_pr_dn_tich_hop`, `test_lo_ncc`. Kỳ vọng: PASS (riêng `test_luong_nhap` so với baseline).
-- [ ] **Step 6: Commit** `feat(warehouse_operations): Batch Entry sinh ma lo L.YY.-######, nhan dien lo theo (hang, so lo, HSD)`.
+- [x] **Step 5:** chạy `test_nhap_lo`, `test_loi_vao_nhap_lo`, `test_luong_nhap`, `test_pr_dn_tich_hop`, `test_lo_ncc`. Kỳ vọng: PASS (riêng `test_luong_nhap` so với baseline).
+- [x] **Step 6: Commit** `feat(warehouse_operations): Batch Entry sinh ma lo L.YY.-######, nhan dien lo theo (hang, so lo, HSD)`.
 
 ### Task 3: Helper hiển thị `vitri/so_lo.py`
 
