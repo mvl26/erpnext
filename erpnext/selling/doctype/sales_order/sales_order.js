@@ -55,6 +55,7 @@ frappe.ui.form.on("Sales Order", {
 	},
 
 	refresh: function (frm) {
+		erpnext.selling.nut_duyet_gia_lech(frm);
 		if (frm.doc.docstatus === 1) {
 			if (
 				frm.doc.status !== "Closed" &&
@@ -1391,3 +1392,25 @@ erpnext.selling.SalesOrderController = class SalesOrderController extends erpnex
 };
 
 extend_cscript(cur_frm.cscript, new erpnext.selling.SalesOrderController({ frm: cur_frm }));
+
+// Miyano: nút "Duyệt giá lệch" (kiểm giá bán theo % lãi, spec mục 6.1.5). Server kiểm quyền.
+erpnext.selling.nut_duyet_gia_lech = function (frm) {
+	const lech = (frm.doc.items || []).some(
+		(d) => d.trang_thai_gia && !["Khớp", "Bỏ qua"].includes(d.trang_thai_gia)
+	);
+	if (frm.doc.docstatus !== 0 || frm.is_new() || !lech || frm.doc.nguoi_duyet_gia) return;
+	frappe.xcall("erpnext.selling.kiem_gia.kiem_chung_tu.co_quyen_duyet_gia").then((ok) => {
+		if (!ok) return;
+		frm.add_custom_button(__("Duyệt giá lệch"), () => {
+			if (frm.is_dirty()) {
+				frappe.msgprint(__("Lưu Sales Order trước khi duyệt"));
+				return;
+			}
+			frappe
+				.xcall("erpnext.selling.kiem_gia.kiem_chung_tu.duyet_gia_lech", {
+					sales_order: frm.doc.name,
+				})
+				.then(() => frm.reload_doc());
+		});
+	});
+};

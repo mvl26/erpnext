@@ -25,6 +25,7 @@ from erpnext.manufacturing.doctype.production_plan.production_plan import (
 	get_items_for_material_requests,
 )
 from erpnext.selling.doctype.customer.customer import check_credit_limit
+from erpnext.selling.kiem_gia.kiem_chung_tu import kiem_truoc_submit
 from erpnext.setup.doctype.item_group.item_group import get_item_group_defaults
 from erpnext.stock.doctype.item.item import get_item_defaults
 from erpnext.stock.doctype.stock_reservation_entry.stock_reservation_entry import (
@@ -117,9 +118,12 @@ class SalesOrder(SellingController):
 		letter_head: DF.Link | None
 		loyalty_amount: DF.Currency
 		loyalty_points: DF.Int
+		ly_do_lech_gia: DF.SmallText | None
+		ma_duyet_gia: DF.Data | None
 		named_place: DF.Data | None
 		naming_series: DF.Literal["SAL-ORD-.YYYY.-"]
 		net_total: DF.Currency
+		nguoi_duyet_gia: DF.Link | None
 		order_type: DF.Literal["", "Sales", "Maintenance", "Shopping Cart"]
 		other_charges_calculation: DF.TextEditor | None
 		packed_items: DF.Table[PackedItem]
@@ -169,6 +173,7 @@ class SalesOrder(SellingController):
 		tc_name: DF.Link | None
 		terms: DF.TextEditor | None
 		territory: DF.Link | None
+		thoi_diem_duyet_gia: DF.Datetime | None
 		title: DF.Data | None
 		to_date: DF.Date | None
 		total: DF.Currency
@@ -413,6 +418,9 @@ class SalesOrder(SellingController):
 		for d in self.get("items"):
 			if d.delivered_by_supplier and not d.supplier:
 				frappe.throw(_("Row #{0}: Set Supplier for item {1}").format(d.idx, d.item_code))
+
+	def before_submit(self):
+		kiem_truoc_submit(self)
 
 	def on_submit(self):
 		self.check_credit_limit()

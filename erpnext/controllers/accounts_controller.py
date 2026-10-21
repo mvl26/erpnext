@@ -3884,6 +3884,13 @@ def update_child_qty_rate(parent_doctype, trans_items, parent_doctype_name, chil
 	else:
 		parent.check_credit_limit()
 
+	if parent_doctype == "Sales Order":
+		# Miyano: đổi giá sau Submit cũng phải qua kiểm giá bán theo % lãi.
+		from erpnext.selling.kiem_gia.kiem_chung_tu import kiem_chung_tu, kiem_truoc_submit
+
+		kiem_chung_tu(parent)
+		kiem_truoc_submit(parent)
+
 	# reset index of child table
 	for idx, row in enumerate(parent.get(child_docname), start=1):
 		row.idx = idx
