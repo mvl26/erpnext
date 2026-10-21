@@ -512,7 +512,7 @@
 						</div>
 						${
 							c.so_lo
-								? `<div class="lh-ma-to">${e(c.so_lo)}</div>`
+								? `<div class="lh-ma-to">${e(c.so_lo_hien_thi || c.so_lo)}</div>`
 								: `<div class="lh-ten-hang">${e(c.ten_hang || c.vat_tu)}</div>`
 						}
 					</div>
@@ -578,7 +578,7 @@
 							<div class="lh-dong-ten">${e(d.ten_hang)}</div>
 							<div class="lh-dong-sl">${so(d.da_lay)}/${so(d.can_lay)}<small>${e(d.don_vi || "")}</small></div>
 						</div>
-						<div class="lh-mo">${e(d.vat_tu)}${d.so_lo ? " · lô " + e(d.so_lo) : ""}</div>
+						<div class="lh-mo">${e(d.vat_tu)}${d.so_lo ? " · lô " + e(d.so_lo_hien_thi || d.so_lo) : ""}</div>
 						<div class="lh-mo">${e(d.ly_do_khong_quet)}</div>
 					</div>`;
 			}
@@ -643,7 +643,7 @@
 					: ""
 			}</div>
 					</div>
-					<div class="lh-mo">${e(d.vat_tu)}${d.so_lo ? " · lô " + e(d.so_lo) : ""}${
+					<div class="lh-mo">${e(d.vat_tu)}${d.so_lo ? " · lô " + e(d.so_lo_hien_thi || d.so_lo) : ""}${
 				d.hsd_chu ? " · HSD " + e(d.hsd_chu) : ""
 			}</div>
 					${lo_nen}

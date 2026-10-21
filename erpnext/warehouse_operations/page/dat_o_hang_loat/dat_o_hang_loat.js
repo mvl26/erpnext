@@ -224,7 +224,7 @@
 				const $tr = $(`
 					<tr data-lo="${e(d.so_lo)}">
 						<td><input type="checkbox" class="dohl-chon" data-lo="${e(d.so_lo)}" ${d.chon ? "checked" : ""}></td>
-						<td><b>${e(d.so_lo)}</b>${
+						<td><b>${e(d.so_lo_hien_thi || d.so_lo)}</b>${
 					d.hsd ? `<div class="dohl-mo">HSD ${e(frappe.datetime.str_to_user(d.hsd))}</div>` : ""
 				}</td>
 						<td>${e(d.ten_hang || "")}<div class="dohl-mo">${e(d.vat_tu)}</div></td>
@@ -351,7 +351,7 @@
 								kq.loi
 									.map(
 										(x) =>
-											`<li><b>${frappe.utils.escape_html(x.so_lo)}</b>: ${frappe.utils.escape_html(
+											`<li><b>${frappe.utils.escape_html(x.so_lo_hien_thi || x.so_lo)}</b>: ${frappe.utils.escape_html(
 												x.ly_do
 											)}</li>`
 									)
@@ -375,7 +375,7 @@
 						)}</p><ul>${xong
 							.map(
 								(x) =>
-									`<li>${frappe.utils.escape_html(x.so_lo)} → <b>${frappe.utils.escape_html(
+									`<li>${frappe.utils.escape_html(x.so_lo_hien_thi || x.so_lo)} → <b>${frappe.utils.escape_html(
 										x.ma_in_nhan || x.o
 									)}</b></li>`
 							)

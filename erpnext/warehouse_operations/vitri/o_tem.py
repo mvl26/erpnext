@@ -27,6 +27,7 @@ from frappe import _
 from erpnext.warehouse_operations.vitri.cay import nhanh_bi_tat
 from erpnext.warehouse_operations.vitri.kho import kho_co_quan_ly_vi_tri
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
+from erpnext.warehouse_operations.vitri.so_lo import kem_so_lo_hien_thi
 
 # Đặt ô cho lô CHƯA có ô: việc hằng ngày của thủ kho (cùng bộ `nhap_lo`).
 VAI_TRO_DAT_O = {"System Manager", "Stock Manager", "Stock User"}
@@ -139,6 +140,7 @@ def chan_neu_sai_o(vat_tu: str, so_lo: str | None, kho: str, den_o: str, tien_to
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def thong_tin_o_tem(so_lo: str) -> dict:
 	"""Cho nút trên form Lô: ô hiện tại, ô gợi ý, và người xem được làm gì.
 
@@ -183,6 +185,7 @@ def _kho_cua_lo(lo) -> str | None:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def doi_o_tren_tem(so_lo: str, o_moi: str, ly_do: str | None = None) -> dict:
 	"""Đặt (lô chưa có ô) hoặc đổi (lô đã có ô) ô in trên tem lô.
 
@@ -242,6 +245,7 @@ def _nhan(o: str | None) -> str | None:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def lo_chua_co_o(kho: str) -> list[dict]:
 	"""Các lô ĐANG CÓ TỒN trong `kho` mà chưa có ô trên tem, kèm ô đề xuất.
 
@@ -294,6 +298,7 @@ def lo_chua_co_o(kho: str) -> list[dict]:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def dat_o_hang_loat(dong) -> dict:
 	"""Đặt ô trên tem cho nhiều lô. `dong` = [{"so_lo": ..., "o": ...}, ...].
 
