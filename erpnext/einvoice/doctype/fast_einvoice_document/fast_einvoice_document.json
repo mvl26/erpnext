@@ -103,6 +103,8 @@
   "issued_time",
   "official_pdf",
   "public_pdf_url",
+  "fast_lookup_code",
+  "fast_lookup_url",
   "official_xml",
   "converted_pdf",
   "delivery_section",
@@ -741,9 +743,10 @@
   {
    "fieldname": "fast_key_search",
    "fieldtype": "Data",
-   "label": "Mã tra cứu (keySearch)",
+   "label": "keySearch (khóa API, không phải mã tra cứu)",
    "read_only": 1,
-   "no_copy": 1
+   "no_copy": 1,
+   "description": "Khóa kỹ thuật Fast trả về để gọi API (tải PDF…). Mã khách nhập trên trang tra cứu là trường “Mã tra cứu in trên hóa đơn”."
   },
   {
    "fieldname": "fast_invoice_no",
@@ -810,8 +813,23 @@
    "no_copy": 1
   },
   {
+   "description": "Hệ thống tự đọc từ PDF chính thức; không đọc được thì chép tay từ PDF.",
+   "fieldname": "fast_lookup_code",
+   "fieldtype": "Data",
+   "label": "Mã tra cứu in trên hóa đơn",
+   "no_copy": 1
+  },
+  {
+   "description": "Hệ thống tự đọc từ PDF chính thức; không đọc được thì chép tay từ PDF.",
+   "fieldname": "fast_lookup_url",
+   "fieldtype": "Data",
+   "label": "Trang tra cứu",
+   "no_copy": 1,
+   "options": "URL"
+  },
+  {
    "depends_on": "eval:doc.fast_invoice_no",
-   "description": "API Fast chưa có lệnh tải XML — tải file XML trên portal Fast rồi đính vào đây. Bắt buộc có trước khi ERP gửi hóa đơn cho khách (email kèm cả PDF và XML).",
+   "description": "Không bắt buộc. API Fast chưa có lệnh tải XML; khách tự tải XML trên trang tra cứu. Đã đính ở đây thì email gửi khách kèm theo.",
    "fieldname": "official_xml",
    "fieldtype": "Attach",
    "label": "XML hóa đơn",

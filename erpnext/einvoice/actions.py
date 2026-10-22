@@ -387,16 +387,24 @@ def _recipient_list(value):
 	return [part.strip() for part in str(value).replace(";", ",").split(",") if part.strip()]
 
 
-def _render_template(template_name, doc, subject=None, message=None):
-	"""Dựng nội dung từ Email Template, cho phép người gửi sửa lại."""
+def _render_template(template_name, doc, subject=None, message=None, extra_context=None):
+	"""Dựng nội dung từ Email Template, cho phép người gửi sửa lại.
+
+	``extra_context`` thêm biến cho mẫu — mẫu hóa đơn chính thức đọc ``hd``
+	(`invoice_email.email_context`).
+	"""
 	if subject and message:
 		return {"subject": subject, "message": message}
 
 	template = frappe.get_doc("Email Template", template_name)
-	context = {"doc": doc, "frappe": frappe}
+	context = {"doc": doc, "frappe": frappe, **(extra_context or {})}
+	# Mẫu HTML phải đọc `response_html`: `response` là Text Editor nên Frappe làm
+	# sạch HTML khi lưu, và thẻ `{% if %}` nằm giữa các `<tr>` bị đẩy ra ngoài bảng —
+	# dòng điều kiện trong mẫu sẽ luôn hiện. Frappe cũng chọn trường theo `use_html`.
+	body = template.response_html if template.use_html else template.response
 	return {
 		"subject": subject or frappe.render_template(template.subject, context),
-		"message": message or frappe.render_template(template.response or "", context),
+		"message": message or frappe.render_template(body or "", context),
 	}
 
 
@@ -473,6 +481,14 @@ def download_official_pdf(fei, client=None):
 	frappe.db.set_value(
 		FEI, doc.name, {"official_pdf": file_url, "public_pdf_url": public_url}, update_modified=False
 	)
+	if not fill_lookup_from_pdf(doc.name, decode_message(response.message)):
+		doc.add_comment(
+			"Comment",
+			_(
+				"Không đọc được mã tra cứu từ PDF — chép mã từ PDF vào trường “Mã tra cứu in trên hóa đơn” "
+				"rồi gửi tay."
+			),
+		)
 
 	# Bản PDF cũng đính sang chứng từ nguồn: kế toán làm việc trên hóa đơn bán.
 	# Bản ghi bản 2.0 thì vẫn đính sang phiếu giao như trước.
@@ -487,6 +503,25 @@ def download_official_pdf(fei, client=None):
 	move_invoice_files(doc.name)
 
 	return {"ok": True, "file_url": file_url, "public_url": public_url}
+
+
+def fill_lookup_from_pdf(fei, content):
+	"""Điền mã tra cứu và trang tra cứu đọc được từ PDF chính thức (mục 4.3). Trả ``True`` nếu đọc được mã.
+
+	Mã khách nhập trên trang tra cứu **không** phải ``keySearch`` của API: nó chỉ in
+	trên PDF. Đọc được thì ghi đè giá trị cũ — PDF mới tải là nguồn đúng nhất, kể cả
+	khi kế toán đã chép tay trước đó. Không đọc được thì để nguyên những gì đang có.
+	"""
+	from erpnext.einvoice.pdf_lookup import read_lookup_from_pdf
+
+	found = read_lookup_from_pdf(content)
+	if not found["code"]:
+		return False
+	values = {"fast_lookup_code": found["code"]}
+	if found["url"]:
+		values["fast_lookup_url"] = found["url"]
+	frappe.db.set_value(FEI, fei, values, update_modified=False)
+	return True
 
 
 def _pdf_source(doc):
@@ -719,27 +754,45 @@ def send_invoice_to_customer(
 
 
 def _send_invoice_via_erp(doc, to, cc, subject, message, mailer):
-	"""Email gửi khách luôn kèm đủ hai file: PDF để đọc, XML là hóa đơn điện tử gốc có chữ ký số."""
-	missing = []
+	"""Email theo mẫu Miyano: PDF chính thức luôn kèm, XML kèm nếu kế toán đã đính.
+
+	XML không bắt buộc (Q2): API Fast chưa có lệnh tải XML, và khách tự tải được XML
+	trên trang tra cứu bằng mã in trên PDF. CC kế toán trong Settings luôn được thêm
+	để lưu vết; ``reply_to`` là email người gửi vì mẫu Miyano cho khách phản hồi.
+
+	Mailer ném lỗi thì ghi log Lỗi rồi **ném lại** để người bấm nút thấy lỗi.
+	"""
 	if not doc.official_pdf:
-		missing.append(_("PDF chính thức (bấm “Tải PDF chính thức”)"))
-	if not doc.official_xml:
-		missing.append(_("XML hóa đơn (tải trên portal Fast rồi đính vào trường “XML hóa đơn”)"))
-	if missing:
-		frappe.throw(_("Chưa đủ file để gửi khách — còn thiếu: {0}.").format("; ".join(missing)))
+		frappe.throw(_("Chưa có PDF chính thức để gửi khách — bấm “Tải PDF chính thức” trước."))
 
-	rendered = _render_template(ISSUED_TEMPLATE, doc, subject, message)
+	from erpnext.einvoice.invoice_email import cc_for, email_context, sender_for
+
+	settings = get_settings()
+	sender = sender_for(settings, frappe.session.user)
+	attachments = [{"file_url": doc.official_pdf}]
+	if doc.official_xml:
+		attachments.append({"file_url": doc.official_xml})
+
+	# Log mở trước khi dựng nội dung: mẫu email bị sửa hỏng cũng là một lần gửi lỗi
+	# và phải hiện trong nhật ký, không chỉ lỗi của mailer.
 	log = _open_email_log(doc, _("Gửi hóa đơn chính thức cho khách"), to)
-
-	(mailer or frappe.sendmail)(
-		recipients=to,
-		cc=_recipient_list(cc),
-		subject=rendered["subject"],
-		message=rendered["message"],
-		attachments=[{"file_url": doc.official_pdf}, {"file_url": doc.official_xml}],
-		reference_doctype=FEI,
-		reference_name=doc.name,
-	)
+	try:
+		rendered = _render_template(
+			ISSUED_TEMPLATE, doc, subject, message, extra_context={"hd": email_context(doc, settings, sender)}
+		)
+		(mailer or frappe.sendmail)(
+			recipients=to,
+			cc=cc_for(settings, cc),
+			reply_to=sender.get("email") or None,
+			subject=rendered["subject"],
+			message=rendered["message"],
+			attachments=attachments,
+			reference_doctype=FEI,
+			reference_name=doc.name,
+		)
+	except Exception as error:
+		_close_email_log(log, ok=False, error_message=str(error))
+		raise
 	_close_email_log(log, ok=True)
 	_mark_invoice_sent(doc, to)
 	return {"ok": True, "recipients": to}

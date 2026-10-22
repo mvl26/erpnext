@@ -109,3 +109,47 @@ class TestUrlNormalisation(FrappeTestCase):
 	def test_the_scheme_slashes_are_preserved(self):
 		_set(enabled=0, api_url="https://tportal.fast.com.vn/AppService/x.asmx")
 		self.assertEqual(get_settings().api_url, "https://tportal.fast.com.vn/AppService/x.asmx")
+
+
+class TestInvoiceDeliverySettings(FrappeTestCase):
+	"""Mục 8 — đầu mối gửi hóa đơn, CC kế toán."""
+
+	def setUp(self):
+		frappe.db.rollback()
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def _configure(self, **values):
+		from erpnext.einvoice.tests.test_fast_client import configure
+
+		return configure(**values)
+
+	def test_cc_list_is_split_and_trimmed(self):
+		self._configure(invoice_email_cc=" a@x.vn; b@x.vn ,, ")
+		self.assertEqual(get_settings().invoice_email_cc, ["a@x.vn", "b@x.vn"])
+
+	def test_empty_cc_is_an_empty_list(self):
+		self._configure(invoice_email_cc="")
+		self.assertEqual(get_settings().invoice_email_cc, [])
+
+	def test_invalid_cc_email_is_refused(self):
+		with self.assertRaises(frappe.InvalidEmailAddressError):
+			self._configure(invoice_email_cc="a@x.vn, khong-phai-email")
+
+	def test_invalid_sender_email_is_refused(self):
+		with self.assertRaises(frappe.InvalidEmailAddressError):
+			self._configure(invoice_sender_email="khong-phai-email")
+
+	def test_sender_fields_are_exposed_trimmed(self):
+		self._configure(
+			invoice_sender_name=" Nguyễn Văn A ",
+			invoice_sender_phone=" 0901 234 567 ",
+			invoice_sender_email=" hd@miyano.vn ",
+			lookup_url=" https://tracuu.example/ ",
+		)
+		settings = get_settings()
+		self.assertEqual(settings.invoice_sender_name, "Nguyễn Văn A")
+		self.assertEqual(settings.invoice_sender_phone, "0901 234 567")
+		self.assertEqual(settings.invoice_sender_email, "hd@miyano.vn")
+		self.assertEqual(settings.lookup_url, "https://tracuu.example/")

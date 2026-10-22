@@ -365,7 +365,12 @@ function level_two_fields(frm, button) {
 					reqd: 1,
 					default: frm.doc.email_deliver,
 				},
-				{ fieldname: "cc", label: __("CC"), fieldtype: "Data" },
+				{
+					fieldname: "cc",
+					label: __("CC"),
+					fieldtype: "Data",
+					description: __("Hệ thống tự CC thêm hộp thư kế toán trong Fast EInvoice Settings."),
+				},
 				{
 					fieldname: "via",
 					label: __("Gửi bằng"),

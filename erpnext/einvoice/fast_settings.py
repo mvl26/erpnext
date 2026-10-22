@@ -23,6 +23,10 @@ _TRIMMED_FIELDS = (
 	"voucher_book",
 	"api_user",
 	"default_human_name",
+	"lookup_url",
+	"invoice_sender_name",
+	"invoice_sender_phone",
+	"invoice_sender_email",
 )
 
 
@@ -38,6 +42,7 @@ def get_settings():
 			"require_customer_approval": bool(doc.require_customer_approval),
 			"auto_download_pdf": bool(doc.auto_download_pdf),
 			"auto_poll_tax_status": bool(doc.auto_poll_tax_status),
+			"invoice_email_cc": split_emails(doc.get("invoice_email_cc")),
 			"draft_email_template": doc.draft_email_template,
 			"issued_email_template": doc.issued_email_template,
 			"vat_declaration_period": doc.get("vat_declaration_period") or "Quý",
@@ -47,6 +52,11 @@ def get_settings():
 		}
 	)
 	return settings
+
+
+def split_emails(value):
+	"""Danh sách email từ chuỗi người dùng gõ: tách theo ``,`` hoặc ``;``, bỏ khoảng trắng và phần rỗng."""
+	return [part.strip() for part in (value or "").replace(";", ",").split(",") if part.strip()]
 
 
 def _normalise_url(url):
