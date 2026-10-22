@@ -48,7 +48,7 @@ class QuotationItem(Document):
 		margin_type: DF.Literal["", "Percentage", "Amount"]
 		net_amount: DF.Currency
 		net_rate: DF.Currency
-		nguon_gia_goc: DF.Link | None
+		nguon_gia_goc: DF.Data | None
 		page_break: DF.Check
 		parent: DF.Data
 		parentfield: DF.Data

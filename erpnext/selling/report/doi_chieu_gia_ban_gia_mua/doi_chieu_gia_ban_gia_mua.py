@@ -12,6 +12,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate, nowdate
 
+from erpnext.selling.kiem_gia.cau_hinh import ty_le_lai_nhieu
 from erpnext.selling.kiem_gia.gia_goc import (
 	CHUA_XAC_DINH,
 	KHOP,
@@ -20,14 +21,22 @@ from erpnext.selling.kiem_gia.gia_goc import (
 	tim_gia_goc_nhieu,
 	tinh_gia_chuan,
 )
-
-TY_LE_LAI_MAC_DINH = 1
+from erpnext.selling.kiem_gia.kiem_chung_tu import BO_QUA
 
 
 def execute(filters=None):
 	filters = frappe._dict(filters or {})
 	if not filters.get("price_list"):
 		frappe.throw(_("Chọn bảng giá bán"))
+	company = filters.get("company") or frappe.defaults.get_user_default("Company")
+	pl_currency = frappe.get_cached_value("Price List", filters.price_list, "currency")
+	company_currency = frappe.get_cached_value("Company", company, "default_currency") if company else None
+	if company_currency and pl_currency != company_currency:
+		frappe.throw(
+			_("Bảng giá {0} dùng {1}; báo cáo chỉ so được bảng giá bằng tiền tệ công ty ({2}).").format(
+				filters.price_list, pl_currency, company_currency
+			)
+		)
 	return get_columns(), get_data(filters)
 
 
@@ -52,6 +61,7 @@ def get_columns():
 		{"fieldname": "gia_ban", "label": _("Giá bán"), "fieldtype": "Float", "width": 120},
 		{"fieldname": "ngay_gia_ban", "label": _("Hiệu lực giá bán"), "fieldtype": "Date", "width": 110},
 		{"fieldname": "gia_goc", "label": _("Giá gốc (theo ĐVT)"), "fieldtype": "Float", "width": 130},
+		{"fieldname": "ty_le_lai", "label": _("% lãi áp dụng"), "fieldtype": "Percent", "width": 90},
 		{"fieldname": "gia_chuan", "label": _("Giá chuẩn"), "fieldtype": "Float", "width": 120},
 		{"fieldname": "chenh_lech", "label": _("Chênh lệch"), "fieldtype": "Float", "width": 110},
 		{"fieldname": "ty_le_lai_thuc", "label": _("% lãi thực"), "fieldtype": "Percent", "width": 90},
@@ -85,7 +95,9 @@ def get_columns():
 
 def get_data(filters):
 	ngay = getdate(filters.get("ngay") or nowdate())
-	ty_le_lai = flt(filters.ty_le_lai) if filters.get("ty_le_lai") not in (None, "") else TY_LE_LAI_MAC_DINH
+	# Ô % lãi để trống: theo cấu hình (mặc định, % của khách, % theo khách - mặt hàng) như
+	# khi kiểm trên chứng từ. Có nhập: áp một % cho mọi dòng (để thử "nếu % là ...").
+	ty_le_co_dinh = flt(filters.ty_le_lai) if filters.get("ty_le_lai") not in (None, "") else None
 	precision = frappe.get_precision("Item Price", "price_list_rate")
 
 	gia_ban = _gia_ban_hieu_luc(filters, ngay)
@@ -95,6 +107,9 @@ def get_data(filters):
 	item_codes = list({r.item_code for r in gia_ban})
 	gia_goc = tim_gia_goc_nhieu(item_codes, ngay, filters.get("company"))
 	he_so = he_so_quy_doi(item_codes, {r.uom for r in gia_ban})
+	ty_le_theo_khach = {
+		khach: ty_le_lai_nhieu(khach, item_codes) for khach in {r.customer or None for r in gia_ban}
+	}
 
 	data = []
 	for r in gia_ban:
@@ -114,13 +129,17 @@ def get_data(filters):
 			ly_do=goc.ly_do,
 		)
 		cf = 1 if r.uom == r.stock_uom else he_so.get((r.item_code, r.uom))
-		if goc.gia_goc is None or not cf:
+		ty_le = ty_le_theo_khach[r.customer or None][r.item_code]
+		if ty_le_co_dinh is None and not ty_le.kiem:
+			row.trang_thai, row.ly_do = BO_QUA, ty_le.nguon
+		elif goc.gia_goc is None or not cf:
 			row.trang_thai = CHUA_XAC_DINH
 			if goc.gia_goc is not None:
 				row.ly_do = _("ĐVT {0} chưa khai hệ số quy đổi trên mặt hàng").format(r.uom)
 		else:
 			row.gia_goc = flt(goc.gia_goc * cf, precision)
-			row.gia_chuan = tinh_gia_chuan(goc.gia_goc, cf, ty_le_lai, precision)
+			row.ty_le_lai = ty_le.ty_le_lai if ty_le_co_dinh is None else ty_le_co_dinh
+			row.gia_chuan = tinh_gia_chuan(goc.gia_goc, cf, row.ty_le_lai, precision)
 			row.chenh_lech, row.trang_thai = so_sanh(row.gia_ban, row.gia_chuan, precision)
 			if row.gia_goc:
 				row.ty_le_lai_thuc = flt((row.gia_ban / row.gia_goc - 1) * 100, 2)

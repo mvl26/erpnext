@@ -113,6 +113,24 @@ def kiem_selling_settings(doc):
 		_tu_choi(doc, doi)
 	if flt(doc.get("ty_le_lai_mac_dinh")) < 0:
 		frappe.throw(_("% lãi mặc định không được âm"))
+	if cint(doc.get("bat_kiem_gia_ban")):
+		_canh_bao_tu_cap_nhat_gia()
+
+
+def _canh_bao_tu_cap_nhat_gia():
+	"""Stock Settings tự thêm/ghi đè Item Price khi gõ giá trên chứng từ (get_item_details.
+	insert_item_price): giá mua làm giá gốc có thể bị đổi ngầm (quyết định P7)."""
+	s = frappe.get_cached_doc("Stock Settings")
+	if cint(s.get("auto_insert_price_list_rate_if_missing")) or cint(
+		s.get("update_existing_price_list_rate")
+	):
+		frappe.msgprint(
+			_(
+				"Stock Settings đang bật tự thêm/cập nhật giá vào bảng giá khi lập chứng từ. Giá mua dùng làm giá gốc có thể bị đổi ngầm — nên tắt hai ô Auto Insert Price List Rate If Missing và Update Existing Price List Rate."
+			),
+			title=_("Kiểm giá bán"),
+			indicator="orange",
+		)
 
 
 def kiem_khach(doc):
@@ -128,10 +146,23 @@ def kiem_khach(doc):
 
 def kiem_mat_hang(doc):
 	"""Gọi từ `Item.validate`: % riêng theo khách trong bảng Item Customer Detail."""
+	# Khách có % lãi riêng chỉ được một dòng: ERPNext lấy mã hàng của khách từ dòng ĐẦU TIÊN
+	# của khách (get_item_details) hoặc dòng CUỐI (Blanket Order); thêm dòng chỉ có % sẽ làm
+	# mất mã hàng. Ghi % vào chính dòng mã hàng của khách.
+	so_dong = {}
+	for d in doc.get("customer_items", []):
+		if d.customer_name:
+			so_dong[d.customer_name] = so_dong.get(d.customer_name, 0) + 1
 	for d in doc.get("customer_items", []):
 		if cint(d.get("ty_le_lai_rieng")):
 			if not d.customer_name:
 				frappe.throw(_("Dòng {0} bảng mã hàng theo khách: % lãi riêng cần chọn khách").format(d.idx))
+			if so_dong[d.customer_name] > 1:
+				frappe.throw(
+					_(
+						"Khách {0} có nhiều dòng trong bảng mã hàng theo khách. Ghi % lãi riêng vào chính dòng mã hàng của khách (mỗi khách một dòng)."
+					).format(d.customer_name)
+				)
 			if flt(d.get("ty_le_lai")) < 0:
 				frappe.throw(_("Dòng {0} bảng mã hàng theo khách: % lãi không được âm").format(d.idx))
 		elif not d.ref_code:

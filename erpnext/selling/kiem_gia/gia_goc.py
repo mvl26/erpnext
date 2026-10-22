@@ -57,16 +57,19 @@ def tim_gia_goc_nhieu(item_codes, ngay, company=None):
 	he_so = he_so_quy_doi(item_codes, {r.uom for r in rows})
 	ncc_mac_dinh = get_default_suppliers(item_codes)
 
-	theo_hang = {}
+	theo_hang, sai_dvt = {}, {}
 	for r in rows:
 		cf = 1 if r.uom == r.stock_uom else he_so.get((r.item_code, r.uom))
 		if not cf:
 			# Giá theo một ĐVT mà mặt hàng không khai hệ số: không quy về ĐVT kho được.
+			sai_dvt.setdefault(r.item_code, set()).add(r.uom)
 			continue
 		r.gia_kho = flt(r.price_list_rate) / flt(cf)
 		theo_hang.setdefault(r.item_code, []).append(r)
 
-	return {code: _chon(theo_hang.get(code, []), ncc_mac_dinh.get(code)) for code in item_codes}
+	return {
+		code: _chon(theo_hang.get(code, []), ncc_mac_dinh.get(code), sai_dvt.get(code)) for code in item_codes
+	}
 
 
 def tinh_gia_chuan(gia_goc_kho, conversion_factor, ty_le_lai, precision):
@@ -82,9 +85,14 @@ def so_sanh(gia_ban, gia_chuan, precision):
 	return chenh_lech, THAP_HON if chenh_lech < 0 else CAO_HON
 
 
-def _chon(rows, ncc):
+def _chon(rows, ncc, sai_dvt=None):
 	if not rows:
-		return _ket_qua(KHONG_CO_GIA_MUA, ly_do=_("Không có giá mua hiệu lực tại ngày chứng từ"))
+		ly_do = _("Không có giá mua hiệu lực tại ngày chứng từ")
+		if sai_dvt:
+			ly_do += _(" (có giá theo ĐVT {0} nhưng mặt hàng chưa khai hệ số quy đổi)").format(
+				", ".join(sorted(sai_dvt))
+			)
+		return _ket_qua(KHONG_CO_GIA_MUA, ly_do=ly_do)
 
 	cua_ncc = [r for r in rows if ncc and r.supplier == ncc]
 	ung_vien = cua_ncc or rows

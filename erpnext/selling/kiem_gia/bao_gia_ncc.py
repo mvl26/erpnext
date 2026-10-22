@@ -10,11 +10,12 @@ nhập tay hay nhập tự động (YC6) đều về đúng một nơi mà bộ 
 Quy ước:
 - Bảng giá: bảng giá mặc định của NCC (Supplier > Price List) nếu là bảng giá mua đang
   bật; không có thì bảng giá mua trên báo giá.
-- Giá ghi theo ĐVT kho, CHƯA gồm VAT (P8): dùng `net_rate` khi báo giá có thuế gồm trong
-  đơn giá, ngược lại `rate`; chia hệ số quy đổi của dòng.
-- Đã có dòng cùng ngày hiệu lực: cùng giá thì bỏ qua; khác giá thì sửa dòng đó nếu chưa
-  Sales Order nào dùng làm giá gốc, đã dùng thì giữ nguyên và cảnh báo.
-- Hủy báo giá: xóa các dòng nó tạo mà chưa Sales Order nào dùng.
+- Giá ghi theo ĐVT kho, CHƯA gồm VAT (P8): dùng `net_rate` (sau chiết khấu đơn, bỏ thuế gồm
+  trong đơn giá); chia hệ số quy đổi của dòng.
+- Đã có dòng cùng NCC, cùng ngày hiệu lực: KHÔNG ghi đè (cùng giá thì bỏ qua, khác giá thì
+  cảnh báo). Ghi đè sẽ làm mất giá cũ khi hủy báo giá mới. Muốn đổi giá trong ngày: hủy
+  báo giá cũ (dòng nó tạo bị xóa) rồi Submit bản Amend.
+- Hủy báo giá: xóa các dòng nó tạo (nhận ra qua `note`) mà chưa Sales Order nào dùng.
 """
 
 import frappe
@@ -41,27 +42,26 @@ def ghi_gia_mua(doc):
 		)
 		return
 
-	thue_gom = any(cint(t.get("included_in_print_rate")) for t in doc.get("taxes") or [])
-	gia, bo_qua = _gia_theo_mat_hang(doc, thue_gom, dung_gia_quy_doi)
+	gia, bo_qua = _gia_theo_mat_hang(doc, dung_gia_quy_doi)
 	ngay = getdate(doc.transaction_date)
 
-	moi, sua, giu = [], [], []
+	moi, giu = [], []
 	for item_code, (rate, stock_uom) in gia.items():
 		ket_qua = _ghi_mot_dong(doc, price_list, pl_currency, item_code, stock_uom, rate, ngay)
-		{"moi": moi, "sua": sua, "giu": giu}.get(ket_qua, []).append(item_code)
+		{"moi": moi, "giu": giu}.get(ket_qua, []).append(item_code)
 
 	thong_bao = []
-	if moi or sua:
+	if moi:
 		thong_bao.append(
 			_("Đã ghi {0} giá vào bảng giá mua {1}, hiệu lực từ {2}.").format(
-				len(moi) + len(sua), frappe.bold(price_list), frappe.format(ngay, "Date")
+				len(moi), frappe.bold(price_list), frappe.format(ngay, "Date")
 			)
 		)
 	if giu:
 		thong_bao.append(
-			_("Giữ nguyên giá cùng ngày đã dùng cho Sales Order: {0}. Sửa tay nếu cần.").format(
-				", ".join(giu)
-			)
+			_(
+				"Đã có giá khác của NCC này cùng ngày, giữ nguyên: {0}. Muốn đổi: hủy báo giá cũ rồi Submit lại, hoặc sửa tay dòng giá."
+			).format(", ".join(giu))
 		)
 	if bo_qua:
 		thong_bao.append(_("Bỏ qua (nhiều giá khác nhau trong cùng báo giá): {0}").format(", ".join(bo_qua)))
@@ -99,16 +99,14 @@ def _bang_gia_mua(doc):
 			return name
 
 
-def _gia_theo_mat_hang(doc, thue_gom, dung_gia_quy_doi):
+def _gia_theo_mat_hang(doc, dung_gia_quy_doi):
 	"""{mã hàng: (giá/ĐVT kho, ĐVT kho)}; mặt hàng có nhiều giá khác nhau thì bỏ qua."""
 	gia, bo_qua = {}, []
 	for d in doc.get("items"):
 		if not d.item_code or cint(d.get("is_free_item")):
 			continue
-		if dung_gia_quy_doi:
-			rate = d.base_net_rate if thue_gom else d.base_rate
-		else:
-			rate = d.net_rate if thue_gom else d.rate
+		# Giá sau chiết khấu đơn, không gồm thuế gồm trong đơn giá.
+		rate = d.base_net_rate if dung_gia_quy_doi else d.net_rate
 		if not flt(rate):
 			continue
 		rate = flt(rate) / (flt(d.conversion_factor) or 1)
@@ -138,15 +136,7 @@ def _ghi_mot_dong(doc, price_list, currency, item_code, uom, rate, ngay):
 		as_dict=True,
 	)
 	if cu:
-		if flt(cu.price_list_rate, precision) == rate:
-			return None
-		if _da_dung_cho_so([cu.name]):
-			return "giu"
-		ip = frappe.get_doc("Item Price", cu.name)
-		ip.price_list_rate = rate
-		ip.note = ghi_chu(doc.name)
-		ip.save(ignore_permissions=True)
-		return "sua"
+		return None if flt(cu.price_list_rate, precision) == rate else "giu"
 
 	frappe.get_doc(
 		{

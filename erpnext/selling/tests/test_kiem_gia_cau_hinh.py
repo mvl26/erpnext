@@ -165,13 +165,23 @@ class TestQuyenSuaTyLeLai(CauHinhCase):
 	def test_rate_only_row_keeps_customer_code_search_clean(self):
 		khach = self.customer()
 		item = self.item(
-			[
-				{"customer_name": khach.name, "ty_le_lai_rieng": 1, "ty_le_lai": 1.5},
-				{"customer_name": khach.name, "ref_code": "KH-003"},
-			]
+			[{"customer_name": khach.name, "ref_code": "KH-003", "ty_le_lai_rieng": 1, "ty_le_lai": 1.5}]
 		)
 
 		self.assertEqual(item.customer_code, "KH-003")
+		self.assertEqual(ty_le_lai_ap_dung(khach.name, item.name).ty_le_lai, 1.5)
+
+	def test_a_rate_row_next_to_a_code_row_for_the_same_customer_is_rejected(self):
+		khach = self.customer()
+		self.assertRaisesRegex(
+			frappe.ValidationError,
+			"mỗi khách một dòng",
+			self.item,
+			[
+				{"customer_name": khach.name, "ref_code": "KH-004"},
+				{"customer_name": khach.name, "ty_le_lai_rieng": 1, "ty_le_lai": 1.5},
+			],
+		)
 
 	def test_g13_staff_cannot_change_the_settings(self):
 		frappe.set_user(self.nhan_vien)

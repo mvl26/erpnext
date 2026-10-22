@@ -595,7 +595,8 @@
    "default": "1",
    "fieldname": "kiem_gia_ban",
    "fieldtype": "Check",
-   "label": "Kiểm giá bán"
+   "label": "Kiểm giá bán",
+   "no_copy": 1
   },
   {
    "default": "0",
@@ -603,14 +604,16 @@
    "description": "Không tích: dùng % lãi mặc định ở Selling Settings.",
    "fieldname": "ty_le_lai_rieng",
    "fieldtype": "Check",
-   "label": "% lãi riêng"
+   "label": "% lãi riêng",
+   "no_copy": 1
   },
   {
    "depends_on": "eval:doc.kiem_gia_ban && doc.ty_le_lai_rieng",
    "fieldname": "ty_le_lai",
    "fieldtype": "Percent",
    "label": "% lãi",
-   "non_negative": 1
+   "non_negative": 1,
+   "no_copy": 1
   }
  ],
  "icon": "fa fa-user",

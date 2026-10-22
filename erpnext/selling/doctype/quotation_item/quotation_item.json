@@ -769,12 +769,12 @@
   },
   {
    "fieldname": "nguon_gia_goc",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "label": "Dòng giá mua",
-   "options": "Item Price",
    "no_copy": 1,
    "print_hide": 1,
-   "read_only": 1
+   "read_only": 1,
+   "description": "Tên dòng Item Price mua đã dùng làm giá gốc. Để Data, không Link: Link sẽ chặn xóa/hủy dòng giá mua."
   },
   {
    "fieldname": "ghi_chu_gia",

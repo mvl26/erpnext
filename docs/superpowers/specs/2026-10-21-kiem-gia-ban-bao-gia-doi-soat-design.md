@@ -5,7 +5,7 @@
 | Hệ thống | Miyano ERP (fork ERPNext v15.83.0), erp.miyano.com.vn, site `miyano` |
 | Nhánh | `feat/auto-check-selling-price-poc` (tách từ `feat/auto-check-selling-price`) |
 | Ngày | 21/10/2026 |
-| Trạng thái | **Thiết kế đã chỉnh theo số liệu production (đợt kiểm 1–4) — chưa triển khai.** Chưa có dòng code nào được viết. Còn mở: ánh xạ vai trò (không chặn code). P8: giả định giá trong bảng giá chưa gồm VAT |
+| Trạng thái | **Đợt 1 (YC3) đã code xong trên nhánh, chưa lên production** (mục 13.1). Đợt 2–4 chưa làm. Còn mở: ánh xạ vai trò, xác nhận `miyano_portal` có tự Submit SO không (trước khi bật Chặn) |
 | Tài liệu liên quan | `docs/FRD_Doi_soat_hoa_don_NCC_v1.0.docx` (FRD-MAP-01) · `docs/BA_ThongBao_TuThietLap_CR01_20260922.md` (Supply Notification) · `docs/BA_BienBanDoiChieuCongNo.md` |
 
 ---
@@ -851,6 +851,80 @@ Nguyên tắc: làm phần **chỉ đọc** trước để có giá trị ngay v
 | 1.8 | Script demo vào repo; chạy toàn bộ test trên `erpnext.localhost` | `scripts/demo_gia_ban_doi_soat.py`, `erpnext/selling/tests/` | 10 kịch bản mục 9 |
 
 Lên production: bật ở chế độ **Chỉ ghi nhận** cho Himedic → dùng báo cáo 1.2 làm sạch bảng giá → khi tỷ lệ lệch còn thấp, chuyển **Chặn**.
+
+### 13.1 Kết quả Đợt 1 (21/10/2026)
+
+| Bước | Commit | Test (site `erpnext.localhost`) |
+|---|---|---|
+| 1.1–1.2 Giá gốc + báo cáo "Doi Chieu Gia Ban Gia Mua" | `19224af` | `test_kiem_gia_goc` 16 |
+| 1.3 Cấu hình % lãi + quyền sửa | `7fbfaee` | `test_kiem_gia_cau_hinh` 19 |
+| 1.4 Kiểm trên Quotation / SO | `2d20e00` | `test_kiem_gia_chung_tu` 17 |
+| 1.5 Chặn Submit SO lệch (lý do + duyệt) | `6deca5e` | `test_kiem_gia_duyet` 13 |
+| 1.6 SQ Submit → bảng giá mua | `1ed2a9e` | `test_kiem_gia_bao_gia_ncc` 12 |
+| 1.7 Cảnh báo PO > giá gốc | `33e06da` | `test_kiem_gia_po` 8 |
+| 1.8 Script demo `scripts/demo_gia_ban_doi_soat.py` | (commit này) | Tổng 85 test đạt |
+
+**Điều chỉnh so với thiết kế khi code:**
+
+| Thiết kế | Thực tế | Lý do |
+|---|---|---|
+| Lần theo SO → Quotation → Supplier Quotation để lấy giá gốc | Bỏ; giá gốc luôn là một dòng Item Price mua | SQ Submit ghi vào bảng giá mua (1.6); production không có chuỗi này |
+| `ty_le_lai` trên Customer / Item Customer Detail | Thêm ô Check `ty_le_lai_rieng` | Trường số không phân biệt "trống" với 0% |
+| Item Customer Detail giữ `ref_code` bắt buộc | `ref_code` thôi bắt buộc; mỗi dòng cần mã hàng hoặc % lãi riêng | Dùng lại bảng có sẵn thay vì tạo bảng mới |
+| Ghi số SQ vào `Item Price.reference` | Ghi vào `Item Price.note` ("Báo giá NCC: <số>") | `reference` bị Item Price tự điền tên NCC/khách khi lưu |
+| Làm tròn 4 chữ số | Theo độ chính xác của trường đang so | Site test 2 chữ số làm lệch giả 0,003 |
+| NCC mặc định từ `Item Default.default_supplier` | `get_default_supplier` (Supplier Items) | Fork để trống ô cũ (commit 50bab31) |
+| Chỉ chặn ở `before_submit` SO | Thêm kiểm ở "Update Items" của SO đã Submit | Nút chuẩn này đổi giá mà không chạy validate |
+| Duyệt bằng vai trò khi Submit | Thêm nút "Duyệt giá lệch" + dấu vân tay dòng lệch | Người lập Submit sau khi được duyệt; sửa dòng lệch thì phải duyệt lại |
+
+**Giới hạn đã biết:**
+- Bộ test gốc của ERPNext (Sales Order, Item, …) chưa chạy được trên `erpnext.localhost` vì site thiếu dữ liệu `_Test` và nhóm hàng gốc "All Item Groups" — không do code mới. Khi tắt `bat_kiem_gia_ban`, code mới không chạy.
+- Test chạy bằng `unittest` trực tiếp (site test chưa bật `allow_tests`); mỗi test tự rollback.
+- Prettier/eslint cho file JS chưa chạy được trên máy phát triển (thiếu công cụ).
+
+### 13.3 Review Đợt 1 (21/10/2026) — lỗi tìm ra và đã sửa
+
+| # | Lỗi | Hậu quả nếu không sửa | Sửa |
+|---|---|---|---|
+| R1 | SO/Quotation bằng ngoại tệ: so giá gốc VND với đơn giá ngoại tệ | Mọi dòng báo lệch sai | Đổi giá gốc về tiền tệ chứng từ theo `conversion_rate`; các ô giá trên dòng ở tiền tệ chứng từ |
+| R2 | So `rate` (trước chiết khấu cấp đơn) | Bán dưới giá chuẩn nhờ chiết khấu đơn vẫn "Khớp" | Luôn so `net_rate` (SO/Quotation), `base_net_rate` (PO), `net_rate` khi ghi giá từ báo giá NCC |
+| R3 | Khách lưu chứng từ qua cổng (`miyano_portal`) thấy cảnh báo chứa giá mua / % lãi | Lộ biên lãi cho khách | Cảnh báo chỉ hiện cho người dùng nội bộ (`user_type = System User`) |
+| R4 | Ô duyệt (`nguoi_duyet_gia`, `ma_duyet_gia`) chỉ đọc trên form nhưng API ghi được; Amend chép nguyên; mã duyệt tính lại được | Nhân viên tự "duyệt" để qua chặn | Server luôn lấy lại giá trị đã lưu; chứng từ mới (kể cả Amend) bắt đầu chưa duyệt; chạy cả khi tắt kiểm giá |
+| R5 | Mặt hàng không quản lý kho (dịch vụ, phí vận chuyển, bộ sản phẩm) không có giá NCC | Chế độ Chặn chặn mọi SO có dòng dịch vụ | Bỏ qua mặt hàng `is_stock_item = 0` (**cần người dùng xác nhận**) |
+| R6 | Hai dòng % lãi riêng cho cùng khách trên một mặt hàng | Lấy ngẫu nhiên một % | Chặn khi lưu mặt hàng |
+| R7 | Báo cáo đối chiếu với bảng giá bán ngoại tệ | Số liệu sai | Báo lỗi, chỉ nhận bảng giá tiền tệ công ty |
+| R8 | Duplicate khách chép % lãi | Nhân viên bị chặn khi lưu bản sao | `no_copy` cho 3 ô % lãi của Customer |
+| R9 | Mã duyệt tính theo `rate`, trong khi kiểm so `net_rate` | Duyệt xong thêm chiết khấu đơn 40% vẫn Submit được | Mã duyệt gồm `net_rate`, khách, ngày, tỷ giá và lý do; đổi bất kỳ thứ nào thì phải duyệt lại |
+| R10 | `nguon_gia_goc` là Link tới Item Price | Frappe chặn xóa Item Price khi có chứng từ trỏ tới (kể cả nháp) → hủy báo giá NCC lỗi, không dọn được bảng giá | Đổi sang Data (chỉ để truy vết) |
+| R11 | Báo giá NCC cùng ngày ghi đè giá của báo giá trước | Hủy báo giá sau làm mất luôn giá của báo giá trước | Không bao giờ ghi đè; cảnh báo. Đổi giá trong ngày: hủy báo giá cũ rồi Submit lại |
+| R12 | Dòng chỉ có % lãi cạnh dòng mã hàng của cùng khách | ERPNext lấy nhầm dòng trống → mất mã hàng của khách trên chứng từ, Blanket Order | Mỗi khách một dòng; % ghi vào dòng mã hàng của khách |
+| R13 | Update Items trên SO Submit trước khi bật Chặn | Bị bắt duyệt cả dòng lệch cũ không ai đụng tới | Chỉ xét dòng vừa thêm/đổi (chụp dòng trước khi sửa vì ERPNext ghi dòng xuống DB giữa chừng) |
+| R14 | Báo cáo dùng một % cho mọi dòng | Giá riêng theo khách báo lệch sai | Ô % để trống: theo cấu hình (mặc định / khách / khách - mặt hàng, khách tắt kiểm → Bỏ qua) |
+| R15 | Khách qua cổng Submit SO bị chặn thấy chi tiết dòng lệch | Lộ trạng thái giá | Khách (Website User) chỉ thấy "Đơn hàng cần Miyano kiểm tra giá trước khi xác nhận" |
+| R16 | Bật kiểm giá khi Stock Settings tự thêm/ghi đè giá | Giá gốc bị đổi ngầm | Cảnh báo khi lưu Selling Settings |
+| R17 | Giá theo ĐVT chưa khai hệ số bị bỏ qua không báo | Lý do "Không có giá mua" gây hiểu nhầm | Ghi chú nêu ĐVT chưa khai hệ số |
+
+R1–R8: tự review. R9–R17: review độc lập (agent đọc toàn bộ diff). Test bổ sung: `test_kiem_gia_bien.py` (21 test) và các test sửa trong bộ cũ. **Tổng 109 test đạt.** Hướng dẫn test thủ công: `docs/HDKT_Dot1_Kiem_gia_ban.md`.
+
+**Rủi ro còn lại (đã cân nhắc, chưa sửa):**
+
+| Rủi ro | Vì sao chưa sửa | Việc cần làm |
+|---|---|---|
+| Ô giá gốc / % lãi trên dòng Quotation, SO ở permlevel 0: Stock User, Accounts User… xem được; nếu `miyano_portal` trả nguyên `doc.as_dict()` cho khách thì lộ giá mua | Đưa lên permlevel 1 phải thêm quyền cho từng vai trò; production có thể có Custom DocPerm cho SO làm mọi người mất quyền xem | Kiểm code `miyano_portal`; quyết định ai được xem giá gốc |
+| Patch điền vai trò duyệt "Duyệt giá Himedic" — vai trò đang có tài khoản ngoài (tiendj28@gmail.com) | Tính năng mặc định TẮT; người dùng phải rà vai trò trước khi bật | Bước 3 của 13.2 |
+| Update Items trên PO không chạy cảnh báo giá PO | Chỉ là cảnh báo | — |
+| Duplicate mặt hàng có % lãi riêng bị chặn với người không có quyền sửa % | Đúng quy tắc quyền | Người có quyền làm, hoặc xóa dòng % trước khi lưu bản sao |
+| Mặt hàng không quản lý kho được Bỏ qua (R5) | Quyết định tạm của người code | **Người dùng xác nhận** |
+
+### 13.2 Hướng dẫn lên production (Đợt 1)
+
+1. Kiểm trước (chỉ đọc): SQL mục 9.1 (NCC mặc định ở Supplier Items); xác nhận `auto_insert_price_list_rate_if_missing` và `update_existing_price_list_rate` vẫn = 0.
+2. Deploy nhánh, chạy `bench --site miyano migrate` (cột mới trên Selling Settings, Customer, Item Customer Detail, Quotation Item, Sales Order, Sales Order Item; patch `set_selling_margin_check_defaults`; báo cáo mới), rồi `bench --site miyano clear-cache`.
+3. Selling Settings → "Kiểm giá bán theo % lãi": chọn **Vai trò được sửa % lãi** (Giám đốc) và kiểm **Vai trò duyệt giá lệch** (patch điền sẵn "Duyệt giá Himedic"); xử lý tài khoản ngoài có vai trò này.
+4. Chạy báo cáo **Doi Chieu Gia Ban Gia Mua** với "Bảng giá Himedic" → rà và sửa giá (thêm dòng giá mới, không ghi đè).
+5. Bật **Kiểm giá bán**, chế độ **Chỉ ghi nhận**; theo dõi cảnh báo trên Quotation/SO/PO.
+6. Khi tỷ lệ lệch đã thấp và đã xác nhận `miyano_portal` không tự Submit SO (hoặc đã xử lý) → chuyển **Chặn**.
+7. Gỡ: tắt **Kiểm giá bán** là đủ (mọi kiểm tra dừng; dữ liệu đã ghi giữ nguyên).
 
 ### Đợt 2 — YC4 (bảng giá chờ, báo trước 7 ngày gắn Price List, cảnh báo báo gấp, nhắc việc, báo cáo báo gấp)
 ### Đợt 3 — YC5 (đối soát PR ↔ PI 0 đồng, chặn Submit PI, ĐNTT nháp, chống vượt tổng; ô vai trò ngoại lệ ở Buying Settings)

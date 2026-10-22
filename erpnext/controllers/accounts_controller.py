@@ -3722,6 +3722,9 @@ def update_child_qty_rate(parent_doctype, trans_items, parent_doctype_name, chil
 	any_conversion_factor_changed = False
 
 	parent = frappe.get_doc(parent_doctype, parent_doctype_name)
+	# Miyano: chụp dòng trước khi sửa — các dòng được ghi xuống DB ngay trong vòng lặp dưới,
+	# kiểm giá bán cần biết dòng nào vừa thêm/đổi.
+	dong_truoc = [d.as_dict() for d in parent.get(child_docname)] if parent_doctype == "Sales Order" else None
 
 	check_doc_permissions(parent, "write")
 	_removed_items = validate_and_delete_children(parent, data)
@@ -3886,10 +3889,10 @@ def update_child_qty_rate(parent_doctype, trans_items, parent_doctype_name, chil
 
 	if parent_doctype == "Sales Order":
 		# Miyano: đổi giá sau Submit cũng phải qua kiểm giá bán theo % lãi.
-		from erpnext.selling.kiem_gia.kiem_chung_tu import kiem_chung_tu, kiem_truoc_submit
+		from erpnext.selling.kiem_gia.kiem_chung_tu import dong_thay_doi, kiem_chung_tu, kiem_truoc_submit
 
 		kiem_chung_tu(parent)
-		kiem_truoc_submit(parent)
+		kiem_truoc_submit(parent, chi_xet=dong_thay_doi(parent, dong_truoc))
 
 	# reset index of child table
 	for idx, row in enumerate(parent.get(child_docname), start=1):

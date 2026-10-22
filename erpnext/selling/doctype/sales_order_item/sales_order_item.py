@@ -58,7 +58,7 @@ class SalesOrderItem(Document):
 		material_request_item: DF.Data | None
 		net_amount: DF.Currency
 		net_rate: DF.Currency
-		nguon_gia_goc: DF.Link | None
+		nguon_gia_goc: DF.Data | None
 		ordered_qty: DF.Float
 		page_break: DF.Check
 		parent: DF.Data

@@ -90,14 +90,36 @@ class TestBaoGiaNCC(KiemChungTuCase):
 
 		self.assertEqual(len(self.gia_ncc(item)), 1)
 
-	def test_same_day_new_price_replaces_an_unused_row(self):
+	def test_same_day_new_price_never_overwrites_and_survives_a_cancel(self):
 		item = self.item(None)
-		self.sq([{"item_code": item, "rate": 5000}])
+		sq1 = self.sq([{"item_code": item, "rate": 5000}])
+		frappe.clear_messages()
 		sq2 = self.sq([{"item_code": item, "rate": 5200}])
 
 		rows = self.gia_ncc(item)
 		self.assertEqual(len(rows), 1)
-		self.assertEqual((rows[0].price_list_rate, rows[0].note), (5200, ghi_chu(sq2.name)))
+		self.assertEqual((rows[0].price_list_rate, rows[0].note), (5000, ghi_chu(sq1.name)))
+		self.assertIn("giữ nguyên", " ".join(str(m.get("message")) for m in frappe.get_message_log()))
+
+		sq2.cancel()
+		self.assertEqual(self.gia_ncc(item)[0].price_list_rate, 5000)
+
+	def test_cancel_then_amend_changes_the_price_of_the_day(self):
+		item = self.item(None)
+		sq1 = self.sq([{"item_code": item, "rate": 5000}])
+		sq1.cancel()
+		self.sq([{"item_code": item, "rate": 5200}])
+
+		self.assertEqual(self.gia_ncc(item)[0].price_list_rate, 5200)
+
+	def test_cancel_works_while_a_draft_quotation_points_at_the_price(self):
+		item = self.item(None)
+		sq = self.sq([{"item_code": item, "rate": 5000}])
+		self.so([self.row(item, 5050)])  # SO nháp trỏ tới dòng giá qua nguon_gia_goc
+
+		sq.cancel()
+
+		self.assertFalse(self.gia_ncc(item))
 
 	def test_same_day_price_already_used_by_a_sales_order_is_kept(self):
 		item = self.item(None)
@@ -108,7 +130,7 @@ class TestBaoGiaNCC(KiemChungTuCase):
 		self.sq([{"item_code": item, "rate": 5200}])
 
 		self.assertEqual(self.gia_ncc(item)[0].price_list_rate, 5000)
-		self.assertIn("Giữ nguyên", " ".join(str(m.get("message")) for m in frappe.get_message_log()))
+		self.assertIn("giữ nguyên", " ".join(str(m.get("message")) for m in frappe.get_message_log()))
 
 	def test_two_different_prices_for_one_item_are_skipped(self):
 		item = self.item(None)
