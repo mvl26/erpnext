@@ -27,6 +27,8 @@ from jinja2 import meta as jinja_meta
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 from markupsafe import Markup
 
+from erpnext.supply_notification import registry
+
 SCOPE_INTERNAL = "internal"
 SCOPE_EXTERNAL = "external"
 
@@ -328,7 +330,7 @@ def snippet(name: str, scope: str) -> Markup:
 	if not name or not frappe.db.exists("Supply Notification Snippet", name):
 		return Markup("")
 
-	doc = frappe.get_cached_doc("Supply Notification Snippet", name)
+	doc = registry.config_doc("Supply Notification Snippet", name)
 	if not doc.usable_in(scope):
 		return Markup("")
 

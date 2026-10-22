@@ -185,6 +185,28 @@ class TestEarlyExit(FrappeTestCase):
 
 		self.assertTrue(registry.has_points("Journal Entry"))
 
+	def test_a_stale_shared_cache_does_not_hide_a_new_point(self):
+		"""Web/worker dùng chung Redis có thể dựng lại bản đồ điểm từ dữ liệu đã commit giữa
+		chừng giao dịch đang sửa cấu hình. Giao dịch đó vẫn phải thấy điểm mới của mình."""
+		self._rieng()
+		fixtures.make_point(reference_doctype="Journal Entry", users=[make_user()])
+		frappe.cache().set_value(registry.CACHE_KEY, {})  # tiến trình khác vừa ghi bản cũ
+
+		self.assertTrue(registry.has_points("Journal Entry"))
+
+	def test_uncommitted_points_never_reach_the_shared_cache(self):
+		self._rieng()
+		registry.clear_cache()
+		fixtures.make_point(reference_doctype="Journal Entry", users=[make_user()])
+		registry.has_points("Journal Entry")
+
+		self.assertIsNone(frappe.cache().get_value(registry.CACHE_KEY))
+
+	def _rieng(self):
+		"""Điểm của test này không được sống sang test sau (class chỉ rollback ở cuối)."""
+		frappe.db.savepoint("registry_cache")
+		self.addCleanup(frappe.db.rollback, save_point="registry_cache")
+
 	def test_blocked_doctypes_are_refused_at_configuration_time(self):
 		with self.assertRaises(frappe.ValidationError):
 			fixtures.make_point(reference_doctype="Email Queue", users=[make_user()])

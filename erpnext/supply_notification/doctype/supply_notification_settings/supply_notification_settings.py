@@ -34,4 +34,6 @@ class SupplyNotificationSettings(Document):
 
 def get_settings() -> Document:
 	"""Bản ghi cài đặt, đọc qua cache. Site chưa gieo thì trả bản mặc định."""
-	return frappe.get_cached_doc(SETTINGS_DOCTYPE)
+	from erpnext.supply_notification import registry
+
+	return registry.config_doc(SETTINGS_DOCTYPE)

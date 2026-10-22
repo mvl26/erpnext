@@ -17,6 +17,8 @@ import frappe
 from frappe import _
 from frappe.utils import split_emails, validate_email_address
 
+from erpnext.supply_notification import registry
+
 #: Hai tài khoản hệ thống không bao giờ là người nhận nghiệp vụ.
 SYSTEM_USERS = ("Administrator", "Guest")
 
@@ -134,7 +136,7 @@ def users_in_groups(names: list[str]) -> set[str]:
 	for name in names:
 		if not frappe.db.exists("Supply Notification Recipient Group", name):
 			continue
-		group = frappe.get_cached_doc("Supply Notification Recipient Group", name)
+		group = registry.config_doc("Supply Notification Recipient Group", name)
 		if group.disabled:
 			continue
 		users |= users_in_departments([row.department for row in (group.departments or [])])
@@ -147,7 +149,7 @@ def emails_in_groups(names: list[str]) -> list[str]:
 	for name in names:
 		if not frappe.db.exists("Supply Notification Recipient Group", name):
 			continue
-		group = frappe.get_cached_doc("Supply Notification Recipient Group", name)
+		group = registry.config_doc("Supply Notification Recipient Group", name)
 		if group.disabled:
 			continue
 		emails.extend(split_emails(group.fixed_emails or ""))
