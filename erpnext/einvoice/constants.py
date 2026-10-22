@@ -86,6 +86,19 @@ EDITABLE_STATUSES = frozenset(
 	}
 )
 
+# Đồng bộ lại từ chứng từ nguồn được ở các trạng thái này (Q7). Không có 98: ở "Cần
+# đối soát" chưa biết Fast đã ra số hay chưa — phải truy vấn 370 trước, nạp lại dữ
+# liệu nguồn lúc đó là có thể ghi đè lên một hóa đơn đã có số.
+RESYNC_STATUSES = frozenset(
+	{
+		STATUS_DRAFT,
+		STATUS_DRAFT_VIEWED,
+		STATUS_AWAITING_CUSTOMER,
+		STATUS_CUSTOMER_APPROVED,
+		STATUS_ERROR,
+	}
+)
+
 # Đã tiêu một số hóa đơn thật trên hệ thống Fast — không bao giờ phát hành lại.
 ISSUED_STATUSES = frozenset(
 	{

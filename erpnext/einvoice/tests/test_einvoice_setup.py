@@ -72,7 +72,11 @@ class TestEInvoiceSetup(FrappeTestCase):
 	# --- Mẫu email ----------------------------------------------------------
 
 	def test_email_templates_name_the_sales_invoice(self):
-		"""Bản ghi mới không có phiếu giao: tiêu đề nêu `doc.delivery_note` sẽ ra trống."""
+		"""Bản ghi mới không có phiếu giao: tiêu đề nêu `doc.delivery_note` sẽ ra trống.
+
+		Chỉ mẫu bản nháp nêu chứng từ nguồn; mẫu hóa đơn chính thức theo mẫu Miyano
+		nêu số hóa đơn, không nêu chứng từ nguồn — nhưng cũng không được nêu phiếu giao.
+		"""
 		from erpnext.einvoice.setup import DRAFT_TEMPLATE, ISSUED_TEMPLATE
 
 		for name in (DRAFT_TEMPLATE, ISSUED_TEMPLATE):
@@ -80,7 +84,8 @@ class TestEInvoiceSetup(FrappeTestCase):
 				template = frappe.get_doc("Email Template", name)
 				text = f"{template.subject} {template.response_html or template.response}"
 				self.assertNotIn("{{ doc.delivery_note }}", text)
-				self.assertIn("doc.sales_invoice", text)
+				if name == DRAFT_TEMPLATE:
+					self.assertIn("doc.sales_invoice", text)
 
 	def test_a_v2_template_is_retargeted(self):
 		from erpnext.einvoice.setup import _retarget_to_sales_invoice

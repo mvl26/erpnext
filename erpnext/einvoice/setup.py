@@ -10,6 +10,8 @@ Chạy được nhiều lần: gọi lại không nhân đôi trường hay quy�
 (cho site đang chạy) và từ VN company setup (cho công ty mới).
 """
 
+import hashlib
+
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.permissions import add_permission, update_permission_property
@@ -37,13 +39,67 @@ _V2_SNIPPETS = (
 	("{{ doc.delivery_note }}", _SOURCE_REF),
 )
 
-# Mẫu email hóa đơn chính thức: dòng mã tra cứu, và dòng link công khai tới PDF
-# chèn ngay sau nó. Mẫu đã tạo trên site từ trước được chèn thêm dòng link khi
-# migrate — xem `_add_public_link_row`.
-_LOOKUP_ROW = "<tr><td>Mã tra cứu</td><td><b>{{ doc.fast_key_search }}</b></td></tr>"
-_LINK_ROW = (
-	'{% if doc.public_pdf_url %}<tr><td>Xem / tải hóa đơn</td><td><a href="{{ doc.public_pdf_url }}">'
-	"{{ doc.public_pdf_url }}</a></td></tr>{% endif %}"
+# Mẫu email hóa đơn chính thức theo mẫu Miyano (`docs/fast_miyano/Mau_Email_Gui_Hoa_Don_Miyano.md`,
+# mục 6) — khách tra cứu trên cổng Fast bằng mã tra cứu in trên PDF. Mọi biến nằm
+# trong `hd` (xem `einvoice.invoice_email.email_context`). Không có `keySearch` (khóa
+# API, khách không dùng được) và không có link PDF công khai của ERP (Q6).
+ISSUED_SUBJECT = "CÔNG TY TNHH MIYANO VIỆT NAM gửi hóa đơn điện tử số {{ doc.fast_invoice_no }} cho {{ doc.customer_name }}"
+ISSUED_HTML = """<p>Kính gửi: {{ hd.nguoi_nhan }} – {{ hd.ten_khach_hang }}</p>
+<p>CÔNG TY TNHH MIYANO VIỆT NAM xin trân trọng cảm ơn Quý khách hàng đã tin tưởng và hợp tác.</p>
+<p>Chúng tôi xin gửi Quý khách Hóa đơn giá trị gia tăng với các thông tin như sau:</p>
+<table cellpadding="4">
+<tr><td>Số:</td><td><b>{{ hd.so_hd }}</b></td></tr>
+<tr><td>Ngày:</td><td>{{ hd.ngay_hd }}</td></tr>
+<tr><td>Ký hiệu:</td><td>{{ hd.ky_hieu }}</td></tr>
+{% if hd.ma_cqt %}<tr><td>Mã của cơ quan thuế:</td><td>{{ hd.ma_cqt }}</td></tr>{% endif %}
+{% if hd.so_hop_dong_po %}<tr><td>Theo hợp đồng/đơn hàng:</td><td>{{ hd.so_hop_dong_po }}</td></tr>{% endif %}
+<tr><td>Tổng tiền thanh toán:</td><td><b>{{ hd.tong_tien }}</b></td></tr>
+{% if hd.han_thanh_toan %}<tr><td>Hạn thanh toán:</td><td>{{ hd.han_thanh_toan }}</td></tr>{% endif %}
+</table>
+{% if hd.ma_tra_cuu %}{% if hd.link_tra_cuu %}<p>Để tra cứu hóa đơn, Quý khách vui lòng nhấn nút
+<a href="{{ hd.link_tra_cuu }}" style="display:inline-block;padding:6px 16px;background:#1a73e8;color:#ffffff;text-decoration:none;border-radius:4px;font-weight:bold">TRA CỨU</a>
+hoặc truy cập đường dẫn <a href="{{ hd.link_tra_cuu }}">{{ hd.link_tra_cuu }}</a> và nhập mã số: <b>{{ hd.ma_tra_cuu }}</b></p>
+{% else %}<p>Để tra cứu hóa đơn, Quý khách vui lòng nhập mã số <b>{{ hd.ma_tra_cuu }}</b> trên trang tra cứu hóa đơn điện tử.</p>
+{% endif %}{% endif %}
+{% if hd.co_xml %}<p>Đính kèm: hóa đơn dạng PDF và file XML (hóa đơn điện tử gốc).</p>
+{% else %}<p>Hóa đơn dạng PDF được đính kèm email này để Quý khách tiện lưu trữ.{% if hd.ma_tra_cuu %}
+Quý khách có thể tải file XML (hóa đơn điện tử gốc) tại trang tra cứu.{% endif %}</p>
+{% endif %}
+<p>Quý khách vui lòng kiểm tra, đối chiếu nội dung ghi trên hóa đơn. Nếu có sai sót hoặc cần
+điều chỉnh thông tin (tên đơn vị, mã số thuế, địa chỉ…), xin phản hồi lại email này hoặc
+liên hệ trực tiếp để chúng tôi xử lý kịp thời.</p>
+<p>Trân trọng kính chào!</p>
+<p>{% if hd.nguoi_gui %}{{ hd.nguoi_gui }}<br>{% endif %}CÔNG TY TNHH MIYANO VIỆT NAM
+{% if hd.sdt_nguoi_gui or hd.email_nguoi_gui %}<br>{% if hd.sdt_nguoi_gui %}ĐT: {{ hd.sdt_nguoi_gui }}{% endif %}
+{% if hd.sdt_nguoi_gui and hd.email_nguoi_gui %} | {% endif %}{% if hd.email_nguoi_gui %}Email: {{ hd.email_nguoi_gui }}{% endif %}{% endif %}</p>"""
+
+# Mẫu hóa đơn chính thức trước bản email tra cứu — giữ nguyên văn để nhận ra mẫu
+# chưa bị sửa tay (`upgrade_issued_template`). Không dùng để gửi.
+_PREVIOUS_ISSUED_HTML = """<p>Kính gửi Quý khách,</p>
+<p>Công ty TNHH Miyano Việt Nam xin gửi hóa đơn điện tử cho {% if doc.sales_invoice %}hóa đơn bán{% else %}phiếu giao{% endif %}
+<b>{{ doc.sales_invoice or doc.delivery_note }}</b>.</p>
+<table cellpadding="4">
+<tr><td>Số hóa đơn</td><td><b>{{ doc.fast_invoice_no }}</b></td></tr>
+<tr><td>Ký hiệu</td><td>{{ doc.fast_serial }}</td></tr>
+<tr><td>Mẫu số</td><td>{{ doc.fast_pattern }}</td></tr>
+<tr><td>Ngày phát hành</td><td>{{ frappe.format_value(doc.fast_signed_date, {"fieldtype": "Date"}) }}</td></tr>
+<tr><td>Mã tra cứu</td><td><b>{{ doc.fast_key_search }}</b></td></tr>
+{% if doc.public_pdf_url %}<tr><td>Xem / tải hóa đơn</td><td><a href="{{ doc.public_pdf_url }}">{{ doc.public_pdf_url }}</a></td></tr>{% endif %}
+<tr><td>Tổng thanh toán</td><td><b>{{ frappe.format_value(doc.total_amount, {"fieldtype": "Currency"}) }}</b></td></tr>
+<tr><td>Bằng chữ</td><td>{{ doc.amount_in_words }}</td></tr>
+</table>
+<p>Quý khách có thể xem và tải hóa đơn qua link ở trên, hoặc dùng <b>mã tra cứu</b> để tra
+cứu hóa đơn trên cổng của nhà cung cấp dịch vụ hóa đơn điện tử.</p>
+<p>Trân trọng,<br>Công ty TNHH Miyano Việt Nam</p>"""
+
+# Dấu vân tay (md5 của nội dung đã gộp khoảng trắng) của các bản mẫu do hệ thống
+# tạo: hằng số cũ ở trên, và bản đang có trên site miyano (đoạn kết khác hằng số
+# vì được tạo từ một phiên bản cũ hơn của file này).
+_ISSUED_ORIGINAL_FINGERPRINTS = frozenset(
+	{
+		"9cd370d6cdc5710ca07a3ebc8d45fd5c",
+		"9a64dd30e457f9603bd7eaacf4eb0e6e",
+	}
 )
 
 
@@ -85,32 +141,13 @@ chính thức và gửi lại.</p>
 <p>Mọi điều chỉnh xin phản hồi lại email này.</p>
 <p>Trân trọng,<br>Công ty TNHH Miyano Việt Nam</p>""",
 		),
-		(
-			ISSUED_TEMPLATE,
-			"[Hóa đơn điện tử] Số {{ doc.fast_invoice_no }} — Miyano Việt Nam",
-			"""<p>Kính gửi Quý khách,</p>
-<p>Công ty TNHH Miyano Việt Nam xin gửi hóa đơn điện tử cho {% if doc.sales_invoice %}hóa đơn bán{% else %}phiếu giao{% endif %}
-<b>{{ doc.sales_invoice or doc.delivery_note }}</b>.</p>
-<table cellpadding="4">
-<tr><td>Số hóa đơn</td><td><b>{{ doc.fast_invoice_no }}</b></td></tr>
-<tr><td>Ký hiệu</td><td>{{ doc.fast_serial }}</td></tr>
-<tr><td>Mẫu số</td><td>{{ doc.fast_pattern }}</td></tr>
-<tr><td>Ngày phát hành</td><td>{{ frappe.format_value(doc.fast_signed_date, {"fieldtype": "Date"}) }}</td></tr>
-<tr><td>Mã tra cứu</td><td><b>{{ doc.fast_key_search }}</b></td></tr>
-{% if doc.public_pdf_url %}<tr><td>Xem / tải hóa đơn</td><td><a href="{{ doc.public_pdf_url }}">{{ doc.public_pdf_url }}</a></td></tr>{% endif %}
-<tr><td>Tổng thanh toán</td><td><b>{{ frappe.format_value(doc.total_amount, {"fieldtype": "Currency"}) }}</b></td></tr>
-<tr><td>Bằng chữ</td><td>{{ doc.amount_in_words }}</td></tr>
-</table>
-<p>Quý khách có thể xem và tải hóa đơn qua link ở trên, hoặc dùng <b>mã tra cứu</b> để tra
-cứu hóa đơn trên cổng của nhà cung cấp dịch vụ hóa đơn điện tử.</p>
-<p>Trân trọng,<br>Công ty TNHH Miyano Việt Nam</p>""",
-		),
+		(ISSUED_TEMPLATE, ISSUED_SUBJECT, ISSUED_HTML),
 	)
 
 	for name, subject, response in templates:
 		if frappe.db.exists("Email Template", name):
 			if name == ISSUED_TEMPLATE:
-				_add_public_link_row(name)
+				upgrade_issued_template()
 			_retarget_to_sales_invoice(name)
 			continue
 		doc = frappe.get_doc(
@@ -149,22 +186,39 @@ def _retarget_to_sales_invoice(name):
 		template.save()
 
 
-def _add_public_link_row(name):
-	"""Chèn dòng link công khai vào mẫu email đã tạo từ trước khi có link.
+def upgrade_issued_template():
+	"""Thay mẫu email hóa đơn chính thức bằng mẫu Miyano — chỉ khi mẫu còn nguyên bản hệ thống tạo.
 
-	Chỉ chèn khi mẫu còn nguyên dòng mã tra cứu gốc. Mẫu đã bị sửa tay tới mức
-	không còn dòng đó thì để nguyên — không đoán chỗ chèn vào nội dung người khác viết.
+	Mẫu kế toán đã sửa tay thì giữ nguyên và ghi Error Log: không đoán chỗ sửa
+	trong nội dung người khác viết. Trả ``True`` nếu đã thay.
 	"""
-	template = frappe.get_doc("Email Template", name)
+	if not frappe.db.exists("Email Template", ISSUED_TEMPLATE):
+		return False
+	template = frappe.get_doc("Email Template", ISSUED_TEMPLATE)
 	html = template.response_html or template.response or ""
-	if "public_pdf_url" in html or _LOOKUP_ROW not in html:
-		return
+	if _fingerprint(html) == _fingerprint(ISSUED_HTML):
+		return False
+	if _fingerprint(html) not in _ISSUED_ORIGINAL_FINGERPRINTS:
+		frappe.log_error(
+			title="HĐĐT: giữ nguyên mẫu email đã sửa tay",
+			message=(
+				f"Mẫu “{ISSUED_TEMPLATE}” đã bị sửa tay nên không được thay bằng mẫu email tra cứu mới. "
+				"Mẫu mới cần mã tra cứu ({{ hd.ma_tra_cuu }}) thay cho keySearch — sửa tay theo "
+				"docs/fast_miyano/PHAN_TICH_TU_GUI_HDDT_SAU_PHAT_HANH.md mục 4.2."
+			),
+		)
+		return False
 
-	html = html.replace(_LOOKUP_ROW, f"{_LOOKUP_ROW}\n{_LINK_ROW}")
-	template.response_html = html
-	template.response = html
+	template.update(
+		{"subject": ISSUED_SUBJECT, "use_html": 1, "response_html": ISSUED_HTML, "response": ISSUED_HTML}
+	)
 	template.flags.ignore_permissions = True
 	template.save()
+	return True
+
+
+def _fingerprint(html):
+	return hashlib.md5(" ".join((html or "").split()).encode()).hexdigest()
 
 
 def _make_sales_invoice_fields():

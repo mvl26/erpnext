@@ -52,8 +52,12 @@ class TestEmailTemplates(FrappeTestCase):
 		self.assertIn("BẢN NHÁP", body)
 
 	def test_issued_template_carries_the_lookup_code(self):
-		body = frappe.db.get_value("Email Template", ISSUED_TEMPLATE, "response")
-		self.assertIn("fast_key_search", body)
+		"""Mã khách nhập trên trang tra cứu là mã in trên PDF — không phải keySearch của API."""
+		from erpnext.einvoice.setup import ISSUED_HTML
+
+		self.assertIn("hd.ma_tra_cuu", ISSUED_HTML)
+		self.assertNotIn("fast_key_search", ISSUED_HTML)
+		self.assertNotIn("public_pdf_url", ISSUED_HTML)
 
 
 class TestDraftApprovalCycle(FrappeTestCase):
