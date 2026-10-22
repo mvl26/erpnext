@@ -561,3 +561,14 @@
 		margin: 0 -8px;
 	}
 }
+
+/* Hàng trên của thẻ lô đang chờ: nhãn loại bên trái, "Bỏ lô này" bên phải.
+   Thêm ở Task 4 cùng nút "Bỏ lô này" — bản trước của trang không có lối thoát nào
+   cho một lô quét nhầm ngoài việc quét một tem khác (màn app đã có, gộp lớp thì
+   lấy bản GIÀU hơn). */
+.lh-dong-tren {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}

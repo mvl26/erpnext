@@ -351,10 +351,57 @@ erpnext.warehouse_operations.tem_lo = (function () {
 		};
 	}
 
+	/** Cỡ chữ F1 (mã hàng) VỪA hàng R1: giữ `KHO.co.f1` (11pt) cho mã ngắn,
+	 * mã dài thì hạ từng 0,5pt tới khi đủ chỗ, sàn `F1_NHO_NHAT`.
+	 *
+	 * Ở 11pt đậm, mã 22 ký tự cần ~55mm mà R1 chỉ có 47,0mm (trừ cả F3) → mã
+	 * bị cắt "…" (báo lỗi 14/10/2026, mã item 22 ký tự). Hạ cỡ chỉ làm
+	 * chữ NHỎ đi trong hàng cao cố định 4,32mm nên không đụng ngân sách 27,0mm.
+	 *
+	 * Đo bằng canvas, cùng phông với `.tem` (Arial đậm). Chừa `F1_DU_MM` cho
+	 * sai số làm tròn giữa canvas và bố cục thật. Sàn 5pt = cỡ F11 (số lô dưới
+	 * mã vạch), cỡ nhỏ nhất đã dùng trên tem; nhỏ hơn nữa đầu in
+	 * 203 dpi làm nhoè nét chữ đậm — mã quá dài so với sàn thì vẫn cắt "…".
+	 */
+	const F1_NHO_NHAT = 5;
+	const F1_DU_MM = 0.5;
+	const PX_MOI_MM = 96 / 25.4;
+	let _but_do = null;
+	function rong_chu_mm(chu, co_pt, dam) {
+		if (!chu) return 0;
+		_but_do = _but_do || document.createElement("canvas").getContext("2d");
+		_but_do.font = `${dam ? "700 " : ""}${co_pt}pt Arial, Helvetica, sans-serif`;
+		return _but_do.measureText(String(chu)).width / PX_MOI_MM;
+	}
+	function co_f1_vua(o) {
+		// F3 lấy đúng phần nó chiếm: bề rộng chữ + margin-left 1,5mm (.f3).
+		const f3 = o.F3 ? rong_chu_mm(o.F3, KHO.co.f3, false) + 1.5 : 0;
+		const cho = KHO.rong - 2 * KHO.le - f3 - F1_DU_MM;
+		let co = KHO.co.f1;
+		while (co > F1_NHO_NHAT && rong_chu_mm(o.F1, co, true) > cho) co -= 0.5;
+		return co;
+	}
+
+	/** Cỡ chữ F6 ("Lô <số lô NCC>") VỪA cột trái 27,0mm, cùng lối `co_f1_vua`.
+	 *
+	 * Từ 19/10/2026 F6 in SỐ LÔ NCC gõ đúng như trên bao bì, dài tới 40 ký tự
+	 * (spec tách số lô) — không còn bị trần độ dài của mã vạch chặn như trước.
+	 * Hạ từng 0,5pt từ `KHO.co.f6` (7pt) tới sàn 5pt. Ở sàn mà vẫn tràn thì trả
+	 * `hai_dong: true`: R5 cao 3,58mm, đủ hai dòng 5pt với line-height 1
+	 * (2 × 1,764mm = 3,53mm). Số lô NCC thường không dấu nên không vướng dấu
+	 * đâm xuống như các ô tiếng Việt; số lô dài quá cả hai dòng thì vẫn cắt.
+	 */
+	function co_f6_vua(o) {
+		const cho = KHO.cot_trai - F1_DU_MM;
+		let co = KHO.co.f6;
+		while (co > F1_NHO_NHAT && rong_chu_mm(o.F6, co, false) > cho) co -= 0.5;
+		return { co: co, hai_dong: rong_chu_mm(o.F6, co, false) > cho };
+	}
+
 	/** HTML của MỘT con tem. `o` là một dòng `nhap_lo.du_lieu_tem` trả về.
 	 *
 	 * DỮ LIỆU VÀO LÀ KHOÁ CHỮ HOA `F1`…`F11`, và ĐÃ ĐỊNH DẠNG SẴN: `F5` đã là
-	 * `"HSD 2029/01/31"`, `F6` đã là `"Lô 25L4125"`, `F7` đã là `"NHẬP
+	 * `"HSD 2029/01/31"`, `F6` đã là `"Lô 25L4125"` (số lô NCC), `F7` đã là `"NHẬP
 	 * 2026/09/03"`, `F8` đã qua `ma_vi_tri.dinh_dang_nhan()` hoặc bằng
 	 * `"VT —"`. HÀM NÀY KHÔNG ĐỊNH DẠNG LẠI GÌ — nó chỉ đặt chữ vào ô. Trộn
 	 * định dạng vào đây là mở đường cho nhãn in và màn hình xem trước nói khác
@@ -386,23 +433,33 @@ erpnext.warehouse_operations.tem_lo = (function () {
 	 * thùng hàng suốt vòng đời. Dòng chữ nằm TRONG hàng R7 vốn đã có sẵn nên
 	 * KHÔNG tốn thêm milimét nào của ngân sách 27,0mm.
 	 *
-	 * F11 vẫn in nguyên số lô ngay dưới — đó chính là thứ người ta sẽ gõ tay.
+	 * F11 vẫn in nguyên MÃ LÔ ngay dưới — đó chính là thứ người ta sẽ gõ tay
+	 * khi vạch mờ (mã vạch và F11 mã hoá mã lô, không phải số lô NCC — anh chốt
+	 * 19/10/2026).
 	 */
 	function ve_tem(o, hinh_vach) {
+		const co_f1 = co_f1_vua(o);
+		const kieu_f1 = co_f1 < KHO.co.f1 ? ` style="font-size:${co_f1}pt"` : "";
+		const f6 = co_f6_vua(o);
+		const kieu_f6 = f6.hai_dong
+			? ` style="font-size:${f6.co}pt;white-space:normal;word-break:break-all;line-height:1"`
+			: f6.co < KHO.co.f6
+			? ` style="font-size:${f6.co}pt"`
+			: "";
 		return `<div class="tem">
-	<div class="hang h1"><span class="f1">${esc(o.F1)}</span><span class="f3">${esc(o.F3)}</span></div>
+	<div class="hang h1"><span class="f1"${kieu_f1}>${esc(o.F1)}</span><span class="f3">${esc(o.F3)}</span></div>
 	<div class="hang h2"><span class="f2">${esc(o.F2)}</span></div>
 	<div class="hang h3"><span class="f4">${esc(o.F4)}</span></div>
 	<div class="giua">
 		<div class="cot-trai">
 			<div class="hang h4"><span class="f5">${esc(o.F5)}</span></div>
-			<div class="hang h5"><span class="f6">${esc(o.F6)}</span></div>
+			<div class="hang h5"><span class="f6"${kieu_f6}>${esc(o.F6)}</span></div>
 		</div>
 		<div class="cot-phai o-f9"><span class="f9">${esc(o.F9)}</span></div>
 	</div>
 	<div class="hang h6"><span class="f8">${esc(o.F8)}</span><span class="f7">${esc(o.F7)}</span></div>
 	<div class="hang h7 o-vach">
-		${hinh_vach ? `<div class="vach">${hinh_vach}</div>` : `<div class="khong-vach">${esc(__("KHÔNG CÓ MÃ VẠCH — GÕ TAY SỐ LÔ"))}</div>`}
+		${hinh_vach ? `<div class="vach">${hinh_vach}</div>` : `<div class="khong-vach">${esc(__("KHÔNG CÓ MÃ VẠCH — GÕ TAY MÃ LÔ"))}</div>`}
 		<div class="f11">${esc(o.F11)}</div>
 	</div>
 </div>`;

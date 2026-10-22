@@ -14,12 +14,13 @@ một bản thứ hai là hai chỗ phải giữ đúng. Ánh xạ:
 
     F1  mã hàng              F2  tên hàng
     F3  số lượng trong kiện  F4  "Phiếu <số> · Kiện i/N"
-    F5  HSD                  F6  lô
+    F5  HSD                  F6  "Lô <số lô NCC>"
     F7  tên khách            F8  (trống)
     F9  "i/N" — ô chữ to nhất tem, người đóng gói đọc từ xa
-    F10 mã vạch = số lô      F11 số lô (gõ tay khi máy quét hỏng)
+    F10 mã vạch = mã lô      F11 mã lô (gõ tay khi máy quét hỏng)
 
-Mã vạch mang SỐ LÔ (không phải mã kiện): quét tem kiện ở bất kỳ màn hình nào của
+Mã vạch mang MÃ LÔ (không phải mã kiện, không phải số lô NCC — số lô trùng được
+giữa các mặt hàng, spec 19/10/2026): quét tem kiện ở bất kỳ màn hình nào của
 module ra đúng lô, như quét tem lô.
 """
 
@@ -78,7 +79,10 @@ def du_lieu_tem_kien(phieu: str, chi_chua_in: int = 1) -> list[dict]:
 		sl_lay = flt(p.get("so_luong_lay")) or flt(p.so_luong)
 		mot_kien = f"{_so(sl_lay / n)} {don_vi}"
 		ten_hang = frappe.get_cached_value("Item", p.vat_tu, "item_name")
-		hsd = frappe.db.get_value("Batch", p.so_lo, "expiry_date") if p.so_lo else None
+		hsd, so_lo_ncc = (
+			frappe.db.get_value("Batch", p.so_lo, ["expiry_date", "custom_so_lo"]) if p.so_lo else None
+		) or (None, None)
+		so_lo_hien_thi = so_lo_ncc or p.so_lo or ""
 		for k in range(n):
 			dem[khoa] = dem.get(khoa, 0) + 1
 			if cint(chi_chua_in) and k < da_in:
@@ -90,6 +94,7 @@ def du_lieu_tem_kien(phieu: str, chi_chua_in: int = 1) -> list[dict]:
 					"ma_hang": p.vat_tu,
 					"ten_hang": ten_hang,
 					"so_lo": p.so_lo,
+					"so_lo_hien_thi": so_lo_hien_thi,
 					"hsd": _dinh_dang_ngay(hsd) if hsd else "",
 					"so_luong_kien": mot_kien,
 					"so_phieu": doc.name,
@@ -103,7 +108,7 @@ def du_lieu_tem_kien(phieu: str, chi_chua_in: int = 1) -> list[dict]:
 					"F3": mot_kien,
 					"F4": _("Phiếu {0} · Kiện {1}/{2}").format(doc.name, i, tong),
 					"F5": f"HSD {_dinh_dang_ngay(hsd)}" if hsd else "",
-					"F6": f"Lô {p.so_lo}" if p.so_lo else "",
+					"F6": f"Lô {so_lo_hien_thi}" if p.so_lo else "",
 					"F7": khach or "",
 					"F8": "",
 					"F9": f"{i}/{tong}",
