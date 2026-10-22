@@ -992,3 +992,24 @@ Tổng: 42 test Đợt 2 + 109 test Đợt 1 = **151 test đạt**. Thêm `scrip
 
 **Lên production (bổ sung 13.2):** `migrate` tạo thêm NTF-14, NTF-15 (bật sẵn, chỉ chạy khi có dòng giá đã gửi). Trên "Bảng giá Himedic": tạo bảng giá chờ (bảng giá bán, cùng tiền tệ, đang bật), Giám đốc tích "Báo trước khi đổi giá", chọn bảng giá chờ, nhập email thật của Himedic. Đặt `default_price_list` của khách Himedic = "Bảng giá Himedic" (để lấy % lãi khi tạo nháp).
 
+
+---
+
+## 15. BA12 thay thế / bổ sung YC3–YC4 (22/10/2026)
+
+Căn cứ: BA12 V1.0 "Đối soát giá mua – giá bán theo hệ số khách hàng" (CHỐT ĐỂ BUILD) và trả lời của PO ngày 22/10/2026. Thiết kế kỹ thuật đầy đủ: **`docs/BA12_TKKT_DoiSoatGiaMuaGiaBan.md`**. Phần nào ở mục 4, 6.1, 13, 14 mâu thuẫn với BA12 thì **BA12 thắng**.
+
+| Mục cũ | Theo BA12 |
+|---|---|
+| C6 (1% mặc định mọi khách), % theo khách / theo (khách, mặt hàng) | R01: hệ số + số HĐ + hiệu lực trên Customer; R07: không hệ số → không kiểm. Hệ số theo mặt hàng chỉ áp khi khách không có hệ số chung |
+| P1/E1 giá gốc = bảng giá mua, ưu tiên NCC mặc định; 1.6 SQ Submit ghi Item Price | D07: báo giá đợt (SQ còn hiệu lực) → HĐ nguyên tắc (bảng giá "Mua - <NCC>"), theo NCC dự kiến trên dòng (D08). SQ không còn ghi vào bảng giá |
+| C2 làm tròn theo độ chính xác trường | R03: làm tròn đến đồng, mọi đơn vị tiền |
+| C3 Chặn + vai trò duyệt | R04/R08: Submit chỉ cần lý do; R05: 3 thông tin chấp thuận theo dòng khi giá đề xuất khác bảng giá KH |
+| 2.5 SQ Submit tạo nháp giá Himedic | Bỏ (D09: bảng giá KH cập nhật thủ công). Phần còn lại của YC4 (bảng giá chờ, báo trước 7 ngày, nhắc việc, báo cáo báo gấp) giữ nguyên |
+| — | R06: Submit SO có dòng R05 → email giá mới cho người đặt đơn + API cho Portal |
+| — | A08: báo cáo "Doi Soat Gia Mua Gia Ban" theo từng SO |
+| Sửa thẳng JSON/controller chuẩn | Custom Field + `hooks.py` ("Không sửa core") |
+
+Môi trường test (cập nhật 14.3): bộ test `erpnext/supply_notification/tests` đã chạy được trên site local (fixtures lấy công ty/kho/tài khoản theo site); 3 test Workflow trên Sales Order tự bỏ qua vì local và production đều không có Workflow đang bật trên Sales Order.
+
+Sửa kèm trong Supply Notification (`registry.py`): bản đồ điểm thông báo cache trên Redis dùng chung giữa web/worker/scheduler. Trước đây `clear_cache` chỉ xoá trong `on_update` (trước commit), nên một tiến trình khác dựng lại cache từ dữ liệu cũ đúng lúc đó sẽ làm cấu hình mới không có hiệu lực tới lần sửa kế tiếp; giao dịch đang sửa cũng ghi dữ liệu chưa commit vào cache chung. Nay: xoá lại sau commit/rollback (như Frappe làm với cache tài liệu), và giao dịch đang sửa cấu hình đọc thẳng DB (`config_doc`) — test `TestEarlyExit` khoá việc này.

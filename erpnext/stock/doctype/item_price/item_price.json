@@ -34,18 +34,7 @@
   "valid_upto",
   "section_break_24",
   "note",
-  "reference",
-  "thong_bao_doi_gia_section",
-  "trang_thai_thong_bao",
-  "ngay_gui_thong_bao",
-  "so_ngay_bao_truoc",
-  "bao_gap",
-  "thong_bao",
-  "nguoi_gui_thong_bao",
-  "column_break_thong_bao",
-  "ly_do_bao_gap",
-  "ngay_xac_nhan",
-  "bang_chung_xac_nhan"
+  "reference"
  ],
  "fields": [
   {
@@ -230,95 +219,13 @@
    "fieldtype": "Link",
    "label": "Batch No",
    "options": "Batch"
-  },
-  {
-   "collapsible": 1,
-   "depends_on": "trang_thai_thong_bao",
-   "fieldname": "thong_bao_doi_gia_section",
-   "fieldtype": "Section Break",
-   "label": "Thông báo đổi giá"
-  },
-  {
-   "fieldname": "trang_thai_thong_bao",
-   "fieldtype": "Select",
-   "in_list_view": 0,
-   "in_standard_filter": 1,
-   "label": "Trạng thái thông báo",
-   "options": "\nChờ gửi\nĐã gửi\nĐã xác nhận",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "ngay_gui_thong_bao",
-   "fieldtype": "Date",
-   "label": "Ngày gửi thông báo",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "so_ngay_bao_truoc",
-   "fieldtype": "Int",
-   "label": "Số ngày báo trước",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "bao_gap",
-   "fieldtype": "Check",
-   "in_standard_filter": 1,
-   "label": "Báo gấp",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "thong_bao",
-   "fieldtype": "Link",
-   "label": "Email thông báo",
-   "options": "Communication",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_thong_bao",
-   "fieldtype": "Column Break"
-  },
-  {
-   "depends_on": "bao_gap",
-   "fieldname": "ly_do_bao_gap",
-   "fieldtype": "Small Text",
-   "label": "Lý do báo gấp",
-   "no_copy": 1
-  },
-  {
-   "depends_on": "eval:['Đã gửi','Đã xác nhận'].includes(doc.trang_thai_thong_bao)",
-   "description": "Ngày khách đồng ý (qua email). Bằng chứng bổ sung, không phải điều kiện để giá có hiệu lực.",
-   "fieldname": "ngay_xac_nhan",
-   "fieldtype": "Date",
-   "label": "Ngày khách xác nhận",
-   "no_copy": 1
-  },
-  {
-   "depends_on": "eval:['Đã gửi','Đã xác nhận'].includes(doc.trang_thai_thong_bao)",
-   "fieldname": "bang_chung_xac_nhan",
-   "fieldtype": "Attach",
-   "label": "Bằng chứng xác nhận",
-   "no_copy": 1
-  },
-  {
-   "fieldname": "nguoi_gui_thong_bao",
-   "fieldtype": "Link",
-   "label": "Người gửi thông báo",
-   "no_copy": 1,
-   "options": "User",
-   "read_only": 1
   }
  ],
  "icon": "fa fa-flag",
  "idx": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-22 09:00:00.000000",
+ "modified": "2024-04-02 22:18:00.450641",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Item Price",

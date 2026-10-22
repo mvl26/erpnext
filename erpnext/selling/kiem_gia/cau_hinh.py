@@ -1,204 +1,198 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Cấu hình % lãi và quyền sửa (thiết kế mục 6.1.2, quyết định C3, C6, E3).
+"""Hệ số giá bán theo khách hàng và quyền sửa (BA12 R01, R07, D01).
 
-- Mặc định ở Selling Settings (`ty_le_lai_mac_dinh`, 1%), áp cho mọi khách.
-- Khách: tắt kiểm (`kiem_gia_ban`) hoặc đặt % riêng (`ty_le_lai_rieng` + `ty_le_lai`).
-- (Khách, mặt hàng): dòng trong bảng Item Customer Detail của mặt hàng, cùng hai cột.
-- Thứ tự: (khách, mặt hàng) -> khách -> mặc định.
+- Công tắc chung ở Selling Settings (`bat_kiem_gia_ban`).
+- Hệ số theo khách: bảng `he_so_gia_ban` trên Customer — hệ số, số hợp đồng, hiệu lực
+  từ-đến. Mỗi ngày tối đa một hệ số hiệu lực (R01).
+- Hệ số theo mặt hàng: bảng `he_so_theo_mat_hang` trên Customer, chỉ áp khi khách KHÔNG
+  có dòng nào ở bảng hệ số theo khách (khi đó bảng này bị khóa trên form và không áp).
+- Khách không có hệ số hiệu lực cho mặt hàng tại ngày chứng từ: không kiểm (R07).
 
-Chỉ vai trò ở `vai_tro_sua_ty_le_lai` được đổi các giá trị trên (chưa chọn vai trò thì
-chỉ System Manager). Kiểm ở server nên chặn được cả form, import và API. % mới có hiệu
-lực ngay khi lưu (không có valid_from); lịch sử nằm ở Version (track_changes).
+Chỉ vai trò ở `vai_tro_sua_ty_le_lai` (Giám đốc) được sửa hệ số và các cài đặt trên.
+Kiểm ở server nên chặn được cả form, import và API.
 """
+
+from itertools import pairwise
 
 import frappe
 from frappe import _
-from frappe.utils import cint, flt
+from frappe.utils import cint, flt, getdate
 
-CHI_GHI_NHAN = "Chỉ ghi nhận"
-CHAN = "Chặn"
-TY_LE_LAI_MAC_DINH = 1
-
-# Trường của Selling Settings thuộc tính năng: đổi bất kỳ trường nào cũng cần quyền.
-TRUONG_CAI_DAT = (
-	"bat_kiem_gia_ban",
-	"che_do_kiem_gia",
-	"ty_le_lai_mac_dinh",
-	"vai_tro_sua_ty_le_lai",
-	"vai_tro_duyet_gia_lech",
-)
-TRUONG_KHACH = ("kiem_gia_ban", "ty_le_lai_rieng", "ty_le_lai")
-MAC_DINH_KHACH = {"kiem_gia_ban": 1, "ty_le_lai_rieng": 0, "ty_le_lai": 0}
+TRUONG_CAI_DAT = ("bat_kiem_gia_ban", "vai_tro_sua_ty_le_lai")
+BANG_HE_SO = ("he_so_gia_ban", "he_so_theo_mat_hang")
 
 
 def cau_hinh():
 	# Đọc thẳng DB (một truy vấn tabSingles), không qua cache Redis: cache dùng chung với web
 	# server/worker nên có thể giữ giá trị cũ khi cài đặt bị ghi bằng set_single_value
-	# (patch, script) — quyền và chế độ chặn phải luôn đúng giá trị đang lưu.
+	# (patch, script) — quyền và công tắc phải luôn đúng giá trị đang lưu.
 	s = frappe._dict(frappe.db.get_singles_dict("Selling Settings", cast=True))
-	ty_le = s.get("ty_le_lai_mac_dinh")
 	return frappe._dict(
 		bat=cint(s.get("bat_kiem_gia_ban")),
-		che_do=s.get("che_do_kiem_gia") or CHI_GHI_NHAN,
-		ty_le_lai_mac_dinh=TY_LE_LAI_MAC_DINH if ty_le is None else flt(ty_le),
 		vai_tro_sua_ty_le_lai=s.get("vai_tro_sua_ty_le_lai"),
-		vai_tro_duyet_gia_lech=s.get("vai_tro_duyet_gia_lech"),
 	)
 
 
-def ty_le_lai_ap_dung(customer, item_code):
-	"""% lãi cho một (khách, mặt hàng): `_dict(kiem, ty_le_lai, nguon)`.
+def he_so_ap_dung(customer, item_codes, ngay):
+	"""{mã hàng: `_dict(he_so, so_hop_dong, nguon)` hoặc None} tại `ngay`.
 
-	`kiem` = 0 khi khách tắt kiểm; khi đó `ty_le_lai` là None.
+	None nghĩa là khách không có hệ số cho mặt hàng đó: không kiểm (R07).
 	"""
-	return ty_le_lai_nhieu(customer, [item_code])[item_code]
-
-
-def ty_le_lai_nhieu(customer, item_codes):
-	"""{mã hàng: `_dict(kiem, ty_le_lai, nguon)`} cho một khách, một lượt truy vấn."""
-	ch = cau_hinh()
-	khach = (
-		frappe.get_cached_value("Customer", customer, list(TRUONG_KHACH), as_dict=True) if customer else None
-	)
-	if khach and not cint(khach.kiem_gia_ban):
-		tat = frappe._dict(kiem=0, ty_le_lai=None, nguon=_("Khách tắt kiểm giá"))
-		return {code: tat for code in item_codes}
-
-	rieng = {}
 	codes = [c for c in item_codes if c]
-	if customer and codes:
-		rieng = dict(
-			frappe.get_all(
-				"Item Customer Detail",
-				filters={
-					"parenttype": "Item",
-					"parent": ("in", codes),
-					"customer_name": customer,
-					"ty_le_lai_rieng": 1,
-				},
-				fields=["parent", "ty_le_lai"],
-				as_list=True,
-			)
-		)
+	if not customer or not codes:
+		return {c: None for c in codes}
+	ngay = getdate(ngay)
+	rows = frappe.get_all(
+		"Customer Price Coefficient",
+		filters={"parenttype": "Customer", "parent": customer, "parentfield": ("in", BANG_HE_SO)},
+		fields=["parentfield", "item_code", "he_so", "so_hop_dong", "tu_ngay", "den_ngay"],
+		order_by="tu_ngay desc",
+	)
+	hieu_luc = [r for r in rows if _hieu_luc(r, ngay)]
+	co_he_so_chung = any(r.parentfield == "he_so_gia_ban" for r in rows)
+	if co_he_so_chung:
+		chung = next((r for r in hieu_luc if r.parentfield == "he_so_gia_ban"), None)
+		kq = _ket_qua(chung, _("Hệ số theo khách")) if chung else None
+		return {c: kq for c in codes}
 
-	if khach and cint(khach.ty_le_lai_rieng):
-		chung = frappe._dict(kiem=1, ty_le_lai=flt(khach.ty_le_lai), nguon=_("Khách"))
-	else:
-		chung = frappe._dict(kiem=1, ty_le_lai=ch.ty_le_lai_mac_dinh, nguon=_("Mặc định"))
+	theo_hang = {}
+	for r in hieu_luc:
+		if r.parentfield == "he_so_theo_mat_hang":
+			theo_hang.setdefault(r.item_code, r)
+	return {c: _ket_qua(theo_hang[c], _("Hệ số theo mặt hàng")) if c in theo_hang else None for c in codes}
 
-	return {
-		code: frappe._dict(kiem=1, ty_le_lai=flt(rieng[code]), nguon=_("Mặt hàng - khách"))
-		if code in rieng
-		else chung
-		for code in item_codes
-	}
+
+def _hieu_luc(r, ngay):
+	return getdate(r.tu_ngay) <= ngay and (not r.den_ngay or getdate(r.den_ngay) >= ngay)
+
+
+def _ket_qua(r, nguon):
+	return frappe._dict(he_so=flt(r.he_so), so_hop_dong=r.so_hop_dong, nguon=nguon)
 
 
 @frappe.whitelist()
 def co_quyen_sua_ty_le_lai(vai_tro=None):
-	"""Người dùng hiện tại có được sửa % lãi không. `vai_tro` mặc định đọc từ cài đặt."""
+	"""Người dùng hiện tại có được sửa hệ số không. `vai_tro` mặc định đọc từ cài đặt."""
+	# Administrator có mọi vai trò (frappe.get_roles); xét thẳng để không phụ thuộc cache
+	# "roles" dùng chung — worker/scheduler chạy dưới Administrator có thể nạp lại cache
+	# thiếu một vai trò vừa tạo mà chưa commit.
+	if frappe.session.user == "Administrator":
+		return True
 	vai_tro = vai_tro or cau_hinh().vai_tro_sua_ty_le_lai or "System Manager"
 	return vai_tro in frappe.get_roles()
 
 
-# --- Kiểm quyền khi lưu ------------------------------------------------------
+# --- doc_events ----------------------------------------------------------------
 
 
-def kiem_selling_settings(doc):
-	"""Gọi từ `SellingSettings.validate`. Quyền xét theo vai trò TRƯỚC khi sửa, để không ai
-	tự gán vai trò cho mình rồi sửa luôn."""
+def kiem_selling_settings(doc, method=None):
+	"""`Selling Settings.validate`. Quyền xét theo vai trò TRƯỚC khi sửa, để không ai tự gán
+	vai trò cho mình rồi sửa luôn."""
 	truoc = doc.get_doc_before_save()
 	if not truoc:
 		return
 	doi = [f for f in TRUONG_CAI_DAT if _khac(truoc.get(f), doc.get(f))]
 	if doi and not co_quyen_sua_ty_le_lai(truoc.get("vai_tro_sua_ty_le_lai")):
 		_tu_choi(doc, doi)
-	if flt(doc.get("ty_le_lai_mac_dinh")) < 0:
-		frappe.throw(_("% lãi mặc định không được âm"))
 	if cint(doc.get("bat_kiem_gia_ban")):
 		_canh_bao_tu_cap_nhat_gia()
 
 
+def _khac(a, b):
+	if isinstance(a, int | float) or isinstance(b, int | float):
+		return cint(a) != cint(b)
+	return (a or "") != (b or "")
+
+
 def _canh_bao_tu_cap_nhat_gia():
 	"""Stock Settings tự thêm/ghi đè Item Price khi gõ giá trên chứng từ (get_item_details.
-	insert_item_price): giá mua làm giá gốc có thể bị đổi ngầm (quyết định P7)."""
+	insert_item_price): giá HĐ nguyên tắc trong bảng giá Mua - NCC có thể bị đổi ngầm."""
 	s = frappe.get_cached_doc("Stock Settings")
 	if cint(s.get("auto_insert_price_list_rate_if_missing")) or cint(
 		s.get("update_existing_price_list_rate")
 	):
 		frappe.msgprint(
 			_(
-				"Stock Settings đang bật tự thêm/cập nhật giá vào bảng giá khi lập chứng từ. Giá mua dùng làm giá gốc có thể bị đổi ngầm — nên tắt hai ô Auto Insert Price List Rate If Missing và Update Existing Price List Rate."
+				"Stock Settings đang bật tự thêm/cập nhật giá vào bảng giá khi lập chứng từ. Giá HĐ nguyên tắc trong bảng giá Mua - NCC có thể bị đổi ngầm — nên tắt hai ô Auto Insert Price List Rate If Missing và Update Existing Price List Rate."
 			),
 			title=_("Kiểm giá bán"),
 			indicator="orange",
 		)
 
 
-def kiem_khach(doc):
-	"""Gọi từ `Customer.validate`. Khách mới chỉ cần quyền khi khác giá trị mặc định."""
+def kiem_khach(doc, method=None):
+	"""`Customer.validate`: quyền sửa hệ số và quy tắc R01."""
 	truoc = doc.get_doc_before_save()
-	goc = truoc.as_dict() if truoc else MAC_DINH_KHACH
-	doi = [f for f in TRUONG_KHACH if _khac(goc.get(f), doc.get(f))]
-	if doi and not co_quyen_sua_ty_le_lai():
-		_tu_choi(doc, doi)
-	if flt(doc.get("ty_le_lai")) < 0:
-		frappe.throw(_("% lãi không được âm"))
+	if _he_so_cua(truoc) != _he_so_cua(doc) and not co_quyen_sua_ty_le_lai():
+		_tu_choi(doc, list(BANG_HE_SO))
+
+	for d in doc.get("he_so_gia_ban") or []:
+		_kiem_dong_he_so(d, _("Hệ số theo khách"))
+		if d.item_code:
+			frappe.throw(_("Hệ số theo khách dòng {0}: không chọn mặt hàng").format(d.idx))
+		if not (d.so_hop_dong or "").strip():
+			frappe.throw(_("Hệ số theo khách dòng {0}: nhập số hợp đồng làm căn cứ (R01)").format(d.idx))
+	_kiem_chong_lan(doc.get("he_so_gia_ban") or [], _("Hệ số theo khách"))
+
+	theo_hang = doc.get("he_so_theo_mat_hang") or []
+	for d in theo_hang:
+		_kiem_dong_he_so(d, _("Hệ số theo mặt hàng"))
+		if not d.item_code:
+			frappe.throw(_("Hệ số theo mặt hàng dòng {0}: chọn mặt hàng").format(d.idx))
+	for item_code in {d.item_code for d in theo_hang}:
+		_kiem_chong_lan(
+			[d for d in theo_hang if d.item_code == item_code], _("Hệ số theo mặt hàng {0}").format(item_code)
+		)
+	if doc.get("he_so_gia_ban") and theo_hang and not frappe.flags.in_import:
+		frappe.msgprint(
+			_("Khách đã có hệ số theo khách: bảng hệ số theo mặt hàng không được áp."),
+			title=_("Hệ số giá bán"),
+			indicator="orange",
+		)
 
 
-def kiem_mat_hang(doc):
-	"""Gọi từ `Item.validate`: % riêng theo khách trong bảng Item Customer Detail."""
-	# Khách có % lãi riêng chỉ được một dòng: ERPNext lấy mã hàng của khách từ dòng ĐẦU TIÊN
-	# của khách (get_item_details) hoặc dòng CUỐI (Blanket Order); thêm dòng chỉ có % sẽ làm
-	# mất mã hàng. Ghi % vào chính dòng mã hàng của khách.
-	so_dong = {}
-	for d in doc.get("customer_items", []):
-		if d.customer_name:
-			so_dong[d.customer_name] = so_dong.get(d.customer_name, 0) + 1
-	for d in doc.get("customer_items", []):
-		if cint(d.get("ty_le_lai_rieng")):
-			if not d.customer_name:
-				frappe.throw(_("Dòng {0} bảng mã hàng theo khách: % lãi riêng cần chọn khách").format(d.idx))
-			if so_dong[d.customer_name] > 1:
-				frappe.throw(
-					_(
-						"Khách {0} có nhiều dòng trong bảng mã hàng theo khách. Ghi % lãi riêng vào chính dòng mã hàng của khách (mỗi khách một dòng)."
-					).format(d.customer_name)
-				)
-			if flt(d.get("ty_le_lai")) < 0:
-				frappe.throw(_("Dòng {0} bảng mã hàng theo khách: % lãi không được âm").format(d.idx))
-		elif not d.ref_code:
+def _kiem_dong_he_so(d, bang):
+	if flt(d.he_so) <= 0:
+		frappe.throw(_("{0} dòng {1}: hệ số phải lớn hơn 0").format(bang, d.idx))
+	if d.den_ngay and getdate(d.den_ngay) < getdate(d.tu_ngay):
+		frappe.throw(_("{0} dòng {1}: ngày hiệu lực đến trước ngày hiệu lực từ").format(bang, d.idx))
+
+
+def _kiem_chong_lan(rows, bang):
+	"""R01: hai dòng không được cùng hiệu lực ở một ngày nào."""
+	rows = sorted(rows, key=lambda d: getdate(d.tu_ngay))
+	for truoc, sau in pairwise(rows):
+		if not truoc.den_ngay or getdate(truoc.den_ngay) >= getdate(sau.tu_ngay):
 			frappe.throw(
-				_("Dòng {0} bảng mã hàng theo khách: nhập mã hàng của khách hoặc % lãi riêng").format(d.idx)
+				_(
+					"{0}: dòng {1} và dòng {2} cùng hiệu lực từ {3}. Đặt ngày hiệu lực đến cho dòng {1}."
+				).format(bang, truoc.idx, sau.idx, frappe.format(sau.tu_ngay, "Date"))
 			)
 
-	truoc = doc.get_doc_before_save()
-	if _ty_le_theo_khach(truoc) != _ty_le_theo_khach(doc) and not co_quyen_sua_ty_le_lai():
-		_tu_choi(doc, ["customer_items.ty_le_lai"])
 
-
-def _ty_le_theo_khach(doc):
+def _he_so_cua(doc):
 	if not doc:
 		return set()
 	return {
-		(d.customer_name, flt(d.get("ty_le_lai"), 6))
-		for d in doc.get("customer_items", [])
-		if cint(d.get("ty_le_lai_rieng"))
+		(
+			f,
+			d.item_code or "",
+			flt(d.he_so, 6),
+			d.so_hop_dong or "",
+			str(d.tu_ngay or ""),
+			str(d.den_ngay or ""),
+		)
+		for f in BANG_HE_SO
+		for d in doc.get(f) or []
 	}
-
-
-def _khac(a, b):
-	if isinstance(a, int | float) or isinstance(b, int | float):
-		return flt(a, 6) != flt(b, 6)
-	return (a or "") != (b or "")
 
 
 def _tu_choi(doc, fields):
 	meta = frappe.get_meta(doc.doctype)
-	nhan = ", ".join(_(meta.get_label(f)) if "." not in f else _("% lãi theo khách") for f in fields)
+	nhan = ", ".join(_(meta.get_label(f)) for f in fields)
 	frappe.throw(
-		_("Bạn không có quyền sửa {0}. Chỉ vai trò {1} được sửa % lãi.").format(
+		_("Bạn không có quyền sửa {0}. Chỉ vai trò {1} được sửa hệ số giá bán.").format(
 			nhan, frappe.bold(cau_hinh().vai_tro_sua_ty_le_lai or "System Manager")
 		),
 		frappe.PermissionError,

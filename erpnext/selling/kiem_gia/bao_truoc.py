@@ -8,6 +8,10 @@ dòng mới được chuyển sang bảng giá chính. Nhờ vậy giá chưa b�
 
 Trên bảng giá chính: không thêm thẳng, không sửa giá/ngày/ĐVT/mặt hàng/khách của dòng có
 sẵn, không xóa (giá cũ phải còn để SO cũ đúng giá — D4-4). Ô xác nhận vẫn sửa được.
+
+Giá mới do người nhập vào bảng giá chờ — hệ thống không tự tạo nháp từ báo giá NCC (BA12
+D09: bảng giá khách hàng cập nhật thủ công). Trường trên Price List / Item Price là Custom
+Field (`truong_tuy_bien.py`), gắn logic qua hooks.py.
 """
 
 import frappe
@@ -61,8 +65,8 @@ def co_bao_truoc(price_list):
 # --- Price List (2.1) ----------------------------------------------------------
 
 
-def kiem_price_list(doc):
-	"""Gọi từ `PriceList.validate`."""
+def kiem_price_list(doc, method=None):
+	"""`validate` của Price List."""
 	truoc = doc.get_doc_before_save()
 	goc = truoc.as_dict() if truoc else {"so_ngay_bao_truoc": 7}
 	doi = [
@@ -103,8 +107,8 @@ def kiem_price_list(doc):
 		frappe.throw(_("Bảng giá chờ {0} đang dùng cho {1}").format(cho, khac))
 
 
-def kiem_chung_tu_ban(doc):
-	"""Gọi từ `SellingController.validate`: không bán theo bảng giá chờ (giá chưa báo)."""
+def kiem_chung_tu_ban(doc, method=None):
+	"""`validate` của chứng từ bán: không bán theo bảng giá chờ (giá chưa báo)."""
 	pl = doc.get("selling_price_list")
 	chinh = bang_gia_chinh_cua(pl)
 	if chinh:
@@ -118,8 +122,8 @@ def kiem_chung_tu_ban(doc):
 # --- Item Price (2.2, 2.3) -----------------------------------------------------
 
 
-def kiem_item_price(doc):
-	"""Gọi từ `ItemPrice.validate`."""
+def kiem_item_price(doc, method=None):
+	"""`validate` của Item Price."""
 	truoc = doc.get_doc_before_save()
 	pl_truoc = truoc.price_list if truoc else None
 	if doc.flags.tu_thong_bao_doi_gia:
@@ -154,8 +158,8 @@ def kiem_item_price(doc):
 		doc.trang_thai_thong_bao = DA_GUI
 
 
-def chan_xoa_item_price(doc):
-	"""Gọi từ `ItemPrice.on_trash`."""
+def chan_xoa_item_price(doc, method=None):
+	"""`on_trash` của Item Price."""
 	if co_bao_truoc(doc.price_list) and frappe.session.user != "Administrator":
 		frappe.throw(
 			_("Không xóa giá trên bảng giá {0}: giá cũ phải còn để chứng từ cũ đúng giá.").format(
@@ -340,136 +344,3 @@ def _noi_dung_email(price_list, dong, so_ngay_quy_dinh):
 		+ _("Kính đề nghị Quý khách phản hồi email này để xác nhận.")
 		+ "</p>"
 	)
-
-
-# --- Báo giá NCC -> nháp giá trong bảng giá chờ (2.5) ------------------------
-
-
-def ghi_chu_de_xuat(supplier_quotation):
-	"""Dấu nối nháp giá với báo giá NCC đã sinh ra nó (so khớp nguyên văn khi hủy báo giá)."""
-	return f"Đề xuất từ báo giá NCC: {supplier_quotation}"
-
-
-def de_xuat_tu_bao_gia(doc, item_codes):
-	"""Gọi từ `ghi_gia_mua` sau khi báo giá NCC ghi giá mua mới cho `item_codes`.
-
-	Với mỗi bảng giá có báo trước mà mặt hàng đang có giá: giá chuẩn mới = giá gốc hôm nay
-	(theo đúng cách kiểm giá, Đợt 1) x (1 + % lãi của khách dùng bảng giá đó). Khác giá đang
-	áp thì tạo NHÁP trong bảng giá chờ, ngày hiệu lực = hôm nay (D2-3), báo Giám đốc.
-	"""
-	from erpnext.selling.kiem_gia.cau_hinh import cau_hinh, ty_le_lai_nhieu
-	from erpnext.selling.kiem_gia.gia_goc import tim_gia_goc_nhieu, tinh_gia_chuan
-
-	if not item_codes:
-		return []
-	hom_nay = getdate(nowdate())
-	gia_goc = tim_gia_goc_nhieu(item_codes, hom_nay, doc.company)
-	precision = frappe.get_precision("Item Price", "price_list_rate")
-	tao = []
-	for pl in frappe.get_all(
-		"Price List",
-		filters={"bao_truoc_khi_doi_gia": 1, "enabled": 1},
-		fields=["name", "bang_gia_cho"],
-	):
-		if not pl.bang_gia_cho:
-			continue
-		khach = frappe.db.get_value("Customer", {"default_price_list": pl.name, "disabled": 0}, "name")
-		ty_le = ty_le_lai_nhieu(khach, item_codes)
-		for code in item_codes:
-			goc, tl = gia_goc[code], ty_le[code]
-			if goc.gia_goc is None or not tl.kiem:
-				continue
-			hien_hanh = frappe.db.sql(
-				"""select uom, price_list_rate from `tabItem Price`
-				where price_list = %s and item_code = %s and ifnull(customer, '') = ''
-					and ifnull(valid_from, '2000-01-01') <= %s
-					and (valid_upto is null or valid_upto >= %s)
-				order by valid_from desc limit 1""",
-				(pl.name, code, hom_nay, hom_nay),
-				as_dict=True,
-			)
-			if not hien_hanh:
-				continue  # mặt hàng chưa bán theo bảng giá này
-			uom = hien_hanh[0].uom
-			cf = _he_so(code, uom)
-			if not cf:
-				continue
-			gia_moi = tinh_gia_chuan(goc.gia_goc, cf, tl.ty_le_lai, precision)
-			if flt(gia_moi, precision) == flt(hien_hanh[0].price_list_rate, precision):
-				continue
-			if frappe.db.exists(
-				"Item Price",
-				{"price_list": pl.bang_gia_cho, "item_code": code, "uom": uom, "valid_from": hom_nay},
-			):
-				continue  # đã có nháp hôm nay; Giám đốc tự xem
-			frappe.get_doc(
-				{
-					"doctype": "Item Price",
-					"price_list": pl.bang_gia_cho,
-					"item_code": code,
-					"uom": uom,
-					"price_list_rate": gia_moi,
-					"valid_from": hom_nay,
-					"note": ghi_chu_de_xuat(doc.name),
-				}
-			).insert(ignore_permissions=True)
-			tao.append((pl.name, code, hien_hanh[0].price_list_rate, gia_moi))
-
-	if tao:
-		_bao_giam_doc(doc, tao, cau_hinh().vai_tro_sua_ty_le_lai)
-	return tao
-
-
-def xoa_de_xuat(doc):
-	"""Gọi từ `xoa_gia_mua` (hủy báo giá NCC): xóa nháp còn nằm trong bảng giá chờ."""
-	for name in frappe.get_all("Item Price", filters={"note": ghi_chu_de_xuat(doc.name)}, pluck="name"):
-		if bang_gia_chinh_cua(frappe.db.get_value("Item Price", name, "price_list")):
-			frappe.delete_doc("Item Price", name, ignore_permissions=True)
-
-
-def _he_so(item_code, uom):
-	if uom == frappe.get_cached_value("Item", item_code, "stock_uom"):
-		return 1
-	return flt(
-		frappe.db.get_value(
-			"UOM Conversion Detail",
-			{"parent": item_code, "parenttype": "Item", "uom": uom},
-			"conversion_factor",
-		)
-	)
-
-
-def _bao_giam_doc(doc, tao, vai_tro):
-	"""Thông báo trong hệ thống (chuông) cho người có vai trò Giám đốc, và cảnh báo trên màn hình."""
-	from frappe.desk.doctype.notification_log.notification_log import make_notification_logs
-
-	dong = "".join(
-		f"<li>{pl}: {code} {frappe.format(cu, 'Currency')} → <b>{frappe.format(moi, 'Currency')}</b></li>"
-		for pl, code, cu, moi in tao
-	)
-	noi_dung = _("Báo giá NCC {0} làm đổi giá bán. Đã tạo nháp trong bảng giá chờ:").format(doc.name)
-	if vai_tro:
-		users = frappe.get_all(
-			"Has Role",
-			filters={"role": vai_tro, "parenttype": "User"},
-			pluck="parent",
-			distinct=True,
-		)
-		if users:
-			make_notification_logs(
-				frappe._dict(
-					subject=_("Có nháp đổi giá chờ gửi thông báo (báo giá NCC {0})").format(doc.name),
-					email_content=noi_dung + f"<ul>{dong}</ul>",
-					type="Alert",
-					document_type="Price List",
-					document_name=tao[0][0],
-					from_user=frappe.session.user,
-				),
-				users,
-			)
-	if not frappe.flags.in_import:
-		frappe.msgprint(
-			noi_dung + f"<ul>{dong}</ul>" + _("Giám đốc sửa ngày hiệu lực rồi Gửi thông báo đổi giá."),
-			title=_("Đổi giá bán"),
-			indicator="blue",
-		)

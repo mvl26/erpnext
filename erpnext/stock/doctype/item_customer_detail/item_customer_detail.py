@@ -15,9 +15,7 @@ class ItemCustomerDetail(Document):
 		parent: DF.Data
 		parentfield: DF.Data
 		parenttype: DF.Data
-		ref_code: DF.Data | None
-		ty_le_lai: DF.Percent
-		ty_le_lai_rieng: DF.Check
+		ref_code: DF.Data
 	# end: auto-generated types
 
 	pass

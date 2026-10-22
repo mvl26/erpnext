@@ -1,0 +1,114 @@
+# Hướng dẫn test thủ công — BA12: Đối soát giá mua – giá bán theo hệ số khách hàng
+
+| Mục | Nội dung |
+|---|---|
+| Phạm vi | BA12 V1.0 (21/10/2026), nghiệm thu A01–A08; thiết kế kỹ thuật `docs/BA12_TKKT_DoiSoatGiaMuaGiaBan.md` |
+| Site test | `erpnext.localhost` — mở `http://127.0.0.1:8000`. **Không test trên `miyano`.** |
+| Nhánh | `feat/bao-truoc-doi-gia-himedic` |
+| Cách ghi kết quả | Đánh dấu ☐ → ☑ khi đạt; ghi chú ngắn khi không đạt (số chứng từ, ảnh chụp) |
+
+Quy tắc để đối chiếu khi test:
+
+- **Giá đề xuất = giá mua × hệ số**, **làm tròn đến đồng** (R03), so với giá bán **chưa VAT, sau chiết khấu đơn**.
+- **Giá mua** (D07) của **NCC dự kiến** trên dòng (D08; trống thì NCC mặc định của mặt hàng): (1) **Báo giá đợt** = Supplier Quotation đã Submit còn hiệu lực, mới nhất; (2) không có thì **HĐ nguyên tắc** = giá trong bảng giá "Mua - <NCC>" (dòng có Supplier) hiệu lực tại ngày SO.
+- **Hệ số** (R01) trên Khách hàng: bảng "Hệ số theo khách hàng" (hệ số, số hợp đồng, hiệu lực từ–đến). Khách không có hệ số → **không kiểm, không cảnh báo** (R07).
+- Lệch → cảnh báo, vẫn lưu được (D03). **Submit**: còn dòng lệch hoặc chưa có giá mua → bắt buộc **Lý do lệch giá** (R04, R08); dòng có **giá đề xuất khác bảng giá KH** → bắt buộc **số văn bản, người đại diện KH, ngày chấp thuận** trên dòng đó (R05). Không còn bước duyệt.
+- Xác nhận (Submit) SO có dòng R05 → email "Thông báo giá mới" cho người đặt đơn (R06).
+- Kết quả xem ở **dòng hàng → mục "Kiểm giá bán (BA12)"** (bấm vào dòng để mở chi tiết).
+
+---
+
+## 0. Chuẩn bị
+
+| # | Bước | Kết quả mong đợi | ☐ |
+|---|---|---|---|
+| 0.1 | Bench đang chạy (`bench start`) | Mở được `http://127.0.0.1:8000` | ☐ |
+| 0.2 | Ở thư mục `sites` chạy:<br>`../env/bin/python ../apps/erpnext/scripts/demo_gia_ban_doi_soat.py --site erpnext.localhost` | In ra 4 SO demo và trạng thái từng dòng. Chạy lại lần 2 không lỗi, kết quả như cũ | ☐ |
+| 0.3 | Thử chạy với `--site miyano` | Script từ chối: "Từ chối: không tạo dữ liệu demo trên site production." | ☐ |
+
+Dữ liệu demo:
+
+| Loại | Bản ghi |
+|---|---|
+| NCC | `DEMO-Vietmed` (NCC mặc định của VT-01, VT-03, VT-05), `DEMO-Hùng Minh` (của VT-02) |
+| Giá HĐ nguyên tắc | `DEMO Mua - Vietmed`: VT-01 123.457, VT-05 10.000/Cái · `DEMO Mua - Hùng Minh`: VT-01 118.000, VT-02 50.000 |
+| Báo giá đợt | Supplier Quotation **nháp** DEMO-Vietmed: VT-01 125.000, hiệu lực 30 ngày |
+| Khách | `DEMO-Himedic` hệ số 1,01 (HĐNT-HIMEDIC-2026) · `DEMO-Hoàng Lâm` 1,05 (HĐNT-HOANGLAM-2026) · `DEMO-Khách lẻ` không hệ số |
+| Bảng giá bán | `DEMO Bảng giá Himedic`: VT-01 120.000, VT-02 50.500, VT-05 10.100/Cái · `DEMO Bảng giá Hoàng Lâm`: VT-02 52.500 |
+| SO nháp | ① Himedic: VT-01 124.692, VT-02 50.500, VT-05 2 Hộp 101.000, email người đặt đơn `himedic.demo@example.com` · ② Himedic: VT-01 125.000, VT-03 30.000 · ③ Hoàng Lâm: VT-02 52.500 · ④ Khách lẻ: VT-01 150.000 |
+| Người dùng (Impersonate) | `demo.nhanvien@example.com` (bán hàng) · `demo.giamdoc@example.com` (vai trò **DEMO Giám đốc**, được sửa hệ số) |
+
+## A. Nghiệm thu BA12
+
+| # | Bước | Kết quả mong đợi | ☐ |
+|---|---|---|---|
+| A01 | Mở SO ① → dòng VT-01 → mục Kiểm giá bán | NCC dự kiến DEMO-Vietmed; giá mua **123.457**, nguồn **HĐ nguyên tắc**, chứng từ = dòng giá của DEMO Mua - Vietmed; hệ số 1,01; số HĐ HĐNT-HIMEDIC-2026; giá đề xuất **124.692**; trạng thái **Khớp** | ☐ |
+| A02 | Mở Supplier Quotation nháp DEMO-Vietmed → **Submit**. Mở lại SO ① → Lưu | VT-01: giá mua **125.000**, nguồn **Báo giá đợt** (số báo giá, ngày), giá đề xuất **126.250**, trạng thái **Thấp hơn**, chênh −1.558 | ☐ |
+| A03 | SO ①, dòng VT-01: đổi **NCC dự kiến** = DEMO-Hùng Minh → Lưu | Giá mua **118.000** (HĐ nguyên tắc Hùng Minh), đề xuất **119.180**, trạng thái **Cao hơn** | ☐ |
+| A04 | Mở SO ② → Lưu | Cảnh báo cam: VT-01 giá mua 123.457 (HĐ nguyên tắc …), hệ số 1,01, giá đúng 124.692, **chênh +308**. Submit (không lý do) → **bị chặn** "Nhập Lý do lệch giá" | ☐ |
+| A05 | SO ② (hoặc ①) dòng VT-01 có **Đề xuất khác bảng giá** (bảng giá 120.000) → điền Lý do lệch giá, Submit | Bị chặn: "Ghi đủ thông tin khách chấp thuận (R05): Dòng 1 – DEMO-VT-01: thiếu Số văn bản…, Người đại diện KH…, Ngày chấp thuận". Điền thiếu 1 trong 3 ô → vẫn bị chặn, báo đúng ô thiếu | ☐ |
+| A06 | Làm lại từ 0.2. SO ① dòng VT-01: điền Số văn bản `VB-01/2026`, Người đại diện `Ông A`, Ngày chấp thuận hôm nay → Lưu → **Submit** | Submit được. Ô **Thông báo giá mới (R06)** có link Communication: gửi `himedic.demo@example.com`, tiêu đề "Thông báo giá mới - Đơn hàng …", bảng: VT-01, giá cũ **120.000**, giá mới **124.692**, số văn bản VB-01/2026. Email nằm trên timeline SO | ☐ |
+| A07 | Mở SO ④ (DEMO-Khách lẻ) → Lưu → Submit | Không cảnh báo; mục Kiểm giá bán trống; Submit được không cần gì | ☐ |
+| A08 | Mở báo cáo **Doi Soat Gia Mua Gia Ban** (Từ ngày–Đến ngày quanh hôm nay) | Có dòng của SO đã Submit ở A06: SO, mặt hàng, NCC, nguồn giá, giá mua, hệ số, số HĐ, giá đề xuất, giá bán, chênh lệch, giá bảng giá, trạng thái, lý do, số văn bản, người đại diện, ngày chấp thuận. Lọc Khách hàng / NCC / Mặt hàng hoạt động; "Gồm SO nháp" hiện thêm SO nháp; "Chỉ dòng lệch / khác bảng giá" ẩn dòng khớp | ☐ |
+
+## B. Hệ số khách hàng (R01, R07) và quyền
+
+| # | Bước | Kết quả mong đợi | ☐ |
+|---|---|---|---|
+| B1 | Mở Khách hàng DEMO-Himedic → mục **Hệ số giá bán (BA12)** | Bảng "Hệ số theo khách hàng": 1,01 / HĐNT-HIMEDIC-2026 / từ ngày; cột Mặt hàng ẩn. Bảng "Hệ số theo mặt hàng" **khóa** (vì đã có hệ số chung) | ☐ |
+| B2 | `demo.giamdoc`: thêm dòng hệ số thứ hai 1,02 từ hôm nay, không điền "Hiệu lực đến" cho dòng cũ → Lưu | Bị chặn "… cùng hiệu lực từ … Đặt ngày hiệu lực đến cho dòng 1". Đặt dòng 1 đến hôm qua → Lưu được. SO ① lưu lại → hệ số 1,02. Xóa dòng mới, bỏ ngày đến dòng 1 để trả về như cũ | ☐ |
+| B3 | Dòng hệ số không có số hợp đồng / hệ số = 0 / đến trước từ | Bị chặn với thông báo tương ứng | ☐ |
+| B4 | `demo.nhanvien` mở DEMO-Himedic | Hai bảng hệ số **chỉ đọc**. Sửa ô khác (vd. ghi chú) → Lưu được. Gửi API đổi hệ số → bị chặn "Chỉ vai trò DEMO Giám đốc được sửa hệ số giá bán" | ☐ |
+| B5 | `demo.giamdoc` tạo khách mới không có hệ số chung, thêm **Hệ số theo mặt hàng**: VT-02 1,05 → tạo SO VT-02 52.500 | VT-02 hệ số 1,05, Khớp; mặt hàng khác của khách này không kiểm (R07) | ☐ |
+| B6 | Selling Settings → mục **Kiểm giá bán theo hệ số khách hàng (BA12)** | Có ô "Bật kiểm giá bán" và "Vai trò được sửa hệ số giá bán"; **không còn** % lãi mặc định, Chế độ, Vai trò duyệt. `demo.nhanvien` thấy chỉ đọc | ☐ |
+| B7 | Bỏ tích "Bật kiểm giá bán" → SO ② Lưu, Submit | Không kiểm, Submit được. Bật lại | ☐ |
+
+## C. Giá mua, làm tròn, ĐVT (R02, R03, R08, D04)
+
+| # | Bước | Kết quả mong đợi | ☐ |
+|---|---|---|---|
+| C1 | SO ② dòng VT-03 | **Chưa có giá mua**, ghi chú "Chưa có giá mua để đối soát: NCC DEMO-Vietmed không có báo giá đợt còn hiệu lực, cũng không có giá HĐ nguyên tắc…". Submit không lý do → bị chặn (R08) | ☐ |
+| C2 | SO ① dòng VT-05 (2 Hộp, Hộp = 10 Cái) | Giá mua 100.000/Hộp, đề xuất 101.000, Khớp; bảng giá 10.100/Cái → 101.000/Hộp, không khác bảng giá | ☐ |
+| C3 | Sửa giá VT-01 thành 124.692,4 → Lưu | Vẫn **Khớp** (làm tròn đến đồng, D04). 124.693 → **Cao hơn**, chênh +1 | ☐ |
+| C4 | Supplier Quotation DEMO-Vietmed cho VT-01, **Valid Till = hôm qua**, Submit | SO lưu lại vẫn lấy giá HĐ nguyên tắc (báo giá hết hiệu lực) | ☐ |
+| C5 | Supplier Quotation có chiết khấu đơn 10% (giá 130.000) → Submit | Giá mua = 117.000 (sau chiết khấu) | ☐ |
+| C6 | Mặt hàng chưa có NCC mặc định, dòng SO không chọn NCC dự kiến | Chưa có giá mua, ghi chú nêu thiếu NCC | ☐ |
+| C7 | Dòng SO hàng tặng / mặt hàng không quản lý kho / khách nội bộ | Trạng thái **Bỏ qua** | ☐ |
+| C8 | SO ① bấm nút **Áp giá đề xuất** (hiện khi có dòng Thấp hơn/Cao hơn) | Đơn giá các dòng lệch = giá đề xuất; Lưu → Khớp (D06) | ☐ |
+
+## D. Sau khi Submit
+
+| # | Bước | Kết quả mong đợi | ☐ |
+|---|---|---|---|
+| D1 | SO đã Submit (khớp, không lý do) → **Update Items**: thêm dòng VT-01 giá 130.000 | Bị chặn "Nhập Lý do lệch giá". Điền Lý do lệch giá trên SO (ô sửa được sau Submit) → Update Items lại → được | ☐ |
+| D2 | Update Items thêm mặt hàng có giá đề xuất khác bảng giá | Bị chặn yêu cầu 3 thông tin chấp thuận (dòng mới chưa có ô để điền: làm qua Amend) | ☐ |
+| D3 | Update Items chỉ đổi số lượng một dòng khớp của SO cũ có dòng lệch khác | Được; dòng không ai đụng giữ nguyên kết quả cũ (D05) | ☐ |
+| D4 | Thêm giá HĐ nguyên tắc mới cho VT-01 (130.000, từ hôm nay) | SO đã Submit **không đổi** giá mua; báo cáo A08 cột **Giá mua hiện tại** 130.000, **Giá mua đổi** +6.543 (D05) | ☐ |
+| D5 | Tạo PO từ SO ① với giá VT-01 cao hơn giá mua đã dùng ở SO | Cảnh báo "Giá mua cao hơn giá mua đã dùng để chốt giá bán", vẫn lưu được | ☐ |
+
+## E. Báo cáo đối chiếu bảng giá
+
+| # | Bước | Kết quả mong đợi | ☐ |
+|---|---|---|---|
+| E1 | Mở **Doi Chieu Gia Ban Gia Mua**, Bảng giá bán = DEMO Bảng giá Himedic | Mỗi giá trong bảng giá: NCC, nguồn giá mua, giá mua, hệ số (của DEMO-Himedic), giá đề xuất, chênh, trạng thái. VT-01 120.000 → **Thấp hơn** | ☐ |
+| E2 | Ô "Hệ số" = 1,05 | Tính theo 1,05 cho mọi dòng | ☐ |
+| E3 | Khách = DEMO-Khách lẻ | Trạng thái "Khách không có hệ số" | ☐ |
+
+## Kiểm tra cổng khách hàng (Việt phối hợp)
+
+| # | Bước | Kết quả mong đợi | ☐ |
+|---|---|---|---|
+| P1 | Khách lưu SO qua cổng | Không thấy cảnh báo giá mua / hệ số | ☐ |
+| P2 | Khách cố Submit SO còn lệch qua cổng | Thông báo chung "Đơn hàng cần Miyano kiểm tra giá trước khi xác nhận", không lộ giá | ☐ |
+| P3 | Gọi `erpnext.selling.kiem_gia.thong_bao_gia_moi.lay_thong_bao_gia_moi` với SO ở A06 | Trả về dòng VT-01: giá cũ 120.000, giá mới 124.692, số văn bản — cùng nội dung email | ☐ |
+
+## Test tự động
+
+```bash
+cd ~/frappe-bench/sites
+../env/bin/python ../apps/erpnext/scripts/chay_test.py --site erpnext.localhost \
+	erpnext.selling.tests.test_kiem_gia_chung_tu erpnext.selling.tests.test_kiem_gia_goc \
+	erpnext.selling.tests.test_kiem_gia_cau_hinh erpnext.selling.tests.test_kiem_gia_submit \
+	erpnext.selling.tests.test_kiem_gia_thong_bao_gia_moi erpnext.selling.tests.test_kiem_gia_bao_cao \
+	erpnext.selling.tests.test_kiem_gia_po erpnext.selling.tests.test_kiem_gia_bao_truoc
+```

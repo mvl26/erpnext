@@ -81,16 +81,7 @@
   "shopping_cart_section",
   "additional_notes",
   "section_break_61",
-  "page_break",
-  "kiem_gia_ban_section",
-  "trang_thai_gia",
-  "gia_goc",
-  "gia_chuan",
-  "chenh_lech",
-  "column_break_kiem_gia",
-  "ty_le_lai_ap_dung",
-  "nguon_gia_goc",
-  "ghi_chu_gia"
+  "page_break"
  ],
  "fields": [
   {
@@ -710,85 +701,12 @@
    "print_hide": 1,
    "read_only": 1,
    "report_hide": 1
-  },
-  {
-   "collapsible": 1,
-   "collapsible_depends_on": "eval:doc.trang_thai_gia && !['Khớp','Bỏ qua'].includes(doc.trang_thai_gia)",
-   "depends_on": "trang_thai_gia",
-   "fieldname": "kiem_gia_ban_section",
-   "fieldtype": "Section Break",
-   "label": "Kiểm giá bán"
-  },
-  {
-   "fieldname": "trang_thai_gia",
-   "fieldtype": "Select",
-   "label": "Trạng thái giá",
-   "options": "\nKhớp\nThấp hơn\nCao hơn\nChưa xác định giá gốc\nĐang trong thời hạn báo giá\nBỏ qua",
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "gia_goc",
-   "fieldtype": "Currency",
-   "label": "Giá gốc (giá mua)",
-   "options": "currency",
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "gia_chuan",
-   "fieldtype": "Currency",
-   "label": "Giá chuẩn",
-   "options": "currency",
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "chenh_lech",
-   "fieldtype": "Currency",
-   "label": "Chênh lệch",
-   "options": "currency",
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_kiem_gia",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "ty_le_lai_ap_dung",
-   "fieldtype": "Percent",
-   "label": "% lãi áp dụng",
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "nguon_gia_goc",
-   "fieldtype": "Data",
-   "label": "Dòng giá mua",
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1,
-   "description": "Tên dòng Item Price mua đã dùng làm giá gốc. Để Data, không Link: Link sẽ chặn xóa/hủy dòng giá mua."
-  },
-  {
-   "fieldname": "ghi_chu_gia",
-   "fieldtype": "Small Text",
-   "label": "Ghi chú kiểm giá",
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
   }
  ],
  "idx": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-10-21 20:00:00.000000",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Quotation Item",

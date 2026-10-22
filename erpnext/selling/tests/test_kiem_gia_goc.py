@@ -1,245 +1,170 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Giá gốc, giá chuẩn và báo cáo đối chiếu giá bán ↔ giá mua (thiết kế mục 6.1.3-6.1.4, 13).
-
-Mã G.. trong tên test là tình huống ở mục 7.1 của spec
-`docs/superpowers/specs/2026-10-21-kiem-gia-ban-bao-gia-doi-soat-design.md`.
-"""
+"""Tìm giá mua theo BA12 D07 (báo giá đợt, rồi HĐ nguyên tắc) và làm tròn giá đề xuất (R03)."""
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import add_days, getdate, nowdate
+from frappe.utils import add_days
 
 from erpnext.selling.kiem_gia.gia_goc import (
+	BAO_GIA_DOT,
 	CAO_HON,
-	CHUA_XAC_DINH,
-	CO_GIA_GOC,
-	KHONG_CO_GIA_MUA,
+	CHUA_CO_GIA_MUA,
+	HD_NGUYEN_TAC,
 	KHOP,
-	NHIEU_GIA,
 	THAP_HON,
+	lam_tron_dong,
 	so_sanh,
-	tim_gia_goc,
-	tinh_gia_chuan,
+	tim_gia_mua,
+	tinh_gia_de_xuat,
 )
-from erpnext.selling.report.doi_chieu_gia_ban_gia_mua.doi_chieu_gia_ban_gia_mua import execute
-from erpnext.stock.tests.test_item_code_rule import use_naming_mode
-
-D = None
+from erpnext.selling.tests.test_kiem_gia_chung_tu import KiemChungTuCase
 
 
-class KiemGiaCase(FrappeTestCase):
-	def setUp(self):
-		global D
-		D = getdate(nowdate())
-		frappe.db.savepoint("kiem_gia_test")
-		self.addCleanup(frappe.db.rollback, save_point="kiem_gia_test")
-		use_naming_mode(self, "Item Code")
-		self.sfx = frappe.generate_hash(length=6)
-		for uom in ("_KG Cái", "_KG Hộp"):
-			if not frappe.db.exists("UOM", uom):
-				frappe.get_doc({"doctype": "UOM", "uom_name": uom}).insert(ignore_permissions=True)
-		self.ncc_a = self.supplier("A")
-		self.ncc_b = self.supplier("B")
+class TestTimGiaMua(KiemChungTuCase):
+	def tim(self, item, ncc=None, ngay=None):
+		return tim_gia_mua(item, ncc or self.ncc, ngay or self.d, self.company)
 
-	def supplier(self, label):
-		doc = frappe.new_doc("Supplier")
-		doc.supplier_name = f"_KG NCC {label} {self.sfx}"
-		doc.supplier_group = frappe.db.get_value("Supplier Group", {"is_group": 0}, "name")
-		return doc.insert(ignore_permissions=True).name
+	def test_d07_contract_price_when_there_is_no_batch_quotation(self):
+		item = self.item(123457)
+		kq = self.tim(item)
+		self.assertEqual((kq.gia_kho, kq.nguon), (123457, HD_NGUYEN_TAC))
 
-	def item(self, default_supplier=None, hop=None):
-		doc = frappe.new_doc("Item")
-		doc.item_code = f"_KG-{frappe.generate_hash(length=8)}"
-		doc.item_name = doc.item_code
-		doc.item_group = frappe.db.get_value("Item Group", {"is_group": 0}, "name")
-		doc.stock_uom = "_KG Cái"
-		doc.is_stock_item = 1
-		if hop:
-			doc.append("uoms", {"uom": "_KG Hộp", "conversion_factor": hop})
-		if default_supplier:
-			doc.append("supplier_items", {"supplier": default_supplier, "is_default": 1})
-		return doc.insert(ignore_permissions=True).name
+	def test_d07_valid_batch_quotation_wins(self):
+		item = self.item(123457)
+		sq = self.bao_gia(item, 125000, valid_till=add_days(self.d, 10))
+		kq = self.tim(item)
+		self.assertEqual((kq.gia_kho, kq.nguon, kq.chung_tu), (125000, BAO_GIA_DOT, sq.name))
 
-	def price_list(self, label, buying=1, enabled=1):
-		name = f"_KG {label} {self.sfx}"
-		if not frappe.db.exists("Price List", name):
-			frappe.get_doc(
-				{
-					"doctype": "Price List",
-					"price_list_name": name,
-					"buying": buying,
-					"selling": 0 if buying else 1,
-					"currency": "VND",
-					"enabled": enabled,
-				}
-			).insert(ignore_permissions=True)
-		return name
+	def test_expired_batch_quotation_falls_back_to_the_contract(self):
+		item = self.item(123457)
+		self.bao_gia(item, 125000, ngay=add_days(self.d, -20), valid_till=add_days(self.d, -1))
+		self.assertEqual(self.tim(item).nguon, HD_NGUYEN_TAC)
 
-	def price(self, price_list, item, rate, valid_from, uom="_KG Cái", supplier=None, valid_upto=None):
-		return (
-			frappe.get_doc(
-				{
-					"doctype": "Item Price",
-					"price_list": price_list,
-					"item_code": item,
-					"uom": uom,
-					"price_list_rate": rate,
-					"valid_from": valid_from,
-					"valid_upto": valid_upto,
-					"supplier": supplier,
-					"currency": "VND",
-				}
-			)
-			.insert(ignore_permissions=True)
-			.name
+	def test_quotation_without_an_end_date_stays_valid(self):
+		item = self.item(123457)
+		self.bao_gia(item, 125000, ngay=add_days(self.d, -90))
+		self.assertEqual(self.tim(item).nguon, BAO_GIA_DOT)
+
+	def test_quotation_dated_after_the_order_is_ignored(self):
+		item = self.item(123457)
+		self.bao_gia(item, 125000, ngay=add_days(self.d, 1))
+		self.assertEqual(self.tim(item).nguon, HD_NGUYEN_TAC)
+
+	def test_draft_cancelled_and_stopped_quotations_are_ignored(self):
+		item = self.item(123457)
+		self.bao_gia(item, 1, submit=False)
+		self.bao_gia(item, 2).cancel()
+		dung = self.bao_gia(item, 3)
+		frappe.db.set_value("Supplier Quotation", dung.name, "status", "Stopped")
+		self.assertEqual(self.tim(item).gia_kho, 123457)
+
+	def test_newest_quotation_wins(self):
+		item = self.item(123457)
+		self.bao_gia(item, 130000, ngay=add_days(self.d, -10))
+		self.bao_gia(item, 125000, ngay=add_days(self.d, -2))
+		self.assertEqual(self.tim(item).gia_kho, 125000)
+
+	def test_another_suppliers_quotation_is_ignored(self):
+		item = self.item(123457)
+		self.bao_gia(item, 99000, ncc=self.supplier())
+		self.assertEqual(self.tim(item).nguon, HD_NGUYEN_TAC)
+
+	def test_quotation_per_box_is_converted_to_the_stock_uom(self):
+		item = self.item(None, hop=10)
+		self.bao_gia(item, 50000, uom="_KG Hộp", cf=10)
+		self.assertEqual(self.tim(item).gia_kho, 5000)
+
+	def test_quotation_discount_is_taken_into_account(self):
+		item = self.item(None)
+		sq = self.bao_gia(item, 100000, submit=False)
+		sq.apply_discount_on = "Net Total"
+		sq.additional_discount_percentage = 10
+		sq.save()
+		sq.submit()
+		self.assertEqual(self.tim(item).gia_kho, 90000)
+
+	def test_two_prices_in_the_newest_quotation_are_not_guessed(self):
+		item = self.item(None)
+		sq = self.bao_gia(item, 100000, submit=False)
+		sq.append(
+			"items",
+			{
+				"item_code": item,
+				"qty": 1,
+				"uom": "_KG Cái",
+				"conversion_factor": 1,
+				"rate": 90000,
+				"warehouse": self.warehouse,
+			},
 		)
+		sq.save()
+		sq.submit()
+		kq = self.tim(item)
+		self.assertEqual(kq.trang_thai, CHUA_CO_GIA_MUA)
+		self.assertIn(sq.name, kq.ly_do)
+
+	def test_contract_needs_the_supplier_on_the_price_row(self):
+		item = self.item(None)
+		frappe.get_doc(
+			{
+				"doctype": "Item Price",
+				"price_list": self.mua,
+				"item_code": item,
+				"uom": "_KG Cái",
+				"price_list_rate": 100000,
+				"valid_from": add_days(self.d, -5),
+			}
+		).insert(ignore_permissions=True)
+		self.assertEqual(self.tim(item).trang_thai, CHUA_CO_GIA_MUA)
+
+	def test_newest_contract_price_in_force_wins(self):
+		item = self.item(100000)
+		self.gia_hd(item, 110000, valid_from=add_days(self.d, -3))
+		self.gia_hd(item, 120000, valid_from=add_days(self.d, 3))
+		self.assertEqual(self.tim(item).gia_kho, 110000)
+		self.assertEqual(self.tim(item, ngay=add_days(self.d, 3)).gia_kho, 120000)
+
+	def test_two_contract_prices_on_the_same_date_are_not_guessed(self):
+		item = self.item(100000)
+		khac = self.price_list(f"Mua 2 - {self.ncc}", buying=1)
+		self.gia_hd(item, 105000, price_list=khac)
+		self.assertEqual(self.tim(item).trang_thai, CHUA_CO_GIA_MUA)
+
+	def test_expired_contract_and_disabled_price_list_are_ignored(self):
+		item = self.item(None)
+		ip = self.gia_hd(item, 100000)
+		frappe.db.set_value("Item Price", ip, "valid_upto", add_days(self.d, -1))
+		self.assertEqual(self.tim(item).trang_thai, CHUA_CO_GIA_MUA)
+		frappe.db.set_value("Item Price", ip, "valid_upto", None)
+		frappe.db.set_value("Price List", self.mua, "enabled", 0)
+		self.assertEqual(self.tim(item).trang_thai, CHUA_CO_GIA_MUA)
+
+	def test_contract_per_box_is_converted_to_the_stock_uom(self):
+		item = self.item(None, hop=10)
+		self.gia_hd(item, 50000, uom="_KG Hộp")
+		self.assertEqual(self.tim(item).gia_kho, 5000)
+
+	def test_no_supplier(self):
+		kq = tim_gia_mua(self.item(None, ncc=""), None, self.d, self.company)
+		self.assertEqual(kq.trang_thai, CHUA_CO_GIA_MUA)
 
 
-class TestTimGiaGoc(KiemGiaCase):
-	def test_g17_default_supplier_price_wins_over_a_newer_general_price(self):
-		item = self.item(default_supplier=self.ncc_a)
-		ip = self.price(self.price_list("Mua A"), item, 100000, add_days(D, -60), supplier=self.ncc_a)
-		self.price(self.price_list("Mua chung"), item, 98000, add_days(D, -10))
+class TestLamTron(FrappeTestCase):
+	def test_r03_example(self):
+		self.assertEqual(tinh_gia_de_xuat(123457, 1.01), 124692)
+		self.assertEqual(tinh_gia_de_xuat(125000, 1.01), 126250)
 
-		kq = tim_gia_goc(item, D)
+	def test_half_a_dong_rounds_up(self):
+		self.assertEqual(lam_tron_dong(124691.5), 124692)
+		self.assertEqual(lam_tron_dong(124692.5), 124693)
+		self.assertEqual(lam_tron_dong(124691.49), 124691)
 
-		self.assertEqual(kq.trang_thai, CO_GIA_GOC)
-		self.assertEqual(kq.gia_goc, 100000)
-		self.assertEqual(kq.item_price, ip)
-		self.assertEqual(kq.supplier, self.ncc_a)
-
-	def test_g18_without_default_supplier_the_newest_price_wins(self):
-		item = self.item()
-		self.price(self.price_list("Mua B"), item, 50000, add_days(D, -90), supplier=self.ncc_b)
-		self.price(self.price_list("Mua chung"), item, 52000, add_days(D, -20))
-
-		self.assertEqual(tim_gia_goc(item, D).gia_goc, 52000)
-
-	def test_default_supplier_without_a_valid_price_falls_back_to_the_newest(self):
-		item = self.item(default_supplier=self.ncc_a)
-		self.price(self.price_list("Mua A"), item, 100000, add_days(D, 5), supplier=self.ncc_a)
-		self.price(self.price_list("Mua chung"), item, 98000, add_days(D, -10))
-
-		self.assertEqual(tim_gia_goc(item, D).gia_goc, 98000)
-
-	def test_g19_two_different_prices_on_the_same_newest_date_are_not_guessed(self):
-		item = self.item()
-		self.price(self.price_list("Mua A"), item, 20000, add_days(D, -15), supplier=self.ncc_a)
-		self.price(self.price_list("Mua B"), item, 21000, add_days(D, -15), supplier=self.ncc_b)
-
-		kq = tim_gia_goc(item, D)
-
-		self.assertEqual(kq.trang_thai, NHIEU_GIA)
-		self.assertIsNone(kq.gia_goc)
-
-	def test_two_equal_prices_on_the_same_date_are_not_ambiguous(self):
-		item = self.item()
-		self.price(self.price_list("Mua A"), item, 20000, add_days(D, -15), supplier=self.ncc_a)
-		self.price(self.price_list("Mua B"), item, 20000, add_days(D, -15), supplier=self.ncc_b)
-
-		self.assertEqual(tim_gia_goc(item, D).gia_goc, 20000)
-
-	def test_g20_no_buying_price(self):
-		item = self.item()
-		self.price(self.price_list("Bán", buying=0), item, 30000, add_days(D, -5))
-
-		self.assertEqual(tim_gia_goc(item, D).trang_thai, KHONG_CO_GIA_MUA)
-
-	def test_g21_a_future_price_applies_only_from_its_date(self):
-		item = self.item(default_supplier=self.ncc_a)
-		pl = self.price_list("Mua A")
-		self.price(pl, item, 100000, add_days(D, -60), supplier=self.ncc_a)
-		self.price(pl, item, 105000, add_days(D, 5), supplier=self.ncc_a)
-
-		self.assertEqual(tim_gia_goc(item, D).gia_goc, 100000)
-		self.assertEqual(tim_gia_goc(item, add_days(D, 5)).gia_goc, 105000)
-
-	def test_expired_prices_and_disabled_price_lists_are_ignored(self):
-		item = self.item()
-		self.price(self.price_list("Mua A"), item, 1, add_days(D, -30), valid_upto=add_days(D, -1))
-		# ERPNext không cho thêm giá vào bảng giá đang tắt: thêm trước, tắt sau.
-		tat = self.price_list("Mua tắt")
-		self.price(tat, item, 2, add_days(D, -5))
-		frappe.db.set_value("Price List", tat, "enabled", 0)
-
-		self.assertEqual(tim_gia_goc(item, D).trang_thai, KHONG_CO_GIA_MUA)
-
-	def test_g11_a_price_per_box_is_converted_to_the_stock_uom(self):
-		item = self.item(hop=10)
-		self.price(self.price_list("Mua A"), item, 1000000, add_days(D, -5), uom="_KG Hộp")
-
-		self.assertEqual(tim_gia_goc(item, D).gia_goc, 100000)
-
-
-class TestGiaChuan(FrappeTestCase):
-	def test_g1_one_percent(self):
-		self.assertEqual(tinh_gia_chuan(100000, 1, 1, 4), 101000)
-
-	def test_g3_customer_rate(self):
-		self.assertEqual(tinh_gia_chuan(100000, 1, 2, 4), 102000)
-
-	def test_g6_rounding_follows_the_field_precision(self):
-		self.assertEqual(tinh_gia_chuan(12345.67, 1, 1, 4), 12469.1267)
-		self.assertEqual(tinh_gia_chuan(12345.67, 10, 1, 2), 124691.27)
+	def test_applies_to_every_currency(self):
+		self.assertEqual(tinh_gia_de_xuat(99.5, 1.01), 100)
 
 	def test_compare(self):
-		self.assertEqual(so_sanh(101000, 101000, 4), (0, KHOP))
-		self.assertEqual(so_sanh(52000, 52520, 4), (-520, THAP_HON))
-		self.assertEqual(so_sanh(101500, 101000, 4), (500, CAO_HON))
-
-
-class TestBaoCaoDoiChieu(KiemGiaCase):
-	def rows(self, price_list, **filters):
-		_columns, data = execute({"price_list": price_list, "ngay": D, **filters})
-		return {(r.item_code, r.uom): r for r in data}
-
-	def test_report_classifies_each_selling_price(self):
-		mua = self.price_list("Mua A")
-		ban = self.price_list("Bán H", buying=0)
-		khop, thap, cao, khong = (self.item() for _ in range(4))
-		hop = self.item(hop=10)
-		for item, gia_mua in ((khop, 100000), (thap, 52000), (cao, 10000), (hop, 12345.67)):
-			self.price(mua, item, gia_mua, add_days(D, -30))
-		self.price(ban, khop, 101000, add_days(D, -10))
-		self.price(ban, thap, 52000, add_days(D, -10))
-		self.price(ban, cao, 20000, add_days(D, -10))
-		self.price(ban, khong, 3000, add_days(D, -10))
-		self.price(ban, hop, 124691.267, add_days(D, -10), uom="_KG Hộp")
-
-		rows = self.rows(ban)
-
-		self.assertEqual(rows[(khop, "_KG Cái")].trang_thai, KHOP)
-		self.assertEqual(rows[(thap, "_KG Cái")].trang_thai, THAP_HON)
-		self.assertEqual(rows[(thap, "_KG Cái")].chenh_lech, -520)
-		self.assertEqual(rows[(cao, "_KG Cái")].trang_thai, CAO_HON)
-		self.assertEqual(rows[(cao, "_KG Cái")].ty_le_lai_thuc, 100)
-		self.assertEqual(rows[(khong, "_KG Cái")].trang_thai, CHUA_XAC_DINH)
-		self.assertEqual(rows[(hop, "_KG Hộp")].gia_chuan, tinh_gia_chuan(12345.67, 10, 1, self.precision()))
-
-	def test_report_uses_the_selling_price_in_force_on_the_date(self):
-		mua = self.price_list("Mua A")
-		ban = self.price_list("Bán H", buying=0)
-		item = self.item()
-		self.price(mua, item, 100000, add_days(D, -30))
-		self.price(ban, item, 99000, add_days(D, -20))
-		self.price(ban, item, 101000, add_days(D, -5))
-		self.price(ban, item, 120000, add_days(D, 7))
-
-		row = self.rows(ban)[(item, "_KG Cái")]
-
-		self.assertEqual(row.gia_ban, 101000)
-		self.assertEqual(row.trang_thai, KHOP)
-
-	def test_only_mismatches_and_custom_margin(self):
-		mua = self.price_list("Mua A")
-		ban = self.price_list("Bán H", buying=0)
-		item = self.item()
-		self.price(mua, item, 100000, add_days(D, -30))
-		self.price(ban, item, 101000, add_days(D, -5))
-
-		self.assertNotIn((item, "_KG Cái"), self.rows(ban, chi_hien_lech=1))
-		self.assertEqual(self.rows(ban, ty_le_lai=2)[(item, "_KG Cái")].trang_thai, THAP_HON)
-
-	def precision(self):
-		return frappe.get_precision("Item Price", "price_list_rate")
+		self.assertEqual(so_sanh(124692, 124692), (0, KHOP))
+		self.assertEqual(so_sanh(124692.49, 124692), (0, KHOP))
+		self.assertEqual(so_sanh(125000, 124692), (308, CAO_HON))
+		self.assertEqual(so_sanh(124691, 124692), (-1, THAP_HON))

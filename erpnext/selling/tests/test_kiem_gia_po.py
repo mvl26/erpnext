@@ -1,6 +1,6 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Cảnh báo PO lập từ SO có giá cao hơn giá gốc (spec 6.1.3 bước 5; bước 1.7, tình huống G22)."""
+"""Cảnh báo PO lập từ SO có giá cao hơn giá mua đã dùng ở SO (spec 6.1.3 bước 5; tình huống G22)."""
 
 import frappe
 from frappe.utils import add_days
@@ -10,15 +10,8 @@ from erpnext.selling.tests.test_kiem_gia_chung_tu import KiemChungTuCase
 
 
 class TestKiemGiaPO(KiemChungTuCase):
-	def setUp(self):
-		super().setUp()
-		doc = frappe.new_doc("Supplier")
-		doc.supplier_name = f"_KG NCC {self.sfx}"
-		doc.supplier_group = frappe.db.get_value("Supplier Group", {"is_group": 0}, "name")
-		self.ncc = doc.insert(ignore_permissions=True).name
-
 	def so_da_submit(self, item, rate=101000, **row):
-		so = self.so([self.row(item, rate, **row)])
+		so = self.so([self.row(item, rate, **row)], ly_do_lech_gia="Thử")
 		so.submit()
 		return so
 

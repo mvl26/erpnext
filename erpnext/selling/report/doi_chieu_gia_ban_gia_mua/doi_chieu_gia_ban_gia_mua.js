@@ -16,8 +16,14 @@ frappe.query_reports["Doi Chieu Gia Ban Gia Mua"] = {
 			reqd: 1,
 		},
 		{
-			fieldname: "ty_le_lai",
-			label: __("% lãi (để trống: theo cấu hình)"),
+			fieldname: "customer",
+			label: __("Khách (lấy hệ số; trống: khách dùng bảng giá này)"),
+			fieldtype: "Link",
+			options: "Customer",
+		},
+		{
+			fieldname: "he_so",
+			label: __("Hệ số (để trống: theo khách)"),
 			fieldtype: "Float",
 		},
 		{
@@ -39,7 +45,7 @@ frappe.query_reports["Doi Chieu Gia Ban Gia Mua"] = {
 				"Khớp": "green",
 				"Thấp hơn": "red",
 				"Cao hơn": "orange",
-				"Bỏ qua": "gray",
+				"Chưa có giá mua": "red",
 			}[data.trang_thai] || "gray";
 			value = `<span class="indicator-pill ${color}">${value}</span>`;
 		}

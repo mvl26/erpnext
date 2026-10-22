@@ -82,12 +82,6 @@ frappe.ui.form.on("Item", {
 	},
 
 	refresh: function (frm) {
-		// % lãi theo khách: chỉ vai trò ở Selling Settings > "Vai trò được sửa % lãi" được sửa.
-		frappe.xcall("erpnext.selling.kiem_gia.cau_hinh.co_quyen_sua_ty_le_lai").then((ok) => {
-			["ty_le_lai_rieng", "ty_le_lai"].forEach((f) =>
-				frm.fields_dict.customer_items.grid.update_docfield_property(f, "read_only", ok ? 0 : 1)
-			);
-		});
 		if (frm.doc.is_stock_item) {
 			frm.add_custom_button(
 				__("Stock Balance"),

@@ -29,7 +29,6 @@ from erpnext.controllers.item_variant import (
 	make_variant_item_code,
 	validate_item_variant_attributes,
 )
-from erpnext.selling.kiem_gia.cau_hinh import kiem_mat_hang
 from erpnext.stock import item_code_rule
 from erpnext.stock.doctype.item_default.item_default import ItemDefault
 from erpnext.stock.doctype.item_supplier.item_supplier import take_default_supplier_from_item_defaults
@@ -219,7 +218,6 @@ class Item(Document):
 		self.update_defaults_from_item_group()
 		self.validate_item_defaults()
 		take_default_supplier_from_item_defaults(self)
-		kiem_mat_hang(self)
 		item_code_rule.validate_item(self)
 		self.validate_auto_reorder_enabled_in_stock_settings()
 		self.cant_change()
@@ -433,8 +431,7 @@ class Item(Document):
 		Append all the customer codes and insert into "customer_code" field of item table.
 		Used to search Item by customer code.
 		"""
-		# Dòng chỉ khai % lãi riêng (Miyano) không có mã hàng của khách.
-		customer_codes = set(d.ref_code for d in self.get("customer_items", []) if d.ref_code)
+		customer_codes = set(d.ref_code for d in self.get("customer_items", []))
 		self.customer_code = ",".join(customer_codes)
 
 	def check_item_tax(self):

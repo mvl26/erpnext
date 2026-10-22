@@ -1,0 +1,71 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-22 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "he_so",
+  "so_hop_dong",
+  "tu_ngay",
+  "den_ngay"
+ ],
+ "fields": [
+  {
+   "columns": 3,
+   "description": "Chỉ dùng ở bảng hệ số theo mặt hàng.",
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Mặt hàng",
+   "options": "Item"
+  },
+  {
+   "columns": 1,
+   "description": "Giá bán = giá mua x hệ số (BA12 R03), ví dụ 1,01.",
+   "fieldname": "he_so",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Hệ số",
+   "precision": "4",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "so_hop_dong",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Số hợp đồng"
+  },
+  {
+   "columns": 2,
+   "fieldname": "tu_ngay",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Hiệu lực từ",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "description": "Để trống: còn hiệu lực đến khi có hệ số mới.",
+   "fieldname": "den_ngay",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Hiệu lực đến"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-22 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Selling",
+ "name": "Customer Price Coefficient",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

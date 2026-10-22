@@ -58,6 +58,14 @@ doctype_js = {
 	# đừng tạo khoá "Batch" thứ hai trong bất kỳ dict nào: khoá sau nuốt khoá
 	# trước trong im lặng, dự án đã dính đúng việc này.
 	"Batch": "public/js/warehouse_operations/batch.js",
+	# Kiểm giá bán theo hệ số khách hàng (BA12) và báo trước khi đổi giá (YC4): BA12 yêu
+	# cầu không sửa core, nên nút và quyền trên form nằm ở đây thay vì trong
+	# `<doctype>.js` chuẩn. Mất dòng này: form vẫn lưu được, server vẫn kiểm, chỉ mất nút
+	# và trạng thái chỉ đọc.
+	"Customer": "public/js/kiem_gia/customer.js",
+	"Selling Settings": "public/js/kiem_gia/selling_settings.js",
+	"Sales Order": "public/js/kiem_gia/sales_order.js",
+	"Price List": "public/js/kiem_gia/price_list.js",
 	# Hai lối vào chủ đầu tư đòi sau khi thử luồng thật 17/09/2026: nút "Nhập lô &
 	# in nhãn" trên phiếu nhập, và chỗ gán vị trí ngay trên form mặt hàng. Mất một
 	# trong hai dòng này thì form vẫn trông bình thường, chỉ là mất đường vào —
@@ -106,6 +114,9 @@ after_migrate = [
 	# tự phục hồi đó. `erpnext.warehouse_operations.tests.test_app_khoi_dong` khoá việc
 	# này còn trong danh sách.
 	"erpnext.warehouse_operations.vitri.cay.dam_bao_cay_da_dung",
+	# Trường tùy biến của kiểm giá bán (BA12) / báo trước đổi giá (YC4) — BA12 không cho sửa
+	# JSON DocType chuẩn. Mất dòng này: site mới không có các trường, mọi kiểm giá lỗi.
+	"erpnext.selling.kiem_gia.truong_tuy_bien.tao_truong_tuy_bien",
 ]
 
 boot_session = "erpnext.startup.boot.boot_session"
@@ -465,6 +476,7 @@ doc_events = {
 		"after_insert": "erpnext.crm.utils.link_events_with_prospect",
 	},
 	"Sales Invoice": {
+		"validate": "erpnext.selling.kiem_gia.bao_truoc.kiem_chung_tu_ban",
 		"on_submit": [
 			"erpnext.regional.create_transaction_log",
 			"erpnext.regional.italy.utils.sales_invoice_on_submit",
@@ -509,11 +521,42 @@ doc_events = {
 	# Hook này chỉ chặn khi hóa đơn đã thật sự tiêu số, và nói rõ vì sao. Từ bản
 	# 3.0 chỉ còn bảo vệ phiếu giao của các hóa đơn lập theo bản 2.0.
 	"Delivery Note": {
-		"validate": "erpnext.warehouse_operations.vitri.lay_hang.kiem_phan_bo_khi_luu",
+		"validate": [
+			"erpnext.warehouse_operations.vitri.lay_hang.kiem_phan_bo_khi_luu",
+			"erpnext.selling.kiem_gia.bao_truoc.kiem_chung_tu_ban",
+		],
 		"before_submit": "erpnext.warehouse_operations.vitri.lay_hang.chan_duyet_chua_lay",
 		"on_submit": "erpnext.warehouse_operations.vitri.lay_hang.ghi_cot_vi_tri_khi_duyet",
 		"before_cancel": "erpnext.einvoice.builder.before_delivery_note_cancel",
 		"on_cancel": "erpnext.einvoice.builder.on_delivery_note_cancel",
+	},
+	# Kiểm giá bán theo hệ số khách hàng (BA12) và báo trước khi đổi giá (YC4). BA12 yêu
+	# cầu không sửa core: mọi điểm gắn vào controller chuẩn nằm ở đây. Thiết kế:
+	# docs/BA12_TKKT_DoiSoatGiaMuaGiaBan.md.
+	"Quotation": {
+		"validate": [
+			"erpnext.selling.kiem_gia.bao_truoc.kiem_chung_tu_ban",
+			"erpnext.selling.kiem_gia.kiem_chung_tu.kiem_chung_tu",
+		],
+	},
+	"Sales Order": {
+		"validate": [
+			"erpnext.selling.kiem_gia.bao_truoc.kiem_chung_tu_ban",
+			"erpnext.selling.kiem_gia.kiem_chung_tu.kiem_chung_tu",
+		],
+		"before_submit": "erpnext.selling.kiem_gia.kiem_chung_tu.kiem_truoc_submit",
+		"on_submit": "erpnext.selling.kiem_gia.thong_bao_gia_moi.gui_khi_xac_nhan",
+		# "Update Items" sau Submit: kiểm lại dòng vừa thêm/đổi giá.
+		"before_update_after_submit": "erpnext.selling.kiem_gia.kiem_chung_tu.kiem_sau_submit",
+	},
+	"POS Invoice": {"validate": "erpnext.selling.kiem_gia.bao_truoc.kiem_chung_tu_ban"},
+	"Purchase Order": {"validate": "erpnext.selling.kiem_gia.kiem_po.kiem_po"},
+	"Customer": {"validate": "erpnext.selling.kiem_gia.cau_hinh.kiem_khach"},
+	"Selling Settings": {"validate": "erpnext.selling.kiem_gia.cau_hinh.kiem_selling_settings"},
+	"Price List": {"validate": "erpnext.selling.kiem_gia.bao_truoc.kiem_price_list"},
+	"Item Price": {
+		"validate": "erpnext.selling.kiem_gia.bao_truoc.kiem_item_price",
+		"on_trash": "erpnext.selling.kiem_gia.bao_truoc.chan_xoa_item_price",
 	},
 }
 

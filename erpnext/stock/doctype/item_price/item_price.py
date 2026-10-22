@@ -4,8 +4,6 @@ from frappe.model.document import Document
 from frappe.query_builder import Criterion
 from frappe.query_builder.functions import Cast_
 
-from erpnext.selling.kiem_gia.bao_truoc import chan_xoa_item_price, kiem_item_price
-
 
 class ItemPriceDuplicateItem(frappe.ValidationError):
 	pass
@@ -20,8 +18,6 @@ class ItemPrice(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		bang_chung_xac_nhan: DF.Attach | None
-		bao_gap: DF.Check
 		batch_no: DF.Link | None
 		brand: DF.Link | None
 		buying: DF.Check
@@ -31,20 +27,13 @@ class ItemPrice(Document):
 		item_description: DF.Text | None
 		item_name: DF.Data | None
 		lead_time_days: DF.Int
-		ly_do_bao_gap: DF.SmallText | None
-		ngay_gui_thong_bao: DF.Date | None
-		ngay_xac_nhan: DF.Date | None
-		nguoi_gui_thong_bao: DF.Link | None
 		note: DF.Text | None
 		packing_unit: DF.Int
 		price_list: DF.Link
 		price_list_rate: DF.Currency
 		reference: DF.Data | None
 		selling: DF.Check
-		so_ngay_bao_truoc: DF.Int
 		supplier: DF.Link | None
-		thong_bao: DF.Link | None
-		trang_thai_thong_bao: DF.Literal["", "Chờ gửi", "Đã gửi", "Đã xác nhận"]
 		uom: DF.Link
 		valid_from: DF.Date | None
 		valid_upto: DF.Date | None
@@ -57,10 +46,6 @@ class ItemPrice(Document):
 		self.update_item_details()
 		self.check_duplicates()
 		self.validate_item_template()
-		kiem_item_price(self)
-
-	def on_trash(self):
-		chan_xoa_item_price(self)
 
 	def validate_item(self):
 		if not frappe.db.exists("Item", self.item_code):

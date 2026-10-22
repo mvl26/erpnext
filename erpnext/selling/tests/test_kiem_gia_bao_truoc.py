@@ -17,8 +17,6 @@ class BaoTruocCase(KiemChungTuCase):
 	def setUp(self):
 		super().setUp()
 		self.addCleanup(frappe.set_user, "Administrator")
-		self.addCleanup(setattr, frappe.flags, "mute_emails", frappe.flags.mute_emails)
-		frappe.flags.mute_emails = True  # chỉ ghi Communication, không gửi thật
 		dam_bao_vai_tro(self, GIAM_DOC)
 		frappe.db.set_single_value("Selling Settings", "vai_tro_sua_ty_le_lai", GIAM_DOC)
 		frappe.clear_document_cache("Selling Settings", "Selling Settings")
@@ -324,93 +322,6 @@ class TestGuiThongBao(BaoTruocCase):
 		self.assertEqual((gia_ngay(6), gia_ngay(7)), (101000, 110000))
 
 
-class TestDeXuatTuBaoGiaNCC(BaoTruocCase):
-	"""2.5 (T8)"""
-
-	def setUp(self):
-		super().setUp()
-		frappe.db.set_value("Customer", self.khach, "default_price_list", self.ban)
-		ncc = frappe.new_doc("Supplier")
-		ncc.supplier_name = f"_KG NCC {self.sfx}"
-		ncc.supplier_group = frappe.db.get_value("Supplier Group", {"is_group": 0}, "name")
-		ncc.default_price_list = self.mua
-		self.ncc = ncc.insert(ignore_permissions=True).name
-
-	def sq(self, item, rate):
-		doc = frappe.get_doc(
-			{
-				"doctype": "Supplier Quotation",
-				"supplier": self.ncc,
-				"company": self.company,
-				"transaction_date": self.d,
-				"currency": self.currency,
-				"buying_price_list": self.mua,
-				"items": [{"item_code": item, "qty": 1, "uom": "_KG Cái", "rate": rate}],
-			}
-		).insert(ignore_permissions=True)
-		doc.submit()
-		return doc
-
-	def nhap(self, item=None):
-		return frappe.get_all(
-			"Item Price",
-			filters={"price_list": self.cho, "item_code": item or self.item_a},
-			fields=["name", "price_list_rate", "valid_from", "trang_thai_thong_bao", "note"],
-		)
-
-	def test_t8_new_supplier_price_creates_a_draft_dated_today(self):
-		sq = self.sq(self.item_a, 110000)
-
-		rows = self.nhap()
-		self.assertEqual(len(rows), 1)
-		self.assertEqual((rows[0].price_list_rate, str(rows[0].valid_from)), (111100, str(self.d)))
-		self.assertEqual(rows[0].trang_thai_thong_bao, "Chờ gửi")
-		self.assertIn(sq.name, rows[0].note)
-
-	def test_the_director_is_notified(self):
-		self.sq(self.item_a, 110000)
-
-		self.assertTrue(
-			frappe.db.exists("Notification Log", {"for_user": self.giam_doc, "document_name": self.ban})
-		)
-
-	def test_customer_rate_is_used(self):
-		frappe.db.set_value("Customer", self.khach, {"ty_le_lai_rieng": 1, "ty_le_lai": 2})
-
-		self.sq(self.item_a, 110000)
-
-		self.assertEqual(self.nhap()[0].price_list_rate, 112200)
-
-	def test_unchanged_selling_price_creates_nothing(self):
-		self.sq(self.item_a, 100000)  # 100.000 x 1,01 = 101.000 = giá đang áp
-
-		self.assertFalse(self.nhap())
-
-	def test_item_not_sold_on_the_list_creates_nothing(self):
-		khac = self.item(50000)
-
-		self.sq(khac, 60000)
-
-		self.assertFalse(self.nhap(khac))
-
-	def test_cancel_removes_the_draft_still_pending(self):
-		sq = self.sq(self.item_a, 110000)
-
-		sq.cancel()
-
-		self.assertFalse(self.nhap())
-
-	def test_cancel_keeps_a_price_already_sent(self):
-		sq = self.sq(self.item_a, 110000)
-		ten = self.nhap()[0].name
-		frappe.db.set_value("Item Price", ten, "valid_from", add_days(self.d, 7))
-		self.as_user(self.giam_doc, gui_thong_bao_doi_gia, self.ban)
-
-		sq.cancel()
-
-		self.assertEqual(frappe.db.get_value("Item Price", ten, "price_list"), self.ban)
-
-
 class TestDangTrongThoiHanBaoGia(BaoTruocCase):
 	"""2.6 (T9)"""
 
@@ -419,8 +330,8 @@ class TestDangTrongThoiHanBaoGia(BaoTruocCase):
 		from erpnext.selling.kiem_gia.kiem_chung_tu import DANG_CHO
 
 		self.DANG_CHO = DANG_CHO
-		# Giá mua tăng: giá chuẩn 111.100, Himedic vẫn 101.000 tới khi báo xong.
-		self.gia_mua(self.item_a, 110000, valid_from=self.d)
+		# Giá mua tăng: giá đề xuất 111.100, Himedic vẫn 101.000 tới khi báo xong.
+		self.gia_hd(self.item_a, 110000, valid_from=self.d)
 
 	def test_without_a_new_price_the_row_is_a_mismatch(self):
 		self.assertEqual(self.so([self.row(self.item_a, 101000)]).items[0].trang_thai_gia, "Thấp hơn")
@@ -431,7 +342,7 @@ class TestDangTrongThoiHanBaoGia(BaoTruocCase):
 		d = self.so([self.row(self.item_a, 101000)]).items[0]
 
 		self.assertEqual(d.trang_thai_gia, self.DANG_CHO)
-		self.assertEqual(d.chenh_lech, -10100)
+		self.assertEqual((d.chenh_lech_gia, d.khac_bang_gia), (-10100, 0))
 		self.assertIn("chờ gửi", d.ghi_chu_gia)
 
 	def test_sent_but_not_yet_effective_price_also_counts(self):
@@ -443,8 +354,7 @@ class TestDangTrongThoiHanBaoGia(BaoTruocCase):
 		self.assertEqual(d.trang_thai_gia, self.DANG_CHO)
 		self.assertIn("đã báo", d.ghi_chu_gia)
 
-	def test_within_the_notice_period_does_not_block(self):
-		frappe.db.set_single_value("Selling Settings", "che_do_kiem_gia", "Chặn")
+	def test_within_the_notice_period_needs_no_reason_nor_acceptance(self):
 		self.gia(self.cho, self.item_a, 111100, self.d)
 		so = self.so([self.row(self.item_a, 101000)])
 
@@ -527,7 +437,14 @@ class TestBaoCaoBaoGap(BaoTruocCase):
 		gap = self.gia(self.cho, self.item_a, 105000, add_days(self.d, 3))
 		du = self.gia(self.cho, self.item(1000), 1010, add_days(self.d, 7))
 		self.as_user(self.giam_doc, gui_thong_bao_doi_gia, self.ban)
-		row = {**self.row(self.item_a, 105000), "delivery_date": add_days(self.d, 10)}
+		row = {
+			**self.row(self.item_a, 105000),
+			"delivery_date": add_days(self.d, 10),
+			# R05: giá bảng giá (105.000 đã báo) khác giá đề xuất theo hệ số (101.000).
+			"so_van_ban_gia": "VB-01",
+			"nguoi_dai_dien_kh": "Ông A",
+			"ngay_chap_thuan_gia": self.d,
+		}
 		frappe.get_doc(
 			{
 				"doctype": "Sales Order",
@@ -539,6 +456,7 @@ class TestBaoCaoBaoGap(BaoTruocCase):
 				"currency": self.currency,
 				"ignore_pricing_rule": 1,
 				"items": [row],
+				"ly_do_lech_gia": "Bán theo giá mới đã báo",  # R04: cao hơn giá đề xuất
 			}
 		).insert(ignore_permissions=True).submit()
 

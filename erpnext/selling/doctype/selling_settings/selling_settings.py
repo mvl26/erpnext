@@ -4,8 +4,6 @@ from frappe.custom.doctype.property_setter.property_setter import make_property_
 from frappe.model.document import Document
 from frappe.utils import cint
 
-from erpnext.selling.kiem_gia.cau_hinh import kiem_selling_settings
-
 
 class SellingSettings(Document):
 	# begin: auto-generated types
@@ -22,9 +20,7 @@ class SellingSettings(Document):
 		allow_sales_order_creation_for_expired_quotation: DF.Check
 		allow_zero_qty_in_quotation: DF.Check
 		allow_zero_qty_in_sales_order: DF.Check
-		bat_kiem_gia_ban: DF.Check
 		blanket_order_allowance: DF.Float
-		che_do_kiem_gia: DF.Literal["Chỉ ghi nhận", "Chặn"]
 		cust_master_name: DF.Literal["Customer Name", "Naming Series", "Auto Name"]
 		customer_group: DF.Link | None
 		dn_required: DF.Literal["No", "Yes"]
@@ -41,9 +37,6 @@ class SellingSettings(Document):
 		selling_price_list: DF.Link | None
 		so_required: DF.Literal["No", "Yes"]
 		territory: DF.Link | None
-		ty_le_lai_mac_dinh: DF.Percent
-		vai_tro_duyet_gia_lech: DF.Link | None
-		vai_tro_sua_ty_le_lai: DF.Link | None
 		validate_selling_price: DF.Check
 	# end: auto-generated types
 
@@ -73,7 +66,6 @@ class SellingSettings(Document):
 		)
 
 		self.validate_fallback_to_default_price_list()
-		kiem_selling_settings(self)
 
 	def validate_fallback_to_default_price_list(self):
 		if (

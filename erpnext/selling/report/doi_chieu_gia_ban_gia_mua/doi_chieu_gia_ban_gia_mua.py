@@ -1,27 +1,31 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Đối chiếu giá trong một bảng giá bán với giá mua x (1 + % lãi).
+"""Đối chiếu bảng giá bán với giá mua x hệ số khách hàng (BA12 R02, R03).
 
-Chỉ đọc. Dùng để rà và làm sạch bảng giá (ví dụ "Bảng giá Himedic") trước khi bật
-kiểm giá trên Quotation/SO — thiết kế mục 13, bước 1.2. Mỗi dòng là giá đang hiệu lực
-tại ngày chọn của một (mặt hàng, ĐVT, khách) trong bảng giá bán, giống cách ERPNext
-chọn giá cho chứng từ: dòng có `valid_from` mới nhất mà không sau ngày đó.
+Chỉ đọc. Dùng để rà và làm sạch bảng giá của khách (ví dụ "Bảng giá Himedic") trước khi
+bật kiểm giá. Mỗi dòng là giá đang hiệu lực tại ngày chọn của một (mặt hàng, ĐVT, khách)
+trong bảng giá bán, giống cách ERPNext chọn giá cho chứng từ: dòng có `valid_from` mới
+nhất mà không sau ngày đó. Giá mua lấy theo D07 (báo giá đợt, rồi HĐ nguyên tắc) của NCC
+mặc định; hệ số của khách chọn ở bộ lọc (mặc định: khách dùng bảng giá này làm bảng giá
+mặc định). Theo từng Sales Order: báo cáo "Doi Soat Gia Mua Gia Ban" (A08).
 """
 
 import frappe
 from frappe import _
 from frappe.utils import flt, getdate, nowdate
 
-from erpnext.selling.kiem_gia.cau_hinh import ty_le_lai_nhieu
+from erpnext.selling.kiem_gia.cau_hinh import he_so_ap_dung
 from erpnext.selling.kiem_gia.gia_goc import (
-	CHUA_XAC_DINH,
+	CHUA_CO_GIA_MUA,
 	KHOP,
 	he_so_quy_doi,
+	ncc_mac_dinh,
 	so_sanh,
-	tim_gia_goc_nhieu,
-	tinh_gia_chuan,
+	tim_gia_mua_nhieu,
+	tinh_gia_de_xuat,
 )
-from erpnext.selling.kiem_gia.kiem_chung_tu import BO_QUA
+
+KHONG_CO_HE_SO = "Khách không có hệ số"
 
 
 def execute(filters=None):
@@ -58,30 +62,16 @@ def get_columns():
 			"options": "Customer",
 			"width": 120,
 		},
-		{"fieldname": "gia_ban", "label": _("Giá bán"), "fieldtype": "Float", "width": 120},
+		{"fieldname": "gia_ban", "label": _("Giá bảng giá"), "fieldtype": "Float", "width": 120},
 		{"fieldname": "ngay_gia_ban", "label": _("Hiệu lực giá bán"), "fieldtype": "Date", "width": 110},
-		{"fieldname": "gia_goc", "label": _("Giá gốc (theo ĐVT)"), "fieldtype": "Float", "width": 130},
-		{"fieldname": "ty_le_lai", "label": _("% lãi áp dụng"), "fieldtype": "Percent", "width": 90},
-		{"fieldname": "gia_chuan", "label": _("Giá chuẩn"), "fieldtype": "Float", "width": 120},
-		{"fieldname": "chenh_lech", "label": _("Chênh lệch"), "fieldtype": "Float", "width": 110},
-		{"fieldname": "ty_le_lai_thuc", "label": _("% lãi thực"), "fieldtype": "Percent", "width": 90},
-		{"fieldname": "trang_thai", "label": _("Trạng thái"), "fieldtype": "Data", "width": 160},
-		{
-			"fieldname": "nguon_gia_goc",
-			"label": _("Dòng giá mua"),
-			"fieldtype": "Link",
-			"options": "Item Price",
-			"width": 110,
-		},
-		{
-			"fieldname": "bang_gia_mua",
-			"label": _("Bảng giá mua"),
-			"fieldtype": "Link",
-			"options": "Price List",
-			"width": 150,
-		},
 		{"fieldname": "ncc", "label": _("NCC"), "fieldtype": "Link", "options": "Supplier", "width": 130},
-		{"fieldname": "ngay_gia_mua", "label": _("Hiệu lực giá mua"), "fieldtype": "Date", "width": 110},
+		{"fieldname": "nguon_gia_mua", "label": _("Nguồn giá mua"), "fieldtype": "Data", "width": 110},
+		{"fieldname": "chung_tu_gia_mua", "label": _("Chứng từ giá mua"), "fieldtype": "Data", "width": 140},
+		{"fieldname": "gia_mua", "label": _("Giá mua (theo ĐVT)"), "fieldtype": "Float", "width": 130},
+		{"fieldname": "he_so", "label": _("Hệ số"), "fieldtype": "Float", "precision": 4, "width": 80},
+		{"fieldname": "gia_de_xuat", "label": _("Giá đề xuất"), "fieldtype": "Float", "width": 120},
+		{"fieldname": "chenh_lech", "label": _("Chênh lệch"), "fieldtype": "Float", "width": 110},
+		{"fieldname": "trang_thai", "label": _("Trạng thái"), "fieldtype": "Data", "width": 160},
 		{"fieldname": "ly_do", "label": _("Ghi chú"), "fieldtype": "Data", "width": 300},
 		{
 			"fieldname": "item_price",
@@ -95,54 +85,57 @@ def get_columns():
 
 def get_data(filters):
 	ngay = getdate(filters.get("ngay") or nowdate())
-	# Ô % lãi để trống: theo cấu hình (mặc định, % của khách, % theo khách - mặt hàng) như
-	# khi kiểm trên chứng từ. Có nhập: áp một % cho mọi dòng (để thử "nếu % là ...").
-	ty_le_co_dinh = flt(filters.ty_le_lai) if filters.get("ty_le_lai") not in (None, "") else None
-	precision = frappe.get_precision("Item Price", "price_list_rate")
+	# Ô hệ số để trống: theo hệ số của khách (R01). Có nhập: áp một hệ số cho mọi dòng (để
+	# thử "nếu hệ số là ...").
+	he_so_co_dinh = flt(filters.he_so) if filters.get("he_so") not in (None, "", 0) else None
+	khach_mac_dinh = filters.get("customer") or frappe.db.get_value(
+		"Customer", {"default_price_list": filters.price_list, "disabled": 0}, "name"
+	)
 
 	gia_ban = _gia_ban_hieu_luc(filters, ngay)
 	if not gia_ban:
 		return []
 
 	item_codes = list({r.item_code for r in gia_ban})
-	gia_goc = tim_gia_goc_nhieu(item_codes, ngay, filters.get("company"))
-	he_so = he_so_quy_doi(item_codes, {r.uom for r in gia_ban})
-	ty_le_theo_khach = {
-		khach: ty_le_lai_nhieu(khach, item_codes) for khach in {r.customer or None for r in gia_ban}
+	ncc = ncc_mac_dinh(item_codes)
+	gia_mua = tim_gia_mua_nhieu([(c, ncc.get(c)) for c in item_codes], ngay, filters.get("company"))
+	quy_doi = he_so_quy_doi(item_codes, {r.uom for r in gia_ban})
+	he_so_theo_khach = {
+		khach: he_so_ap_dung(khach, item_codes, ngay)
+		for khach in {r.customer or khach_mac_dinh for r in gia_ban}
 	}
 
 	data = []
 	for r in gia_ban:
-		goc = gia_goc[r.item_code]
+		mua = gia_mua[(r.item_code, ncc.get(r.item_code))]
+		khach = r.customer or khach_mac_dinh
 		row = frappe._dict(
 			item_code=r.item_code,
 			item_name=r.item_name,
 			uom=r.uom,
-			customer=r.customer,
+			customer=khach,
 			gia_ban=flt(r.price_list_rate),
 			ngay_gia_ban=r.valid_from,
 			item_price=r.name,
-			nguon_gia_goc=goc.item_price,
-			bang_gia_mua=goc.price_list,
-			ncc=goc.supplier,
-			ngay_gia_mua=goc.valid_from,
-			ly_do=goc.ly_do,
+			ncc=ncc.get(r.item_code),
+			nguon_gia_mua=mua.nguon,
+			chung_tu_gia_mua=mua.chung_tu,
+			ly_do=mua.ly_do,
 		)
-		cf = 1 if r.uom == r.stock_uom else he_so.get((r.item_code, r.uom))
-		ty_le = ty_le_theo_khach[r.customer or None][r.item_code]
-		if ty_le_co_dinh is None and not ty_le.kiem:
-			row.trang_thai, row.ly_do = BO_QUA, ty_le.nguon
-		elif goc.gia_goc is None or not cf:
-			row.trang_thai = CHUA_XAC_DINH
-			if goc.gia_goc is not None:
+		cf = 1 if r.uom == r.stock_uom else quy_doi.get((r.item_code, r.uom))
+		hs = he_so_theo_khach[khach].get(r.item_code) if khach else None
+		he_so = he_so_co_dinh if he_so_co_dinh is not None else (hs.he_so if hs else None)
+		if he_so is None:
+			row.trang_thai = KHONG_CO_HE_SO
+		elif mua.gia_kho is None or not cf:
+			row.trang_thai = CHUA_CO_GIA_MUA
+			if mua.gia_kho is not None:
 				row.ly_do = _("ĐVT {0} chưa khai hệ số quy đổi trên mặt hàng").format(r.uom)
 		else:
-			row.gia_goc = flt(goc.gia_goc * cf, precision)
-			row.ty_le_lai = ty_le.ty_le_lai if ty_le_co_dinh is None else ty_le_co_dinh
-			row.gia_chuan = tinh_gia_chuan(goc.gia_goc, cf, row.ty_le_lai, precision)
-			row.chenh_lech, row.trang_thai = so_sanh(row.gia_ban, row.gia_chuan, precision)
-			if row.gia_goc:
-				row.ty_le_lai_thuc = flt((row.gia_ban / row.gia_goc - 1) * 100, 2)
+			row.gia_mua = flt(mua.gia_kho * cf, 2)
+			row.he_so = he_so
+			row.gia_de_xuat = tinh_gia_de_xuat(mua.gia_kho * cf, he_so)
+			row.chenh_lech, row.trang_thai = so_sanh(row.gia_ban, row.gia_de_xuat)
 
 		if filters.get("chi_hien_lech") and row.trang_thai == KHOP:
 			continue

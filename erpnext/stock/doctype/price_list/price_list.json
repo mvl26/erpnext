@@ -17,13 +17,7 @@
   "selling",
   "price_not_uom_dependent",
   "column_break_3",
-  "countries",
-  "bao_truoc_section",
-  "bao_truoc_khi_doi_gia",
-  "so_ngay_bao_truoc",
-  "column_break_bao_truoc",
-  "bang_gia_cho",
-  "email_nhan_thong_bao"
+  "countries"
  ],
  "fields": [
   {
@@ -84,55 +78,13 @@
    "fieldtype": "Table",
    "label": "Applicable for Countries",
    "options": "Price List Country"
-  },
-  {
-   "collapsible": 1,
-   "collapsible_depends_on": "bao_truoc_khi_doi_gia",
-   "depends_on": "selling",
-   "fieldname": "bao_truoc_section",
-   "fieldtype": "Section Break",
-   "label": "Báo trước khi đổi giá"
-  },
-  {
-   "default": "0",
-   "description": "Giá mới phải vào Bảng giá chờ, rồi Giám đốc Gửi thông báo đổi giá cho khách mới được áp. Giá cũ không sửa, không xóa.",
-   "fieldname": "bao_truoc_khi_doi_gia",
-   "fieldtype": "Check",
-   "label": "Báo trước khi đổi giá"
-  },
-  {
-   "default": "7",
-   "depends_on": "bao_truoc_khi_doi_gia",
-   "fieldname": "so_ngay_bao_truoc",
-   "fieldtype": "Int",
-   "label": "Số ngày báo trước",
-   "non_negative": 1
-  },
-  {
-   "fieldname": "column_break_bao_truoc",
-   "fieldtype": "Column Break"
-  },
-  {
-   "depends_on": "bao_truoc_khi_doi_gia",
-   "description": "Bảng giá bán chứa giá chưa gửi thông báo. Chứng từ bán không được dùng bảng giá này.",
-   "fieldname": "bang_gia_cho",
-   "fieldtype": "Link",
-   "label": "Bảng giá chờ",
-   "options": "Price List"
-  },
-  {
-   "depends_on": "bao_truoc_khi_doi_gia",
-   "description": "Nhiều email cách nhau bằng dấu phẩy.",
-   "fieldname": "email_nhan_thong_bao",
-   "fieldtype": "Small Text",
-   "label": "Email nhận thông báo đổi giá"
   }
  ],
  "icon": "fa fa-tags",
  "idx": 1,
  "links": [],
  "max_attachments": 1,
- "modified": "2026-10-22 09:00:00.000000",
+ "modified": "2024-01-30 14:39:26.328837",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Price List",
@@ -178,6 +130,5 @@
  "show_name_in_global_search": 1,
  "sort_field": "modified",
  "sort_order": "ASC",
- "states": [],
- "track_changes": 1
+ "states": []
 }

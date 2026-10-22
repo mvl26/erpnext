@@ -7,7 +7,6 @@ from frappe.utils import flt, getdate, nowdate
 
 from erpnext.buying.utils import validate_for_items
 from erpnext.controllers.buying_controller import BuyingController
-from erpnext.selling.kiem_gia.bao_gia_ncc import ghi_gia_mua, xoa_gia_mua
 
 form_grid_templates = {"items": "templates/form_grid/item_grid.html"}
 
@@ -125,12 +124,10 @@ class SupplierQuotation(BuyingController):
 	def on_submit(self):
 		self.db_set("status", "Submitted")
 		self.update_rfq_supplier_status(1)
-		ghi_gia_mua(self)
 
 	def on_cancel(self):
 		self.db_set("status", "Cancelled")
 		self.update_rfq_supplier_status(0)
-		xoa_gia_mua(self)
 
 	def on_trash(self):
 		pass

@@ -47,12 +47,6 @@
   "reserve_stock",
   "items_section",
   "items",
-  "kiem_gia_ban_section",
-  "ly_do_lech_gia",
-  "column_break_kiem_gia",
-  "nguoi_duyet_gia",
-  "thoi_diem_duyet_gia",
-  "ma_duyet_gia",
   "section_break_31",
   "total_qty",
   "total_net_weight",
@@ -1689,59 +1683,13 @@
    "fieldtype": "Data",
    "is_virtual": 1,
    "label": "Last Scanned Warehouse"
-  },
-  {
-   "collapsible": 0,
-   "depends_on": "eval:(doc.items || []).some(d => d.trang_thai_gia && !['Khớp','Bỏ qua','Đang trong thời hạn báo giá'].includes(d.trang_thai_gia)) || doc.ly_do_lech_gia || doc.nguoi_duyet_gia",
-   "fieldname": "kiem_gia_ban_section",
-   "fieldtype": "Section Break",
-   "label": "Kiểm giá bán"
-  },
-  {
-   "allow_on_submit": 1,
-   "description": "Bắt buộc khi còn dòng lệch giá chuẩn và Selling Settings ở chế độ Chặn.",
-   "fieldname": "ly_do_lech_gia",
-   "fieldtype": "Small Text",
-   "label": "Lý do lệch giá",
-   "no_copy": 1,
-   "print_hide": 1
-  },
-  {
-   "fieldname": "column_break_kiem_gia",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "nguoi_duyet_gia",
-   "fieldtype": "Link",
-   "label": "Người duyệt giá lệch",
-   "no_copy": 1,
-   "options": "User",
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "thoi_diem_duyet_gia",
-   "fieldtype": "Datetime",
-   "label": "Thời điểm duyệt giá",
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "ma_duyet_gia",
-   "fieldtype": "Data",
-   "hidden": 1,
-   "label": "Mã duyệt giá",
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
   }
  ],
  "icon": "fa fa-file-text",
  "idx": 105,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-21 21:00:00.000000",
+ "modified": "2026-09-24 16:02:22.961238",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Sales Order",

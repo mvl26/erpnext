@@ -35,14 +35,7 @@
   "hide_tax_id",
   "enable_discount_accounting",
   "allow_zero_qty_in_quotation",
-  "allow_zero_qty_in_sales_order",
-  "kiem_gia_ban_section",
-  "bat_kiem_gia_ban",
-  "che_do_kiem_gia",
-  "ty_le_lai_mac_dinh",
-  "column_break_kiem_gia",
-  "vai_tro_sua_ty_le_lai",
-  "vai_tro_duyet_gia_lech"
+  "allow_zero_qty_in_sales_order"
  ],
  "fields": [
   {
@@ -230,52 +223,6 @@
    "fieldname": "fallback_to_default_price_list",
    "fieldtype": "Check",
    "label": "Use Prices from Default Price List as Fallback"
-  },
-  {
-   "fieldname": "kiem_gia_ban_section",
-   "fieldtype": "Section Break",
-   "label": "Kiểm giá bán theo % lãi"
-  },
-  {
-   "default": "0",
-   "description": "Giá bán = giá mua (bảng giá mua, chưa gồm VAT) x (1 + % lãi). Kiểm trên Quotation và Sales Order.",
-   "fieldname": "bat_kiem_gia_ban",
-   "fieldtype": "Check",
-   "label": "Bật kiểm giá bán"
-  },
-  {
-   "default": "Chỉ ghi nhận",
-   "depends_on": "bat_kiem_gia_ban",
-   "description": "Chỉ ghi nhận: lưu kết quả và cảnh báo. Chặn: Sales Order có dòng lệch phải có lý do và người duyệt mới Submit được.",
-   "fieldname": "che_do_kiem_gia",
-   "fieldtype": "Select",
-   "label": "Chế độ",
-   "options": "Chỉ ghi nhận\nChặn"
-  },
-  {
-   "default": "1",
-   "fieldname": "ty_le_lai_mac_dinh",
-   "fieldtype": "Percent",
-   "label": "% lãi mặc định",
-   "non_negative": 1
-  },
-  {
-   "fieldname": "column_break_kiem_gia",
-   "fieldtype": "Column Break"
-  },
-  {
-   "description": "Chỉ vai trò này được sửa % lãi (ở đây, trên Khách hàng và trên Mặt hàng) và các cài đặt của mục này. Để trống: chỉ System Manager.",
-   "fieldname": "vai_tro_sua_ty_le_lai",
-   "fieldtype": "Link",
-   "label": "Vai trò được sửa % lãi",
-   "options": "Role"
-  },
-  {
-   "description": "Người có vai trò này duyệt dòng giá lệch trên Sales Order.",
-   "fieldname": "vai_tro_duyet_gia_lech",
-   "fieldtype": "Link",
-   "label": "Vai trò duyệt giá lệch",
-   "options": "Role"
   }
  ],
  "grid_page_length": 50,
@@ -284,7 +231,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-21 18:00:00.000000",
+ "modified": "2025-09-23 21:10:14.826653",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Selling Settings",
