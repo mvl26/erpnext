@@ -8,6 +8,7 @@ không hiểu chuyện gì), và bảng B2 chỉ kiểm chứng được bằng 
 liệu Python.
 
 Ba cấp xác nhận của nguyên tắc A2:
+- **0** bấm là chạy, không hỏi (Đồng bộ lại — Q7: chỉ lấy lại dữ liệu, chưa gửi đi đâu)
 - **1** hộp thoại Có/Không
 - **2** hộp thoại nhập/sửa thông tin rồi mới chạy
 - **3** bảng tóm tắt toàn màn hình, phải **gõ đúng chữ** mới bật được nút
@@ -21,6 +22,7 @@ from erpnext.einvoice.constants import (
 	EDITABLE_STATUSES,
 	INVOICE_TYPE_ORIGINAL,
 	LIVE_STATUSES,
+	RESYNC_STATUSES,
 	SOURCE_DELIVERY_NOTE_V2,
 	STATUS_ADJUSTED,
 	STATUS_AWAITING_CUSTOMER,
@@ -64,10 +66,10 @@ _ONLY_WHILE_OVERRIDDEN = frozenset({"clear_override"})
 BUTTONS = (
 	(
 		"resync",
-		"Đồng bộ lại từ hóa đơn bán",
+		"Đồng bộ lại từ chứng từ nguồn",
 		"erpnext.einvoice.builder.resync_from_source",
-		1,
-		_FIXABLE,
+		0,
+		tuple(RESYNC_STATUSES),
 		False,
 	),
 	(
@@ -245,7 +247,9 @@ def _fallback_buttons(doc):
 	"""Khi không tính được bảng nút: vẫn để lại đường sửa và đường hỏi Fast."""
 	names = {"reconcile"}
 	if doc.status in EDITABLE_STATUSES:
-		names |= {"resync", "preview_draft"}
+		names |= {"preview_draft"}
+	if doc.status in RESYNC_STATUSES:
+		names |= {"resync"}
 	return [
 		{"name": name, "label": _(label), "method": method, "level": level, "confirm_word": None}
 		for name, label, method, level, _statuses, _chief in BUTTONS
@@ -287,8 +291,7 @@ def _release_stuck_issuance(doc):
 
 	message = _(
 		"Lần phát hành trước dừng giữa chừng, chưa rõ Fast đã nhận hay chưa. Bấm Lấy dữ liệu từ Fast (370) "
-		"để kiểm tra, hoặc Đồng bộ lại từ chứng từ nguồn rồi phát hành lại — hệ thống luôn truy vấn "
-		"Fast trước khi phát hành nên không thể ra hai số."
+		"để kiểm tra trước — hệ thống luôn truy vấn Fast trước khi phát hành nên không thể ra hai số."
 	)
 	frappe.db.set_value(
 		FEI,
@@ -326,8 +329,6 @@ def _buttons_for(doc, settings):
 			continue
 		if needs_chief and not chief:
 			continue
-		if name == "resync" and doc.source_doctype == SOURCE_DELIVERY_NOTE_V2:
-			label = "Đồng bộ lại từ phiếu giao"
 		buttons.append(
 			{
 				"name": name,
