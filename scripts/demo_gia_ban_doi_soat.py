@@ -214,11 +214,16 @@ def mat_hang(code, ten, ncc_mac_dinh, hop):
 
 
 def gia_item(bang, code, gia, ngay, ncc):
-	f = {"price_list": bang, "item_code": code, "uom": "Cái", "valid_from": ngay}
-	if not frappe.db.exists("Item Price", f):
-		frappe.get_doc(
-			{"doctype": "Item Price", **f, "price_list_rate": gia, "supplier": ncc, "currency": "VND"}
-		).insert(ignore_permissions=True)
+	"""Dòng giá demo nhận ra theo (bảng giá, mặt hàng, giá). Chạy lại ngày khác thì dời ngày
+	hiệu lực theo hôm nay, để kịch bản (vd. giá tương lai D+5) luôn đúng như hướng dẫn."""
+	f = {"price_list": bang, "item_code": code, "uom": "Cái", "price_list_rate": gia}
+	name = frappe.db.get_value("Item Price", f)
+	if name:
+		frappe.db.set_value("Item Price", name, "valid_from", ngay)
+		return
+	frappe.get_doc(
+		{"doctype": "Item Price", **f, "valid_from": ngay, "supplier": ncc, "currency": "VND"}
+	).insert(ignore_permissions=True)
 
 
 def so_nhap(customer, price_list, ngay, dong, ly_do=None, rate=None):
