@@ -116,6 +116,7 @@ def configure(**values):
 			"require_customer_approval": 1,
 			"auto_download_pdf": 1,
 			"auto_poll_tax_status": 1,
+			"auto_send_invoice": 0,
 			"lookup_url": "",
 			"invoice_email_cc": "",
 			"invoice_sender_name": "",

@@ -587,13 +587,16 @@ PDF_AUTO_RETRY_SECONDS = 120
 PDF_AUTO_WINDOW_HOURS = 24
 
 
-def download_pending_official_pdfs(client=None, _sleep=None):
-	"""Job mỗi phút — tự tải PDF chính thức khi Fast đã ký số xong.
+def download_pending_official_pdfs(client=None, _sleep=None, _mailer=None):
+	"""Job mỗi phút — tự tải PDF chính thức khi Fast đã ký số xong, rồi tự gửi hóa đơn cho khách.
 
 	Thay cho việc tải ngay sau phát hành rồi ``sleep`` giữ worker chờ: hóa đơn chỉ
 	được thử khi đã phát hành đủ ``PDF_READY_AFTER_SECONDS``, lần thử sau cách lần
 	trước ``PDF_AUTO_RETRY_SECONDS``, tối đa ``PDF_AUTO_ATTEMPTS`` lần (tính cả lần
 	kế toán bấm tay). Trả danh sách chứng từ đã thử.
+
+	Cuối lượt gọi ``auto_send.send_pending_invoices`` — kể cả khi lượt này không có
+	PDF nào để tải: hóa đơn đang chờ mã CQT cần được hỏi lại ở các lượt sau.
 	"""
 	settings = get_settings()
 	if not settings.enabled or not settings.auto_download_pdf:
@@ -627,6 +630,15 @@ def download_pending_official_pdfs(client=None, _sleep=None):
 			# Một hóa đơn hỏng không được làm chết cả lô.
 			frappe.log_error(title=f"HĐĐT: tự tải PDF lỗi cho {name}")
 		tried.append(name)
+
+	try:
+		# Import trong hàm: `auto_send` import module này.
+		from erpnext.einvoice.auto_send import send_pending_invoices
+
+		send_pending_invoices(client=client, mailer=_mailer)
+	except Exception:
+		# Lỗi gửi không được ảnh hưởng việc tải PDF đã làm ở trên.
+		frappe.log_error(title="HĐĐT: tự gửi hóa đơn lỗi")
 	return tried
 
 
@@ -753,14 +765,15 @@ def send_invoice_to_customer(
 	return _send_invoice_via_erp(doc, to, cc, subject, message, mailer)
 
 
-def _send_invoice_via_erp(doc, to, cc, subject, message, mailer):
+def _send_invoice_via_erp(doc, to, cc, subject, message, mailer, sender=None, purpose=None, auto=False):
 	"""Email theo mẫu Miyano: PDF chính thức luôn kèm, XML kèm nếu kế toán đã đính.
 
 	XML không bắt buộc (Q2): API Fast chưa có lệnh tải XML, và khách tự tải được XML
 	trên trang tra cứu bằng mã in trên PDF. CC kế toán trong Settings luôn được thêm
 	để lưu vết; ``reply_to`` là email người gửi vì mẫu Miyano cho khách phản hồi.
 
-	Mailer ném lỗi thì ghi log Lỗi rồi **ném lại** để người bấm nút thấy lỗi.
+	Mailer ném lỗi thì ghi log Lỗi rồi **ném lại** — người bấm nút thấy lỗi, còn
+	job tự gửi đếm được số lần hỏng.
 	"""
 	if not doc.official_pdf:
 		frappe.throw(_("Chưa có PDF chính thức để gửi khách — bấm “Tải PDF chính thức” trước."))
@@ -768,14 +781,14 @@ def _send_invoice_via_erp(doc, to, cc, subject, message, mailer):
 	from erpnext.einvoice.invoice_email import cc_for, email_context, sender_for
 
 	settings = get_settings()
-	sender = sender_for(settings, frappe.session.user)
+	sender = sender or sender_for(settings, frappe.session.user)
 	attachments = [{"file_url": doc.official_pdf}]
 	if doc.official_xml:
 		attachments.append({"file_url": doc.official_xml})
 
 	# Log mở trước khi dựng nội dung: mẫu email bị sửa hỏng cũng là một lần gửi lỗi
-	# và phải hiện trong nhật ký, không chỉ lỗi của mailer.
-	log = _open_email_log(doc, _("Gửi hóa đơn chính thức cho khách"), to)
+	# (mục 6.2) và phải được đếm, không chỉ lỗi của mailer.
+	log = _open_email_log(doc, purpose or _("Gửi hóa đơn chính thức cho khách"), to)
 	try:
 		rendered = _render_template(
 			ISSUED_TEMPLATE, doc, subject, message, extra_context={"hd": email_context(doc, settings, sender)}
@@ -794,7 +807,7 @@ def _send_invoice_via_erp(doc, to, cc, subject, message, mailer):
 		_close_email_log(log, ok=False, error_message=str(error))
 		raise
 	_close_email_log(log, ok=True)
-	_mark_invoice_sent(doc, to)
+	_mark_invoice_sent(doc, to, auto=auto)
 	return {"ok": True, "recipients": to}
 
 
@@ -818,7 +831,7 @@ def _send_invoice_via_fast(doc, to, client):
 	return {"ok": True, "recipients": to}
 
 
-def _mark_invoice_sent(doc, to):
+def _mark_invoice_sent(doc, to, auto=False):
 	values = {
 		"invoice_sent_to": ", ".join(to),
 		"invoice_sent_time": now_datetime(),
@@ -834,4 +847,9 @@ def _mark_invoice_sent(doc, to):
 	frappe.db.set_value(FEI, doc.name, values, update_modified=False)
 	if values.get("status"):
 		_mirror_status(doc.name, STATUS_SENT)
-	doc.add_comment("Comment", _("Đã gửi hóa đơn chính thức tới {0}.").format(", ".join(to)))
+	message = (
+		_("Hệ thống đã tự gửi hóa đơn chính thức tới {0}.")
+		if auto
+		else _("Đã gửi hóa đơn chính thức tới {0}.")
+	)
+	doc.add_comment("Comment", message.format(", ".join(to)))

@@ -371,6 +371,7 @@ function level_two_fields(frm, button) {
 					fieldtype: "Data",
 					description: __("Hệ thống tự CC thêm hộp thư kế toán trong Fast EInvoice Settings."),
 				},
+				...already_sent_note(frm),
 				{
 					fieldname: "via",
 					label: __("Gửi bằng"),
@@ -441,6 +442,25 @@ function level_two_fields(frm, button) {
 		default:
 			return [];
 	}
+}
+
+// Hóa đơn đã gửi (tay hoặc tự gửi) thì nói rõ trong hộp gửi — tránh khách nhận hai mail.
+function already_sent_note(frm) {
+	if (!frm.doc.invoice_send_count) return [];
+	return [
+		{
+			fieldname: "already_sent",
+			fieldtype: "HTML",
+			options: `<div class="alert alert-warning">${__(
+				"Hóa đơn đã được gửi {0} lần, lần gần nhất lúc {1} tới {2}. Bấm Thực hiện là gửi LẠI cho khách.",
+				[
+					frm.doc.invoice_send_count,
+					frappe.datetime.str_to_user(frm.doc.invoice_sent_time),
+					frappe.utils.escape_html(frm.doc.invoice_sent_to || ""),
+				]
+			)}</div>`,
+		},
+	];
 }
 
 // Cấp 3 — bảng tóm tắt toàn màn hình, phải gõ đúng chữ mới bật nút.

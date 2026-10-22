@@ -194,6 +194,20 @@ class TestButtonsFollowTheStateTable(FormStateBase):
 		self.assertIn("check_tax", buttons)
 		self.assertIn("reconcile", buttons)
 
+	def test_an_already_sent_invoice_says_resend(self):
+		"""Tự gửi để hóa đơn ở 08 chứ không lên 07 — nút phải nói rõ là gửi LẠI, tránh khách nhận hai mail."""
+		frappe.db.set_value(FEI, self.fei, "invoice_send_count", 1)
+		labels = {b["name"]: b["label"] for b in get_form_state(self._at(STATUS_TAX_ACCEPTED))["buttons"]}
+		self.assertEqual(labels["send_invoice"], "Gửi lại hóa đơn cho khách")
+
+	def test_a_never_sent_invoice_says_send(self):
+		labels = {b["name"]: b["label"] for b in get_form_state(self._at(STATUS_ISSUED))["buttons"]}
+		self.assertEqual(labels["send_invoice"], "Gửi hóa đơn cho khách")
+
+	def _at(self, status):
+		frappe.db.set_value(FEI, self.fei, "status", status)
+		return self.fei
+
 	def test_issued_invoice_can_no_longer_be_issued_or_resynced(self):
 		buttons = self.buttons_at(STATUS_ISSUED)
 		self.assertNotIn("issue", buttons)

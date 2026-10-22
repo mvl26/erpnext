@@ -329,6 +329,10 @@ def _buttons_for(doc, settings):
 			continue
 		if needs_chief and not chief:
 			continue
+		if name == "send_invoice" and doc.invoice_send_count:
+			# Tự gửi để hóa đơn ở 08 (mã CQT về cùng lúc với 08), không lên 07 — nhìn
+			# trạng thái không biết đã gửi. Nút nói rõ là gửi LẠI để khách không nhận hai mail.
+			label = "Gửi lại hóa đơn cho khách"
 		buttons.append(
 			{
 				"name": name,

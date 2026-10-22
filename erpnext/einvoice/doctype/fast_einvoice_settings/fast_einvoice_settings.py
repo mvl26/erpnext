@@ -43,11 +43,15 @@ class FastEInvoiceSettings(Document):
 			)
 
 	def _validate_invoice_delivery(self):
-		"""Email đầu mối và CC phải là email thật.
+		"""Tự gửi cần PDF chính thức có sẵn; email đầu mối và CC phải là email thật.
 
 		Một địa chỉ CC gõ sai thì mọi email hóa đơn đều kèm một người nhận hỏng —
 		chặn ngay lúc lưu cấu hình thay vì để hàng đợi email báo lỗi từng lần gửi.
 		"""
+		if self.get("auto_send_invoice") and not self.auto_download_pdf:
+			frappe.throw(
+				_("Bật “Tự tải PDF sau phát hành” trước — hệ thống chỉ tự gửi khi đã có PDF chính thức.")
+			)
 		from erpnext.einvoice.fast_settings import split_emails
 
 		for fieldname in ("invoice_email_cc", "invoice_sender_email"):

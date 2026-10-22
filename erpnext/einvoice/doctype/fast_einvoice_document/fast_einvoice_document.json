@@ -112,6 +112,7 @@
   "column_break_delivery",
   "invoice_sent_time",
   "invoice_send_count",
+  "auto_send_stopped",
   "tax_section",
   "tax_status",
   "tax_verification_code",
@@ -873,6 +874,16 @@
    "label": "Số lần gửi",
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "auto_send_stopped",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Đã thôi tự gửi",
+   "no_copy": 1,
+   "read_only": 1,
+   "description": "Hệ thống đã thôi tự gửi hóa đơn này (không đọc được mã tra cứu, chờ mã CQT quá lâu hoặc gửi lỗi nhiều lần) — gửi tay bằng nút Gửi hóa đơn cho khách."
   },
   {
    "fieldname": "tax_section",

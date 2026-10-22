@@ -112,7 +112,7 @@ class TestUrlNormalisation(FrappeTestCase):
 
 
 class TestInvoiceDeliverySettings(FrappeTestCase):
-	"""Mục 8 — đầu mối gửi hóa đơn, CC kế toán."""
+	"""Mục 8 — đầu mối gửi hóa đơn, CC kế toán, tự gửi sau phát hành."""
 
 	def setUp(self):
 		frappe.db.rollback()
@@ -124,6 +124,17 @@ class TestInvoiceDeliverySettings(FrappeTestCase):
 		from erpnext.einvoice.tests.test_fast_client import configure
 
 		return configure(**values)
+
+	def test_auto_send_is_off_on_a_fresh_site(self):
+		self.assertEqual(frappe.get_meta(SETTINGS).get_field("auto_send_invoice").default, "0")
+
+	def test_auto_send_needs_auto_download(self):
+		with self.assertRaises(frappe.ValidationError):
+			self._configure(auto_send_invoice=1, auto_download_pdf=0)
+
+	def test_auto_send_with_auto_download_is_accepted(self):
+		self._configure(auto_send_invoice=1, auto_download_pdf=1)
+		self.assertTrue(get_settings().auto_send_invoice)
 
 	def test_cc_list_is_split_and_trimmed(self):
 		self._configure(invoice_email_cc=" a@x.vn; b@x.vn ,, ")

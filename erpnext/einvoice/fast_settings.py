@@ -42,6 +42,7 @@ def get_settings():
 			"require_customer_approval": bool(doc.require_customer_approval),
 			"auto_download_pdf": bool(doc.auto_download_pdf),
 			"auto_poll_tax_status": bool(doc.auto_poll_tax_status),
+			"auto_send_invoice": bool(doc.get("auto_send_invoice")),
 			"invoice_email_cc": split_emails(doc.get("invoice_email_cc")),
 			"draft_email_template": doc.draft_email_template,
 			"issued_email_template": doc.issued_email_template,
