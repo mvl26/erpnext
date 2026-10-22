@@ -9,6 +9,7 @@ import frappe
 from erpnext.controllers.accounts_controller import update_child_qty_rate
 from erpnext.selling.kiem_gia.cau_hinh import CHAN, CHI_GHI_NHAN
 from erpnext.selling.kiem_gia.kiem_chung_tu import duyet_gia_lech
+from erpnext.selling.tests.test_kiem_gia_cau_hinh import dam_bao_vai_tro
 from erpnext.selling.tests.test_kiem_gia_chung_tu import KiemChungTuCase
 
 VAI_TRO_DUYET = "_KG Duyệt giá"
@@ -19,11 +20,7 @@ class TestDuyetGiaLech(KiemChungTuCase):
 	def setUp(self):
 		super().setUp()
 		self.addCleanup(frappe.set_user, "Administrator")
-		for role in (VAI_TRO_DUYET, VAI_TRO_SUA):
-			if not frappe.db.exists("Role", role):
-				frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": 1}).insert(
-					ignore_permissions=True
-				)
+		dam_bao_vai_tro(self, VAI_TRO_DUYET, VAI_TRO_SUA)
 		frappe.db.set_single_value(
 			"Selling Settings",
 			{

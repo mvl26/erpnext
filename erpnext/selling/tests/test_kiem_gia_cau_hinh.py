@@ -11,6 +11,23 @@ from erpnext.stock.tests.test_item_code_rule import use_naming_mode
 VAI_TRO = "_KG Giám đốc"
 
 
+def dam_bao_vai_tro(test, *roles):
+	"""Tạo vai trò thử nếu chưa có.
+
+	Administrator có mọi vai trò nhưng danh sách đó nằm trong cache "roles" (Redis, dùng
+	chung giữa các tiến trình): vai trò tạo trong giao dịch test không có trong danh sách
+	đã cache từ trước, còn sau rollback thì cache lại giữ vai trò đã mất. Xóa cache của
+	Administrator lúc tạo và khi test kết thúc.
+	"""
+	for role in roles:
+		if not frappe.db.exists("Role", role):
+			frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": 1}).insert(
+				ignore_permissions=True
+			)
+	frappe.cache.hdel("roles", "Administrator")
+	test.addCleanup(frappe.cache.hdel, "roles", "Administrator")
+
+
 class CauHinhCase(FrappeTestCase):
 	def setUp(self):
 		# Cleanup chạy ngược thứ tự đăng ký: rollback trước, xóa cache sau, để cache
@@ -21,10 +38,7 @@ class CauHinhCase(FrappeTestCase):
 		self.addCleanup(frappe.db.rollback, save_point="kiem_gia_cau_hinh")
 		use_naming_mode(self, "Item Code")
 		self.sfx = frappe.generate_hash(length=6)
-		if not frappe.db.exists("Role", VAI_TRO):
-			frappe.get_doc({"doctype": "Role", "role_name": VAI_TRO, "desk_access": 1}).insert(
-				ignore_permissions=True
-			)
+		dam_bao_vai_tro(self, VAI_TRO)
 		self.settings(ty_le_lai_mac_dinh=1, vai_tro_sua_ty_le_lai=VAI_TRO)
 		self.giam_doc = self.user("gd", [VAI_TRO, "Sales Master Manager", "Item Manager", "Sales Manager"])
 		self.nhan_vien = self.user("nv", ["Sales Master Manager", "Item Manager", "Sales Manager"])

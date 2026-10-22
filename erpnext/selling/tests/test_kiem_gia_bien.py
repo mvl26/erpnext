@@ -12,6 +12,7 @@ from erpnext.selling.kiem_gia.cau_hinh import CHAN
 from erpnext.selling.kiem_gia.gia_goc import KHONG_CO_GIA_MUA, KHOP, THAP_HON, tim_gia_goc
 from erpnext.selling.kiem_gia.kiem_chung_tu import BO_QUA
 from erpnext.selling.report.doi_chieu_gia_ban_gia_mua.doi_chieu_gia_ban_gia_mua import execute
+from erpnext.selling.tests.test_kiem_gia_cau_hinh import dam_bao_vai_tro
 from erpnext.selling.tests.test_kiem_gia_chung_tu import KiemChungTuCase
 
 
@@ -378,10 +379,7 @@ class TestDuyetSauReview(KiemChungTuCase):
 		super().setUp()
 		self.addCleanup(frappe.set_user, "Administrator")
 		self.che_do(CHAN, vai_tro_duyet_gia_lech="_KG Duyệt", vai_tro_sua_ty_le_lai="_KG Không ai có")
-		if not frappe.db.exists("Role", "_KG Duyệt"):
-			frappe.get_doc({"doctype": "Role", "role_name": "_KG Duyệt", "desk_access": 1}).insert(
-				ignore_permissions=True
-			)
+		dam_bao_vai_tro(self, "_KG Duyệt")
 		self.nhan_vien = self.nguoi("nv", ["Sales User"])
 		self.nguoi_duyet = self.nguoi("duyet", ["Sales User", "_KG Duyệt"])
 

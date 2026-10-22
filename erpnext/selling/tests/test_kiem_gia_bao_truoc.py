@@ -6,6 +6,7 @@ import frappe
 from frappe.utils import add_days
 
 from erpnext.selling.kiem_gia.bao_truoc import CHO_GUI, DA_GUI, DA_XAC_NHAN, gui_thong_bao_doi_gia
+from erpnext.selling.tests.test_kiem_gia_cau_hinh import dam_bao_vai_tro
 from erpnext.selling.tests.test_kiem_gia_chung_tu import KiemChungTuCase
 
 GIAM_DOC = "_KG Giám đốc"
@@ -18,10 +19,7 @@ class BaoTruocCase(KiemChungTuCase):
 		self.addCleanup(frappe.set_user, "Administrator")
 		self.addCleanup(setattr, frappe.flags, "mute_emails", frappe.flags.mute_emails)
 		frappe.flags.mute_emails = True  # chỉ ghi Communication, không gửi thật
-		if not frappe.db.exists("Role", GIAM_DOC):
-			frappe.get_doc({"doctype": "Role", "role_name": GIAM_DOC, "desk_access": 1}).insert(
-				ignore_permissions=True
-			)
+		dam_bao_vai_tro(self, GIAM_DOC)
 		frappe.db.set_single_value("Selling Settings", "vai_tro_sua_ty_le_lai", GIAM_DOC)
 		frappe.clear_document_cache("Selling Settings", "Selling Settings")
 		self.cho = self.price_list("Chờ", buying=0)
