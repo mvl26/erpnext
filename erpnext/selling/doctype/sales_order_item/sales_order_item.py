@@ -88,7 +88,15 @@ class SalesOrderItem(Document):
 		supplier: DF.Link | None
 		target_warehouse: DF.Link | None
 		total_weight: DF.Float
-		trang_thai_gia: DF.Literal["", "Khớp", "Thấp hơn", "Cao hơn", "Chưa xác định giá gốc", "Bỏ qua"]
+		trang_thai_gia: DF.Literal[
+			"",
+			"Khớp",
+			"Thấp hơn",
+			"Cao hơn",
+			"Chưa xác định giá gốc",
+			"Đang trong thời hạn báo giá",
+			"Bỏ qua",
+		]
 		transaction_date: DF.Date | None
 		ty_le_lai_ap_dung: DF.Percent
 		uom: DF.Link

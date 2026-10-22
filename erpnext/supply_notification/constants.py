@@ -536,6 +536,70 @@ SEED_POINTS = (
 			" theo phiếu thu {{ doc.name }}. Trân trọng cảm ơn Quý khách."
 		),
 	},
+	# YC4 — báo trước khi đổi giá bán (spec 2026-10-21, mục 6.2.5 và 14). Người nhận là người
+	# đã gửi thông báo đổi giá (Giám đốc), qua ô `nguoi_gui_thong_bao` của dòng giá.
+	{
+		"code": "NTF-14",
+		"title": "Đổi giá bán · Nhắc xin khách xác nhận",
+		"function_group": GROUP_SALES,
+		"reference_doctype": "Item Price",
+		"trigger_event": DATE_REMINDER,
+		"date_field": "ngay_gui_thong_bao",
+		"reminder_offsets": "+2",
+		"conditions": (("trang_thai_thong_bao", "=", "Đã gửi"),),
+		"notes": "Đã gửi thông báo đổi giá 2 ngày mà khách chưa xác nhận.",
+		"user_fields": ("nguoi_gui_thong_bao",),
+		"notify_owner": 0,
+		"notify_external": 0,
+		"attach_pdf": 0,
+		"print_format": None,
+		"party_field": None,
+		"amount_field": "price_list_rate",
+		"main_date_field": "valid_from",
+		"item_table_field": None,
+		"amount_label": "Giá mới",
+		"show_stock_report": 0,
+		"subject_template": "Giá mới {{ doc.item_code }} ({{ doc.price_list }}) chưa được khách xác nhận",
+		"intro": (
+			"Thông báo đổi giá {{ doc.item_code }} trên bảng giá {{ doc.price_list }} gửi ngày"
+			" {{ doc.ngay_gui_thong_bao }} đến nay chưa có xác nhận của khách. Giá mới {{ so_tien }}"
+			" áp dụng từ {{ ngay }}."
+		),
+		"action": "Đề nghị liên hệ khách xin xác nhận, rồi ghi Ngày khách xác nhận và đính kèm email.",
+		"external_subject_template": "",
+		"external_intro": "",
+	},
+	{
+		"code": "NTF-15",
+		"title": "Đổi giá bán · Giá mới sắp áp dụng",
+		"function_group": GROUP_SALES,
+		"reference_doctype": "Item Price",
+		"trigger_event": DATE_REMINDER,
+		"date_field": "valid_from",
+		"reminder_offsets": "-1",
+		"conditions": (("trang_thai_thong_bao", "Trong danh sách", "Đã gửi, Đã xác nhận"),),
+		"notes": "Giá mới đã báo khách, áp dụng từ ngày mai.",
+		"user_fields": ("nguoi_gui_thong_bao",),
+		"departments": (DEPT_SALES, DEPT_ACCOUNTS),
+		"notify_owner": 0,
+		"notify_external": 0,
+		"attach_pdf": 0,
+		"print_format": None,
+		"party_field": None,
+		"amount_field": "price_list_rate",
+		"main_date_field": "valid_from",
+		"item_table_field": None,
+		"amount_label": "Giá mới",
+		"show_stock_report": 0,
+		"subject_template": "Từ {{ ngay }}: giá mới {{ doc.item_code }} trên {{ doc.price_list }}",
+		"intro": (
+			"Giá bán {{ doc.item_code }} trên bảng giá {{ doc.price_list }} đổi thành {{ so_tien }}"
+			" từ ngày {{ ngay }} (đã báo khách ngày {{ doc.ngay_gui_thong_bao }})."
+		),
+		"action": "Đơn hàng từ ngày này lấy giá mới; đơn đặt trước ngày này giữ giá cũ.",
+		"external_subject_template": "",
+		"external_intro": "",
+	},
 )
 
 #: Tra nhanh theo mã điểm.

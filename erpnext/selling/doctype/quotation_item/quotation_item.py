@@ -65,7 +65,15 @@ class QuotationItem(Document):
 		stock_uom: DF.Link | None
 		stock_uom_rate: DF.Currency
 		total_weight: DF.Float
-		trang_thai_gia: DF.Literal["", "Khớp", "Thấp hơn", "Cao hơn", "Chưa xác định giá gốc", "Bỏ qua"]
+		trang_thai_gia: DF.Literal[
+			"",
+			"Khớp",
+			"Thấp hơn",
+			"Cao hơn",
+			"Chưa xác định giá gốc",
+			"Đang trong thời hạn báo giá",
+			"Bỏ qua",
+		]
 		ty_le_lai_ap_dung: DF.Percent
 		uom: DF.Link
 		valuation_rate: DF.Currency

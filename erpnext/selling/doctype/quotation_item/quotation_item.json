@@ -723,7 +723,7 @@
    "fieldname": "trang_thai_gia",
    "fieldtype": "Select",
    "label": "Trạng thái giá",
-   "options": "\nKhớp\nThấp hơn\nCao hơn\nChưa xác định giá gốc\nBỏ qua",
+   "options": "\nKhớp\nThấp hơn\nCao hơn\nChưa xác định giá gốc\nĐang trong thời hạn báo giá\nBỏ qua",
    "no_copy": 1,
    "print_hide": 1,
    "read_only": 1

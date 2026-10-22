@@ -211,6 +211,9 @@ def build_point(spec: dict, departments: dict[str, str] | None = None) -> "frapp
 		if departments.get(key):
 			doc.append("departments", {"department": departments[key]})
 
+	for fieldname in spec.get("user_fields", ()):
+		doc.append("user_fields", {"fieldname": fieldname})
+
 	for fieldname, operator, value in spec.get("conditions", ()):
 		doc.append("conditions", {"fieldname": fieldname, "operator": operator, "value": value})
 

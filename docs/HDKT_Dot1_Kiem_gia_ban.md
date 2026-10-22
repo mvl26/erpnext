@@ -152,7 +152,7 @@ Chuẩn bị: Administrator → Selling Settings → Chế độ = **Chặn** �
 | E1 | Mở Supplier Quotation nháp của DEMO-Vietmed (VT-01, 107.000) | Chưa có dòng giá mua 107.000 nào (báo giá nháp không ghi gì) | ☐ |
 | E2 | **Submit** báo giá | Thông báo xanh "Đã ghi 1 giá vào bảng giá mua DEMO Mua - Vietmed, hiệu lực từ …" | ☐ |
 | E3 | Mở **Item Price**, lọc DEMO-VT-01 | Có dòng mới 107.000, bảng giá DEMO Mua - Vietmed, NCC DEMO-Vietmed, Valid From hôm nay, ghi chú "Báo giá NCC: <số>". Dòng 100.000 cũ vẫn còn | ☐ |
-| E4 | Mở SO DEMO-Himedic (nháp, ngày hôm nay) → Lưu | VT-01: giá gốc 107.000, giá chuẩn 108.070 → "Thấp hơn" | ☐ |
+| E4 | Mở SO DEMO-Himedic (nháp, ngày hôm nay) → Lưu | VT-01: giá gốc 107.000, giá chuẩn 108.070 → "Thấp hơn". **Từ Đợt 2** (bảng giá Himedic có báo trước): "Đang trong thời hạn báo giá" vì báo giá NCC đã tạo nháp 108.070 chờ báo — xem `HDKT_Dot2_Bao_truoc_doi_gia.md` mục K | ☐ |
 | E5 | Tạo SO ngày **hôm qua** cho VT-01 giá 101.000 → Lưu | Khớp (ngày hôm qua vẫn dùng giá 100.000) | ☐ |
 | E6 | Tạo báo giá mới cùng NCC, cùng ngày, VT-01 **107.000** → Submit | Không tạo dòng trùng | ☐ |
 | E7 | Tạo báo giá cùng NCC, cùng ngày, VT-01 **106.000** → Submit | Cảnh báo cam "Đã có giá khác của NCC này cùng ngày, giữ nguyên"; dòng 107.000 **không đổi** | ☐ |

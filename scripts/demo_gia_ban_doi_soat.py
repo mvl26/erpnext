@@ -17,6 +17,12 @@ Kịch bản (mục 9 của spec, phần thuộc Đợt 1):
   +  Chưa xác định giá gốc (2 NCC cùng ngày, không có giá) -> DEMO-VT-03, DEMO-VT-04
   +  Bán theo Hộp (quy đổi 10 Cái)                         -> DEMO-VT-05
   +  Báo giá NCC mới (Submit để ghi vào bảng giá mua)       -> Supplier Quotation DEMO-Vietmed
+
+Đợt 2 (YC4 — báo trước khi đổi giá, spec mục 14):
+  - "DEMO Bảng giá Himedic" bật Báo trước khi đổi giá (7 ngày), bảng giá chờ
+    "DEMO Bảng giá Himedic - Chờ báo", email demo himedic.demo@example.com (D2-2).
+  - Khách DEMO-Himedic dùng bảng giá này làm mặc định (để lấy % lãi khi tạo nháp từ báo giá NCC).
+  - Một nháp chờ gửi: DEMO-VT-01 106.050 áp từ D+5 (gửi hôm nay sẽ là Báo gấp, thiếu 2 ngày).
 """
 
 import argparse
@@ -27,6 +33,8 @@ import frappe
 from frappe.utils import add_days, getdate, nowdate
 
 SITE_PRODUCTION = "miyano"
+CHO_HIMEDIC = "DEMO Bảng giá Himedic - Chờ báo"
+EMAIL_DEMO = "himedic.demo@example.com"
 VAI_TRO_GIAM_DOC = "DEMO Giám đốc"
 VAI_TRO_DUYET = "DEMO Duyệt giá"
 NHOM_NHAN_VIEN = ["Sales User", "Sales Manager", "Sales Master Manager", "Item Manager", "Purchase User"]
@@ -116,6 +124,7 @@ def tao_demo(che_do):
 		("DEMO Mua - Hùng Minh", 1),
 		("DEMO Bảng giá mua", 1),
 		("DEMO Bảng giá Himedic", 0),
+		(CHO_HIMEDIC, 0),
 	):
 		dam_bao(
 			"Price List",
@@ -146,8 +155,28 @@ def tao_demo(che_do):
 		(HM, "DEMO-VT-03", 20500, -30, None),
 		(HM, "DEMO-VT-04", 3000, -30, None),
 		(HM, "DEMO-VT-05", 12469.1267, -30, None),
+		(CHO_HIMEDIC, "DEMO-VT-01", 106050, 5, None),  # nháp chờ gửi (Đợt 2)
 	):
 		gia_item(bang, code, gia, add_days(d, ngay), ncc)
+
+	# Đợt 2: bật báo trước trên bảng giá Himedic (ghi thẳng: script chạy như Administrator).
+	frappe.db.set_value(
+		"Price List",
+		HM,
+		{
+			"bao_truoc_khi_doi_gia": 1,
+			"so_ngay_bao_truoc": 7,
+			"bang_gia_cho": CHO_HIMEDIC,
+			"email_nhan_thong_bao": EMAIL_DEMO,
+		},
+	)
+	frappe.db.set_value("Customer", "DEMO-Himedic", "default_price_list", HM)
+	frappe.db.set_value(
+		"Item Price",
+		{"price_list": CHO_HIMEDIC, "trang_thai_thong_bao": ("is", "not set")},
+		"trang_thai_thong_bao",
+		"Chờ gửi",
+	)
 
 	so_nhap(
 		"DEMO-Himedic",
@@ -221,9 +250,12 @@ def gia_item(bang, code, gia, ngay, ncc):
 	if name:
 		frappe.db.set_value("Item Price", name, "valid_from", ngay)
 		return
-	frappe.get_doc(
+	ip = frappe.get_doc(
 		{"doctype": "Item Price", **f, "valid_from": ngay, "supplier": ncc, "currency": "VND"}
-	).insert(ignore_permissions=True)
+	)
+	# Gieo dữ liệu demo ban đầu: được ghi thẳng vào bảng giá có báo trước.
+	ip.flags.tu_thong_bao_doi_gia = True
+	ip.insert(ignore_permissions=True)
 
 
 def so_nhap(customer, price_list, ngay, dong, ly_do=None, rate=None):

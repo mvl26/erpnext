@@ -1396,7 +1396,7 @@ extend_cscript(cur_frm.cscript, new erpnext.selling.SalesOrderController({ frm: 
 // Miyano: nút "Duyệt giá lệch" (kiểm giá bán theo % lãi, spec mục 6.1.5). Server kiểm quyền.
 erpnext.selling.nut_duyet_gia_lech = function (frm) {
 	const lech = (frm.doc.items || []).some(
-		(d) => d.trang_thai_gia && !["Khớp", "Bỏ qua"].includes(d.trang_thai_gia)
+		(d) => d.trang_thai_gia && !["Khớp", "Bỏ qua", "Đang trong thời hạn báo giá"].includes(d.trang_thai_gia)
 	);
 	if (frm.doc.docstatus !== 0 || frm.is_new() || !lech || frm.doc.nguoi_duyet_gia) return;
 	frappe.xcall("erpnext.selling.kiem_gia.kiem_chung_tu.co_quyen_duyet_gia").then((ok) => {

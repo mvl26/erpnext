@@ -6,6 +6,7 @@ from erpnext.accounts.party import render_address
 from erpnext.controllers.accounts_controller import get_taxes_and_charges
 from erpnext.controllers.sales_and_purchase_return import get_rate_for_return
 from erpnext.controllers.stock_controller import StockController
+from erpnext.selling.kiem_gia.bao_truoc import kiem_chung_tu_ban
 from erpnext.selling.kiem_gia.kiem_chung_tu import kiem_chung_tu
 from erpnext.stock.doctype.item.item import set_item_default
 from erpnext.stock.get_item_details import get_bin_details, get_conversion_factor
@@ -42,6 +43,7 @@ class SellingController(StockController):
 		if not (self.get("is_debit_note") or self.get("is_return")):
 			self.validate_max_discount()
 		self.validate_selling_price()
+		kiem_chung_tu_ban(self)
 		kiem_chung_tu(self)
 		self.set_qty_as_per_stock_uom()
 		self.set_po_nos(for_validate=True)

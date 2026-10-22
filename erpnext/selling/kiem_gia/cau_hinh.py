@@ -33,7 +33,10 @@ MAC_DINH_KHACH = {"kiem_gia_ban": 1, "ty_le_lai_rieng": 0, "ty_le_lai": 0}
 
 
 def cau_hinh():
-	s = frappe.get_cached_doc("Selling Settings")
+	# Đọc thẳng DB (một truy vấn tabSingles), không qua cache Redis: cache dùng chung với web
+	# server/worker nên có thể giữ giá trị cũ khi cài đặt bị ghi bằng set_single_value
+	# (patch, script) — quyền và chế độ chặn phải luôn đúng giá trị đang lưu.
+	s = frappe._dict(frappe.db.get_singles_dict("Selling Settings", cast=True))
 	ty_le = s.get("ty_le_lai_mac_dinh")
 	return frappe._dict(
 		bat=cint(s.get("bat_kiem_gia_ban")),

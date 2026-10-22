@@ -32,8 +32,10 @@ from frappe.utils import cint, flt, now_datetime
 
 from erpnext.selling.kiem_gia.cau_hinh import CHAN, cau_hinh, co_quyen_sua_ty_le_lai, ty_le_lai_nhieu
 from erpnext.selling.kiem_gia.gia_goc import (
+	CAO_HON,
 	CHUA_XAC_DINH,
 	KHOP,
+	THAP_HON,
 	so_sanh,
 	tim_gia_goc_nhieu,
 	tinh_gia_chuan,
@@ -41,6 +43,8 @@ from erpnext.selling.kiem_gia.gia_goc import (
 
 CHUNG_TU = ("Quotation", "Sales Order")
 BO_QUA = "Bỏ qua"
+# YC4 (6.2.7): giá lệch nhưng giá mới đã vào bảng giá chờ / đã báo, chưa tới ngày áp.
+DANG_CHO = "Đang trong thời hạn báo giá"
 TRUONG_DUYET = ("nguoi_duyet_gia", "thoi_diem_duyet_gia", "ma_duyet_gia")
 TRUONG_DONG = (
 	"trang_thai_gia",
@@ -86,13 +90,18 @@ def kiem_chung_tu(doc):
 			continue
 		_kiem_dong(d, gia_goc[d.item_code], ty_le[d.item_code], ty_gia)
 
+	_danh_dau_dang_cho(doc, dong)
 	_canh_bao(doc, dong_lech(doc))
 	if doc.doctype == "Sales Order":
 		_giu_hay_huy_duyet(doc)
 
 
 def dong_lech(doc):
-	return [d for d in doc.get("items") if d.get("trang_thai_gia") and d.trang_thai_gia not in (KHOP, BO_QUA)]
+	return [
+		d
+		for d in doc.get("items")
+		if d.get("trang_thai_gia") and d.trang_thai_gia not in (KHOP, BO_QUA, DANG_CHO)
+	]
 
 
 def kiem_truoc_submit(doc, chi_xet=None):
@@ -268,6 +277,43 @@ def _khach(doc):
 	if doc.doctype == "Quotation":
 		return doc.party_name if doc.quotation_to == "Customer" else None
 	return doc.customer
+
+
+def _danh_dau_dang_cho(doc, dong):
+	"""Dòng Thấp hơn / Cao hơn trên bảng giá có báo trước, mà mặt hàng đã có giá mới chờ báo
+	(bảng giá chờ) hoặc đã báo nhưng chưa tới ngày áp: bán giá hiện hành là đúng quy tắc 7
+	ngày, không tính là lệch, không cần duyệt; chênh lệch vẫn ghi để báo cáo (6.2.7)."""
+	from erpnext.selling.kiem_gia.bao_truoc import co_bao_truoc
+
+	pl = doc.get("selling_price_list")
+	lech = [d for d in dong if d.get("trang_thai_gia") in (THAP_HON, CAO_HON)]
+	if not lech or not co_bao_truoc(pl):
+		return
+	cho = frappe.db.get_value("Price List", pl, "bang_gia_cho")
+	moi = {}
+	for r in frappe.db.sql(
+		"""select item_code, price_list_rate, valid_from, price_list from `tabItem Price`
+		where item_code in %(items)s and ifnull(customer, '') = ''
+			and (price_list = %(cho)s or (price_list = %(pl)s and valid_from > %(ngay)s))
+		order by valid_from""",
+		{
+			"items": tuple({d.item_code for d in lech}),
+			"cho": cho or "",
+			"pl": pl,
+			"ngay": doc.transaction_date,
+		},
+		as_dict=True,
+	):
+		moi.setdefault(r.item_code, r)
+	for d in lech:
+		r = moi.get(d.item_code)
+		if not r:
+			continue
+		d.trang_thai_gia = DANG_CHO
+		trang_thai = _("chờ gửi thông báo") if r.price_list == cho else _("đã báo")
+		d.ghi_chu_gia = (d.ghi_chu_gia or "") + _("; giá mới {0} từ {1} ({2})").format(
+			flt(r.price_list_rate), frappe.format(r.valid_from, "Date"), trang_thai
+		)
 
 
 def nguoi_dung_noi_bo():

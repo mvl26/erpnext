@@ -68,9 +68,17 @@ def ghi_gia_mua(doc):
 	if thong_bao:
 		_bao("<br>".join(thong_bao), indicator="orange" if giu or bo_qua else "green")
 
+	# YC4 (2.5): giá mua mới có thể làm đổi giá bán của bảng giá có báo trước.
+	from erpnext.selling.kiem_gia.bao_truoc import de_xuat_tu_bao_gia
+
+	de_xuat_tu_bao_gia(doc, moi)
+
 
 def xoa_gia_mua(doc):
 	"""Gọi từ `SupplierQuotation.on_cancel`."""
+	from erpnext.selling.kiem_gia.bao_truoc import xoa_de_xuat
+
+	xoa_de_xuat(doc)
 	dong = frappe.get_all("Item Price", filters={"note": ghi_chu(doc.name), "buying": 1}, pluck="name")
 	da_dung = _da_dung_cho_so(dong)
 	for name in dong:

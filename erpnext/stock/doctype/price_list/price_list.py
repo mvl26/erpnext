@@ -3,6 +3,8 @@ from frappe import _, throw
 from frappe.model.document import Document
 from frappe.utils import cint
 
+from erpnext.selling.kiem_gia.bao_truoc import kiem_price_list
+
 
 class PriceList(Document):
 	# begin: auto-generated types
@@ -15,18 +17,23 @@ class PriceList(Document):
 
 		from erpnext.stock.doctype.price_list_country.price_list_country import PriceListCountry
 
+		bang_gia_cho: DF.Link | None
+		bao_truoc_khi_doi_gia: DF.Check
 		buying: DF.Check
 		countries: DF.Table[PriceListCountry]
 		currency: DF.Link
+		email_nhan_thong_bao: DF.SmallText | None
 		enabled: DF.Check
 		price_list_name: DF.Data
 		price_not_uom_dependent: DF.Check
 		selling: DF.Check
+		so_ngay_bao_truoc: DF.Int
 	# end: auto-generated types
 
 	def validate(self):
 		if not cint(self.buying) and not cint(self.selling):
 			throw(_("Price List must be applicable for Buying or Selling"))
+		kiem_price_list(self)
 
 	def on_update(self):
 		self.set_default_if_missing()

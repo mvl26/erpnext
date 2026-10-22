@@ -937,3 +937,58 @@ Không đổi so với mục 6.2–6.4 và 8.
 1. ~~P8~~ — đã chốt: giả định chưa gồm VAT.
 2. SQL kiểm NCC mặc định ở mục 9.1 (cần trước khi lên production).
 3. Ánh xạ vai trò; xử lý tài khoản tiendj28@gmail.com (cần trước khi bật Chặn).
+
+---
+
+## 14. Đợt 2 — YC4: báo trước khi đổi giá bán (nhánh `feat/bao-truoc-doi-gia-himedic`)
+
+### 14.1 Quyết định bổ sung (người dùng, 22/10/2026)
+
+| Mã | Quyết định |
+|---|---|
+| D2-1 | **Chỉ Giám đốc (chức vụ cao nhất) được gửi thông báo đổi giá.** Dùng lại ô "Vai trò được sửa % lãi" của Selling Settings — cùng một người |
+| D2-2 | Email nhận thông báo: tạm dùng email demo, người dùng thay email thật sau. Lưu ở ô trên Price List |
+| D2-3 | Nháp giá (tạo tay hoặc từ báo giá NCC) có **ngày hiệu lực = ngày tạo**, để nhiều nháp của cùng mặt hàng phân biệt được (ERPNext không cho hai giá cùng mặt hàng, cùng ngày). Giám đốc sửa ngày hiệu lực thật trước khi gửi |
+| D2-4 | Gửi khi ngày hiệu lực **trước ngày gửi** → chặn, yêu cầu sửa ngày (không thể báo trước cho giá đã có hiệu lực trong quá khứ; không tự lùi ngày — D4-2). Từ ngày gửi đến dưới 7 ngày → cảnh báo, đánh dấu Báo gấp |
+| D2-5 | Không bao giờ merge trực tiếp vào `develop` |
+
+### 14.2 Bước
+
+| Bước | Việc |
+|---|---|
+| 2.1 | Price List: `bao_truoc_khi_doi_gia`, `so_ngay_bao_truoc` (7), `bang_gia_cho` (Link Price List), `email_nhan_thong_bao`. Chỉ Giám đốc đổi các ô này. Chứng từ bán không được chọn bảng giá chờ |
+| 2.2 | Item Price: `trang_thai_thong_bao` (Chờ gửi / Đã gửi / Đã xác nhận), `ngay_gui_thong_bao`, `so_ngay_bao_truoc`, `bao_gap`, `ly_do_bao_gap`, `ngay_xac_nhan`, `bang_chung_xac_nhan`, `thong_bao` (Communication) |
+| 2.3 | Chặn trên bảng giá có báo trước: thêm giá thẳng (phải qua bảng giá chờ); sửa giá / ngày / ĐVT / mặt hàng / khách của dòng có sẵn; xóa dòng (trừ Administrator). Ô xác nhận vẫn sửa được |
+| 2.4 | Nút "Gửi thông báo đổi giá" (chỉ Giám đốc): kiểm ngày (D2-4), chuyển dòng chờ sang bảng giá chính, ghi ngày gửi / số ngày / Báo gấp, gửi một email (Communication gắn với Price List) |
+| 2.5 | Báo giá NCC Submit → nháp giá Himedic = giá mua mới x (1 + % lãi) trong bảng giá chờ (D2-3), báo Giám đốc |
+| 2.6 | Trạng thái dòng SO "Đang trong thời hạn báo giá" |
+| 2.7 | Nhắc việc (Supply Notification) |
+| 2.8 | Báo cáo báo gấp, test, demo, hướng dẫn test |
+
+### 14.3 Kết quả Đợt 2 (22/10/2026, chưa commit)
+
+| Bước | Nơi sửa | Test |
+|---|---|---|
+| 2.1 Cài đặt Price List, cấm chứng từ bán dùng bảng giá chờ | `price_list.json/.py/.js`, `kiem_gia/bao_truoc.py`, `SellingController.validate` | `TestCaiDatBangGia` |
+| 2.2–2.3 Trường theo dõi trên Item Price, chặn thêm/sửa/xóa trên bảng giá chính | `item_price.json/.py`, `bao_truoc.py` | `TestChanSuaBangGiaChinh` |
+| 2.4 Gửi thông báo đổi giá (Communication gắn Price List; nút trên form) | `bao_truoc.gui_thong_bao_doi_gia` | `TestGuiThongBao` |
+| 2.5 Báo giá NCC → nháp giá Himedic (ngày = hôm nay), báo Giám đốc (chuông); hủy báo giá xóa nháp còn chờ | `bao_truoc.de_xuat_tu_bao_gia`, `bao_gia_ncc.py` | `TestDeXuatTuBaoGiaNCC` |
+| 2.6 Trạng thái "Đang trong thời hạn báo giá" (không tính lệch, không chặn) | `kiem_chung_tu.py`, Quotation/SO Item | `TestDangTrongThoiHanBaoGia` |
+| 2.7 Nhắc việc NTF-14 (gửi + 2 ngày chưa xác nhận), NTF-15 (trước ngày áp 1 ngày); người nhận = `nguoi_gui_thong_bao` | `supply_notification/constants.py`, `setup.py` (hỗ trợ `user_fields` trong điểm gieo) | `TestNhacViec` |
+| 2.8 Báo cáo "Thong Bao Doi Gia Bao Gap"; demo; hướng dẫn test `docs/HDKT_Dot2_Bao_truoc_doi_gia.md` | `selling/report/thong_bao_doi_gia_bao_gap/`, `scripts/demo_gia_ban_doi_soat.py` | `TestBaoCaoBaoGap` |
+
+Tổng: 42 test Đợt 2 + 109 test Đợt 1 = **151 test đạt**. Thêm `scripts/chay_test.py` (chạy test không cần `allow_tests`).
+
+**Điều chỉnh khi code:**
+
+| Thiết kế | Thực tế | Lý do |
+|---|---|---|
+| Email qua Supply Notification | Gửi bằng Communication gắn với Price List (`_make`) | Một email gom nhiều dòng giá, cần bảng giá cũ → mới; Supply Notification gắn một chứng từ. Nhắc việc vẫn dùng Supply Notification (2.7) |
+| `make()` của Frappe | `_make()` | `make()` đòi quyền "email" trên Price List — Giám đốc thường không có; quyền gửi đã kiểm theo vai trò (D2-1) |
+| `cau_hinh()` đọc Selling Settings qua cache | Đọc thẳng DB | Cache Redis dùng chung với web server: test (và patch ghi bằng `set_single_value`) đọc phải giá trị cũ |
+| Nhắc việc gửi tới "kế toán phụ trách" | Gửi tới người đã gửi thông báo (`nguoi_gui_thong_bao`) | D2-1: chỉ Giám đốc gửi |
+
+**Lưu ý môi trường test:** site `erpnext.localhost` bật `mute_emails` (không có tài khoản email gửi đi). Bộ test gốc `erpnext/supply_notification/tests` lỗi 103 test vì site thiếu kho `Stores - M` và tài khoản "Stock Received But Not Billed" — không liên quan thay đổi Đợt 2.
+
+**Lên production (bổ sung 13.2):** `migrate` tạo thêm NTF-14, NTF-15 (bật sẵn, chỉ chạy khi có dòng giá đã gửi). Trên "Bảng giá Himedic": tạo bảng giá chờ (bảng giá bán, cùng tiền tệ, đang bật), Giám đốc tích "Báo trước khi đổi giá", chọn bảng giá chờ, nhập email thật của Himedic. Đặt `default_price_list` của khách Himedic = "Bảng giá Himedic" (để lấy % lãi khi tạo nháp).
+

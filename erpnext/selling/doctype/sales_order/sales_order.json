@@ -1692,7 +1692,7 @@
   },
   {
    "collapsible": 0,
-   "depends_on": "eval:(doc.items || []).some(d => d.trang_thai_gia && !['Khớp','Bỏ qua'].includes(d.trang_thai_gia)) || doc.ly_do_lech_gia || doc.nguoi_duyet_gia",
+   "depends_on": "eval:(doc.items || []).some(d => d.trang_thai_gia && !['Khớp','Bỏ qua','Đang trong thời hạn báo giá'].includes(d.trang_thai_gia)) || doc.ly_do_lech_gia || doc.nguoi_duyet_gia",
    "fieldname": "kiem_gia_ban_section",
    "fieldtype": "Section Break",
    "label": "Kiểm giá bán"
