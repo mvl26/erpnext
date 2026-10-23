@@ -24,7 +24,7 @@ def _truong_dong(insert_after, cho_so):
 		{
 			"fieldname": "kiem_gia_ban_section",
 			"fieldtype": "Section Break",
-			"label": "Kiểm giá bán (BA12)",
+			"label": "Kiểm giá bán",
 			"insert_after": insert_after,
 			"collapsible": 1,
 			"collapsible_depends_on": "eval:doc.trang_thai_gia && !['Khớp','Bỏ qua'].includes(doc.trang_thai_gia)",
@@ -34,7 +34,7 @@ def _truong_dong(insert_after, cho_so):
 			"fieldtype": "Link",
 			"options": "Supplier",
 			"label": "NCC dự kiến",
-			"description": "D08: để trống thì lấy NCC mặc định của mặt hàng. Đổi NCC thì giá mua tính lại khi lưu.",
+			"description": "Để trống thì lấy NCC mặc định của mặt hàng. Đổi NCC thì giá mua tính lại khi lưu.",
 			"insert_after": "kiem_gia_ban_section",
 			"no_copy": 1,
 			"print_hide": 1,
@@ -88,7 +88,7 @@ def _truong_dong(insert_after, cho_so):
 			fieldtype="Currency",
 			options="currency",
 			label="Giá đề xuất",
-			description="R03: giá mua x hệ số, làm tròn đến đồng.",
+			description="Giá mua x hệ số của khách, làm tròn đến đồng.",
 			insert_after="so_hop_dong_he_so",
 		),
 		_ro(
@@ -117,7 +117,7 @@ def _truong_dong(insert_after, cho_so):
 			fieldname="khac_bang_gia",
 			fieldtype="Check",
 			label="Đề xuất khác bảng giá",
-			description="R05: giá đề xuất khác giá bảng giá KH, hoặc mặt hàng chưa có trong bảng giá KH.",
+			description="Giá đề xuất khác giá bảng giá KH, hoặc mặt hàng chưa có trong bảng giá KH.",
 			insert_after="ngoai_bang_gia",
 		),
 		_ro(
@@ -132,7 +132,7 @@ def _truong_dong(insert_after, cho_so):
 			{
 				"fieldname": "chap_thuan_gia_section",
 				"fieldtype": "Section Break",
-				"label": "Khách chấp thuận giá mới (R05)",
+				"label": "Khách chấp thuận giá mới",
 				"insert_after": "ghi_chu_gia",
 				"depends_on": "khac_bang_gia",
 			},
@@ -222,7 +222,7 @@ CUSTOM_FIELDS = {
 		{
 			"fieldname": "kiem_gia_ban_section",
 			"fieldtype": "Section Break",
-			"label": "Kiểm giá bán theo hệ số khách hàng (BA12)",
+			"label": "Kiểm giá bán theo hệ số khách hàng",
 			"insert_after": "allow_zero_qty_in_sales_order",
 		},
 		{
@@ -230,7 +230,7 @@ CUSTOM_FIELDS = {
 			"fieldtype": "Check",
 			"default": "0",
 			"label": "Bật kiểm giá bán",
-			"description": "Giá đề xuất = giá mua x hệ số của khách. Khách không có hệ số thì không kiểm (R07).",
+			"description": "Giá đề xuất = giá mua x hệ số của khách. Khách không có hệ số thì không kiểm.",
 			"insert_after": "kiem_gia_ban_section",
 		},
 		{
@@ -238,7 +238,7 @@ CUSTOM_FIELDS = {
 			"fieldtype": "Check",
 			"default": "0",
 			"label": "Bắt buộc đính kèm văn bản chấp thuận",
-			"description": "Bật: dòng khác bảng giá phải có tệp văn bản khách chấp thuận, ngoài 3 thông tin R05. Áp cho thông tin nhập từ lúc bật.",
+			"description": "Bật: dòng khác bảng giá phải có tệp văn bản khách chấp thuận, ngoài số văn bản, người đại diện KH và ngày chấp thuận. Áp cho thông tin nhập từ lúc bật.",
 			"insert_after": "bat_kiem_gia_ban",
 		},
 		{
@@ -251,7 +251,7 @@ CUSTOM_FIELDS = {
 			"fieldtype": "Link",
 			"options": "Role",
 			"label": "Vai trò được sửa hệ số giá bán",
-			"description": "Chỉ vai trò này (Giám đốc) được sửa hệ số trên Khách hàng, các cài đặt của mục này, gửi thông báo đổi giá và sửa thông tin khách chấp thuận (R05) đã điền trên SO đã Submit. Để trống: chỉ System Manager.",
+			"description": "Chỉ vai trò này (Giám đốc) được sửa hệ số trên Khách hàng, các cài đặt của mục này, gửi thông báo đổi giá và sửa thông tin khách chấp thuận đã điền trên SO đã Submit. Để trống: chỉ System Manager.",
 			"insert_after": "column_break_kiem_gia",
 		},
 	],
@@ -259,7 +259,7 @@ CUSTOM_FIELDS = {
 		{
 			"fieldname": "he_so_gia_ban_section",
 			"fieldtype": "Section Break",
-			"label": "Hệ số giá bán (BA12)",
+			"label": "Hệ số giá bán",
 			"insert_after": "disabled",
 			"collapsible": 1,
 		},
@@ -268,7 +268,7 @@ CUSTOM_FIELDS = {
 			"fieldtype": "Table",
 			"options": "Customer Price Coefficient",
 			"label": "Hệ số theo khách hàng",
-			"description": "R01: mỗi thời điểm tối đa một hệ số hiệu lực, kèm số hợp đồng. Không có hệ số: không kiểm giá (R07).",
+			"description": "Mỗi thời điểm tối đa một hệ số hiệu lực, kèm số hợp đồng. Không có hệ số: không kiểm giá.",
 			"insert_after": "he_so_gia_ban_section",
 		},
 		{
@@ -294,7 +294,7 @@ CUSTOM_FIELDS = {
 			"fieldname": "ly_do_lech_gia",
 			"fieldtype": "Small Text",
 			"label": "Lý do lệch giá",
-			"description": "R04/R08: bắt buộc khi Submit nếu còn dòng lệch giá đề xuất hoặc chưa có giá mua.",
+			"description": "Bắt buộc khi Submit nếu còn dòng lệch giá đề xuất hoặc chưa có giá mua.",
 			"insert_after": "kiem_gia_ban_section",
 			"allow_on_submit": 1,
 			"no_copy": 1,
@@ -305,7 +305,7 @@ CUSTOM_FIELDS = {
 			fieldname="thong_bao_gia_moi",
 			fieldtype="Link",
 			options="Communication",
-			label="Thông báo giá mới (R06)",
+			label="Thông báo giá mới",
 			insert_after="column_break_kiem_gia",
 			allow_on_submit=1,
 		),

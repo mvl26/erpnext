@@ -152,9 +152,9 @@ def tao_demo():
 		doc.save(ignore_permissions=True)
 
 	for code, ten, ncc_mac_dinh, hop in (
-		("DEMO-VT-01", "Găng tay y tế (A01-A06)", "DEMO-Vietmed", None),
+		("DEMO-VT-01", "Găng tay y tế", "DEMO-Vietmed", None),
 		("DEMO-VT-02", "Bơm tiêm 5ml", "DEMO-Hùng Minh", None),
-		("DEMO-VT-03", "Bông gạc (R08: chưa có giá mua)", "DEMO-Vietmed", None),
+		("DEMO-VT-03", "Bông gạc", "DEMO-Vietmed", None),
 		("DEMO-VT-05", "Dung dịch sát khuẩn (bán theo Hộp)", "DEMO-Vietmed", 10),
 	):
 		dam_bao("Item", code, mat_hang(code, ten, ncc_mac_dinh, hop))

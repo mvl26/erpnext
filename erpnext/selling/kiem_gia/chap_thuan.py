@@ -133,7 +133,7 @@ def chan_giao_hoa_don(doc, method=None):
 	)
 	frappe.throw(
 		_(
-			"Khách chưa chấp thuận giá mới của các dòng đơn hàng dưới đây (R05). Nhập số văn bản, người đại diện KH, ngày chấp thuận trên dòng của Sales Order rồi bấm Cập nhật, hoặc bỏ các dòng này khỏi phiếu:"
+			"Khách chưa chấp thuận giá mới của các dòng đơn hàng dưới đây. Nhập số văn bản, người đại diện KH, ngày chấp thuận trên dòng của Sales Order rồi bấm Cập nhật, hoặc bỏ các dòng này khỏi phiếu:"
 		)
 		+ f"<ul>{chi_tiet}</ul>",
 		title=_("Chờ khách chấp thuận giá"),

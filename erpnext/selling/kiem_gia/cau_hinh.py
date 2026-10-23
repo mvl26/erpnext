@@ -138,7 +138,7 @@ def kiem_khach(doc, method=None):
 	for d in doc.get("he_so_gia_ban") or []:
 		_kiem_dong_he_so(d, _("Hệ số theo khách"))
 		if not (d.so_hop_dong or "").strip():
-			frappe.throw(_("Hệ số theo khách dòng {0}: nhập số hợp đồng làm căn cứ (R01)").format(d.idx))
+			frappe.throw(_("Hệ số theo khách dòng {0}: nhập số hợp đồng làm căn cứ").format(d.idx))
 	_kiem_chong_lan(doc.get("he_so_gia_ban") or [], _("Hệ số theo khách"))
 
 	theo_hang = doc.get("he_so_theo_mat_hang") or []

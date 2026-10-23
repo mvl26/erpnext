@@ -24,7 +24,7 @@
   },
   {
    "columns": 1,
-   "description": "Giá bán = giá mua x hệ số (BA12 R03), ví dụ 1,01.",
+   "description": "Giá bán = giá mua x hệ số, ví dụ 1,01.",
    "fieldname": "he_so",
    "fieldtype": "Float",
    "in_list_view": 1,
@@ -59,7 +59,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-10-23 10:30:00.000000",
+ "modified": "2026-10-23 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Customer Item Price Coefficient",
