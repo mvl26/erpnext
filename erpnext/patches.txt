@@ -453,3 +453,4 @@ erpnext.patches.v15_0.einvoice_source_sales_invoice
 erpnext.patches.v15_0.einvoice_lookup_code_and_email_v3
 erpnext.warehouse_operations.patches.v1_0.so_goi_theo_phieu_nhap
 erpnext.warehouse_operations.patches.v1_0.them_so_lo_ncc
+erpnext.patches.v15_0.doi_ten_workspace_doi_chieu_cong_no
