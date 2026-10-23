@@ -1087,3 +1087,4 @@ S3 (lệch ĐVT): ERPNext chặn ngay khi lưu, test `test_s3_lech_dvt_bi_chan_n
 4. Theo dõi hóa đơn của các NCC thử (lọc danh sách theo Trạng thái đối soát), rồi mở rộng sang "Mọi nhà cung cấp".
 5. Gỡ: bỏ tích **Bật đối soát** (mọi kiểm tra, chặn Nộp, tự tạo ĐNTT và chống vượt tổng đều dừng; dữ liệu đã ghi giữ nguyên).
 6. Hướng dẫn sử dụng: HD01 V1.4 (chương 8, 9, 10, 11.3).
+7. Test thủ công trên `erpnext.localhost`: `docs/HDKT_Dot3_Doi_soat_PR_PI.md`; dữ liệu kịch bản A–L bằng `scripts/demo_doi_soat_pr_pi.py` (chặn `miyano`; site tắt gửi email thì tạo hộp thư gửi đi giả để thông báo vào hàng đợi; `--tra-lai` trả cài đặt về như trước và xóa hộp thư đó, `--nhac-lech <hóa đơn>` thử nhắc Kế toán trưởng). Kết quả 23/10/2026: 443 test tự động đạt (3 bỏ qua), 52/52 bước HDKT đạt.
