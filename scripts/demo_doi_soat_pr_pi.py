@@ -21,6 +21,9 @@ Trả cài đặt về như trước lần chạy đầu:
 - Cài đặt dùng chung (Buying Settings, Accounts Settings, tài khoản làm tròn của công ty, ô Áp
   đối soát trên hai NCC demo) được in ra khi đổi. Giá trị trước lần chạy đầu lưu ở
   `<site>/private/demo_doi_soat_pr_pi_cai_dat_cu.json` để `--tra-lai`.
+- Site tắt gửi email (`mute_emails`) mà chưa có hộp thư gửi đi: tạo hộp thư "DEMO gửi đi (không
+  gửi thật)". Không có nó, Frappe dựng hộp thư giả không có địa chỉ người gửi và mọi thông báo
+  email (giao việc, NTF-16 → 19) lỗi. Email chỉ nằm trong hàng đợi; `--tra-lai` xóa hộp thư này.
 
 Kịch bản (NCC DEMO-Vietmed, thuộc phạm vi đối soát, trừ J):
   A  Phiếu nhập 10 DEMO-VT-01 x 100.000, VAT 10%: hóa đơn khớp, Nộp, ĐNTT nháp
@@ -72,6 +75,7 @@ BUYING_SETTINGS = {
 }
 ACCOUNTS_SETTINGS = {"round_row_wise_tax": 1}
 THUE_10 = "GTGT mua vào 10%"
+HOP_THU_DEMO = "DEMO gửi đi (không gửi thật)"
 
 
 def main():
@@ -164,6 +168,29 @@ def dat_cai_dat(cong_ty):
 		if frappe.db.get_value("Supplier", ncc, "doi_soat_pr_pi") != ap:
 			frappe.db.set_value("Supplier", ncc, "doi_soat_pr_pi", ap)
 			print(f"  Supplier {ncc} · doi_soat_pr_pi -> {ap}")
+	_hop_thu_gui_di()
+
+
+def _hop_thu_gui_di():
+	"""Chỉ khi site không gửi email thật: hộp thư giả có địa chỉ người gửi để email vào hàng đợi."""
+	if not frappe.are_emails_muted():
+		return
+	if frappe.db.exists("Email Account", {"enable_outgoing": 1, "default_outgoing": 1}):
+		return
+	frappe.get_doc(
+		{
+			"doctype": "Email Account",
+			"email_account_name": HOP_THU_DEMO,
+			"email_id": "erp.demo@example.com",
+			"enable_outgoing": 1,
+			"default_outgoing": 1,
+			"smtp_server": "smtp.example.invalid",
+			"smtp_port": 587,
+			"no_smtp_authentication": 1,
+			"enable_incoming": 0,
+		}
+	).insert(ignore_permissions=True)
+	print(f"  Email Account {HOP_THU_DEMO!r} (erp.demo@example.com) tạo mới: site tắt gửi email")
 
 
 def tra_lai():
@@ -183,6 +210,9 @@ def tra_lai():
 	for ncc, ap in cu["Supplier"].items():
 		frappe.db.set_value("Supplier", ncc, "doi_soat_pr_pi", ap)
 		print(f"  Supplier {ncc} · doi_soat_pr_pi -> {ap}")
+	if frappe.db.exists("Email Account", HOP_THU_DEMO):
+		frappe.delete_doc("Email Account", HOP_THU_DEMO, ignore_permissions=True, force=True)
+		print(f"  Email Account {HOP_THU_DEMO!r} đã xóa")
 	os.remove(tep)
 
 

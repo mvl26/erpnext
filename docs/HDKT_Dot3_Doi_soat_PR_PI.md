@@ -6,7 +6,7 @@
 | Site test | `erpnext.localhost` — `http://127.0.0.1:8000`. **Không test trên `miyano`.** |
 | Nhánh | `feat/doi-soat-pr-pi` (đã gộp vào `feat/auto-check-selling-price`) |
 | Dữ liệu | `scripts/demo_doi_soat_pr_pi.py`: tạo sẵn Đơn mua hàng và Phiếu nhập mua đã Nộp cho từng kịch bản A–L. Hóa đơn mua do người test tự lập |
-| Email | Site test chưa có hộp thư gửi đi: thông báo trong hệ thống (chuông, giao việc) chạy bình thường, email **không** đi ra ngoài. Xem mục K |
+| Email | Site test tắt gửi email. Script demo tạo hộp thư "DEMO gửi đi (không gửi thật)" để thông báo chạy được: chuông, giao việc, nhật ký gửi đều có; email chỉ nằm trong hàng đợi (Email Queue, trạng thái Not Sent), **không** đi ra ngoài |
 
 Quy tắc để đối chiếu khi test:
 
@@ -20,12 +20,12 @@ Quy tắc để đối chiếu khi test:
 
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
-| 0.1 | Bench đang chạy. Ở `sites` chạy:<br>`../env/bin/python ../apps/erpnext/scripts/demo_doi_soat_pr_pi.py --site erpnext.localhost` | In ra các cài đặt vừa đổi và bảng 12 kịch bản A–L (số Đơn mua hàng, số Phiếu nhập). Chạy lại được; mỗi lần tạo một bộ chứng từ mới | ☐ |
+| 0.1 | Bench đang chạy (`bench start`: cần worker để gửi thông báo). Ở `sites` chạy:<br>`../env/bin/python ../apps/erpnext/scripts/demo_doi_soat_pr_pi.py --site erpnext.localhost` | In ra các cài đặt vừa đổi (lần đầu có thêm dòng tạo Email Account "DEMO gửi đi (không gửi thật)") và bảng 12 kịch bản A–L (số Đơn mua hàng, số Phiếu nhập). Chạy lại được; mỗi lần tạo một bộ chứng từ mới | ☐ |
 | 0.2 | Thử chạy với `--site miyano` | Script từ chối: "Từ chối: không tạo dữ liệu demo trên site production." | ☐ |
 | 0.3 | Mở **Buying Settings** → mục **Đối soát Phiếu nhập mua ↔ Hóa đơn mua** | Bật đối soát Phiếu nhập ↔ Hóa đơn mua: tích. Phạm vi áp dụng: Chỉ nhà cung cấp được chọn. Tự tạo đề nghị thanh toán nháp khi Nộp hóa đơn: tích. Vai trò Kế toán trưởng: Accounts Manager. Vai trò Ban Điều hành: trống. Người duyệt đề nghị thanh toán: demo.ketoantruong@example.com. Nhắc Kế toán trưởng khi lệch quá (ngày): 3 | ☐ |
 | 0.4 | Mở NCC **DEMO-Vietmed** và **DEMO-Hùng Minh** | DEMO-Vietmed tích **Áp đối soát Phiếu nhập ↔ Hóa đơn**; DEMO-Hùng Minh không tích | ☐ |
 
-Tìm Phiếu nhập của một kịch bản: danh sách **Phiếu nhập mua**, lọc **Phiếu giao hàng nhà cung cấp** = `DEMO-D3-A` (thay A bằng mã kịch bản). Số chứng từ thay đổi mỗi lần chạy script; số tiền dưới đây là cố định.
+Tìm Phiếu nhập của một kịch bản: danh sách **Phiếu nhập mua**, lọc **Phiếu giao hàng nhà cung cấp** = `DEMO-D3-A` (thay A bằng mã kịch bản). Script chạy nhiều lần thì có nhiều phiếu cùng mã: dùng phiếu **mới nhất** (số lớn nhất, chưa lập hóa đơn). Số chứng từ thay đổi mỗi lần chạy; số tiền dưới đây là cố định.
 
 Người dùng mẫu (Impersonate): `demo.ketoan@example.com` (Kế toán, lập hóa đơn), `demo.ketoantruong@example.com` (Kế toán trưởng: duyệt ngoại lệ, duyệt ĐNTT), `demo.muahang@example.com` (Mua hàng). Thao tác của Kho làm bằng Administrator.
 
@@ -46,7 +46,7 @@ Cách lập hóa đơn trong các bước dưới: mở Phiếu nhập → **T�
 | B2 | Đính kèm một file PDF bất kỳ vào hóa đơn | Đính kèm được | ☐ |
 | B3 | **Nộp** | Nộp được. Thông báo xanh "Đã tạo đề nghị thanh toán nháp ACC-PRQ-…" | ☐ |
 | B4 | Mở Yêu cầu thanh toán vừa tạo | **Nháp**; Loại yêu cầu thanh toán Outward; Đối tác DEMO-Vietmed; Số tiền **1.100.000**; tiêu đề "Thanh toán hóa đơn HD-A của DEMO-Vietmed"; nội dung có "Đối soát Phiếu nhập: Khớp"; có file PDF đính kèm; **Giao cho** demo.ketoantruong | ☐ |
-| B5 | `demo.ketoantruong` xem chuông / danh sách việc (ToDo) | Có việc "Duyệt đề nghị thanh toán cho hóa đơn HD-A (DEMO-Vietmed), hạn …" | ☐ |
+| B5 | `demo.ketoantruong` xem chuông và danh sách việc (ToDo) | Chuông: "DEMO Kế toán đã giao nhiệm vụ mới Yêu cầu thanh toán ACC-PRQ-… cho bạn". ToDo: "Duyệt đề nghị thanh toán cho hóa đơn HD-A (DEMO-Vietmed), hạn …" | ☐ |
 | B6 | `demo.ketoan` vào **Yêu cầu thanh toán → Mới**: Loại yêu cầu thanh toán Outward, Loại đối tác Supplier, Đối tác DEMO-Vietmed, Loại tài liệu tham chiếu Purchase Invoice, Tên tham chiếu = hóa đơn B1, Số tiền **1** → Lưu | Bị chặn "Vượt số tiền hóa đơn": tổng 1.100.001 vượt 1.100.000 (các đề nghị khác chưa hủy, kể cả bản nháp: 1.100.000) | ☐ |
 | B7 | Administrator sửa Số tiền ĐNTT B4 = **600.000** → Lưu. Lặp B6 với Số tiền **500.000** → Lưu. Lặp B6 với Số tiền **1** | 600.000 lưu được; 500.000 lưu được (tổng vừa đủ 1.100.000); 1 bị chặn như B6 | ☐ |
 | B8 | Trên hóa đơn B1 bấm **Tạo → Yêu cầu thanh toán** | ERPNext **mở lại bản nháp có sẵn**, không tạo bản thứ hai (hành vi chuẩn; số tiền bản nháp có thể bị đặt lại theo số còn phải trả) | ☐ |
@@ -56,14 +56,14 @@ Cách lập hóa đơn trong các bước dưới: mở Phiếu nhập → **T�
 
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
-| C1 | `demo.ketoan` lập hóa đơn từ **DEMO-D3-B**, sửa Số lượng **9** → Lưu | Thông báo cam "Hóa đơn lệch Phiếu nhập mua ở 1 điểm (xem Bảng chênh lệch). Chưa Nộp được." Trạng thái **Lệch** (nhãn đỏ, dòng giới thiệu đỏ). **Lệch từ ngày** = hôm nay. Bảng chênh lệch 1 dòng: Dòng 1 · Số lượng · DEMO-VT-01 · Phiếu nhập "10 Cái", Hóa đơn "9 Cái", mức lệch −1, gợi ý "(b1) Phiếu nhập mua sai" | ☐ |
+| C1 | `demo.ketoan` lập hóa đơn từ **DEMO-D3-B**, sửa Số lượng **9** → Lưu | Thông báo cam "Hóa đơn lệch Phiếu nhập mua ở 1 điểm (xem Bảng chênh lệch). Chưa Nộp được." Trạng thái **Lệch** (nhãn đỏ, dòng giới thiệu đỏ). **Lệch từ ngày** = hôm nay. Bảng chênh lệch 1 dòng: Dòng 1 · Số lượng · DEMO-VT-01 · Phiếu nhập "10 Cái", Hóa đơn "9 Cái", mức lệch −1, gợi ý "(b1) Phiếu nhập mua sai". Vài giây sau: danh sách **Supply Notification Dispatch Log** lọc Chứng từ = số hóa đơn có dòng **NTF-16**, Kết quả Sent, người nhận demo.ketoan (người lập; production thêm phòng Mua hàng) | ☐ |
 | C2 | **Nộp** | Bị chặn "Lệch Phiếu nhập mua": "Hóa đơn chưa khớp Phiếu nhập mua (Lệch), chưa Nộp được: Dòng 1 · Số lượng · DEMO-VT-01: Phiếu nhập 10 Cái, Hóa đơn 9 Cái …" | ☐ |
 | C3 | Menu **Đối soát Phiếu nhập** của `demo.ketoan` | Chỉ có **Đối soát lại**, **không** có Duyệt ngoại lệ | ☐ |
 | C4 | Ở `sites` chạy:<br>`../env/bin/python ../apps/erpnext/scripts/demo_doi_soat_pr_pi.py --site erpnext.localhost --nhac-lech <số hóa đơn C1>` | In "Lệch từ ngày lùi về 3 ngày trước", "Đã nhắc Kế toán trưởng 1 hóa đơn" (hoặc nhiều hơn nếu còn hóa đơn lệch khác) | ☐ |
 | C5 | `demo.ketoantruong` mở chuông | Thông báo "1 hóa đơn mua lệch Phiếu nhập quá 3 ngày"; nội dung là bảng: số hóa đơn (link), NCC, số HĐ NCC, giá trị, lệch từ (3 ngày), trạng thái, nhánh xử lý "Chưa chọn", người lập | ☐ |
 | C6 | `demo.ketoantruong` mở hóa đơn C1 → **Đối soát Phiếu nhập → Duyệt ngoại lệ** → để trống lý do → Duyệt | Không duyệt được (ô lý do bắt buộc) | ☐ |
 | C7 | Nhập lý do "NCC giao thiếu 1, đã thỏa thuận" → **Duyệt** | Trạng thái **Ngoại lệ đã duyệt** (nhãn cam). Hiện Lý do ngoại lệ, Người duyệt ngoại lệ = demo.ketoantruong, Thời điểm duyệt. Lệch từ ngày bị xóa. Bảng chênh lệch vẫn giữ | ☐ |
-| C8 | `demo.ketoan` sửa Số lượng **8** → Lưu | Thông báo cam "Chênh lệch đã thay đổi sau khi demo.ketoantruong@example.com duyệt ngoại lệ, nên phê duyệt cũ không còn hiệu lực." Trạng thái về **Lệch**; ô duyệt trống; mức lệch −2 | ☐ |
+| C8 | `demo.ketoan` sửa Số lượng **8** → Lưu | Thông báo cam "Chênh lệch đã thay đổi sau khi demo.ketoantruong@example.com duyệt ngoại lệ, nên phê duyệt cũ không còn hiệu lực." Trạng thái về **Lệch**; ô duyệt trống; mức lệch −2. Nhật ký gửi thông báo có thêm **NTF-17** (chuyển sang Lệch), Sent | ☐ |
 | C9 | Sửa lại **9** → Lưu | Vẫn **Lệch** (phê duyệt cũ không tự quay lại) | ☐ |
 | C10 | `demo.ketoantruong` Duyệt ngoại lệ lại. `demo.ketoan` **Nộp** | Nộp được. ĐNTT nháp **990.000**, nội dung "Đối soát Phiếu nhập: Ngoại lệ đã duyệt" | ☐ |
 
@@ -72,7 +72,7 @@ Cách lập hóa đơn trong các bước dưới: mở Phiếu nhập → **T�
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
 | D1 | `demo.ketoan` lập hóa đơn từ **DEMO-D3-C** (20 DEMO-VT-02 × 50.000), sửa Đơn giá **48.000** → Lưu | **Lệch**: Dòng 1 · Đơn giá · Phiếu nhập "50.000 / Cái", Hóa đơn "48.000 / Cái", mức lệch −2.000, gợi ý "(b2) Hóa đơn NCC sai". Không có dòng tổng (tổng chỉ so khi mọi dòng khớp) | ☐ |
-| D2 | Chọn **Nhánh xử lý** = "(b2) Hóa đơn NCC sai" → Lưu | Lưu được. Trên thanh công cụ có nút vàng **Gửi NCC bảng chênh lệch** (chỉ hiện khi hóa đơn nháp đang Lệch). Gửi thật: xem mục K | ☐ |
+| D2 | Chọn **Nhánh xử lý** = "(b2) Hóa đơn NCC sai" → Lưu. Bấm nút vàng **Gửi NCC bảng chênh lệch** → xác nhận gửi | Nút chỉ hiện khi hóa đơn nháp đang Lệch. Gửi được: nhật ký gửi thông báo có **NTF-19** Sent tới email liên hệ của DEMO-Vietmed, CC người lập; email nằm trong Email Queue (Not Sent — site test không gửi thật). Nội dung: bảng Mặt hàng / Nội dung / Theo hàng thực nhận / Theo hoá đơn | ☐ |
 | D3 | NCC gửi hóa đơn điều chỉnh: `demo.ketoantruong` **Xóa** hóa đơn D1 (`demo.ketoan` không có quyền xóa). Lập lại từ DEMO-D3-C, không sửa → Lưu | **Khớp** — hóa đơn mới đối soát lại từ đầu | ☐ |
 | D4 | Lập hóa đơn từ **DEMO-D3-D** (5 DEMO-VT-01), đổi **Mẫu thuế và chi phí mua hàng** = "GTGT mua vào 8% - MVL" → Lưu | **Lệch**: Dòng 1 · Thuế suất · Phiếu nhập "10%", Hóa đơn "8%", mức lệch −2, gợi ý (b2). Tổng 540.000 | ☐ |
 
@@ -91,7 +91,7 @@ Cách lập hóa đơn trong các bước dưới: mở Phiếu nhập → **T�
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
 | F1 | `demo.ketoan` lập hóa đơn từ DEMO-D3-F, sửa Số lượng **11** → Lưu | **Lệch**: Số lượng "10 Cái" → "11 Cái", mức +1, gợi ý "(b1) Phiếu nhập mua sai" | ☐ |
-| F2 | Chọn **Nhánh xử lý** = "(b1) Phiếu nhập mua sai" → Lưu | Lưu được; vẫn Lệch | ☐ |
+| F2 | Chọn **Nhánh xử lý** = "(b1) Phiếu nhập mua sai" → Lưu | Lưu được; vẫn Lệch. Nhật ký gửi thông báo có **NTF-18** (báo phòng Kho); trên site test là Skipped "Không có người nhận nội bộ nào." vì chưa có nhân viên phòng Kho — production gửi phòng Kho | ☐ |
 | F3 | Administrator mở Phiếu nhập DEMO-D3-F → **Hủy** | Hủy được. Mở lại hóa đơn F1: trạng thái **Chưa đối soát** (dòng giới thiệu cam "Phiếu nhập liên quan vừa thay đổi. Bấm Đối soát lại."); timeline có "Phiếu nhập mua … vừa thay đổi; hóa đơn sẽ được đối soát lại khi lưu hoặc Nộp." | ☐ |
 | F4 | Trên Phiếu nhập đã hủy bấm **Sửa đổi** → Số lượng và Số lượng nhận = **11** → Lưu → **Nộp** | Nộp được bản sửa (số …-1) | ☐ |
 | F5 | Mở lại hóa đơn F1 | Tự đối soát lại: **Khớp**, Bảng chênh lệch trống, Lệch từ ngày trống. Cột Phiếu nhập mua trên dòng = bản sửa …-1 | ☐ |
@@ -132,13 +132,13 @@ Làm sau cùng.
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
 | J1 | Administrator bỏ tích **Bật đối soát** trong Buying Settings → Lưu. Lập hóa đơn từ Phiếu nhập 4 cái còn lại của kịch bản H, sửa Số lượng **3** → Lưu → Nộp | Không có mục đối soát; Nộp được; không tạo ĐNTT. Hóa đơn đã đối soát trước đó giữ nguyên dữ liệu | ☐ |
-| J2 | Ở `sites` chạy `../env/bin/python ../apps/erpnext/scripts/demo_doi_soat_pr_pi.py --site erpnext.localhost --tra-lai` | In các cài đặt được trả về như trước lần chạy demo đầu | ☐ |
+| J2 | Ở `sites` chạy `../env/bin/python ../apps/erpnext/scripts/demo_doi_soat_pr_pi.py --site erpnext.localhost --tra-lai` | In các cài đặt được trả về như trước lần chạy demo đầu; Email Account "DEMO gửi đi (không gửi thật)" bị xóa | ☐ |
 
 ## K. Xử lý sự cố thường gặp
 
 | Hiện tượng | Nguyên nhân | Cách xử lý |
 |---|---|---|
-| Bấm **Gửi NCC bảng chênh lệch** báo lỗi hệ thống; nhật ký gửi thông báo (Supply Notification Dispatch Log) của hóa đơn ghi Failed / "Lỗi hệ thống khi gửi" | Site test chưa có **Email Account** gửi đi mặc định | Bỏ qua bước gửi thật trên site test; kiểm trên site có hộp thư gửi đi. Production: script `kiem_truoc_trien_khai_yc5.py` kiểm mục này |
+| Bấm **Gửi NCC bảng chênh lệch** báo lỗi hệ thống; nhật ký gửi thông báo ghi Failed "Lỗi hệ thống khi gửi"; chuông không báo giao việc; Error Log "'NoneType' object has no attribute 'encode'" | Site tắt gửi email mà không có **Email Account** gửi đi mặc định: Frappe dựng hộp thư giả không có địa chỉ người gửi | Chạy lại script demo (tự tạo hộp thư "DEMO gửi đi (không gửi thật)"). Production: script `kiem_truoc_trien_khai_yc5.py` kiểm hộp thư gửi đi |
 | Nộp hóa đơn báo thiếu tài khoản làm tròn | Công ty chưa có Round Off Account | Script demo đã điền "Chênh lệch làm tròn - MVL"; chạy lại script |
 | Sửa đơn giá trên hóa đơn bị chặn hẳn "Rate must be same as Purchase Order" (không phải cảnh báo) | Buying Settings → Maintain Same Rate Action = Stop | Script demo đặt Warn (như production); chạy lại script |
 | Lưu hóa đơn báo không liên kết được tới Phiếu nhập đã hủy | Phiếu nhập đã hủy, bản sửa chưa Nộp | Nộp bản sửa (hóa đơn tự đối soát lại), hoặc bấm **Đối soát Phiếu nhập → Đối soát lại** |
