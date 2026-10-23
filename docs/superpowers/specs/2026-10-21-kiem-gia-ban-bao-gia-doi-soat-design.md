@@ -5,7 +5,7 @@
 | Hệ thống | Miyano ERP (fork ERPNext v15.83.0), erp.miyano.com.vn, site `miyano` |
 | Nhánh | `feat/auto-check-selling-price-poc` (tách từ `feat/auto-check-selling-price`) |
 | Ngày | 21/10/2026 |
-| Trạng thái | **Đợt 1 (YC3) đã code xong trên nhánh, chưa lên production** (mục 13.1). Đợt 2–4 chưa làm. Còn mở: ánh xạ vai trò, xác nhận `miyano_portal` có tự Submit SO không (trước khi bật Chặn) |
+| Trạng thái | **Đợt 1 (YC3) và Đợt 2 (YC4) đã code xong trên nhánh, chưa lên production** (mục 13.1, 14.3); phần YC3 làm lại theo BA12 (mục 15). Đợt 3–4 chưa có trên nhánh này. Còn mở: ánh xạ vai trò, xác nhận `miyano_portal` có tự Submit SO không (trước khi bật Chặn) |
 | Tài liệu liên quan | `docs/FRD_Doi_soat_hoa_don_NCC_v1.0.docx` (FRD-MAP-01) · `docs/BA_ThongBao_TuThietLap_CR01_20260922.md` (Supply Notification) · `docs/BA_BienBanDoiChieuCongNo.md` |
 
 ---
@@ -965,7 +965,7 @@ Không đổi so với mục 6.2–6.4 và 8.
 | 2.7 | Nhắc việc (Supply Notification) |
 | 2.8 | Báo cáo báo gấp, test, demo, hướng dẫn test |
 
-### 14.3 Kết quả Đợt 2 (22/10/2026, chưa commit)
+### 14.3 Kết quả Đợt 2 (22/10/2026, commit `d76956d`)
 
 | Bước | Nơi sửa | Test |
 |---|---|---|

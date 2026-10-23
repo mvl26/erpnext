@@ -41,12 +41,13 @@ frappe.query_reports["Doi Chieu Gia Ban Gia Mua"] = {
 	formatter(value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
 		if (column.fieldname === "trang_thai" && data) {
-			const color = {
-				"Khớp": "green",
-				"Thấp hơn": "red",
-				"Cao hơn": "orange",
-				"Chưa có giá mua": "red",
-			}[data.trang_thai] || "gray";
+			const color =
+				{
+					Khớp: "green",
+					"Thấp hơn": "red",
+					"Cao hơn": "orange",
+					"Chưa có giá mua": "red",
+				}[data.trang_thai] || "gray";
 			value = `<span class="indicator-pill ${color}">${value}</span>`;
 		}
 		return value;
