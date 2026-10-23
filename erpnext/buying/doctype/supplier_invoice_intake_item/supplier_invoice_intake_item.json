@@ -1,0 +1,199 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-23 16:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "stt",
+  "ma_hang_hd",
+  "ten_hang_hd",
+  "dvt_hd",
+  "so_luong",
+  "don_gia",
+  "thanh_tien",
+  "thue_suat",
+  "column_break_1",
+  "item_code",
+  "item_name",
+  "purchase_order",
+  "po_detail",
+  "blanket_order",
+  "ma_dong_hdk",
+  "column_break_2",
+  "cach_khop",
+  "diem_khop",
+  "trang_thai_dong",
+  "chon_tay",
+  "da_xac_nhan",
+  "canh_bao",
+  "canh_bao_chan"
+ ],
+ "fields": [
+  {
+   "read_only": 1,
+   "fieldname": "stt",
+   "fieldtype": "Int",
+   "label": "STT"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "ma_hang_hd",
+   "fieldtype": "Data",
+   "label": "Mã trên hóa đơn"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "ten_hang_hd",
+   "fieldtype": "Small Text",
+   "label": "Tên trên hóa đơn",
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "read_only": 1,
+   "fieldname": "dvt_hd",
+   "fieldtype": "Data",
+   "label": "ĐVT trên hóa đơn"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "so_luong",
+   "fieldtype": "Float",
+   "label": "Số lượng",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "read_only": 1,
+   "fieldname": "don_gia",
+   "fieldtype": "Currency",
+   "label": "Đơn giá",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "read_only": 1,
+   "fieldname": "thanh_tien",
+   "fieldtype": "Currency",
+   "label": "Thành tiền"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "thue_suat",
+   "fieldtype": "Data",
+   "label": "Thuế suất"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "options": "Item",
+   "label": "Mặt hàng",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Sửa ô này là chọn tay (tầng 4): hệ thống giữ lựa chọn của bạn."
+  },
+  {
+   "read_only": 1,
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Tên mặt hàng",
+   "fetch_from": "item_code.item_name"
+  },
+  {
+   "fieldname": "purchase_order",
+   "fieldtype": "Link",
+   "options": "Purchase Order",
+   "label": "Đơn mua hàng",
+   "description": "Chọn tay: để trống thì hệ thống tìm dòng Đơn mua còn số lượng."
+  },
+  {
+   "read_only": 1,
+   "fieldname": "po_detail",
+   "fieldtype": "Data",
+   "label": "Dòng Đơn mua",
+   "hidden": 1
+  },
+  {
+   "read_only": 1,
+   "fieldname": "blanket_order",
+   "fieldtype": "Link",
+   "options": "Blanket Order",
+   "label": "Hợp đồng khung"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "ma_dong_hdk",
+   "fieldtype": "Data",
+   "label": "Mã dòng hợp đồng khung"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "cach_khop",
+   "fieldtype": "Select",
+   "options": "\nTầng 1 - Mã\nTầng 2 - Ánh xạ tên\nTầng 3 - Đơn mua\nChọn tay",
+   "label": "Cách khớp"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "diem_khop",
+   "fieldtype": "Float",
+   "precision": "2",
+   "label": "Điểm khớp"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "trang_thai_dong",
+   "fieldtype": "Select",
+   "options": "\nĐã khớp\nChờ xác nhận\nChưa khớp",
+   "label": "Trạng thái",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "chon_tay",
+   "fieldtype": "Check",
+   "label": "Chọn tay"
+  },
+  {
+   "fieldname": "da_xac_nhan",
+   "fieldtype": "Check",
+   "label": "Đã xác nhận",
+   "description": "Tích khi dòng Chờ xác nhận đã được kiểm đúng mặt hàng."
+  },
+  {
+   "read_only": 1,
+   "fieldname": "canh_bao",
+   "fieldtype": "Small Text",
+   "label": "Cảnh báo"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "canh_bao_chan",
+   "fieldtype": "Check",
+   "label": "Cảnh báo chặn",
+   "hidden": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-23 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Buying",
+ "name": "Supplier Invoice Intake Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "istable": 1
+}

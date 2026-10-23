@@ -1,0 +1,192 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-23 16:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "supplier",
+  "ten_tren_hoa_don",
+  "ten_chuan_hoa",
+  "column_break_1",
+  "item_code",
+  "item_name",
+  "trang_thai",
+  "nguon",
+  "su_dung_section",
+  "so_lan_dung",
+  "lan_cuoi",
+  "phieu_tiep_nhan",
+  "column_break_2",
+  "nguoi_duyet",
+  "thoi_diem_duyet"
+ ],
+ "fields": [
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "options": "Supplier",
+   "label": "Nhà cung cấp",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ten_tren_hoa_don",
+   "fieldtype": "Small Text",
+   "label": "Tên trên hóa đơn",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ten_chuan_hoa",
+   "fieldtype": "Data",
+   "label": "Tên chuẩn hóa",
+   "read_only": 1,
+   "description": "Tự tính: bỏ dấu, chữ thường, thay từ đồng nghĩa, bỏ từ vô nghĩa."
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "options": "Item",
+   "label": "Mặt hàng",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "read_only": 1,
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Tên mặt hàng",
+   "fetch_from": "item_code.item_name"
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "options": "Chờ duyệt\nĐang dùng\nNgừng dùng",
+   "default": "Chờ duyệt",
+   "label": "Trạng thái",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Chỉ dòng Đang dùng được dùng để khớp tự động. Người có vai trò duyệt ánh xạ mới đổi được."
+  },
+  {
+   "read_only": 1,
+   "fieldname": "nguon",
+   "fieldtype": "Select",
+   "options": "\nKhớp theo Đơn mua\nNgười dùng chọn tay\nNhập tay",
+   "label": "Nguồn"
+  },
+  {
+   "fieldname": "su_dung_section",
+   "fieldtype": "Section Break",
+   "label": "Sử dụng và duyệt"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "so_lan_dung",
+   "fieldtype": "Int",
+   "label": "Số lần dùng"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "lan_cuoi",
+   "fieldtype": "Datetime",
+   "label": "Lần dùng cuối"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "phieu_tiep_nhan",
+   "fieldtype": "Link",
+   "options": "Supplier Invoice Intake",
+   "label": "Phiếu tiếp nhận đề xuất"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "nguoi_duyet",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Người duyệt"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "thoi_diem_duyet",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm duyệt"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-23 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Buying",
+ "name": "Supplier Item Alias",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Purchase Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Purchase User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "autoname": "ANHXA-.#####",
+ "naming_rule": "Expression (old style)",
+ "title_field": "ten_tren_hoa_don",
+ "show_title_field_in_link": 0,
+ "track_changes": 1
+}

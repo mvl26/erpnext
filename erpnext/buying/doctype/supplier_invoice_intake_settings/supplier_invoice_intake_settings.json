@@ -1,0 +1,169 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-23 16:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "bat_tiep_nhan",
+  "mst_nguoi_mua",
+  "column_break_1",
+  "nguong_canh_bao_han_muc",
+  "vai_tro_duyet_lech_gia",
+  "vai_tro_duyet_anh_xa",
+  "khop_ten_section",
+  "nguong_tu_dong",
+  "nguong_xac_nhan",
+  "column_break_2",
+  "trong_so_jaccard",
+  "trong_so_chuoi",
+  "tu_dien_section",
+  "tu_dong_nghia",
+  "tu_bo_qua"
+ ],
+ "fields": [
+  {
+   "fieldname": "bat_tiep_nhan",
+   "fieldtype": "Check",
+   "default": "1",
+   "label": "Bật tiếp nhận hóa đơn"
+  },
+  {
+   "fieldname": "mst_nguoi_mua",
+   "fieldtype": "Data",
+   "label": "MST người mua",
+   "description": "Hóa đơn ghi MST người mua khác số này thì bị từ chối. Để trống: lấy MST của công ty trên phiếu."
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nguong_canh_bao_han_muc",
+   "fieldtype": "Percent",
+   "default": "90",
+   "label": "Cảnh báo khi đặt hàng đạt (% hạn mức hợp đồng khung)"
+  },
+  {
+   "fieldname": "vai_tro_duyet_lech_gia",
+   "fieldtype": "Link",
+   "options": "Role",
+   "label": "Vai trò duyệt lệch giá, vượt hạn mức",
+   "description": "Trống: Vai trò Ban Điều hành trong Thiết lập mua hàng; trống nữa: chỉ System Manager."
+  },
+  {
+   "fieldname": "vai_tro_duyet_anh_xa",
+   "fieldtype": "Link",
+   "options": "Role",
+   "label": "Vai trò duyệt Bảng ánh xạ tên",
+   "description": "Trống: Purchase Manager."
+  },
+  {
+   "fieldname": "khop_ten_section",
+   "fieldtype": "Section Break",
+   "label": "Khớp tên hàng"
+  },
+  {
+   "fieldname": "nguong_tu_dong",
+   "fieldtype": "Float",
+   "default": "0.75",
+   "precision": "2",
+   "label": "Ngưỡng khớp tự động"
+  },
+  {
+   "fieldname": "nguong_xac_nhan",
+   "fieldtype": "Float",
+   "default": "0.55",
+   "precision": "2",
+   "label": "Ngưỡng chờ xác nhận",
+   "description": "Điểm từ ngưỡng này tới ngưỡng tự động: khớp nhưng chờ người xác nhận. Thấp hơn: chọn tay."
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "trong_so_jaccard",
+   "fieldtype": "Float",
+   "default": "0.6",
+   "precision": "2",
+   "label": "Trọng số trùng từ (Jaccard)"
+  },
+  {
+   "fieldname": "trong_so_chuoi",
+   "fieldtype": "Float",
+   "default": "0.4",
+   "precision": "2",
+   "label": "Trọng số giống chuỗi"
+  },
+  {
+   "fieldname": "tu_dien_section",
+   "fieldtype": "Section Break",
+   "label": "Từ điển"
+  },
+  {
+   "fieldname": "tu_dong_nghia",
+   "fieldtype": "Table",
+   "options": "Supplier Invoice Synonym",
+   "label": "Từ đồng nghĩa",
+   "description": "Khi so khớp, từ ở cột Từ được thay bằng cột Tương đương. Không phân biệt dấu, hoa thường."
+  },
+  {
+   "fieldname": "tu_bo_qua",
+   "fieldtype": "Small Text",
+   "default": "size, cỡ, loại, cái",
+   "label": "Từ bỏ qua khi so khớp",
+   "description": "Cách nhau bằng dấu phẩy."
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-23 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Buying",
+ "name": "Supplier Invoice Intake Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Purchase Manager",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  },
+  {
+   "role": "Purchase User",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "issingle": 1
+}

@@ -68,6 +68,8 @@ doctype_js = {
 	"Quotation": ["public/js/kiem_gia/trang_thai_gia.js", "public/js/kiem_gia/quotation.js"],
 	"Sales Order": ["public/js/kiem_gia/trang_thai_gia.js", "public/js/kiem_gia/sales_order.js"],
 	"Price List": "public/js/kiem_gia/price_list.js",
+	# Đợt 4: ô Bảng giá mua của hợp đồng khung chỉ chọn bảng giá mua.
+	"Blanket Order": "public/js/tiep_nhan_hoa_don/blanket_order.js",
 	# Đối soát Phiếu nhập ↔ Hóa đơn mua (YC5), cùng nguyên tắc không sửa core với BA12. Mất
 	# dòng này: server vẫn đối soát và chặn Nộp, chỉ mất nút Đối soát lại / Duyệt ngoại lệ.
 	"Purchase Invoice": "public/js/doi_soat_pr_pi/purchase_invoice.js",
@@ -117,6 +119,10 @@ after_migrate = [
 	# Trường tùy biến của đối soát PR ↔ PI (YC5), cùng lý do và cùng ràng buộc thứ tự: NTF-16 →
 	# NTF-19 trỏ vào trường của Hóa đơn mua. Mất dòng này: site mới không có các trường, đối soát lỗi.
 	"erpnext.accounts.doi_soat_pr_pi.truong_tuy_bien.tao_truong_tuy_bien",
+	# Trường tùy biến hợp đồng khung / tiếp nhận hóa đơn NCC (Đợt 4, spec 2026-10-23) và giá trị mặc
+	# định của Cài đặt tiếp nhận hóa đơn. Mất dòng này: site mới không có các trường, Nộp hợp đồng
+	# khung và đối soát hóa đơn lỗi.
+	"erpnext.buying.tiep_nhan_hoa_don.truong_tuy_bien.tao_truong_tuy_bien",
 	"erpnext.supply_notification.setup.setup_supply_notification",
 	# Dựng lại lft/rgt của Storage Location nếu còn bản ghi thiếu toạ độ và an
 	# toàn để làm (không ô nào đang `disabled`). MẤT DÒNG NÀY: patch
@@ -519,8 +525,18 @@ doc_events = {
 			"erpnext.accounts.doi_soat_pr_pi.doi_soat.khi_validate",
 		],
 		"before_submit": "erpnext.accounts.doi_soat_pr_pi.doi_soat.truoc_khi_nop",
-		"on_submit": "erpnext.accounts.doi_soat_pr_pi.de_nghi_thanh_toan.tao_khi_nop_hoa_don",
-		"on_cancel": "erpnext.accounts.doi_soat_pr_pi.de_nghi_thanh_toan.xoa_nhap_khi_huy_hoa_don",
+		"on_submit": [
+			"erpnext.accounts.doi_soat_pr_pi.de_nghi_thanh_toan.tao_khi_nop_hoa_don",
+			# Đợt 4: lũy kế đã lập hóa đơn của hợp đồng khung, phiếu tiếp nhận → Đã ghi sổ.
+			"erpnext.buying.tiep_nhan_hoa_don.tao_hoa_don.khi_nop_hoa_don",
+		],
+		"on_cancel": [
+			"erpnext.accounts.doi_soat_pr_pi.de_nghi_thanh_toan.xoa_nhap_khi_huy_hoa_don",
+			"erpnext.buying.tiep_nhan_hoa_don.tao_hoa_don.khi_huy_hoa_don",
+		],
+		# Đợt 4: hóa đơn nháp tạo từ phiếu tiếp nhận bị xóa thì phiếu mở lại. Chạy trước bước Frappe kiểm
+		# liên kết, nên phiếu đang trỏ vào hóa đơn không chặn việc xóa.
+		"on_trash": "erpnext.buying.tiep_nhan_hoa_don.tao_hoa_don.khi_xoa_hoa_don",
 		"onload": "erpnext.accounts.doi_soat_pr_pi.doi_soat.khi_tai",
 	},
 	# E9: tổng ĐNTT (kể cả nháp) không vượt hóa đơn, cho mọi đường tạo ĐNTT.
@@ -587,7 +603,24 @@ doc_events = {
 		"on_update_after_submit": "erpnext.selling.kiem_gia.thong_bao_gia_moi.gui_bo_sung",
 	},
 	"POS Invoice": {"validate": "erpnext.selling.kiem_gia.bao_truoc.kiem_chung_tu_ban"},
-	"Purchase Order": {"validate": "erpnext.selling.kiem_gia.kiem_po.kiem_po"},
+	# Kiểm giá mua ở PO (BA12) và hợp đồng khung (Đợt 4): `before_validate` tự gắn hợp đồng khung để
+	# ERPNext (chạy trong `validate` chuẩn) tính đã đặt và chặn vượt hạn mức; `validate` cảnh báo khi
+	# sắp hết hạn mức.
+	"Purchase Order": {
+		"before_validate": "erpnext.buying.tiep_nhan_hoa_don.don_mua.gan_hop_dong_khung",
+		"validate": [
+			"erpnext.selling.kiem_gia.kiem_po.kiem_po",
+			"erpnext.buying.tiep_nhan_hoa_don.don_mua.canh_bao_han_muc",
+		],
+	},
+	# Hợp đồng khung = Blanket Order loại Purchasing (Đợt 4, spec 2026-10-23 mục 2): mã dòng, thông
+	# tin bắt buộc khi Nộp, ghi / xóa giá HĐ nguyên tắc trong bảng giá mua của NCC.
+	"Blanket Order": {
+		"validate": "erpnext.buying.tiep_nhan_hoa_don.hop_dong_khung.khi_validate",
+		"before_submit": "erpnext.buying.tiep_nhan_hoa_don.hop_dong_khung.truoc_khi_nop",
+		"on_submit": "erpnext.buying.tiep_nhan_hoa_don.hop_dong_khung.khi_nop",
+		"on_cancel": "erpnext.buying.tiep_nhan_hoa_don.hop_dong_khung.khi_huy",
+	},
 	"Customer": {"validate": "erpnext.selling.kiem_gia.cau_hinh.kiem_khach"},
 	"Selling Settings": {"validate": "erpnext.selling.kiem_gia.cau_hinh.kiem_selling_settings"},
 	"Price List": {"validate": "erpnext.selling.kiem_gia.bao_truoc.kiem_price_list"},
