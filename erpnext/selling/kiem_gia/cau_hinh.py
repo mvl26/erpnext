@@ -3,10 +3,12 @@
 """Hệ số giá bán theo khách hàng và quyền sửa (BA12 R01, R07, D01).
 
 - Công tắc chung ở Selling Settings (`bat_kiem_gia_ban`).
-- Hệ số theo khách: bảng `he_so_gia_ban` trên Customer — hệ số, số hợp đồng, hiệu lực
-  từ-đến. Mỗi ngày tối đa một hệ số hiệu lực (R01).
-- Hệ số theo mặt hàng: bảng `he_so_theo_mat_hang` trên Customer, chỉ áp khi khách KHÔNG
-  có dòng nào ở bảng hệ số theo khách (khi đó bảng này bị khóa trên form và không áp).
+- Hệ số theo khách: bảng `he_so_gia_ban` (Customer Price Coefficient) trên Customer — hệ số,
+  số hợp đồng, hiệu lực từ-đến. Mỗi ngày tối đa một hệ số hiệu lực (R01).
+- Hệ số theo mặt hàng: bảng `he_so_theo_mat_hang` (Customer Item Price Coefficient) trên
+  Customer, chỉ áp khi khách KHÔNG có dòng nào ở bảng hệ số theo khách (khi đó bảng này bị khóa
+  trên form và không áp). Hai bảng con riêng vì trường bắt buộc khác nhau: form dùng chung
+  thuộc tính trường cho mọi bảng cùng một bảng con.
 - Khách không có hệ số hiệu lực cho mặt hàng tại ngày chứng từ: không kiểm (R07).
 
 Chỉ vai trò ở `vai_tro_sua_ty_le_lai` (Giám đốc) được sửa hệ số và các cài đặt trên (kể cả
@@ -45,22 +47,26 @@ def he_so_ap_dung(customer, item_codes, ngay):
 	if not customer or not codes:
 		return {c: None for c in codes}
 	ngay = getdate(ngay)
-	rows = frappe.get_all(
+	loc = {"parenttype": "Customer", "parent": customer}
+	chung = frappe.get_all(
 		"Customer Price Coefficient",
-		filters={"parenttype": "Customer", "parent": customer, "parentfield": ("in", BANG_HE_SO)},
-		fields=["parentfield", "item_code", "he_so", "so_hop_dong", "tu_ngay", "den_ngay"],
+		filters={**loc, "parentfield": "he_so_gia_ban"},
+		fields=["he_so", "so_hop_dong", "tu_ngay", "den_ngay"],
 		order_by="tu_ngay desc",
 	)
-	hieu_luc = [r for r in rows if _hieu_luc(r, ngay)]
-	co_he_so_chung = any(r.parentfield == "he_so_gia_ban" for r in rows)
-	if co_he_so_chung:
-		chung = next((r for r in hieu_luc if r.parentfield == "he_so_gia_ban"), None)
-		kq = _ket_qua(chung, _("Hệ số theo khách")) if chung else None
+	if chung:
+		r = next((r for r in chung if _hieu_luc(r, ngay)), None)
+		kq = _ket_qua(r, _("Hệ số theo khách")) if r else None
 		return {c: kq for c in codes}
 
 	theo_hang = {}
-	for r in hieu_luc:
-		if r.parentfield == "he_so_theo_mat_hang":
+	for r in frappe.get_all(
+		"Customer Item Price Coefficient",
+		filters={**loc, "parentfield": "he_so_theo_mat_hang", "item_code": ("in", codes)},
+		fields=["item_code", "he_so", "so_hop_dong", "tu_ngay", "den_ngay"],
+		order_by="tu_ngay desc",
+	):
+		if _hieu_luc(r, ngay):
 			theo_hang.setdefault(r.item_code, r)
 	return {c: _ket_qua(theo_hang[c], _("Hệ số theo mặt hàng")) if c in theo_hang else None for c in codes}
 
@@ -131,8 +137,6 @@ def kiem_khach(doc, method=None):
 
 	for d in doc.get("he_so_gia_ban") or []:
 		_kiem_dong_he_so(d, _("Hệ số theo khách"))
-		if d.item_code:
-			frappe.throw(_("Hệ số theo khách dòng {0}: không chọn mặt hàng").format(d.idx))
 		if not (d.so_hop_dong or "").strip():
 			frappe.throw(_("Hệ số theo khách dòng {0}: nhập số hợp đồng làm căn cứ (R01)").format(d.idx))
 	_kiem_chong_lan(doc.get("he_so_gia_ban") or [], _("Hệ số theo khách"))
@@ -179,7 +183,7 @@ def _he_so_cua(doc):
 	return {
 		(
 			f,
-			d.item_code or "",
+			d.get("item_code") or "",
 			flt(d.he_so, 6),
 			d.so_hop_dong or "",
 			str(d.tu_ngay or ""),

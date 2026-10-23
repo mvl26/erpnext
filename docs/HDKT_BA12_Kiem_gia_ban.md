@@ -59,11 +59,11 @@ Dữ liệu demo:
 
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
-| B1 | Mở Khách hàng DEMO-Himedic → mục **Hệ số giá bán (BA12)** | Bảng "Hệ số theo khách hàng": 1,01 / HĐNT-HIMEDIC-2026 / từ ngày; cột Mặt hàng ẩn. Bảng "Hệ số theo mặt hàng" **khóa** (vì đã có hệ số chung) | ☐ |
-| B2 | `demo.giamdoc`: thêm dòng hệ số thứ hai 1,02 từ hôm nay, không điền "Hiệu lực đến" cho dòng cũ → Lưu | Bị chặn "… cùng hiệu lực từ … Đặt ngày hiệu lực đến cho dòng 1". Đặt dòng 1 đến hôm qua → Lưu được. SO ① lưu lại → hệ số 1,02. Xóa dòng mới, bỏ ngày đến dòng 1 để trả về như cũ | ☐ |
+| B1 | Mở Khách hàng DEMO-Himedic → mục **Hệ số giá bán (BA12)** | Bảng "Hệ số theo khách hàng": 1,01 / HĐNT-HIMEDIC-2026 / từ ngày; không có cột Mặt hàng. Bảng "Hệ số theo mặt hàng" **khóa** (vì đã có hệ số chung) | ☐ |
+| B2 | `demo.giamdoc`: thêm dòng hệ số thứ hai 1,02 từ hôm nay, không điền "Hiệu lực đến" cho dòng cũ → Lưu | Bị chặn "… cùng hiệu lực từ … Đặt ngày hiệu lực đến cho dòng 1" (không báo thiếu "Mặt hàng"). Đặt dòng 1 đến hôm qua → Lưu được. SO ① lưu lại → hệ số 1,02. Xóa dòng mới, bỏ ngày đến dòng 1 để trả về như cũ | ☐ |
 | B3 | Dòng hệ số không có số hợp đồng / hệ số = 0 / đến trước từ | Bị chặn với thông báo tương ứng | ☐ |
 | B4 | `demo.nhanvien` mở DEMO-Himedic | Hai bảng hệ số **chỉ đọc**. Sửa ô khác (vd. ghi chú) → Lưu được. Gửi API đổi hệ số → bị chặn "Chỉ vai trò DEMO Giám đốc được sửa hệ số giá bán" | ☐ |
-| B5 | `demo.giamdoc` tạo khách mới không có hệ số chung, thêm **Hệ số theo mặt hàng**: VT-02 1,05 → tạo SO VT-02 52.500 | VT-02 hệ số 1,05, Khớp; mặt hàng khác của khách này không kiểm (R07) | ☐ |
+| B5 | `demo.giamdoc` tạo khách mới không có hệ số chung, thêm **Hệ số theo mặt hàng**: VT-02 1,05 → tạo SO VT-02 52.500 | Dòng bỏ trống Mặt hàng → báo thiếu "Mặt hàng"; Số hợp đồng để trống vẫn lưu được (Q5). VT-02 hệ số 1,05, Khớp; mặt hàng khác của khách này không kiểm (R07) | ☐ |
 | B6 | Selling Settings → mục **Kiểm giá bán theo hệ số khách hàng (BA12)** | Có ô "Bật kiểm giá bán", "Bắt buộc đính kèm văn bản chấp thuận" và "Vai trò được sửa hệ số giá bán"; **không còn** % lãi mặc định, Chế độ, Vai trò duyệt. `demo.nhanvien` thấy chỉ đọc | ☐ |
 | B7 | Bỏ tích "Bật kiểm giá bán" → SO ② Lưu, Submit | Không kiểm, Submit được. Bật lại | ☐ |
 

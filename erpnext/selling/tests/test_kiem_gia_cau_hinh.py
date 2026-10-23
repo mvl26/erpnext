@@ -165,8 +165,18 @@ class TestQuyTacR01(CauHinhCase):
 	def test_consecutive_coefficients_are_fine(self):
 		self.customer([self.he_so(1.01, tu=-100, den=-1), self.he_so(1.05, tu=0)])
 
-	def test_customer_table_rows_have_no_item(self):
-		self.assertRaises(frappe.ValidationError, self.customer, [self.he_so(item_code=self.item_a)])
+	def test_each_table_has_its_own_required_fields(self):
+		# Hai bảng dùng chung một bảng con thì form dùng chung thuộc tính trường: "Mặt hàng" bắt
+		# buộc ở bảng theo mặt hàng thành bắt buộc (mà ẩn) ở bảng theo khách, không lưu được.
+		khach = frappe.get_meta("Customer")
+		chung = frappe.get_meta(khach.get_field("he_so_gia_ban").options)
+		theo_hang = frappe.get_meta(khach.get_field("he_so_theo_mat_hang").options)
+		self.assertNotEqual(chung.name, theo_hang.name)
+		self.assertFalse(chung.has_field("item_code"))
+		self.assertTrue(chung.get_field("so_hop_dong").reqd)
+		self.assertTrue(theo_hang.get_field("item_code").reqd)
+		self.assertFalse(theo_hang.get_field("so_hop_dong").reqd)  # Q5
+		self.customer(theo_hang=[self.he_so(so_hop_dong="", item_code=self.item_a)])
 
 	def test_item_table_rows_need_an_item_and_must_not_overlap_per_item(self):
 		self.assertRaises(frappe.ValidationError, self.customer, theo_hang=[self.he_so()])

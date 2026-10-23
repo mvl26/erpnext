@@ -274,7 +274,7 @@ CUSTOM_FIELDS = {
 		{
 			"fieldname": "he_so_theo_mat_hang",
 			"fieldtype": "Table",
-			"options": "Customer Price Coefficient",
+			"options": "Customer Item Price Coefficient",
 			"label": "Hệ số theo mặt hàng",
 			"description": "Chỉ dùng khi khách KHÔNG có hệ số theo khách hàng; có hệ số chung thì bảng này bị khóa và không áp.",
 			"insert_after": "he_so_gia_ban",

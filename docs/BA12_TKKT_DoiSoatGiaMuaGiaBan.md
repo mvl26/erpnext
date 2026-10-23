@@ -17,7 +17,7 @@
 
 | Yêu cầu | Mức | Lý do |
 |---|---|---|
-| R01 Hệ số theo khách, số HĐ, hiệu lực | **Customize**: bảng con mới `Customer Price Coefficient` gắn vào Customer bằng Custom Field (Table) | Chuẩn không có hệ số theo khách; Pricing Rule tính theo bảng giá bán, không theo giá mua × hệ số |
+| R01 Hệ số theo khách, số HĐ, hiệu lực | **Customize**: bảng con mới `Customer Price Coefficient` và `Customer Item Price Coefficient` gắn vào Customer bằng Custom Field (Table) | Chuẩn không có hệ số theo khách; Pricing Rule tính theo bảng giá bán, không theo giá mua × hệ số |
 | R02/D07 Giá mua: báo giá đợt → HĐ nguyên tắc | **Phát triển mới** (`gia_goc.py`) đọc dữ liệu chuẩn: Supplier Quotation, Item Price | Chuẩn không có khái niệm "giá mua còn hiệu lực theo NCC" để so với giá bán |
 | D08 NCC dự kiến trên dòng | **Customize**: Custom Field `ncc_du_kien` | Trường `supplier` chuẩn của dòng SO gắn với giao thẳng (drop ship) — dùng lại sẽ đổi nghĩa |
 | R03/R04/D04 Giá đề xuất, cảnh báo | **Phát triển mới** (`kiem_chung_tu.py`) qua `doc_events.validate` | Không có cấu hình tương đương |
@@ -30,7 +30,14 @@
 
 ### 3.1 DocType mới
 
-`Customer Price Coefficient` (bảng con, module Selling): `item_code`, `he_so` (Float 4 số lẻ), `so_hop_dong`, `tu_ngay`, `den_ngay`.
+Hai bảng con, module Selling:
+
+| Bảng con | Dùng cho | Trường |
+|---|---|---|
+| `Customer Price Coefficient` | Hệ số theo khách (`he_so_gia_ban`) | `he_so` (Float 4 số lẻ), `so_hop_dong` (bắt buộc, R01), `tu_ngay`, `den_ngay` |
+| `Customer Item Price Coefficient` | Hệ số theo mặt hàng (`he_so_theo_mat_hang`) | `item_code` (bắt buộc), `he_so`, `so_hop_dong` (không bắt buộc, Q5), `tu_ngay`, `den_ngay` |
+
+Tách hai bảng con (23/10/2026) vì trường bắt buộc của hai bảng khác nhau. Trên form, Frappe dùng chung thuộc tính trường cho mọi bảng cùng một bảng con. Khi còn dùng chung, đặt "Mặt hàng" bắt buộc cho bảng theo mặt hàng làm bảng theo khách cũng đòi "Mặt hàng" (ô bị ẩn), nên không lưu được hệ số theo khách.
 
 ### 3.2 Custom Field (`erpnext/selling/kiem_gia/truong_tuy_bien.py`, tạo ở `after_migrate`)
 
@@ -150,7 +157,7 @@ Không dùng Amend: SO đã có phiếu giao / hóa đơn thì không hủy đư
 
 ## 8. Triển khai
 
-1. `bench --site miyano migrate` (tạo Custom Field, DocType `Customer Price Coefficient`, báo cáo).
+1. `bench --site miyano migrate` (tạo Custom Field, DocType `Customer Price Coefficient`, `Customer Item Price Coefficient`, báo cáo).
 2. Selling Settings: chọn **Vai trò được sửa hệ số giá bán** (Giám đốc). PO quyết định bật hay không **Bắt buộc đính kèm văn bản chấp thuận** (mặc định tắt).
 3. Nhập hệ số + số HĐ + ngày hiệu lực cho khách áp hệ số (DoR: danh sách từ chị Anh/anh Xuân/chị Thư).
 4. Kiểm: mọi dòng giá trong các bảng giá "Mua - <NCC>" có điền **Supplier** (production 21/10: "Mua - Avanta" 5/26 dòng chưa có); NCC mặc định của các mặt hàng liên quan; khách áp hệ số có **Default Price List** đúng bảng giá đã thỏa thuận (Q2: thiếu thì mọi dòng tính là chưa có trong bảng giá).

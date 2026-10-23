@@ -14,11 +14,10 @@ class CustomerPriceCoefficient(Document):
 
 		den_ngay: DF.Date | None
 		he_so: DF.Float
-		item_code: DF.Link | None
 		parent: DF.Data
 		parentfield: DF.Data
 		parenttype: DF.Data
-		so_hop_dong: DF.Data | None
+		so_hop_dong: DF.Data
 		tu_ngay: DF.Date
 	# end: auto-generated types
 
