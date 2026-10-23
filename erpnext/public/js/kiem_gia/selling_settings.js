@@ -6,7 +6,7 @@ frappe.ui.form.on("Selling Settings", {
 				vai_tro: frm.doc.vai_tro_sua_ty_le_lai,
 			})
 			.then((ok) => {
-				["bat_kiem_gia_ban", "vai_tro_sua_ty_le_lai"].forEach((f) =>
+				["bat_kiem_gia_ban", "bat_buoc_dinh_kem_van_ban_gia", "vai_tro_sua_ty_le_lai"].forEach((f) =>
 					frm.set_df_property(f, "read_only", ok ? 0 : 1)
 				);
 			});

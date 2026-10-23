@@ -476,7 +476,11 @@ doc_events = {
 		"after_insert": "erpnext.crm.utils.link_events_with_prospect",
 	},
 	"Sales Invoice": {
-		"validate": "erpnext.selling.kiem_gia.bao_truoc.kiem_chung_tu_ban",
+		"validate": [
+			"erpnext.selling.kiem_gia.bao_truoc.kiem_chung_tu_ban",
+			# BA12 Q10: không lập hóa đơn cho dòng SO còn chờ khách chấp thuận giá.
+			"erpnext.selling.kiem_gia.chap_thuan.chan_giao_hoa_don",
+		],
 		"on_submit": [
 			"erpnext.regional.create_transaction_log",
 			"erpnext.regional.italy.utils.sales_invoice_on_submit",
@@ -524,6 +528,8 @@ doc_events = {
 		"validate": [
 			"erpnext.warehouse_operations.vitri.lay_hang.kiem_phan_bo_khi_luu",
 			"erpnext.selling.kiem_gia.bao_truoc.kiem_chung_tu_ban",
+			# BA12 Q10: không lập phiếu giao cho dòng SO còn chờ khách chấp thuận giá.
+			"erpnext.selling.kiem_gia.chap_thuan.chan_giao_hoa_don",
 		],
 		"before_submit": "erpnext.warehouse_operations.vitri.lay_hang.chan_duyet_chua_lay",
 		"on_submit": "erpnext.warehouse_operations.vitri.lay_hang.ghi_cot_vi_tri_khi_duyet",
@@ -546,8 +552,10 @@ doc_events = {
 		],
 		"before_submit": "erpnext.selling.kiem_gia.kiem_chung_tu.kiem_truoc_submit",
 		"on_submit": "erpnext.selling.kiem_gia.thong_bao_gia_moi.gui_khi_xac_nhan",
-		# "Update Items" sau Submit: kiểm lại dòng vừa thêm/đổi giá.
+		# Sau Submit: "Update Items" kiểm lại dòng vừa thêm/đổi giá; nhập / sửa thông tin khách
+		# chấp thuận (Q1, Q10); đủ thông tin thì gửi thông báo giá mới bổ sung.
 		"before_update_after_submit": "erpnext.selling.kiem_gia.kiem_chung_tu.kiem_sau_submit",
+		"on_update_after_submit": "erpnext.selling.kiem_gia.thong_bao_gia_moi.gui_bo_sung",
 	},
 	"POS Invoice": {"validate": "erpnext.selling.kiem_gia.bao_truoc.kiem_chung_tu_ban"},
 	"Purchase Order": {"validate": "erpnext.selling.kiem_gia.kiem_po.kiem_po"},

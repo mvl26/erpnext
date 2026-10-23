@@ -1008,6 +1008,7 @@ Căn cứ: BA12 V1.0 "Đối soát giá mua – giá bán theo hệ số khách 
 | 2.5 SQ Submit tạo nháp giá Himedic | Bỏ (D09: bảng giá KH cập nhật thủ công). Phần còn lại của YC4 (bảng giá chờ, báo trước 7 ngày, nhắc việc, báo cáo báo gấp) giữ nguyên |
 | — | R06: Submit SO có dòng R05 → email giá mới cho người đặt đơn + API cho Portal |
 | — | A08: báo cáo "Doi Soat Gia Mua Gia Ban" theo từng SO |
+| 6.2.7 dòng "Đang trong thời hạn báo giá" miễn R05 với mọi giá | PO chốt Q7 (22/10): chỉ miễn khi bán đúng giá bảng giá hiện hành. Cùng ngày PO chốt Q1 (người nhập R05), Q2 (so với bảng giá mặc định của khách; chưa có trong bảng giá là khác), Q10 (Update Items: dòng chờ chấp thuận, chặn phiếu giao / hóa đơn) — TKKT mục 4.4–4.6 |
 | Sửa thẳng JSON/controller chuẩn | Custom Field + `hooks.py` ("Không sửa core") |
 
 Môi trường test (cập nhật 14.3): bộ test `erpnext/supply_notification/tests` đã chạy được trên site local (fixtures lấy công ty/kho/tài khoản theo site); 3 test Workflow trên Sales Order tự bỏ qua vì local và production đều không có Workflow đang bật trên Sales Order.

@@ -9,8 +9,9 @@
   có dòng nào ở bảng hệ số theo khách (khi đó bảng này bị khóa trên form và không áp).
 - Khách không có hệ số hiệu lực cho mặt hàng tại ngày chứng từ: không kiểm (R07).
 
-Chỉ vai trò ở `vai_tro_sua_ty_le_lai` (Giám đốc) được sửa hệ số và các cài đặt trên.
-Kiểm ở server nên chặn được cả form, import và API.
+Chỉ vai trò ở `vai_tro_sua_ty_le_lai` (Giám đốc) được sửa hệ số và các cài đặt trên (kể cả
+`bat_buoc_dinh_kem_van_ban_gia`: bắt buộc tệp văn bản chấp thuận R05). Kiểm ở server nên chặn
+được cả form, import và API.
 """
 
 from itertools import pairwise
@@ -19,7 +20,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, getdate
 
-TRUONG_CAI_DAT = ("bat_kiem_gia_ban", "vai_tro_sua_ty_le_lai")
+TRUONG_CAI_DAT = ("bat_kiem_gia_ban", "bat_buoc_dinh_kem_van_ban_gia", "vai_tro_sua_ty_le_lai")
 BANG_HE_SO = ("he_so_gia_ban", "he_so_theo_mat_hang")
 
 
@@ -30,6 +31,7 @@ def cau_hinh():
 	s = frappe._dict(frappe.db.get_singles_dict("Selling Settings", cast=True))
 	return frappe._dict(
 		bat=cint(s.get("bat_kiem_gia_ban")),
+		dinh_kem=cint(s.get("bat_buoc_dinh_kem_van_ban_gia")),
 		vai_tro_sua_ty_le_lai=s.get("vai_tro_sua_ty_le_lai"),
 	)
 

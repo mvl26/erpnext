@@ -6,10 +6,14 @@ Mỗi dòng được ghi lại (chỉ đọc): NCC dự kiến (D08), giá mua v
 số hợp đồng (R01), giá đề xuất (R03), chênh lệch (R04), giá bảng giá KH và cờ "đề xuất
 khác bảng giá" (R05), trạng thái. Lệch thì cảnh báo, vẫn lưu được (D03).
 
+Bảng giá KH là bảng giá mặc định của khách, không phải bảng giá chọn trên chứng từ; mặt
+hàng chưa có trong bảng giá đó cũng tính là khác bảng giá (Q2, D09).
+
 Submit Sales Order (BA12 R04, R05, R08 — không còn bước duyệt):
 - còn dòng lệch giá đề xuất hoặc chưa có giá mua: bắt buộc "Lý do lệch giá";
-- dòng có giá đề xuất khác bảng giá KH: bắt buộc số văn bản, người đại diện KH xác nhận,
-  ngày chấp thuận trên chính dòng đó.
+- dòng khác bảng giá KH: bắt buộc số văn bản, người đại diện KH xác nhận, ngày chấp thuận
+  trên chính dòng đó (thêm tệp văn bản nếu bật). Ai nhập, trạng thái chờ, sửa sau Submit:
+  `chap_thuan.py` (Q1, Q10).
 
 Khách không có hệ số: không tính, không cảnh báo (R07). Bỏ qua hàng tặng, khách nội bộ,
 mặt hàng không quản lý kho.
@@ -26,7 +30,9 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, get_datetime, getdate
 
+from erpnext.accounts.party import get_default_price_list
 from erpnext.selling.kiem_gia.cau_hinh import cau_hinh, he_so_ap_dung
+from erpnext.selling.kiem_gia.chap_thuan import ghi_chap_thuan, thieu, truong_bat_buoc
 from erpnext.selling.kiem_gia.gia_goc import (
 	CAO_HON,
 	CHUA_CO_GIA_MUA,
@@ -55,10 +61,10 @@ TRUONG_DONG = (
 	"gia_de_xuat",
 	"chenh_lech_gia",
 	"gia_bang_gia",
+	"ngoai_bang_gia",
 	"khac_bang_gia",
 	"ghi_chu_gia",
 )
-TRUONG_CHAP_THUAN = ("so_van_ban_gia", "nguoi_dai_dien_kh", "ngay_chap_thuan_gia")
 
 
 # --- doc_events ----------------------------------------------------------------
@@ -71,33 +77,24 @@ def kiem_chung_tu(doc, method=None):
 	dong = [d for d in doc.get("items") if d.item_code]
 	if dong:
 		kiem_dong(doc, dong)
+	if doc.doctype == "Sales Order":
+		ghi_chap_thuan(doc, doc.get_doc_before_save())
+	if dong:
 		_canh_bao(doc, dong)
 
 
-def kiem_truoc_submit(doc, method=None, chi_xet=None):
-	"""`before_submit` của Sales Order (sau validate, nên kết quả kiểm đã mới). `chi_xet`: chỉ
-	xét các dòng này (Update Items sau Submit)."""
+def kiem_truoc_submit(doc, method=None):
+	"""`before_submit` của Sales Order (sau validate, nên kết quả kiểm đã mới)."""
 	if doc.doctype != "Sales Order" or not cau_hinh().bat:
 		return
-	dong = [d for d in doc.get("items") if chi_xet is None or d.name in chi_xet]
-	lech = [d for d in dong if d in dong_lech(doc)]
-	thieu = [(d, _thieu_chap_thuan(d)) for d in dong if cint(d.get("khac_bang_gia"))]
-	thieu = [(d, t) for d, t in thieu if t]
-	if not lech and not thieu:
+	truong = truong_bat_buoc()
+	lech = dong_lech(doc)
+	con_thieu = [(d, t) for d in doc.get("items") if cint(d.get("khac_bang_gia")) and (t := thieu(d, truong))]
+	if not lech and not con_thieu:
 		return
-	if not nguoi_dung_noi_bo():
-		# Khách qua cổng: không nêu chi tiết giá.
-		frappe.throw(_("Đơn hàng cần Miyano kiểm tra giá trước khi xác nhận."), title=_("Kiểm giá bán"))
-
-	if lech and not (doc.get("ly_do_lech_gia") or "").strip():
-		danh_sach = ", ".join(f"{d.idx} ({d.item_code}: {d.trang_thai_gia})" for d in lech)
-		frappe.throw(
-			_("Dòng {0} lệch giá đề xuất hoặc chưa có giá mua. Nhập Lý do lệch giá trước khi Submit.").format(
-				danh_sach
-			),
-			title=_("Kiểm giá bán"),
-		)
-	if thieu:
+	_chan_khach_cong()
+	_doi_ly_do(doc, lech, _("Nhập Lý do lệch giá trước khi Submit."))
+	if con_thieu:
 		meta = frappe.get_meta(doc.doctype + " Item")
 		chi_tiet = "".join(
 			"<li>"
@@ -105,22 +102,26 @@ def kiem_truoc_submit(doc, method=None, chi_xet=None):
 				d.idx, frappe.bold(d.item_code), ", ".join(_(meta.get_label(f)) for f in t)
 			)
 			+ "</li>"
-			for d, t in thieu
+			for d, t in con_thieu
 		)
 		frappe.throw(
-			_("Giá đề xuất khác bảng giá của khách. Ghi đủ thông tin khách chấp thuận (R05):")
+			_(
+				"Giá đề xuất khác bảng giá của khách hoặc mặt hàng chưa có trong bảng giá. Ghi đủ thông tin khách chấp thuận (R05):"
+			)
 			+ f"<ul>{chi_tiet}</ul>",
 			title=_("Kiểm giá bán"),
 		)
 
 
 def kiem_sau_submit(doc, method=None):
-	"""`before_update_after_submit` của Sales Order: "Update Items" thêm dòng hoặc đổi giá.
+	"""`before_update_after_submit` của Sales Order: "Update Items" thêm dòng hoặc đổi giá, và
+	nhập / sửa thông tin khách chấp thuận trên SO đã Submit (Q1, Q10).
 
 	Update Items lưu từng dòng bị đổi (`insert`/`save`) xuống DB trước khi lưu SO. Lúc này
 	Frappe đã gán `modified` mới cho mọi dòng trên đối tượng đang lưu, nhưng trong DB chỉ dòng
 	vừa bị đụng có `modified` mới hơn lần lưu trước của SO. Chỉ kiểm lại các dòng đó; dòng khác
-	giữ nguyên kết quả lúc lập (D05).
+	giữ nguyên kết quả lúc lập (D05). Dòng lệch giá đề xuất vẫn cần lý do; dòng khác bảng giá
+	KH không bị chặn mà chuyển sang chờ khách chấp thuận (Q10).
 	"""
 	if not cau_hinh().bat:
 		return
@@ -141,11 +142,16 @@ def kiem_sau_submit(doc, method=None):
 		for d in doc.get("items")
 		if d.item_code and trong_db.get(d.name) and get_datetime(trong_db[d.name]) > moc
 	]
+	if dong:
+		kiem_dong(doc, dong)
+	ghi_chap_thuan(doc, truoc, kiem_lai={d.name for d in dong}, sau_submit=True)
 	if not dong:
 		return
-	kiem_dong(doc, dong)
-	_canh_bao(doc, dong)
-	kiem_truoc_submit(doc, chi_xet={d.name for d in dong})
+	_canh_bao(doc, dong, sau_submit=True)
+	lech = [d for d in dong_lech(doc) if d in dong]
+	if lech:
+		_chan_khach_cong()
+		_doi_ly_do(doc, lech, _("Nhập Lý do lệch giá trên đơn (bấm Cập nhật) rồi chạy lại Update Items."))
 
 
 # --- Tính trên dòng ------------------------------------------------------------
@@ -187,11 +193,13 @@ def kiem_dong(doc, dong):
 		gia_mua = tim_gia_mua_nhieu(
 			[(d.item_code, d.ncc_du_kien) for d, _hs in can_kiem], doc.transaction_date, doc.company
 		)
-		bang_gia = gia_bang_gia_nhieu(doc, [d for d, _hs in can_kiem])
+		pl = bang_gia_khach(doc)
+		doc.flags.bang_gia_khach = pl
+		bang_gia = gia_bang_gia_nhieu(doc, [d for d, _hs in can_kiem], pl)
 		ty_gia = flt(doc.get("conversion_rate")) or 1
 		for d, hs in can_kiem:
 			_kiem_mot_dong(d, hs, gia_mua[(d.item_code, d.ncc_du_kien)], bang_gia.get(d.name), ty_gia)
-		_danh_dau_dang_cho(doc, [d for d, _hs in can_kiem])
+		_danh_dau_dang_cho(doc, [d for d, _hs in can_kiem], pl)
 
 	if doc.doctype == "Sales Order":
 		for d in dong:
@@ -199,11 +207,19 @@ def kiem_dong(doc, dong):
 
 
 def _kiem_mot_dong(d, hs, mua, gia_bang_gia, ty_gia):
-	chung = dict(he_so_gia_ban=hs.he_so, so_hop_dong_he_so=hs.so_hop_dong, gia_bang_gia=gia_bang_gia)
+	# Q2: mặt hàng chưa có trong bảng giá KH = giá chưa được thỏa thuận → khác bảng giá (D09).
+	ngoai_bang_gia = gia_bang_gia is None
+	chung = dict(
+		he_so_gia_ban=hs.he_so,
+		so_hop_dong_he_so=hs.so_hop_dong,
+		gia_bang_gia=gia_bang_gia,
+		ngoai_bang_gia=1 if ngoai_bang_gia else 0,
+	)
 	if mua.gia_kho is None:
 		return _dat(
 			d,
 			trang_thai_gia=CHUA_CO_GIA_MUA,
+			khac_bang_gia=1 if ngoai_bang_gia else 0,
 			ghi_chu_gia=_("Chưa có giá mua để đối soát: {0}").format(mua.ly_do),
 			**chung,
 		)
@@ -211,7 +227,7 @@ def _kiem_mot_dong(d, hs, mua, gia_bang_gia, ty_gia):
 	gia_mua_dong = flt(flt(mua.gia_kho) * cf / ty_gia, d.precision("rate"))
 	gia_de_xuat = tinh_gia_de_xuat(flt(mua.gia_kho) * cf / ty_gia, hs.he_so)
 	chenh_lech, trang_thai = so_sanh(d.net_rate, gia_de_xuat)
-	khac_bang_gia = gia_bang_gia is not None and lam_tron_dong(gia_bang_gia) != gia_de_xuat
+	khac_bang_gia = ngoai_bang_gia or lam_tron_dong(gia_bang_gia) != gia_de_xuat
 	_dat(
 		d,
 		trang_thai_gia=trang_thai,
@@ -227,11 +243,21 @@ def _kiem_mot_dong(d, hs, mua, gia_bang_gia, ty_gia):
 	)
 
 
-def gia_bang_gia_nhieu(doc, dong):
-	"""{tên dòng: giá bảng giá KH theo ĐVT của dòng} (R05). Bảng giá là `selling_price_list`
-	của chứng từ; giá hiệu lực tại ngày chứng từ như cách ERPNext chọn (dòng của riêng khách
-	ưu tiên, rồi `valid_from` mới nhất). Không có giá: không có trong kết quả."""
-	pl = doc.get("selling_price_list")
+def bang_gia_khach(doc):
+	"""Bảng giá đã thỏa thuận với khách (R05, Q2): bảng giá mặc định của khách (Customer →
+	Default Price List; trống thì của nhóm khách — cách ERPNext chọn khi lập chứng từ). Không
+	theo `selling_price_list` của chứng từ: đổi bảng giá trên đơn không né được R05."""
+	customer = _khach(doc)
+	kh = customer and frappe.db.get_value(
+		"Customer", customer, ["default_price_list", "customer_group"], as_dict=True
+	)
+	return get_default_price_list(frappe._dict(doctype="Customer", **kh)) if kh else None
+
+
+def gia_bang_gia_nhieu(doc, dong, pl):
+	"""{tên dòng: giá bảng giá `pl` theo ĐVT và tiền tệ của dòng} (R05). Giá hiệu lực tại ngày
+	chứng từ như cách ERPNext chọn (dòng của riêng khách ưu tiên, rồi `valid_from` mới nhất).
+	Không có giá: không có trong kết quả."""
 	if not pl or not dong:
 		return {}
 	customer = _khach(doc) or ""
@@ -261,20 +287,32 @@ def gia_bang_gia_nhieu(doc, dong):
 			theo_hang.setdefault(
 				r.item_code, flt(r.price_list_rate) / cf
 			)  # ĐVT kho; dòng đầu là dòng được chọn
+	quy_doi = _quy_doi_tien_te(doc, pl) if theo_hang else 0
+	if not quy_doi:
+		return {}
 	return {
-		d.name: flt(theo_hang[d.item_code] * (flt(d.conversion_factor) or 1), d.precision("rate"))
+		d.name: flt(theo_hang[d.item_code] * (flt(d.conversion_factor) or 1) * quy_doi, d.precision("rate"))
 		for d in dong
 		if d.item_code in theo_hang
 	}
 
 
+def _quy_doi_tien_te(doc, pl):
+	"""Hệ số đổi giá của bảng giá sang tiền tệ chứng từ (bảng giá KH có thể khác tiền tệ đơn).
+	Bảng giá theo tiền tệ công ty: dùng tỷ giá của chính chứng từ."""
+	from erpnext.setup.utils import get_exchange_rate
+
+	tien_te = frappe.get_cached_value("Price List", pl, "currency")
+	if not tien_te or tien_te == doc.get("currency"):
+		return 1
+	if tien_te == frappe.get_cached_value("Company", doc.company, "default_currency"):
+		return 1 / (flt(doc.get("conversion_rate")) or 1)
+	return flt(get_exchange_rate(tien_te, doc.currency, doc.transaction_date, "for_selling"))
+
+
 def dong_lech(doc):
 	"""Dòng phải có lý do khi Submit: lệch giá đề xuất (R04) hoặc chưa có giá mua (R08)."""
 	return [d for d in doc.get("items") if d.get("trang_thai_gia") in (THAP_HON, CAO_HON, CHUA_CO_GIA_MUA)]
-
-
-def _thieu_chap_thuan(d):
-	return [f for f in TRUONG_CHAP_THUAN if not (str(d.get(f) or "")).strip()]
 
 
 def _dat(d, **values):
@@ -288,14 +326,16 @@ def _khach(doc):
 	return doc.customer
 
 
-def _danh_dau_dang_cho(doc, dong):
-	"""Dòng Thấp hơn / Cao hơn trên bảng giá có báo trước, mà mặt hàng đã có giá mới chờ báo
-	(bảng giá chờ) hoặc đã báo nhưng chưa tới ngày áp: bán giá hiện hành là đúng quy tắc 7
-	ngày, không tính là lệch, không cần lý do hay văn bản chấp thuận (R05); chênh lệch vẫn
-	ghi để báo cáo (6.2.7)."""
+def _danh_dau_dang_cho(doc, dong, pl):
+	"""Dòng Thấp hơn / Cao hơn trên bảng giá KH có báo trước, mà mặt hàng đã có giá mới chờ
+	báo (bảng giá chờ) hoặc đã báo nhưng chưa tới ngày áp, và dòng bán ĐÚNG giá bảng giá hiện
+	hành: đúng quy tắc 7 ngày, không tính là lệch, không cần lý do hay văn bản chấp thuận
+	(R05); chênh lệch vẫn ghi để báo cáo (6.2.7).
+
+	Q7 (PO 22/10): chỉ miễn khi bán đúng giá hiện hành. Bán giá mới sớm hơn ngày áp dụng hoặc
+	một giá khác là lệch bình thường — cần lý do và, nếu khác bảng giá, 3 thông tin R05."""
 	from erpnext.selling.kiem_gia.bao_truoc import co_bao_truoc
 
-	pl = doc.get("selling_price_list")
 	lech = [d for d in dong if d.get("trang_thai_gia") in (THAP_HON, CAO_HON)]
 	if not lech or not co_bao_truoc(pl):
 		return
@@ -319,14 +359,21 @@ def _danh_dau_dang_cho(doc, dong):
 		r = moi.get(d.item_code)
 		if not r:
 			continue
+		gia_moi = _("giá mới {0} từ {1} ({2})").format(
+			flt(r.price_list_rate),
+			frappe.format(r.valid_from, "Date"),
+			_("chờ gửi thông báo") if r.price_list == cho else _("đã báo"),
+		)
+		if cint(d.get("ngoai_bang_gia")) or lam_tron_dong(d.net_rate) != lam_tron_dong(d.gia_bang_gia):
+			d.ghi_chu_gia = (d.ghi_chu_gia or "") + _(
+				"; có {0} nhưng giá bán khác giá bảng giá hiện hành nên vẫn tính là lệch"
+			).format(gia_moi)
+			continue
 		d.trang_thai_gia = DANG_CHO
-		# Giá mới đã nằm trong luồng báo trước (YC4): bán theo giá bảng hiện hành là đúng thỏa
+		# Giá mới đã nằm trong luồng báo trước (YC4): bán đúng giá bảng hiện hành là đúng thỏa
 		# thuận, không cần văn bản chấp thuận riêng cho đơn này (R05).
 		d.khac_bang_gia = 0
-		trang_thai = _("chờ gửi thông báo") if r.price_list == cho else _("đã báo")
-		d.ghi_chu_gia = (d.ghi_chu_gia or "") + _("; giá mới {0} từ {1} ({2})").format(
-			flt(r.price_list_rate), frappe.format(r.valid_from, "Date"), trang_thai
-		)
+		d.ghi_chu_gia = (d.ghi_chu_gia or "") + "; " + gia_moi
 
 
 def nguoi_dung_noi_bo():
@@ -335,9 +382,25 @@ def nguoi_dung_noi_bo():
 	return frappe.get_cached_value("User", frappe.session.user, "user_type") == "System User"
 
 
-def _canh_bao(doc, dong):
+def _chan_khach_cong():
+	if not nguoi_dung_noi_bo():
+		# Khách qua cổng: không nêu chi tiết giá.
+		frappe.throw(_("Đơn hàng cần Miyano kiểm tra giá trước khi xác nhận."), title=_("Kiểm giá bán"))
+
+
+def _doi_ly_do(doc, lech, huong_dan):
+	if lech and not (doc.get("ly_do_lech_gia") or "").strip():
+		danh_sach = ", ".join(f"{d.idx} ({d.item_code}: {d.trang_thai_gia})" for d in lech)
+		frappe.throw(
+			_("Dòng {0} lệch giá đề xuất hoặc chưa có giá mua. {1}").format(danh_sach, huong_dan),
+			title=_("Kiểm giá bán"),
+		)
+
+
+def _canh_bao(doc, dong, sau_submit=False):
 	if frappe.flags.in_import or frappe.flags.in_patch or not nguoi_dung_noi_bo():
 		return
+	pl = doc.flags.get("bang_gia_khach")
 	muc = []
 	for d in dong:
 		if d.get("trang_thai_gia") in (THAP_HON, CAO_HON):
@@ -355,15 +418,11 @@ def _canh_bao(doc, dong):
 			)
 		elif d.get("trang_thai_gia") == CHUA_CO_GIA_MUA:
 			muc.append(_("Dòng {0} - {1}: {2}").format(d.idx, frappe.bold(d.item_code), d.ghi_chu_gia))
-		if cint(d.get("khac_bang_gia")):
+		# SO: chỉ nhắc dòng còn thiếu thông tin chấp thuận; báo giá (Quotation) không có ô R05.
+		if cint(d.get("cho_chap_thuan") if doc.doctype == "Sales Order" else d.get("khac_bang_gia")):
 			muc.append(
-				_(
-					"Dòng {0} - {1}: giá đề xuất {2} khác bảng giá KH {3} — Submit cần số văn bản, người đại diện KH, ngày chấp thuận"
-				).format(
-					d.idx,
-					frappe.bold(d.item_code),
-					frappe.format(d.gia_de_xuat, {"fieldtype": "Currency"}),
-					frappe.format(d.gia_bang_gia, {"fieldtype": "Currency"}),
+				_("Dòng {0} - {1}: {2} — {3}").format(
+					d.idx, frappe.bold(d.item_code), _khac_bang_gia(d, pl), _viec_can_lam(doc, sau_submit)
 				)
 			)
 	if muc:
@@ -372,3 +431,24 @@ def _canh_bao(doc, dong):
 			title=_("Kiểm giá bán"),
 			indicator="orange",
 		)
+
+
+def _khac_bang_gia(d, pl):
+	if not pl:
+		return _("khách chưa có bảng giá mặc định (Customer → Default Price List)")
+	if cint(d.get("ngoai_bang_gia")):
+		return _("chưa có trong bảng giá KH {0}").format(frappe.bold(pl))
+	return _("giá đề xuất {0} khác bảng giá KH {1}").format(
+		frappe.format(d.gia_de_xuat, {"fieldtype": "Currency"}),
+		frappe.format(d.gia_bang_gia, {"fieldtype": "Currency"}),
+	)
+
+
+def _viec_can_lam(doc, sau_submit):
+	if doc.doctype == "Quotation":
+		return _("khi lên Sales Order cần văn bản khách chấp thuận")
+	if sau_submit:
+		return _(
+			"chờ khách chấp thuận: mở dòng, nhập số văn bản, người đại diện KH, ngày chấp thuận rồi bấm Cập nhật. Chưa nhập thì chưa tạo được Phiếu giao hàng / Hóa đơn bán cho dòng này"
+		)
+	return _("Submit cần số văn bản, người đại diện KH, ngày chấp thuận")

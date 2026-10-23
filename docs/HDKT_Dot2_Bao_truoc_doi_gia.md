@@ -49,6 +49,8 @@ Người dùng mẫu (Impersonate): `demo.giamdoc@example.com` (Giám đốc), `
 | K2 | Tạo SO nháp DEMO-Himedic chỉ có VT-02 giá 50.500 → Lưu | Dòng VT-02: giá đề xuất 52.000 (51.485 × 1,01), trạng thái **Đang trong thời hạn báo giá**, chênh −1.500, ghi chú "…; giá mới 52000 từ … (chờ gửi thông báo)"; **Đề xuất khác bảng giá** không tích. Không có trong cảnh báo lệch (T9) | ☐ |
 | K3 | `demo.nhanvien` Submit SO K2 | Submit được — không cần lý do, không cần 3 thông tin chấp thuận (giá mới đang trong luồng báo trước) | ☐ |
 | K4 | SO nháp thứ hai của DEMO-Himedic (VT-01 125.000) | VT-01 vẫn **Cao hơn** — không có giá mới chờ báo nên vẫn là lệch | ☐ |
+| K5 | SO nháp DEMO-Himedic VT-02 giá **52.000** (bán giá mới trước ngày áp) → Lưu | **Không** phải "Đang trong thời hạn báo giá": trạng thái Khớp, **Đề xuất khác bảng giá** có tích → Submit cần 3 thông tin chấp thuận (Q7, PO 22/10) | ☐ |
+| K6 | SO nháp DEMO-Himedic VT-02 giá **51.000** → Lưu | Trạng thái **Thấp hơn**, ghi chú "… nhưng giá bán khác giá bảng giá hiện hành nên vẫn tính là lệch" → Submit cần lý do và 3 thông tin (Q7) | ☐ |
 
 ## I. Gửi thông báo đổi giá
 
@@ -110,5 +112,5 @@ cd ~/frappe-bench/sites
 ## Thay đổi so với bản trước (theo BA12)
 
 - **Bỏ mục J** (Submit báo giá NCC tự tạo nháp giá Himedic): BA12 D09 — bảng giá khách hàng cập nhật thủ công; báo giá NCC nay chỉ là nguồn "Báo giá đợt" để tính giá đề xuất (D07), không ghi vào bảng giá nào.
-- Dòng "Đang trong thời hạn báo giá" không cần lý do và **không** bị đòi 3 thông tin chấp thuận R05.
+- Dòng "Đang trong thời hạn báo giá" không cần lý do và **không** bị đòi 3 thông tin chấp thuận R05 — **chỉ khi bán đúng giá bảng giá hiện hành** (Q7, PO chốt 22/10/2026). Bán giá mới sớm hoặc một giá khác là lệch bình thường (K5, K6).
 - Trường trên Price List / Item Price là Custom Field (BA12 "không sửa core"); vị trí và nhãn trên form không đổi.

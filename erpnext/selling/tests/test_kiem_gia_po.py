@@ -11,6 +11,7 @@ from erpnext.selling.tests.test_kiem_gia_chung_tu import KiemChungTuCase
 
 class TestKiemGiaPO(KiemChungTuCase):
 	def so_da_submit(self, item, rate=101000, **row):
+		self.gia_ban(item, rate)  # bán đúng bảng giá KH: không cần thông tin chấp thuận (R05)
 		so = self.so([self.row(item, rate, **row)], ly_do_lech_gia="Thử")
 		so.submit()
 		return so

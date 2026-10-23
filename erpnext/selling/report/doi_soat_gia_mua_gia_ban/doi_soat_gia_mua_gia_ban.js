@@ -23,6 +23,7 @@ frappe.query_reports["Doi Soat Gia Mua Gia Ban"] = {
 		{ fieldname: "supplier", label: __("NCC"), fieldtype: "Link", options: "Supplier" },
 		{ fieldname: "item_code", label: __("Mặt hàng"), fieldtype: "Link", options: "Item" },
 		{ fieldname: "chi_lech", label: __("Chỉ dòng lệch / khác bảng giá"), fieldtype: "Check" },
+		{ fieldname: "cho_chap_thuan", label: __("Chỉ dòng chờ khách chấp thuận"), fieldtype: "Check" },
 		{ fieldname: "gom_nhap", label: __("Gồm SO nháp"), fieldtype: "Check" },
 	],
 	formatter(value, row, column, data, default_formatter) {
@@ -30,12 +31,16 @@ frappe.query_reports["Doi Soat Gia Mua Gia Ban"] = {
 		if (column.fieldname === "trang_thai_gia" && data) {
 			const color =
 				{
-					"Khớp": "green",
+					Khớp: "green",
 					"Thấp hơn": "red",
 					"Cao hơn": "orange",
 					"Chưa có giá mua": "red",
 					"Đang trong thời hạn báo giá": "blue",
 				}[data.trang_thai_gia] || "gray";
+			value = `<span class="indicator-pill ${color}">${value}</span>`;
+		}
+		if (column.fieldname === "chap_thuan" && data && data.chap_thuan) {
+			const color = data.cho_chap_thuan ? "orange" : "green";
 			value = `<span class="indicator-pill ${color}">${value}</span>`;
 		}
 		return value;

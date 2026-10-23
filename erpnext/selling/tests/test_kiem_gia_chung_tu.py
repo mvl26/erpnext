@@ -1,11 +1,12 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
 """Kiểm giá bán trên Quotation và Sales Order theo hệ số khách hàng (BA12 R02-R05, R07,
-R08, D04, D07, D08; nghiệm thu A01-A04, A07)."""
+R08, D04, D07, D08; nghiệm thu A01-A04, A07; PO chốt Q2)."""
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, getdate, nowdate
+from frappe.utils.nestedset import get_root_of
 
 from erpnext.selling.kiem_gia.gia_goc import (
 	BAO_GIA_DOT,
@@ -119,8 +120,10 @@ class KiemChungTuCase(FrappeTestCase):
 			)
 		return doc.insert(ignore_permissions=True).name
 
-	def item(self, gia_hd=100000, hop=None, ncc=None, is_stock_item=1):
-		"""Mặt hàng có NCC mặc định (`ncc`, mặc định NCC chung) và giá HĐ nguyên tắc `gia_hd`."""
+	def item(self, gia_hd=100000, hop=None, ncc=None, is_stock_item=1, gia_ban=None):
+		"""Mặt hàng có NCC mặc định (`ncc`, mặc định NCC chung) và giá HĐ nguyên tắc `gia_hd`.
+		`gia_ban`: giá trong bảng giá của khách — không có thì mặt hàng chưa có trong bảng giá,
+		tức khác bảng giá (Q2)."""
 		doc = frappe.new_doc("Item")
 		doc.item_code = f"_KG-{frappe.generate_hash(length=8)}"
 		doc.item_name = doc.item_code
@@ -135,6 +138,8 @@ class KiemChungTuCase(FrappeTestCase):
 		doc.insert(ignore_permissions=True)
 		if gia_hd is not None:
 			self.gia_hd(doc.name, gia_hd, ncc=ncc or self.ncc)
+		if gia_ban is not None:
+			self.gia_ban(doc.name, gia_ban)
 		return doc.name
 
 	def gia_hd(self, item, rate, valid_from=None, ncc=None, price_list=None, uom="_KG Cái"):
@@ -186,13 +191,13 @@ class KiemChungTuCase(FrappeTestCase):
 			doc.submit()
 		return doc
 
-	def gia_ban(self, item, rate, valid_from=None, uom="_KG Cái"):
+	def gia_ban(self, item, rate, valid_from=None, uom="_KG Cái", price_list=None):
 		"""Giá trong bảng giá bán của khách (R05)."""
 		return (
 			frappe.get_doc(
 				{
 					"doctype": "Item Price",
-					"price_list": self.ban,
+					"price_list": price_list or self.ban,
 					"item_code": item,
 					"uom": uom,
 					"price_list_rate": rate,
@@ -426,9 +431,71 @@ class TestKhacBangGia(KiemChungTuCase):
 		self.gia_ban(item, 124692)
 		self.assertEqual(self.so([self.row(item, 124692)]).items[0].khac_bang_gia, 0)
 
-	def test_no_price_in_the_list_is_not_a_difference(self):
+	def test_q2_item_missing_from_the_customer_list_is_a_difference(self):
 		d = self.so([self.row(self.item(123457), 124692)]).items[0]
-		self.assertEqual((d.gia_bang_gia, d.khac_bang_gia), (None, 0))
+
+		self.assertEqual((d.gia_bang_gia, d.ngoai_bang_gia, d.khac_bang_gia), (None, 1, 1))
+		self.assertIn("chưa có trong bảng giá KH", self.canh_bao())
+
+	def test_q2_no_buying_price_and_missing_from_the_list(self):
+		d = self.so([self.row(self.item(gia_hd=None), 100000)]).items[0]
+		self.assertEqual((d.trang_thai_gia, d.ngoai_bang_gia, d.khac_bang_gia), (CHUA_CO_GIA_MUA, 1, 1))
+
+	def test_q2_no_buying_price_but_in_the_list_is_not_a_difference(self):
+		d = self.so([self.row(self.item(gia_hd=None, gia_ban=100000), 100000)]).items[0]
+		self.assertEqual((d.trang_thai_gia, d.ngoai_bang_gia, d.khac_bang_gia), (CHUA_CO_GIA_MUA, 0, 0))
+
+	def test_q2_choosing_another_list_on_the_order_does_not_dodge_r05(self):
+		item = self.item(123457, gia_ban=120000)
+		khac = self.price_list("Bán khác", buying=0)
+		self.gia_ban(item, 124692, price_list=khac)
+
+		d = self.so([self.row(item, 124692)], selling_price_list=khac).items[0]
+
+		self.assertEqual((d.gia_bang_gia, d.khac_bang_gia), (120000, 1))
+
+	def test_q2_customer_group_list_when_the_customer_has_none(self):
+		item = self.item(123457, gia_ban=124692)
+		khach = self.customer(he_so=1.01, default_price_list=None, customer_group=self.nhom(self.ban))
+
+		d = self.so([self.row(item, 124692)], customer=khach).items[0]
+
+		self.assertEqual((d.gia_bang_gia, d.khac_bang_gia), (124692, 0))
+
+	def test_q2_customer_without_any_price_list(self):
+		item = self.item(123457, gia_ban=124692)
+		khach = self.customer(he_so=1.01, default_price_list=None, customer_group=self.nhom(None))
+
+		d = self.so([self.row(item, 124692)], customer=khach).items[0]
+
+		self.assertEqual((d.ngoai_bang_gia, d.khac_bang_gia), (1, 1))
+		self.assertIn("chưa có bảng giá mặc định", self.canh_bao())
+
+	def test_list_price_is_converted_to_the_order_currency(self):
+		usd = "USD"
+		if not frappe.db.exists("Currency", usd) or usd == self.currency:
+			self.skipTest("Không có USD")
+		item = self.item(2500000, gia_ban=2525000)
+
+		d = self.so(
+			[self.row(item, 101)], currency=usd, conversion_rate=25000, plc_conversion_rate=25000
+		).items[0]
+
+		self.assertEqual((d.gia_bang_gia, d.gia_de_xuat, d.khac_bang_gia), (101, 101, 0))
+
+	def nhom(self, default_price_list):
+		return (
+			frappe.get_doc(
+				{
+					"doctype": "Customer Group",
+					"customer_group_name": f"_KG Nhóm {frappe.generate_hash(length=6)}",
+					"parent_customer_group": get_root_of("Customer Group"),
+					"default_price_list": default_price_list,
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
 
 	def test_price_list_by_the_box(self):
 		item = self.item(1000, hop=10)

@@ -20,7 +20,9 @@ Kịch bản (nghiệm thu BA12):
   A06  SO Himedic có email người đặt đơn himedic.demo@example.com -> Submit gửi thông báo giá mới
   A07  DEMO-Khách lẻ không có hệ số -> không kiểm
   A08  Báo cáo "Doi Soat Gia Mua Gia Ban"
-  R08  DEMO-VT-03 không có giá mua
+  R08  DEMO-VT-03 không có giá mua (có trong bảng giá Himedic 30.000: chỉ cần lý do)
+  Q2   SO Hoàng Lâm có DEMO-VT-01, mặt hàng chưa có trong bảng giá Hoàng Lâm -> khác bảng
+       giá, Submit cần 3 thông tin; email ghi giá cũ "Chưa có trong bảng giá"
   +    DEMO-VT-05 bán theo Hộp (10 Cái); DEMO-Hoàng Lâm hệ số 1,05
 
 YC4 (báo trước khi đổi giá): "DEMO Bảng giá Himedic" bật Báo trước 7 ngày, bảng giá chờ
@@ -92,7 +94,12 @@ def tao_demo():
 			).insert(ignore_permissions=True)
 
 	frappe.db.set_single_value(
-		"Selling Settings", {"bat_kiem_gia_ban": 1, "vai_tro_sua_ty_le_lai": VAI_TRO_GIAM_DOC}
+		"Selling Settings",
+		{
+			"bat_kiem_gia_ban": 1,
+			"bat_buoc_dinh_kem_van_ban_gia": 0,
+			"vai_tro_sua_ty_le_lai": VAI_TRO_GIAM_DOC,
+		},
 	)
 	frappe.clear_document_cache("Selling Settings", "Selling Settings")
 	# Như production (P7): chứng từ không tự thêm/ghi đè giá vào bảng giá.
@@ -168,6 +175,7 @@ def tao_demo():
 		(HIMEDIC, "DEMO-VT-01", 120000, -60, None),  # A05: khác đề xuất 124.692
 		(HIMEDIC, "DEMO-VT-02", 50500, -60, None),
 		(HIMEDIC, "DEMO-VT-05", 10100, -60, None),
+		(HIMEDIC, "DEMO-VT-03", 30000, -60, None),  # R08: có trong bảng giá, chỉ thiếu giá mua
 		(HOANG_LAM, "DEMO-VT-02", 52500, -60, None),
 		(CHO_HIMEDIC, "DEMO-VT-02", 52000, 5, None),  # YC4: nháp chờ gửi
 	):
@@ -211,7 +219,12 @@ def tao_demo():
 	so_nhap(
 		"DEMO-Himedic", d, [("DEMO-VT-01", 5, "Cái", 125000), ("DEMO-VT-03", 3, "Cái", 30000)]
 	)  # A04, R08
-	so_nhap("DEMO-Hoàng Lâm", d, [("DEMO-VT-02", 10, "Cái", 52500)], selling_price_list=HOANG_LAM)
+	so_nhap(
+		"DEMO-Hoàng Lâm",
+		d,
+		[("DEMO-VT-02", 10, "Cái", 52500), ("DEMO-VT-01", 2, "Cái", 129630)],
+		selling_price_list=HOANG_LAM,
+	)  # Q2: DEMO-VT-01 chưa có trong bảng giá Hoàng Lâm
 	so_nhap("DEMO-Khách lẻ", d, [("DEMO-VT-01", 1, "Cái", 150000)], selling_price_list=BAN_LE)  # A07
 
 	in_ket_qua()
@@ -320,7 +333,16 @@ def in_ket_qua():
 			print(
 				f"  {d.idx}. {d.item_code} {d.uom}: {d.rate} | mua {d.gia_mua} ({d.nguon_gia_mua}) x {d.he_so_gia_ban}"
 				f" = {d.gia_de_xuat} | {d.trang_thai_gia or 'không kiểm'}"
-				+ (f" | khác bảng giá {d.gia_bang_gia}" if d.khac_bang_gia else "")
+				+ (
+					(
+						" | chưa có trong bảng giá"
+						if d.ngoai_bang_gia
+						else f" | khác bảng giá {d.gia_bang_gia}"
+					)
+					if d.khac_bang_gia
+					else ""
+				)
+				+ (" | chờ khách chấp thuận" if d.cho_chap_thuan else "")
 			)
 
 

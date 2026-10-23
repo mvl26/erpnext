@@ -76,9 +76,22 @@ class TestDoiSoatTheoSO(KiemChungTuCase):
 		self.assertEqual(len(self.chay(gom_nhap=1)), 2)
 
 	def test_only_mismatches(self):
-		khop = self.so([self.row(self.item(100000), 101000)])
+		khop = self.so([self.row(self.item(100000, gia_ban=101000), 101000)])
 		khop.submit()
 		self.assertEqual([r.sales_order for r in self.chay(chi_lech=1)], [self.so_a.name])
+
+	def test_q1_who_entered_the_acceptance_and_when(self):
+		r = self.chay()[0]
+
+		self.assertEqual((r.chap_thuan, r.nguoi_nhap_chap_thuan), ("Đủ", "Administrator"))
+		self.assertTrue(r.thoi_diem_nhap_chap_thuan)
+
+	def test_q2_missing_list_price_is_blank_and_the_row_waits(self):
+		so = self.so([self.row(self.item(100000), 101000)])
+		r = next(r for r in self.chay(gom_nhap=1) if r.sales_order == so.name)
+
+		self.assertEqual((r.gia_bang_gia, r.ngoai_bang_gia, r.chap_thuan), (None, 1, "Chờ chấp thuận"))
+		self.assertEqual([r.sales_order for r in self.chay(gom_nhap=1, cho_chap_thuan=1)], [so.name])
 
 	def test_d05_later_buying_price_shows_only_in_the_report(self):
 		self.gia_hd(self.item_a, 130000, valid_from=self.d)

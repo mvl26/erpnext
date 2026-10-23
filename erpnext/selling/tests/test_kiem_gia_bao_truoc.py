@@ -362,6 +362,23 @@ class TestDangTrongThoiHanBaoGia(BaoTruocCase):
 
 		self.assertEqual(so.docstatus, 1)
 
+	def test_q7_selling_the_new_price_early_needs_acceptance(self):
+		self.gia(self.cho, self.item_a, 111100, self.d)
+		so = self.so([self.row(self.item_a, 111100)])
+		d = so.items[0]
+
+		self.assertEqual((d.trang_thai_gia, d.khac_bang_gia, d.cho_chap_thuan), ("Khớp", 1, 1))
+		self.assertRaisesRegex(frappe.ValidationError, "chấp thuận", so.submit)
+
+	def test_q7_any_other_price_is_a_normal_mismatch(self):
+		self.gia(self.cho, self.item_a, 111100, self.d)
+		so = self.so([self.row(self.item_a, 105000)])
+		d = so.items[0]
+
+		self.assertEqual((d.trang_thai_gia, d.khac_bang_gia), ("Thấp hơn", 1))
+		self.assertIn("vẫn tính là lệch", d.ghi_chu_gia)
+		self.assertRaisesRegex(frappe.ValidationError, "Lý do lệch giá", so.submit)
+
 
 class TestNhacViec(BaoTruocCase):
 	"""2.7 (T11): điểm nhắc NTF-14, NTF-15 của Supply Notification."""

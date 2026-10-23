@@ -6,6 +6,9 @@ Mỗi dòng là một dòng SO đã kiểm giá: SO, mặt hàng, NCC, nguồn g
 giá bảng giá, chênh lệch, lý do, số văn bản. Các giá trị lấy đúng như đã lưu lúc lập SO —
 giá mua đổi sau đó không sửa SO (D05); phần chênh đó hiện ở cột "Giá mua hiện tại" /
 "Giá mua đổi".
+
+Q1: thêm người nhập và thời điểm nhập thông tin khách chấp thuận để kế toán hậu kiểm; cột
+"Chấp thuận" cho biết dòng khác bảng giá đã đủ thông tin hay còn chờ (Q10).
 """
 
 import frappe
@@ -45,11 +48,16 @@ def get_columns():
 		c("gia_ban", _("Giá bán"), "Currency", 110, "currency"),
 		c("chenh_lech", _("Chênh lệch"), "Currency", 100, "currency"),
 		c("gia_bang_gia", _("Giá bảng giá"), "Currency", 110, "currency"),
+		c("ngoai_bang_gia", _("Chưa có trong bảng giá"), "Check", 90),
 		c("trang_thai_gia", _("Trạng thái"), "Data", 130),
 		c("ly_do", _("Lý do"), "Data", 200),
 		c("so_van_ban", _("Số văn bản"), "Data", 120),
 		c("nguoi_dai_dien_kh", _("Người đại diện KH"), "Data", 130),
 		c("ngay_chap_thuan", _("Ngày chấp thuận"), "Date", 100),
+		c("tep_van_ban", _("Tệp văn bản"), "Data", 120),
+		c("chap_thuan", _("Chấp thuận"), "Data", 120),
+		c("nguoi_nhap_chap_thuan", _("Người nhập chấp thuận"), "Link", 140, "User"),
+		c("thoi_diem_nhap_chap_thuan", _("Thời điểm nhập"), "Datetime", 150),
 		c("gia_mua_hien_tai", _("Giá mua hiện tại"), "Currency", 120, "currency"),
 		c("gia_mua_doi", _("Giá mua đổi"), "Currency", 100, "currency"),
 		c("currency", _("Tiền tệ"), "Link", 60, "Currency"),
@@ -75,6 +83,8 @@ def get_data(filters):
 		conditions.append(
 			"(soi.trang_thai_gia not in ('Khớp', 'Đang trong thời hạn báo giá') or soi.khac_bang_gia = 1)"
 		)
+	if cint(filters.get("cho_chap_thuan")):
+		conditions.append("soi.cho_chap_thuan = 1")
 
 	rows = frappe.db.sql(
 		f"""
@@ -83,9 +93,11 @@ def get_data(filters):
 			soi.qty, soi.conversion_factor, soi.ncc_du_kien as ncc, soi.nguon_gia_mua,
 			soi.chung_tu_gia_mua, soi.gia_mua, soi.he_so_gia_ban as he_so,
 			soi.so_hop_dong_he_so as so_hop_dong, soi.gia_de_xuat, soi.rate as gia_ban,
-			soi.chenh_lech_gia as chenh_lech, soi.gia_bang_gia, soi.trang_thai_gia,
+			soi.chenh_lech_gia as chenh_lech, soi.gia_bang_gia, soi.ngoai_bang_gia,
+			soi.khac_bang_gia, soi.cho_chap_thuan, soi.trang_thai_gia,
 			soi.so_van_ban_gia as so_van_ban, soi.nguoi_dai_dien_kh,
-			soi.ngay_chap_thuan_gia as ngay_chap_thuan
+			soi.ngay_chap_thuan_gia as ngay_chap_thuan, soi.tep_van_ban_gia as tep_van_ban,
+			soi.nguoi_nhap_chap_thuan, soi.thoi_diem_nhap_chap_thuan
 		from `tabSales Order` so
 		join `tabSales Order Item` soi on soi.parent = so.name and soi.parenttype = 'Sales Order'
 		where {" and ".join(conditions)}
@@ -94,6 +106,11 @@ def get_data(filters):
 		values,
 		as_dict=True,
 	)
+	for r in rows:
+		if cint(r.ngoai_bang_gia):
+			r.gia_bang_gia = None  # không phải giá 0: mặt hàng chưa có trong bảng giá KH (Q2)
+		if cint(r.khac_bang_gia):
+			r.chap_thuan = _("Chờ chấp thuận") if cint(r.cho_chap_thuan) else _("Đủ")
 	_gia_mua_hien_tai(rows)
 	return rows
 

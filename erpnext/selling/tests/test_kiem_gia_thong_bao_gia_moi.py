@@ -46,8 +46,19 @@ class TestThongBaoGiaMoi(KiemChungTuCase):
 	def test_portal_sees_nothing_before_confirmation(self):
 		self.assertEqual(lay_thong_bao_gia_moi(self.so_gia_moi().name)["dong"], [])
 
+	def test_q2_item_missing_from_the_list_is_announced_as_such(self):
+		so = self.so([self.row(self.item(123457), 124692)], contact_email=EMAIL)
+		d = so.items[0]
+		d.so_van_ban_gia, d.nguoi_dai_dien_kh, d.ngay_chap_thuan_gia = "VB-08/2026", "Ông A", self.d
+		so.save()
+		so.submit()
+
+		comm = frappe.db.get_value("Sales Order", so.name, "thong_bao_gia_moi")
+		self.assertIn("Chưa có trong bảng giá", frappe.db.get_value("Communication", comm, "content"))
+		self.assertIsNone(lay_thong_bao_gia_moi(so.name)["dong"][0]["gia_cu"])
+
 	def test_no_new_price_no_email(self):
-		item = self.item(123457)
+		item = self.item(123457, gia_ban=124692)
 		so = self.so([self.row(item, 124692)], contact_email=EMAIL)
 		so.submit()
 		self.assertFalse(frappe.db.get_value("Sales Order", so.name, "thong_bao_gia_moi"))

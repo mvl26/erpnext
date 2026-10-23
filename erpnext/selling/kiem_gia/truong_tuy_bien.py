@@ -104,13 +104,21 @@ def _truong_dong(insert_after, cho_so):
 			fieldtype="Currency",
 			options="currency",
 			label="Giá bảng giá KH",
+			description="Theo bảng giá mặc định của khách (Customer → Default Price List), không theo bảng giá chọn trên chứng từ.",
 			insert_after="chenh_lech_gia",
+		),
+		_ro(
+			fieldname="ngoai_bang_gia",
+			fieldtype="Check",
+			label="Chưa có trong bảng giá KH",
+			insert_after="gia_bang_gia",
 		),
 		_ro(
 			fieldname="khac_bang_gia",
 			fieldtype="Check",
 			label="Đề xuất khác bảng giá",
-			insert_after="gia_bang_gia",
+			description="R05: giá đề xuất khác giá bảng giá KH, hoặc mặt hàng chưa có trong bảng giá KH.",
+			insert_after="ngoai_bang_gia",
 		),
 		_ro(
 			fieldname="ghi_chu_gia",
@@ -132,6 +140,7 @@ def _truong_dong(insert_after, cho_so):
 				"fieldname": "so_van_ban_gia",
 				"fieldtype": "Data",
 				"label": "Số văn bản thông báo / đề nghị điều chỉnh giá",
+				"description": "Sau Submit: ô còn trống vẫn điền được (bấm Cập nhật); ô đã điền chỉ Giám đốc sửa.",
 				"insert_after": "chap_thuan_gia_section",
 				"allow_on_submit": 1,
 				"no_copy": 1,
@@ -155,6 +164,42 @@ def _truong_dong(insert_after, cho_so):
 				"no_copy": 1,
 				"print_hide": 1,
 			},
+			{
+				"fieldname": "tep_van_ban_gia",
+				"fieldtype": "Attach",
+				"label": "Tệp văn bản chấp thuận",
+				"description": 'Bắt buộc khi Selling Settings bật "Bắt buộc đính kèm văn bản chấp thuận".',
+				"insert_after": "ngay_chap_thuan_gia",
+				"allow_on_submit": 1,
+				"no_copy": 1,
+				"print_hide": 1,
+			},
+			{
+				"fieldname": "column_break_chap_thuan",
+				"fieldtype": "Column Break",
+				"insert_after": "tep_van_ban_gia",
+			},
+			# Q1/Q10: dòng khác bảng giá còn thiếu thông tin chấp thuận. Sau Submit (Update
+			# Items) dòng được giữ ở trạng thái này: chưa tạo được Phiếu giao / Hóa đơn bán.
+			_ro(
+				fieldname="cho_chap_thuan",
+				fieldtype="Check",
+				label="Chờ khách chấp thuận giá",
+				insert_after="column_break_chap_thuan",
+			),
+			_ro(
+				fieldname="nguoi_nhap_chap_thuan",
+				fieldtype="Link",
+				options="User",
+				label="Người nhập chấp thuận",
+				insert_after="cho_chap_thuan",
+			),
+			_ro(
+				fieldname="thoi_diem_nhap_chap_thuan",
+				fieldtype="Datetime",
+				label="Thời điểm nhập chấp thuận",
+				insert_after="nguoi_nhap_chap_thuan",
+			),
 			# Giá bán lúc kiểm lần cuối: "Update Items" sau Submit chỉ kiểm lại dòng mới hoặc
 			# dòng đổi giá (D05: dòng không ai đụng giữ nguyên kết quả lúc lập).
 			_ro(
@@ -163,7 +208,7 @@ def _truong_dong(insert_after, cho_so):
 				options="currency",
 				label="Giá bán lúc kiểm",
 				hidden=1,
-				insert_after="ngay_chap_thuan_gia",
+				insert_after="thoi_diem_nhap_chap_thuan",
 			),
 		]
 	for f in fields:
@@ -189,16 +234,24 @@ CUSTOM_FIELDS = {
 			"insert_after": "kiem_gia_ban_section",
 		},
 		{
+			"fieldname": "bat_buoc_dinh_kem_van_ban_gia",
+			"fieldtype": "Check",
+			"default": "0",
+			"label": "Bắt buộc đính kèm văn bản chấp thuận",
+			"description": "Bật: dòng khác bảng giá phải có tệp văn bản khách chấp thuận, ngoài 3 thông tin R05. Áp cho thông tin nhập từ lúc bật.",
+			"insert_after": "bat_kiem_gia_ban",
+		},
+		{
 			"fieldname": "column_break_kiem_gia",
 			"fieldtype": "Column Break",
-			"insert_after": "bat_kiem_gia_ban",
+			"insert_after": "bat_buoc_dinh_kem_van_ban_gia",
 		},
 		{
 			"fieldname": "vai_tro_sua_ty_le_lai",
 			"fieldtype": "Link",
 			"options": "Role",
 			"label": "Vai trò được sửa hệ số giá bán",
-			"description": "Chỉ vai trò này (Giám đốc) được sửa hệ số trên Khách hàng, các cài đặt của mục này và gửi thông báo đổi giá. Để trống: chỉ System Manager.",
+			"description": "Chỉ vai trò này (Giám đốc) được sửa hệ số trên Khách hàng, các cài đặt của mục này, gửi thông báo đổi giá và sửa thông tin khách chấp thuận (R05) đã điền trên SO đã Submit. Để trống: chỉ System Manager.",
 			"insert_after": "column_break_kiem_gia",
 		},
 	],
