@@ -103,6 +103,12 @@ after_install = "erpnext.setup.install.after_install"
 # được nhiều lần, và để ở đây thì thêm trường/mẫu email mới không cần patch mới.
 after_migrate = [
 	"erpnext.einvoice.setup.setup_einvoice",
+	# Trường tùy biến của kiểm giá bán (BA12) / báo trước đổi giá (YC4) — BA12 không cho sửa
+	# JSON DocType chuẩn. Mất dòng này: site mới không có các trường, mọi kiểm giá lỗi. PHẢI
+	# đứng TRƯỚC `setup_supply_notification`: điểm thông báo gieo sẵn NTF-14, NTF-15 trỏ vào các
+	# trường này, và điểm bị từ chối lưu khi trường chưa có — migrate dừng giữa chừng và các
+	# trường không bao giờ được tạo.
+	"erpnext.selling.kiem_gia.truong_tuy_bien.tao_truong_tuy_bien",
 	"erpnext.supply_notification.setup.setup_supply_notification",
 	# Dựng lại lft/rgt của Storage Location nếu còn bản ghi thiếu toạ độ và an
 	# toàn để làm (không ô nào đang `disabled`). MẤT DÒNG NÀY: patch
@@ -114,9 +120,6 @@ after_migrate = [
 	# tự phục hồi đó. `erpnext.warehouse_operations.tests.test_app_khoi_dong` khoá việc
 	# này còn trong danh sách.
 	"erpnext.warehouse_operations.vitri.cay.dam_bao_cay_da_dung",
-	# Trường tùy biến của kiểm giá bán (BA12) / báo trước đổi giá (YC4) — BA12 không cho sửa
-	# JSON DocType chuẩn. Mất dòng này: site mới không có các trường, mọi kiểm giá lỗi.
-	"erpnext.selling.kiem_gia.truong_tuy_bien.tao_truong_tuy_bien",
 ]
 
 boot_session = "erpnext.startup.boot.boot_session"
