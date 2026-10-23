@@ -12,7 +12,7 @@ import json
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Sum
-from frappe.utils import flt, getdate, now_datetime, today
+from frappe.utils import flt, fmt_money, getdate, now_datetime, today
 
 from erpnext.buying.tiep_nhan_hoa_don.cau_hinh import bo_chuan_hoa, cai_dat, co_quyen_duyet_lech_gia
 from erpnext.buying.tiep_nhan_hoa_don.chuan_hoa import bo_dau
@@ -284,7 +284,13 @@ def _kiem_nghi_trung(doc, canh_bao):
 
 
 def _tien(x):
-	return frappe.format(flt(x), {"fieldtype": "Currency", "options": "VND"})
+	# Bỏ phần lẻ khi chẵn đồng (13.000); giữ khi có lẻ để hai giá lệch dưới 1 đồng không in giống nhau.
+	return fmt_money(flt(x), precision=0 if flt(x).is_integer() else 2)
+
+
+def _so(x):
+	"""Số lượng theo định dạng số của hệ thống (120, 1.880), không in 120.0."""
+	return frappe.format_value(flt(x), {"fieldtype": "Float"})
 
 
 # --- Đối soát 4 tầng -----------------------------------------------------------------
@@ -587,7 +593,7 @@ class DoiSoat:
 					ghi_chu.append(
 						(
 							_("Vượt hạn mức hợp đồng khung: còn {0}, hóa đơn {1} (ĐVT kho).").format(
-								flt(con), flt(flt(row.so_luong) * cf)
+								_so(con), _so(flt(row.so_luong) * cf)
 							),
 							True,
 						)

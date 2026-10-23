@@ -16,6 +16,11 @@ from frappe.utils import flt
 from erpnext.buying.tiep_nhan_hoa_don.cau_hinh import cai_dat
 
 
+def _so(x):
+	"""Số lượng theo định dạng số của hệ thống (95, 1.880), không in 95.0."""
+	return frappe.format_value(flt(x), {"fieldtype": "Float"})
+
+
 def _hdk_hieu_luc(supplier, company, ngay, items):
 	bo = frappe.qb.DocType("Blanket Order")
 	boi = frappe.qb.DocType("Blanket Order Item")
@@ -102,7 +107,7 @@ def canh_bao_han_muc(doc, method=None):
 		if phan_tram >= nguong:
 			canh_bao.append(
 				_("Dòng {0} ({1}): sau đơn này đã đặt {2}/{3} ({4}%) hạn mức hợp đồng khung {5}.").format(
-					", ".join(str(d.idx) for d in cac_dong), item, flt(sau), flt(han_muc), phan_tram, hdk
+					", ".join(str(d.idx) for d in cac_dong), item, _so(sau), _so(han_muc), _so(phan_tram), hdk
 				)
 			)
 	if canh_bao:
