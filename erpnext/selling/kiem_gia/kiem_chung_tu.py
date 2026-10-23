@@ -106,7 +106,7 @@ def kiem_truoc_submit(doc, method=None):
 		)
 		frappe.throw(
 			_(
-				"Giá đề xuất khác bảng giá của khách hoặc mặt hàng chưa có trong bảng giá. Ghi đủ thông tin khách chấp thuận (R05):"
+				"Giá đề xuất khác bảng giá của khách hoặc mặt hàng chưa có trong bảng giá. Ghi đủ thông tin khách chấp thuận:"
 			)
 			+ f"<ul>{chi_tiet}</ul>",
 			title=_("Kiểm giá bán"),

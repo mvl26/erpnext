@@ -2,12 +2,13 @@
 // Giá đề xuất được tính khi lưu; nút chép giá đề xuất vào đơn giá của các dòng còn lệch.
 // Q10: SO đã Submit còn dòng chờ khách chấp thuận giá thì nhắc ngay đầu form.
 frappe.ui.form.on("Sales Order", {
+	setup: () => erpnext.kiem_gia.to_mau_trang_thai_gia("Sales Order Item"),
 	refresh(frm) {
 		const cho = (frm.doc.items || []).filter((d) => d.cho_chap_thuan);
 		if (frm.doc.docstatus === 1 && cho.length) {
 			frm.set_intro(
 				__(
-					"Dòng {0} chờ khách chấp thuận giá (R05): mở dòng, nhập số văn bản, người đại diện KH, ngày chấp thuận rồi bấm Cập nhật. Chưa nhập thì chưa tạo được Phiếu giao hàng / Hóa đơn bán cho các dòng này.",
+					"Dòng {0} chờ khách chấp thuận giá: mở dòng, nhập số văn bản, người đại diện KH, ngày chấp thuận rồi bấm Cập nhật. Chưa nhập thì chưa tạo được Phiếu giao hàng / Hóa đơn bán cho các dòng này.",
 					[cho.map((d) => `${d.idx} (${frappe.utils.escape_html(d.item_code)})`).join(", ")]
 				),
 				"orange"
