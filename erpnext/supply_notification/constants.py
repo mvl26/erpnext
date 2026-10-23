@@ -141,6 +141,43 @@ GROUP_SALES = "Bán hàng"
 GROUP_STOCK = "Kho"
 GROUP_ACCOUNTS = "Kế toán"
 
+#: Cột bảng chênh lệch đối soát Phiếu nhập ↔ Hoá đơn mua (YC5) trong email nội bộ.
+_YC5_COT_CHENH_LECH = (
+	("dong_hoa_don", "Dòng HĐ"),
+	("item_code", "Mặt hàng"),
+	("tieu_chi", "Tiêu chí"),
+	("gia_tri_pr", "Theo Phiếu nhập"),
+	("gia_tri_pi", "Theo Hoá đơn"),
+	("nhanh_goi_y", "Gợi ý xử lý"),
+)
+
+#: Phần chung của hai điểm "Hoá đơn mua lệch Phiếu nhập" (NTF-16, NTF-17).
+_YC5_LECH = {
+	"departments": (DEPT_PURCHASE,),
+	"notify_owner": 1,
+	"notify_external": 0,
+	"attach_pdf": 0,
+	"print_format": None,
+	"party_field": "supplier_name",
+	"amount_field": "grand_total",
+	"main_date_field": "posting_date",
+	"item_table_field": "chenh_lech_pr",
+	"item_columns": _YC5_COT_CHENH_LECH,
+	"amount_label": "Giá trị hoá đơn",
+	"show_stock_report": 0,
+	"subject_template": "Hoá đơn mua {{ doc.name }} ({{ ten_doi_tac }}) lệch Phiếu nhập",
+	"intro": (
+		"Hoá đơn mua {{ doc.name }} của nhà cung cấp {{ ten_doi_tac }}, giá trị {{ so_tien }},"
+		" không khớp Phiếu nhập mua ở các điểm dưới đây nên chưa Nộp được."
+	),
+	"action": (
+		"Đề nghị chọn Nhánh xử lý trên hoá đơn: (a) sửa hoá đơn, (b1) báo Kho sửa Phiếu nhập,"
+		" (b2) gửi nhà cung cấp bảng chênh lệch để xin hoá đơn điều chỉnh."
+	),
+	"external_subject_template": "",
+	"external_intro": "",
+}
+
 #: 13 điểm hạt giống. `intro`/`action`/`external_intro` là **phần câu chữ**;
 #: `setup` ghép chúng thành thân email cùng các khối, theo đúng bố cục mà bản
 #: build 05c dựng bằng template cứng — nhờ vậy site mới và site cũ giống nhau.
@@ -600,6 +637,65 @@ SEED_POINTS = (
 		"external_subject_template": "",
 		"external_intro": "",
 	},
+	# YC5 — đối soát Phiếu nhập ↔ Hóa đơn mua (spec 2026-10-21, mục 6.3.9). Lần lưu đầu không chạy
+	# `on_change` nên "lệch ngay khi tạo" cần điểm Tạo mới riêng (NTF-16) bên cạnh điểm Trường
+	# thay đổi (NTF-17). Nhắc "lệch tồn quá N ngày" chưa gieo: bộ nhắc hạn chỉ quét chứng từ đã Nộp.
+	{
+		"code": "NTF-16",
+		"title": "Hoá đơn mua · Lệch Phiếu nhập (lúc tạo)",
+		"function_group": GROUP_PURCHASE,
+		"reference_doctype": "Purchase Invoice",
+		"trigger_event": NEW,
+		"conditions": (("trang_thai_doi_soat_pr", "=", "Lệch"),),
+		"notes": "Hoá đơn mua vừa tạo đã lệch Phiếu nhập (YC5).",
+		**_YC5_LECH,
+	},
+	{
+		"code": "NTF-17",
+		"title": "Hoá đơn mua · Chuyển sang Lệch Phiếu nhập",
+		"function_group": GROUP_PURCHASE,
+		"reference_doctype": "Purchase Invoice",
+		"trigger_event": VALUE_CHANGE,
+		"watch_field": "trang_thai_doi_soat_pr",
+		"watch_value": "Lệch",
+		"conditions": (),
+		"notes": "Hoá đơn mua nháp chuyển sang lệch Phiếu nhập khi lưu lại hoặc khi Phiếu nhập đổi (YC5).",
+		**_YC5_LECH,
+	},
+	{
+		"code": "NTF-18",
+		"title": "Hoá đơn mua · Lệch do Phiếu nhập sai (b1)",
+		"function_group": GROUP_STOCK,
+		"reference_doctype": "Purchase Invoice",
+		"trigger_event": VALUE_CHANGE,
+		"watch_field": "nhanh_xu_ly",
+		"watch_value": "(b1) Phiếu nhập mua sai",
+		"conditions": (),
+		"notes": "Người xử lý chọn nhánh (b1): Kho kiểm lại Phiếu nhập, hủy và lập bản sửa (YC5).",
+		"departments": (DEPT_STOCK,),
+		"notify_owner": 0,
+		"notify_external": 0,
+		"attach_pdf": 0,
+		"print_format": None,
+		"party_field": "supplier_name",
+		"amount_field": "grand_total",
+		"main_date_field": "posting_date",
+		"item_table_field": "chenh_lech_pr",
+		"item_columns": _YC5_COT_CHENH_LECH,
+		"amount_label": "Giá trị hoá đơn",
+		"show_stock_report": 0,
+		"subject_template": "Kiểm lại Phiếu nhập cho hoá đơn mua {{ doc.name }} ({{ ten_doi_tac }})",
+		"intro": (
+			"Hoá đơn mua {{ doc.name }} của nhà cung cấp {{ ten_doi_tac }} lệch Phiếu nhập và được xác định"
+			" là do Phiếu nhập sai so với hàng thực nhận."
+		),
+		"action": (
+			"Đề nghị Kho đối chiếu hàng thực nhận; nếu Phiếu nhập sai thì Hủy và Sửa lại phiếu. Hoá đơn"
+			" tự đối soát lại khi bản sửa được Nộp."
+		),
+		"external_subject_template": "",
+		"external_intro": "",
+	},
 )
 
 #: Tra nhanh theo mã điểm.
@@ -660,6 +756,54 @@ SEED_MANUAL_POINTS = (
 			'{{ mau("' + SNIPPET_DELIVERY_RULES + '") }}'
 			"<p>Chúng tôi rất mong nhận được sự hợp tác và hỗ trợ từ Quý đối tác"
 			" để đảm bảo tiến độ công việc chung.</p>"
+			"<p>Trân trọng,</p>"
+			"{{ chu_ky() }}"
+		),
+	},
+	# YC5 nhánh (b2): hoá đơn NCC sai so với hàng thực nhận — gửi NCC bảng chênh lệch, CC người lập
+	# hoá đơn (spec 6.3.9). Nút chỉ hiện trên hoá đơn nháp đang lệch.
+	{
+		"code": "NTF-19",
+		"title": "Hoá đơn mua · Gửi NCC bảng chênh lệch (b2)",
+		"function_group": GROUP_PURCHASE,
+		"reference_doctype": "Purchase Invoice",
+		"trigger_event": MANUAL,
+		"button_label": "Gửi NCC bảng chênh lệch",
+		"button_color": "Cảnh báo (vàng)",
+		"manual_docstatus": "Nháp",
+		"conditions": (("trang_thai_doi_soat_pr", "=", "Lệch"),),
+		"notes": "Nhánh (b2) của YC5: nhà cung cấp phát hành hoá đơn điều chỉnh / thay thế.",
+		"send_email": 0,
+		"send_inapp": 0,
+		"notify_external": 1,
+		"external_party_contact": 1,
+		"cc_owner": 1,
+		"reply_to_mode": "Người tạo chứng từ",
+		"attach_pdf": 0,
+		"print_format": None,
+		"party_field": "supplier_name",
+		"amount_field": "grand_total",
+		"main_date_field": "bill_date",
+		"item_table_field": "chenh_lech_pr",
+		"signature_person": "Người tạo",
+		"subject_prefix": "[Miyano]",
+		"item_columns": (
+			("item_code", "Mặt hàng"),
+			("tieu_chi", "Nội dung"),
+			("gia_tri_pr", "Theo hàng thực nhận"),
+			("gia_tri_pi", "Theo hoá đơn"),
+		),
+		"external_subject_template": (
+			"Hoá đơn số {{ doc.bill_no }} – đề nghị kiểm tra chênh lệch với hàng thực nhận"
+		),
+		"external_body_template": (
+			"<p>Kính gửi Quý đối tác {{ ten_doi_tac }},</p>"
+			"<p>Công ty TNHH Miyano Việt Nam đã đối chiếu hoá đơn số {{ doc.bill_no }} ngày {{ ngay }}"
+			" với hàng thực nhận tại kho và thấy các điểm chênh lệch dưới đây.</p>"
+			"{{ bang_mat_hang() }}"
+			"<p>Đề nghị Quý đối tác kiểm tra và phát hành hoá đơn điều chỉnh hoặc thay thế theo quy định."
+			" Hoá đơn này chưa được ghi nhận công nợ cho tới khi chênh lệch được xử lý.</p>"
+			'{{ khoi_phan_hoi("Quý đối tác vui lòng trả lời email này để xác nhận.") }}'
 			"<p>Trân trọng,</p>"
 			"{{ chu_ky() }}"
 		),

@@ -66,6 +66,9 @@ doctype_js = {
 	"Selling Settings": "public/js/kiem_gia/selling_settings.js",
 	"Sales Order": "public/js/kiem_gia/sales_order.js",
 	"Price List": "public/js/kiem_gia/price_list.js",
+	# Đối soát Phiếu nhập ↔ Hóa đơn mua (YC5), cùng nguyên tắc không sửa core với BA12. Mất
+	# dòng này: server vẫn đối soát và chặn Nộp, chỉ mất nút Đối soát lại / Duyệt ngoại lệ.
+	"Purchase Invoice": "public/js/doi_soat_pr_pi/purchase_invoice.js",
 	# Hai lối vào chủ đầu tư đòi sau khi thử luồng thật 17/09/2026: nút "Nhập lô &
 	# in nhãn" trên phiếu nhập, và chỗ gán vị trí ngay trên form mặt hàng. Mất một
 	# trong hai dòng này thì form vẫn trông bình thường, chỉ là mất đường vào —
@@ -109,6 +112,9 @@ after_migrate = [
 	# trường này, và điểm bị từ chối lưu khi trường chưa có — migrate dừng giữa chừng và các
 	# trường không bao giờ được tạo.
 	"erpnext.selling.kiem_gia.truong_tuy_bien.tao_truong_tuy_bien",
+	# Trường tùy biến của đối soát PR ↔ PI (YC5), cùng lý do và cùng ràng buộc thứ tự: NTF-16 →
+	# NTF-19 trỏ vào trường của Hóa đơn mua. Mất dòng này: site mới không có các trường, đối soát lỗi.
+	"erpnext.accounts.doi_soat_pr_pi.truong_tuy_bien.tao_truong_tuy_bien",
 	"erpnext.supply_notification.setup.setup_supply_notification",
 	# Dựng lại lft/rgt của Storage Location nếu còn bản ghi thiếu toạ độ và an
 	# toàn để làm (không ô nào đang `disabled`). MẤT DÒNG NÀY: patch
@@ -448,6 +454,9 @@ doc_events = {
 	# `warehouse_operations/tests/test_loi_vao_nhap_lo.py` khoá việc này.
 	"Purchase Receipt": {
 		"before_submit": "erpnext.warehouse_operations.vitri.phieu_nhap.chan_lo_go_tay_khi_duyet",
+		# YC5: Phiếu nhập Nộp / bị hủy (nhánh b1) thì hóa đơn nháp liên quan đối soát lại.
+		"on_submit": "erpnext.accounts.doi_soat_pr_pi.doi_soat.khi_nop_phieu_nhap",
+		"on_cancel": "erpnext.accounts.doi_soat_pr_pi.doi_soat.khi_huy_phieu_nhap",
 	},
 	"Stock Entry": {
 		"on_submit": "erpnext.stock.doctype.material_request.material_request.update_completed_and_requested_qty",
@@ -497,12 +506,27 @@ doc_events = {
 		],
 		"on_trash": "erpnext.regional.check_deletion_permission",
 	},
+	# Đối soát Phiếu nhập ↔ Hóa đơn mua và ĐNTT nháp (YC5, spec 2026-10-21 mục 6.3). Không sửa
+	# core: mọi điểm gắn nằm ở đây. `before_validate` ghép dòng TRƯỚC controller (để ERPNext tính
+	# lại tiền dòng vừa tách và kiểm `pr_required`); `validate` đối soát SAU khi đã có tổng.
 	"Purchase Invoice": {
+		"before_validate": "erpnext.accounts.doi_soat_pr_pi.doi_soat.truoc_validate",
 		"validate": [
 			"erpnext.regional.united_arab_emirates.utils.update_grand_total_for_rcm",
 			"erpnext.regional.united_arab_emirates.utils.validate_returns",
+			"erpnext.accounts.doi_soat_pr_pi.doi_soat.khi_validate",
 		],
+		"before_submit": "erpnext.accounts.doi_soat_pr_pi.doi_soat.truoc_khi_nop",
+		"on_submit": "erpnext.accounts.doi_soat_pr_pi.de_nghi_thanh_toan.tao_khi_nop_hoa_don",
+		"on_cancel": "erpnext.accounts.doi_soat_pr_pi.de_nghi_thanh_toan.xoa_nhap_khi_huy_hoa_don",
+		"onload": "erpnext.accounts.doi_soat_pr_pi.doi_soat.khi_tai",
 	},
+	# E9: tổng ĐNTT (kể cả nháp) không vượt hóa đơn, cho mọi đường tạo ĐNTT.
+	"Payment Request": {
+		"validate": "erpnext.accounts.doi_soat_pr_pi.de_nghi_thanh_toan.kiem_tong_de_nghi",
+	},
+	"Buying Settings": {"validate": "erpnext.accounts.doi_soat_pr_pi.cau_hinh.kiem_buying_settings"},
+	"Supplier": {"validate": "erpnext.accounts.doi_soat_pr_pi.cau_hinh.kiem_supplier"},
 	"Payment Entry": {
 		"on_submit": "erpnext.regional.create_transaction_log",
 		"on_trash": "erpnext.regional.check_deletion_permission",
@@ -576,6 +600,9 @@ doc_events = {
 # Log / Comment trong danh sách mặc định của Frappe.
 ignore_links_on_delete = [
 	"Fast EInvoice Log",
+	# Cùng lý do: nhật ký gửi thông báo. Điểm bắn trên chứng từ NHÁP (YC5: NTF-16, NTF-17 khi hóa
+	# đơn mua lệch Phiếu nhập) mà không có dòng này thì hóa đơn nháp đó không xóa được nữa.
+	"Supply Notification Dispatch Log",
 ]
 
 # function should expect the variable and doc as arguments
@@ -604,6 +631,8 @@ scheduler_events = {
 		],
 		"0 8 * * *": [
 			"erpnext.debt_reconciliation.tasks.send_due_reminders",
+			# YC5: nhắc Kế toán trưởng hóa đơn mua lệch Phiếu nhập tồn quá N ngày (Buying Settings).
+			"erpnext.accounts.doi_soat_pr_pi.nhac_lech.nhac_ke_toan_truong",
 		],
 		# Thông báo chuỗi cung ứng: nhắc theo ngày. Cron chạy MỖI GIỜ, hàm tự so với
 		# "Giờ chạy hằng ngày" trong Cài đặt thông báo — đổi giờ nhắc là việc của

@@ -1,0 +1,107 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-23 14:00:00.000000",
+ "description": "Một dòng chênh lệch giữa Hóa đơn mua và Phiếu nhập mua (YC5). Server ghi lại toàn bộ bảng ở mỗi lần đối soát.",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "dong_hoa_don",
+  "item_code",
+  "purchase_receipt",
+  "tieu_chi",
+  "gia_tri_pr",
+  "gia_tri_pi",
+  "muc_lech",
+  "nhanh_goi_y",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "columns": 1,
+   "description": "Số thứ tự dòng trên Hóa đơn mua; trống với tiêu chí tổng.",
+   "fieldname": "dong_hoa_don",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Dòng HĐ",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Mặt hàng",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "description": "Data, không Link: Link sẽ chặn xóa Phiếu nhập mua đã hủy.",
+   "fieldname": "purchase_receipt",
+   "fieldtype": "Data",
+   "label": "Phiếu nhập mua",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "tieu_chi",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Tiêu chí",
+   "options": "\nGhép dòng\nSố lượng\nĐơn giá\nThuế suất\nThành tiền\nTổng tiền hàng\nTổng thuế\nTổng thanh toán",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "gia_tri_pr",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Theo Phiếu nhập",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "gia_tri_pi",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Theo Hóa đơn",
+   "read_only": 1
+  },
+  {
+   "description": "Hóa đơn trừ Phiếu nhập (khi so được bằng số).",
+   "fieldname": "muc_lech",
+   "fieldtype": "Float",
+   "label": "Mức lệch",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "description": "Hệ thống chỉ gợi ý; người xử lý chọn nhánh ở ô Nhánh xử lý của hóa đơn.",
+   "fieldname": "nhanh_goi_y",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Gợi ý xử lý",
+   "options": "\n(a) Hóa đơn mua nhập sai\n(b1) Phiếu nhập mua sai\n(b2) Hóa đơn NCC sai\nCần ghép tay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-23 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Accounts",
+ "name": "Purchase Invoice PR Difference",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

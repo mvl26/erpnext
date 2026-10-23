@@ -185,6 +185,8 @@ def build_point(spec: dict, departments: dict[str, str] | None = None) -> "frapp
 	doc.signature_person = spec.get("signature_person", "Người tạo")
 
 	doc.date_field = spec.get("date_field")
+	doc.watch_field = spec.get("watch_field")
+	doc.watch_value = spec.get("watch_value")
 	doc.reminder_offsets = spec.get("reminder_offsets", "")
 	doc.button_label = spec.get("button_label")
 	doc.button_color = spec.get("button_color", "Mặc định")

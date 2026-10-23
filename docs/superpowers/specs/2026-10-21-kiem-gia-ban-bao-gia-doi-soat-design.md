@@ -1014,3 +1014,76 @@ Căn cứ: BA12 V1.0 "Đối soát giá mua – giá bán theo hệ số khách 
 Môi trường test (cập nhật 14.3): bộ test `erpnext/supply_notification/tests` đã chạy được trên site local (fixtures lấy công ty/kho/tài khoản theo site); 3 test Workflow trên Sales Order tự bỏ qua vì local và production đều không có Workflow đang bật trên Sales Order.
 
 Sửa kèm trong Supply Notification (`registry.py`): bản đồ điểm thông báo cache trên Redis dùng chung giữa web/worker/scheduler. Trước đây `clear_cache` chỉ xoá trong `on_update` (trước commit), nên một tiến trình khác dựng lại cache từ dữ liệu cũ đúng lúc đó sẽ làm cấu hình mới không có hiệu lực tới lần sửa kế tiếp; giao dịch đang sửa cũng ghi dữ liệu chưa commit vào cache chung. Nay: xoá lại sau commit/rollback (như Frappe làm với cache tài liệu), và giao dịch đang sửa cấu hình đọc thẳng DB (`config_doc`) — test `TestEarlyExit` khoá việc này.
+
+---
+
+## 16. Đợt 3 — YC5: đối soát Phiếu nhập ↔ Hóa đơn mua → ĐNTT (nhánh `feat/doi-soat-pr-pi`)
+
+### 16.1 Quyết định bổ sung (người dùng, 23/10/2026)
+
+| Mã | Quyết định |
+|---|---|
+| D3-1 | Làm YC5 ngay, không chờ FRD-MAP-01 (mục 11: Giai đoạn B không phụ thuộc DT-07) |
+| D3-2 | Áp nguyên tắc BA12 "Không sửa core": Custom Field + `hooks.py`, không sửa `purchase_invoice.json`, `buying_settings.json` như kế hoạch ở 8.1 |
+| D3-3 | E8: "Kế toán trưởng" và "Ban Điều hành" là hai ô chọn vai trò trong Buying Settings, chọn đúng vai trò đang đối soát PR-PI và tạo Payment Request trên production. Không tạo vai trò mới. Để trống cả hai: chỉ System Manager duyệt được |
+| D3-4 | Nhánh `feat/doi-soat-pr-pi` cắt từ `feat/auto-check-selling-price` |
+| D3-5 | Hóa đơn cao hơn Phiếu nhập cũng phải vào luồng đối soát (bảng chênh lệch, nhánh, ngoại lệ). Không dùng Over Billing Allowance của Accounts Settings (áp cả hóa đơn bán): chỉ hóa đơn mua thuộc phạm vi đối soát được bỏ chặn, qua hook |
+| D3-6 | NCC xuất nhiều hóa đơn cho một Phiếu nhập: ô **Hóa đơn từng phần** trên hóa đơn — tích thì số lượng được ít hơn phần chưa lập hóa đơn (không được nhiều hơn); giá, thuế, tiền vẫn 0 đồng. Hóa đơn cuối không cần tích |
+| D3-7 | Nhắc Kế toán trưởng khi hóa đơn lệch tồn quá N ngày (N trong Buying Settings, mặc định 3) |
+| D3-8 | Chấp nhận các điểm khác thiết kế ở 16.3: hóa đơn vượt giá trị Phiếu nhập không có ngoại lệ (đi b1 / b2), nhánh xử lý chọn một lần cho cả hóa đơn, báo "ĐNTT đã tạo" bằng giao việc, nhắc Kế toán trưởng bằng job riêng — với điều kiện luồng vẫn trơn tru (phí cố định của hóa đơn từng phần vì thế được sửa, không để báo lệch giả) |
+| D3-9 | NTF-16 → 19 giữ người nhận mặc định (phòng Mua hàng, phòng Kho) trong giai đoạn demo |
+| D3-10 | Bản sửa thứ tự `after_migrate` (lỗi có sẵn từ Đợt 2) tách sang nhánh Đợt 2 `feat/bao-truoc-doi-gia-himedic` (commit 7dc74dd); `feat/doi-soat-pr-pi` dựng trên commit đó và chỉ thêm dòng trường tùy biến YC5 |
+
+### 16.2 Kết quả
+
+| Phần | Nơi sửa | Test (`erpnext/accounts/test/test_doi_soat_pr_pi.py`) |
+|---|---|---|
+| Cài đặt: công tắc, phạm vi (mọi NCC / chỉ NCC được chọn, mặc định chọn), tự tạo ĐNTT, 2 ô vai trò, người duyệt ĐNTT. Chỉ System Manager sửa (Purchase Manager có quyền ghi Buying Settings); ô "Áp đối soát" trên Supplier chỉ người duyệt / System Manager đổi | `accounts/doi_soat_pr_pi/truong_tuy_bien.py`, `cau_hinh.py` | `test_bat_thu_chi_ap_...`, `test_chi_system_manager_...`, `test_nguoi_lap_hoa_don_khong_tu_bo_...`, `test_tat_cong_tac_...` |
+| Ghép dòng (6.3.2): `pr_detail` giữ nguyên; chỉ có `po_detail` thì tìm dòng Phiếu nhập; một dòng PO qua nhiều phiếu thì tách dòng hóa đơn; mơ hồ thì ghép tay; phiếu đã hủy có bản sửa thì chuyển sang bản sửa | `ghep_dong.py` (`before_validate`) | S6, S7, S8 (2 test), S10 |
+| Đối soát 0 đồng (6.3.3): số lượng (= số đã nhận chưa lập hóa đơn, ĐVT kho; hóa đơn từng phần thì được ít hơn), đơn giá trước thuế theo ĐVT kho, thuế suất, thành tiền dòng, tổng tiền hàng / thuế / thanh toán. Bảng con `Purchase Invoice PR Difference` + gợi ý nhánh | `doi_soat.py` (`validate`), DocType mới `accounts/doctype/purchase_invoice_pr_difference/` | S1, S2, S4, S5, `test_lech_don_gia`, `test_dong_phi_...`, `test_hoa_don_thu_hai_...`, S16, S17, `TestHoaDonTungPhan` (gồm phí cố định lập một lần / hai lần) |
+| D3-5: hóa đơn trong phạm vi đối soát được lưu dù cao hơn Phiếu nhập (bỏ `validate_multiple_billing` theo Phiếu nhập trên chính hóa đơn đó); có ngoại lệ thì Nộp được dù vượt Đơn mua hàng (bỏ `check_overflow_with_allowance` phần tiền). Ngoại lệ không duyệt được khi hóa đơn vượt **giá trị Phiếu nhập** | `vuot_hoa_don.py` | `TestHoaDonCaoHonPhieuNhap` |
+| D3-7: ngày bắt đầu lệch `lech_tu_ngay`; job 8 giờ sáng gửi Kế toán trưởng (người có Vai trò Kế toán trưởng) một thông báo tổng hợp (chuông + email) các hóa đơn nháp Lệch / Chưa đối soát quá N ngày, lặp hằng ngày tới khi xử lý | `nhac_lech.py`, `hooks.py` (`scheduler_events` cron `0 8 * * *`) | `TestNhacLechTon` |
+| Chặn Nộp (6.3.5); ngoại lệ có lý do, người duyệt, thời điểm; phê duyệt gắn với dấu vân tay bảng chênh lệch, chênh lệch đổi thì mất hiệu lực; ô duyệt không ghi được qua form / API | `doi_soat.truoc_khi_nop`, `duyet_ngoai_le` | S9 (2 test), `test_ngoai_le_mat_hieu_luc_...`, `test_khong_tu_dien_phe_duyet_...` |
+| Phiếu nhập Nộp / hủy → hóa đơn nháp liên quan tự đối soát lại; nút Đối soát lại | `doi_soat.khi_nop_phieu_nhap`, `khi_huy_phieu_nhap`, `doi_soat_lai`; `public/js/doi_soat_pr_pi/purchase_invoice.js` | S10, `test_nut_doi_soat_lai_...`, S11 |
+| ĐNTT nháp khi Nộp hóa đơn đã Khớp / có ngoại lệ (6.3.7): `new_doc` + `insert`, số tiền = còn phải trả, dùng lại `custom_thoi_han_thanh_toan`, `custom_nguoi_yeu_cau` nếu site có; đính kèm file hóa đơn; giao việc. Lỗi tạo ĐNTT thì hóa đơn không Nộp. Hủy hóa đơn xóa ĐNTT nháp | `de_nghi_thanh_toan.py` (`on_submit`, `on_cancel`) | S1, S14, `test_huy_hoa_don_xoa_dntt_nhap` |
+| E9: tổng ĐNTT chưa hủy (kể cả nháp) ≤ số tiền hóa đơn, cho mọi đường tạo; khóa dòng hóa đơn và đọc tổng bằng lệnh có khóa | `de_nghi_thanh_toan.kiem_tong_de_nghi` (`Payment Request.validate`) | S12, S13, `test_huy_dntt_thi_tao_lai_duoc`; S15: `scripts/kiem_dong_thoi_dntt.py` |
+| Thông báo (6.3.9): NTF-16 (hóa đơn lệch lúc tạo), NTF-17 (chuyển sang Lệch) → Mua hàng + người lập; NTF-18 (chọn nhánh b1) → Kho; NTF-19 nút "Gửi NCC bảng chênh lệch" trên hóa đơn nháp đang lệch (b2), CC người lập | `supply_notification/constants.py`; `setup.build_point` nhận thêm `watch_field`, `watch_value` | (cấu hình, kiểm bằng migrate) |
+
+S3 (lệch ĐVT): ERPNext chặn ngay khi lưu, test `test_s3_lech_dvt_bi_chan_ngay_khi_luu`. Tổng: **47 test đạt** (chạy bằng `scripts/chay_test.py` trên `erpnext.localhost`).
+
+### 16.3 Điều chỉnh khi code
+
+| Thiết kế | Thực tế | Lý do |
+|---|---|---|
+| So mặt hàng, ĐVT (6.3.3) trong bộ đối soát | ERPNext đã chặn khi lưu: `validate_with_previous_doc` bắt dòng hóa đơn trùng mặt hàng, ĐVT với dòng Phiếu nhập, trùng NCC / công ty / tiền tệ với phiếu | Không làm lại; bảng chênh lệch không có các tiêu chí này |
+| Mọi lệch số lượng / giá đều tới bước đối soát | ERPNext có ba lớp chặn "vượt hóa đơn": (1) lưu — vượt thành tiền Phiếu nhập ("Cannot overbill"; không áp khi Buying Settings bật "Bill for Rejected Quantity", mặc định ERPNext là bật); (2) Nộp — vượt thành tiền Đơn mua hàng ("over limit"); (3) Nộp — vượt giá trị dòng Phiếu nhập (`update_billing_percentage`). D3-5: bỏ (1) cho hóa đơn trong phạm vi đối soát, bỏ (2) khi có ngoại lệ; **giữ (3)** | (3) là chốt giữ đúng giá trị tồn kho và không có chỗ gắn hook cho riêng một hóa đơn. Hóa đơn cao hơn Phiếu nhập: Duyệt ngoại lệ báo không duyệt được, đi nhánh sửa Phiếu nhập theo giá đúng (b1) hoặc hóa đơn điều chỉnh (b2) |
+| Ngoại lệ cho phép Nộp mọi hóa đơn lệch | Ngoại lệ không duyệt được nếu hóa đơn vượt giá trị dòng Phiếu nhập quá mức ERPNext cho phép | Nếu không, ngoại lệ được duyệt nhưng Nộp vẫn bị (3) chặn |
+| Số lượng hóa đơn = toàn bộ phần chưa lập hóa đơn | D3-6: thêm ô Hóa đơn từng phần | Hóa đơn đầu của NCC xuất nhiều lần không phải xin ngoại lệ; không tích mà thiếu thì vẫn Lệch, nên Phiếu nhập ghi thừa (b1) không lọt. Phần còn lại theo dõi ở báo cáo chuẩn "Received Items To Be Billed" |
+| Nhánh xử lý theo từng dòng bảng chênh lệch | Bảng con chỉ **gợi ý**; người xử lý chọn ô **Nhánh xử lý** trên hóa đơn | Thông báo theo nhánh (NTF-18) cần một trường trên chứng từ để theo dõi |
+| Phiếu nhập hủy → đối soát lại ngay | Hóa đơn chuyển "Chưa đối soát"; chỉ đối soát lại khi bản sửa được Nộp (tự ghép sang bản sửa), hoặc bấm Đối soát lại | Frappe không cho lưu chứng từ trỏ vào phiếu đã hủy (`CancelledLinkError`, kiểm trước mọi hook) |
+| Tổng so với giá trị tính từ Phiếu nhập | Hóa đơn lấy **trọn** các phiếu: so với tổng ERPNext đã tính trên phiếu (gồm thuế / phí cố định, chiết khấu cả phiếu). Lấy **một phần**: tính lại theo thuế suất trên tiền hàng; phí cố định (loại Actual) trên hóa đơn khớp khi bằng 0 hoặc bằng đúng phần phí cố định của phiếu chưa hóa đơn nào (đã Nộp) lập | Trường hợp thường gặp khớp tuyệt đối với cách ERPNext làm tròn. Phí cố định không chia theo số lượng được; lập hóa đơn từ phiếu thì ERPNext chép dòng phí vào mọi hóa đơn, nên hóa đơn thứ hai còn giữ dòng phí sẽ Lệch (phí lập hai lần) — xóa dòng phí đó (HD01 V1.4) |
+| — | Tổng chỉ so khi mọi dòng đã khớp | Một sai lệch không bị liệt kê hai lần |
+| Thông báo "ĐNTT nháp đã tạo" | Dùng giao việc của Frappe (ToDo + thông báo giao việc) | Điểm Supply Notification trên Payment Request "Tạo mới" sẽ bắn cả cho ĐNTT tạo tay |
+| Thông báo "Lệch tồn quá N ngày" qua Supply Notification | Job riêng `nhac_lech.nhac_ke_toan_truong` (Notification Log: chuông + email theo cài đặt thông báo của người nhận) | Bộ nhắc hạn của Supply Notification chỉ quét chứng từ đã Nộp (hóa đơn lệch là nháp) và chỉ chọn người nhận theo phòng ban / từng người, không theo "Vai trò Kế toán trưởng" của Buying Settings |
+| — | Lỗi đính kèm file / giao việc không chặn Nộp (báo và ghi Error Log); lỗi tạo ĐNTT thì chặn | Đính kèm, giao việc là phần phụ |
+| — | Chống vượt tổng ĐNTT chỉ chạy khi công tắc bật | Gỡ được hoàn toàn bằng một công tắc |
+| — | `ignore_links_on_delete` thêm "Supply Notification Dispatch Log" | NTF-16/17 bắn trên hóa đơn nháp; nhật ký gửi làm hóa đơn nháp đó không xóa được |
+| — | `after_migrate`: tạo trường tùy biến (BA12/YC4 và YC5) **trước** `setup_supply_notification` | Lỗi tiềm ẩn từ Đợt 2: điểm NTF-14/15 trỏ vào trường của Item Price; site chưa có trường thì điểm bị từ chối lưu, migrate dừng giữa chừng và trường không bao giờ được tạo. Phần Đợt 2 sửa ở nhánh Đợt 2 (D3-10); YC5 thêm dòng của mình ngay sau, cùng lý do với NTF-16 → 19 |
+
+**Lưu ý môi trường test:** site `erpnext.localhost` chưa có tài khoản làm tròn của công ty và hộp thư gửi đi; test tự điền tài khoản làm tròn trong savepoint và tắt email báo giao việc.
+
+### 16.4 Lên production
+
+1. `bench --site miyano migrate`: tạo DocType bảng chênh lệch, trường tùy biến, NTF-16 → 19 (bật sẵn; chỉ bắn khi hóa đơn có trạng thái đối soát, tức là sau khi bật công tắc).
+2. Kiểm trước, chỉ đọc (phiên DB đặt READ ONLY), chạy được cả trước khi migrate:
+   `cd ~/frappe-bench/sites && ../env/bin/python ../apps/erpnext/scripts/kiem_truoc_trien_khai_yc5.py --site miyano`.
+   Script in: `set_landed_cost_based_on_purchase_invoice_rate` (bật thì ERPNext sửa giá trị kho theo giá hóa đơn thay cho lớp chặn (3) — nên tắt), "Bill for Rejected Quantity", "Maintain Same Rate"; hộp thư gửi đi mặc định; tài khoản làm tròn của công ty; vai trò vừa Nộp được Hóa đơn mua vừa tạo được Payment Request kèm người giữ; người nhận NTF-16 → 19 theo phòng ban; NCC ứng viên (số hóa đơn lập từ Phiếu nhập, số hóa đơn lệch giá, Phiếu nhập lập nhiều hóa đơn, có phí cố định, ô miễn Phiếu nhập). Mục nào báo **[CẦN XEM]** thì xử lý trước bước 3. **Không** cần đổi Over Billing Allowance (D3-5).
+3. Buying Settings (System Manager), giá trị đề xuất (người dùng giao "theo đề xuất", 23/10/2026):
+   - **Vai trò Kế toán trưởng**: vai trò Kế toán trưởng đang giữ, trong danh sách vai trò ứng viên của script (đủ quyền Nộp hóa đơn mua và tạo Payment Request), chọn vai trò ít người giữ nhất mà vẫn có Kế toán trưởng — ERPNext chuẩn thường là `Accounts Manager`. Không chọn vai trò mà cả phòng kế toán cùng giữ (`Accounts User`): khi đó ai cũng tự duyệt ngoại lệ được.
+   - **Vai trò Ban Điều hành**: vai trò của Giám đốc nếu có trong danh sách ứng viên; không có thì **để trống** (Kế toán trưởng và System Manager vẫn duyệt được), không cấp thêm quyền chỉ để điền ô này.
+   - **Người duyệt đề nghị thanh toán**: **để trống** — ĐNTT nháp giao cho mọi người có Vai trò Kế toán trưởng. Chỉ điền khi đúng một người duyệt chi.
+   - **Nhắc Kế toán trưởng khi lệch quá (ngày)**: **3** (mặc định).
+   - Giữ phạm vi "Chỉ nhà cung cấp được chọn"; tích **Áp đối soát Phiếu nhập ↔ Hóa đơn** trên **1–2 NCC** đầu bảng ứng viên của script: có đều hóa đơn lập từ Phiếu nhập, hàng hóa (không phải dịch vụ), ô miễn Phiếu nhập = 0; nếu được, một NCC có hóa đơn lệch giá và một NCC có Phiếu nhập lập nhiều hóa đơn, để thử cả hai luồng. Rồi tích **Bật đối soát**.
+4. Theo dõi hóa đơn của các NCC thử (lọc danh sách theo Trạng thái đối soát), rồi mở rộng sang "Mọi nhà cung cấp".
+5. Gỡ: bỏ tích **Bật đối soát** (mọi kiểm tra, chặn Nộp, tự tạo ĐNTT và chống vượt tổng đều dừng; dữ liệu đã ghi giữ nguyên).
+6. Hướng dẫn sử dụng: HD01 V1.4 (chương 8, 9, 10, 11.3).
