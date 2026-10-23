@@ -25,6 +25,8 @@ Quy tắc để đối chiếu khi test:
 Giá trên DEMO Bảng giá Himedic: VT-01 120.000, VT-02 50.500, VT-05 10.100 (theo Cái).
 Người dùng mẫu (Impersonate): `demo.giamdoc@example.com` (Giám đốc), `demo.nhanvien@example.com` (nhân viên).
 
+Gặp lỗi thiếu tài khoản kho khi Nộp chứng từ kho, hoặc lỗi máy chủ khi lưu hồ sơ Công ty: xem mục **11. Xử lý sự cố thường gặp** trong `docs/HDKT_BA12_Kiem_gia_ban.md`.
+
 ## H. Cài đặt bảng giá và chặn sửa
 
 | # | Bước | Kết quả mong đợi | ☐ |

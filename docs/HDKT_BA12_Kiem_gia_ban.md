@@ -28,6 +28,8 @@ Quy tắc để đối chiếu khi test:
 | 0.2 | Ở thư mục `sites` chạy:<br>`../env/bin/python ../apps/erpnext/scripts/demo_gia_ban_doi_soat.py --site erpnext.localhost` | In ra 4 SO demo và trạng thái từng dòng. Chạy lại lần 2 không lỗi, kết quả như cũ | ☐ |
 | 0.3 | Thử chạy với `--site miyano` | Script từ chối: "Từ chối: không tạo dữ liệu demo trên site production." | ☐ |
 
+Gặp lỗi thiếu tài khoản kho khi Nộp chứng từ kho, hoặc lỗi máy chủ khi lưu hồ sơ Công ty: xem mục **11. Xử lý sự cố thường gặp** cuối tài liệu.
+
 Dữ liệu demo:
 
 | Loại | Bản ghi |
@@ -119,6 +121,52 @@ Dữ liệu demo:
 | P2 | Khách cố Submit SO còn lệch qua cổng | Thông báo chung "Đơn hàng cần Miyano kiểm tra giá trước khi xác nhận", không lộ giá | ☐ |
 | P3 | Gọi `erpnext.selling.kiem_gia.thong_bao_gia_moi.lay_thong_bao_gia_moi` với SO ở A06 | Trả về dòng VT-01: giá cũ 120.000, giá mới 124.692, số văn bản — cùng nội dung email | ☐ |
 | P4 | Gọi API với SO ở F4 và SO ở F8 (trước và sau F10) | F4: `gia_cu` = null (Portal hiển thị "Chưa có trong bảng giá"). F8: dòng chờ chấp thuận **chưa** có; sau F10 có | ☐ |
+
+## 11. Xử lý sự cố thường gặp
+
+### 11.1. Nộp Phiếu nhập mua báo lỗi thiếu tài khoản kho
+
+**Thông báo:** "Vui lòng thiết lập Stock Received But Not Billed mặc định trong công ty Miyano".
+
+**Nguyên nhân:** công ty Miyano bật hạch toán tồn kho thường xuyên nhưng chưa khai báo các tài khoản kế toán kho mặc định. Lỗi này không phải do thao tác của nhân viên mua hàng.
+
+**Cách xử lý** (kế toán trưởng hoặc IT): mở **Công ty Miyano**, điền 3 trường rồi Lưu:
+
+| Trường | Tài khoản cần chọn |
+|---|---|
+| Stock Received But Not Billed | Hàng mua chưa có hóa đơn - MVL |
+| Expenses Included In Valuation | Chi phí thu mua tính vào giá trị hàng tồn kho - MVL |
+| Stock Adjustment | Chi phí điều chỉnh hàng tồn kho - MVL |
+
+Lưu Công ty mà gặp lỗi máy chủ → làm mục 11.2 trước.
+
+Site test `erpnext.localhost`: **đã điền** 3 tài khoản này ngày 23/10/2026.
+
+### 11.2. Lỗi máy chủ khi lưu hồ sơ Công ty
+
+**Thông báo:** "Lỗi máy chủ – pymysql.err.OperationalError: (1054, Unknown column default_employee_advance_account)".
+
+**Nguyên nhân:** cấu trúc cơ sở dữ liệu thiếu các trường nhân sự của Công ty. Khi lưu, Công ty tự gán tài khoản mặc định nhân sự theo TT99 (tạm ứng 141, phải trả người lao động 334) vào các trường do app **HRMS** thêm. Thiếu khi: site **chưa cài HRMS**, hoặc đã cài nhưng **chưa chạy lệnh đồng bộ** sau khi cập nhật ERPNext / HRMS. Hệ quả: không lưu được hồ sơ Công ty, nên cũng chưa khắc phục được lỗi ở mục 11.1.
+
+**Cách xử lý** (bộ phận IT, từ thư mục bench trên máy chủ — thư mục chứa `sites/`):
+
+1. Xem site đã cài HRMS chưa: `bench --site <tên site> list-apps`.
+2. Chưa có `hrms` → sao lưu rồi cài HRMS (tạo các trường nhân sự trên Công ty và phần quản lý nhân viên):
+
+   ```bash
+   bench --site <tên site> backup
+   bench --site <tên site> install-app hrms
+   ```
+
+3. Đã có `hrms` → chạy lệnh đồng bộ:
+
+   ```bash
+   bench --site <tên site> migrate
+   ```
+
+4. Làm lại mục 11.1.
+
+Site test `erpnext.localhost`: **đã cài HRMS** (15.50.3) ngày 23/10/2026.
 
 ## Test tự động
 
