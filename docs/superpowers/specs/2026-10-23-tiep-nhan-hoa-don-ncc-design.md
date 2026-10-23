@@ -132,6 +132,25 @@ giá PO; mẫu in PO và email đặt hàng có mã dòng HĐK; màn hình tra c
 Tổng 30 test mới đạt; chạy chung với test Đợt 1 – 3 (kiểm giá, thông báo, đối soát PR ↔ PI): 473 test đạt, 3 bỏ qua.
 
 **Lưu ý chạy test từ worktree:** `frappe.get_hooks` đọc `app_hooks` từ Redis dùng chung (trừ khi `developer_mode`),
-và `chay_test.py` nạp `doc_events` một lần cho cả tiến trình. Chạy từ worktree phải bật `developer_mode` trong
-tiến trình test để đọc đúng `hooks.py` của nhánh và không ghi hooks của nhánh vào cache mà web đang dùng; xong
-chạy `bench --site <site> clear-cache`.
+và `chay_test.py` nạp `doc_events` một lần cho cả tiến trình. Chạy từ worktree thì dùng
+`<worktree>/scripts/chay_test.py --worktree`. Cờ này nạp `erpnext` từ worktree và bật `developer_mode` riêng
+trong tiến trình test. Nhờ vậy tiến trình đọc đúng `hooks.py` của nhánh, và không ghi hooks của nhánh vào
+cache mà web đang dùng. Script của worktree mà chạy thiếu cờ thì tự từ chối. Kết quả với cờ này: 473 test
+đạt, 3 bỏ qua.
+
+### 10.1 Kiểm thử thủ công
+
+- `docs/HDKT_Dot4_Tiep_nhan_hoa_don_NCC.md`: các mục A – K, xử lý sự cố ở mục L.
+- `scripts/demo_tiep_nhan_hoa_don.py`: mỗi lần chạy tạo một NCC demo mới (MST riêng), kèm:
+  - hợp đồng khung đã Nộp;
+  - Đơn mua hàng và Phiếu nhập cho 14 kịch bản;
+  - tệp XML hóa đơn có ghi số Đơn mua.
+
+  Script từ chối chạy trên `miyano`; `--tra-lai` trả cài đặt về như cũ.
+- Đã chạy thật mọi bước HDKT trên erpnext.localhost (23/10/2026) rồi hoàn tác. Trạng thái, số tiền và câu thông
+  báo trong HDKT lấy từ lần chạy đó.
+- Sau lần chạy, câu cảnh báo in số theo định dạng hệ thống (95/100 (95%), 13.000), thay cho 95.0 / VND 13.000,00.
+- Đã thêm bản dịch tiếng Việt cho tên các DocType mới và câu chặn vượt hạn mức của ERPNext
+  (`erpnext/translations/vi.csv`).
+- **Quyền trên Đơn khung:** mặc định chỉ System Manager tạo / Nộp. Production cần cấp quyền cho vai trò phụ trách
+  hợp đồng (Chuỗi cung ứng). Việc này là cấu hình site, chưa làm trong phần 1.
