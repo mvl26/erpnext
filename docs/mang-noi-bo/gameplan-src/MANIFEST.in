@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include gameplan *.css
+recursive-include gameplan *.csv
+recursive-include gameplan *.html
+recursive-include gameplan *.ico
+recursive-include gameplan *.js
+recursive-include gameplan *.json
+recursive-include gameplan *.md
+recursive-include gameplan *.png
+recursive-include gameplan *.py
+recursive-include gameplan *.svg
+recursive-include gameplan *.txt
+recursive-exclude gameplan *.pyc

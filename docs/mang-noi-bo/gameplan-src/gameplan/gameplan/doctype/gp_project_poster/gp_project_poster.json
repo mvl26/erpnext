@@ -1,0 +1,51 @@
+{
+ "actions": [],
+ "creation": "2026-10-24 06:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "poster_type",
+  "department",
+  "user"
+ ],
+ "fields": [
+  {
+   "fieldname": "poster_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Loại",
+   "options": "Phòng ban\nNgười dùng",
+   "default": "Phòng ban",
+   "reqd": 1
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Phòng ban",
+   "depends_on": "eval:doc.poster_type=='Phòng ban'",
+   "mandatory_depends_on": "eval:doc.poster_type=='Phòng ban'"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Người dùng",
+   "options": "User",
+   "depends_on": "eval:doc.poster_type=='Người dùng'",
+   "mandatory_depends_on": "eval:doc.poster_type=='Người dùng'"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-24 06:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gameplan",
+ "name": "GP Project Poster",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

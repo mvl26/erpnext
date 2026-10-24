@@ -1,0 +1,10 @@
+.DS_Store
+*.pyc
+*.egg-info
+*.swp
+__pycache__
+tags
+node_modules
+gameplan/docs/current
+gameplan/www/teams.html
+build

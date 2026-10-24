@@ -1,0 +1,12 @@
+{
+    "private": true,
+    "aworkspaces": [
+        "frontend",
+        "frappe-ui"
+    ],
+    "scripts": {
+        "build:frontend": "cd frontend && yarn install --ignore-optional && yarn build",
+        "dev": "cd frontend && yarn dev",
+        "note": "echo 'Miyano: giao dien da build san trong gameplan/public/frontend; may chu KHONG can build. Khi sua frontend: yarn build:frontend roi commit.'"
+    }
+}

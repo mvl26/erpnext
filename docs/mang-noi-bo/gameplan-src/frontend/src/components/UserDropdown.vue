@@ -1,0 +1,91 @@
+<template>
+  <Dropdown :options="dropdownItems">
+    <template v-slot="{ open }">
+      <button
+        class="flex w-[15rem] items-center rounded-md px-2 py-2 text-left"
+        :class="open ? 'bg-surface-selected shadow-sm' : 'hover:bg-surface-gray-3'"
+      >
+        <GameplanLogo class="w-8 h-8 rounded" />
+        <div class="ml-2 flex flex-col">
+          <div class="text-base font-medium text-ink-gray-9 leading-none">Mạng nội bộ</div>
+          <div class="mt-1 hidden text-sm text-ink-gray-7 sm:inline leading-none">
+            {{ user.full_name }}
+          </div>
+        </div>
+        <LucideChevronDown class="ml-auto hidden h-4 w-4 sm:inline text-ink-gray-8" />
+      </button>
+    </template>
+  </Dropdown>
+</template>
+<script setup>
+import { h, computed, onMounted } from 'vue'
+import { Dropdown } from 'frappe-ui'
+import { showSettingsDialog } from '@/components/Settings/SettingsDialog.vue'
+import LucideCreditCard from '~icons/lucide/credit-card'
+import LucideMoon from '~icons/lucide/moon'
+import GameplanLogo from './GameplanLogo.vue'
+import { getUser } from '@/data/users'
+import { session } from '@/data/session'
+
+const user = getUser()
+
+const dropdownItems = computed(() => [
+  {
+    icon: 'user',
+    label: 'Hồ sơ của tôi',
+    route: {
+      name: 'PersonProfile',
+      params: { personId: user.user_profile },
+    },
+  },
+  {
+    icon: 'settings',
+    label: 'Cài đặt & Thành viên',
+    onClick: () => showSettingsDialog(),
+    condition: () => user.isNotGuest,
+  },
+  {
+    icon: LucideMoon,
+    label: 'Đổi giao diện sáng/tối',
+    onClick: toggleTheme,
+  },
+  {
+    icon: () => h(LucideCreditCard),
+    label: 'Gói dịch vụ',
+    condition: () => user.isNotGuest && window.frappecloud_host && window.site_name,
+    onClick: () => {
+      window.open(`${window.frappecloud_host}/dashboard/subscription/${window.site_name}`, '_blank')
+    },
+  },
+  {
+    icon: 'home',
+    label: 'Về trang ERP',
+    onClick: () => (window.location.href = '/app'),
+    condition: () => user.isNotGuest,
+  },
+  {
+    icon: 'code',
+    label: 'Mã nguồn (AGPL-3.0)',
+    onClick: () => window.open('https://github.com/mvl26/gameplan/tree/miyano-v15', '_blank'),
+  },
+  {
+    icon: 'log-out',
+    label: 'Đăng xuất',
+    onClick: () => session.logout.submit(),
+  },
+])
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme')
+  let theme = currentTheme === 'dark' ? 'light' : 'dark'
+  document.documentElement.setAttribute('data-theme', theme)
+  localStorage.setItem('theme', theme)
+}
+
+onMounted(() => {
+  const theme = localStorage.getItem('theme')
+  if (['light', 'dark'].includes(theme)) {
+    document.documentElement.setAttribute('data-theme', theme)
+  }
+})
+</script>
