@@ -254,12 +254,15 @@ function render_buttons(frm, state) {
 }
 
 function button_group(button) {
-	if (["issue", "cancel"].includes(button.name)) return null;
+	// Đồng bộ lại nằm ngoài menu xổ: kế toán dùng nó thường xuyên khi sửa danh mục (Q7).
+	if (["issue", "cancel", "resync"].includes(button.name)) return null;
 	if (["create_adjustment", "create_replacement"].includes(button.name)) return __("Điều chỉnh");
 	return __("Hóa đơn điện tử");
 }
 
 function run_button(frm, button) {
+	// Cấp 0 — bấm là chạy. Server trả về các trường đã đổi, `call_action` hiện ra.
+	if (button.level === 0) return call_action(frm, button, {});
 	if (button.level === 3) return confirm_level_three(frm, button);
 	if (button.level === 2) return prompt_level_two(frm, button);
 	return confirm_level_one(frm, button);
@@ -362,7 +365,13 @@ function level_two_fields(frm, button) {
 					reqd: 1,
 					default: frm.doc.email_deliver,
 				},
-				{ fieldname: "cc", label: __("CC"), fieldtype: "Data" },
+				{
+					fieldname: "cc",
+					label: __("CC"),
+					fieldtype: "Data",
+					description: __("Hệ thống tự CC thêm hộp thư kế toán trong Fast EInvoice Settings."),
+				},
+				...already_sent_note(frm),
 				{
 					fieldname: "via",
 					label: __("Gửi bằng"),
@@ -433,6 +442,25 @@ function level_two_fields(frm, button) {
 		default:
 			return [];
 	}
+}
+
+// Hóa đơn đã gửi (tay hoặc tự gửi) thì nói rõ trong hộp gửi — tránh khách nhận hai mail.
+function already_sent_note(frm) {
+	if (!frm.doc.invoice_send_count) return [];
+	return [
+		{
+			fieldname: "already_sent",
+			fieldtype: "HTML",
+			options: `<div class="alert alert-warning">${__(
+				"Hóa đơn đã được gửi {0} lần, lần gần nhất lúc {1} tới {2}. Bấm Thực hiện là gửi LẠI cho khách.",
+				[
+					frm.doc.invoice_send_count,
+					frappe.datetime.str_to_user(frm.doc.invoice_sent_time),
+					frappe.utils.escape_html(frm.doc.invoice_sent_to || ""),
+				]
+			)}</div>`,
+		},
+	];
 }
 
 // Cấp 3 — bảng tóm tắt toàn màn hình, phải gõ đúng chữ mới bật nút.

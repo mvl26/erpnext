@@ -11,7 +11,7 @@
  "idx": 0,
  "indicator_color": "",
  "is_hidden": 0,
- "label": "Doi Chieu Cong No",
+ "label": "Đối chiếu công nợ",
  "links": [
   {
    "hidden": 0,
@@ -48,7 +48,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Báo cáo",
-   "link_count": 3,
+   "link_count": 4,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -85,12 +85,23 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Đối chiếu mua vào - bán ra",
+   "link_count": 0,
+   "link_to": "doi-chieu-mua-ban",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-09-21 10:00:00.000000",
+ "modified": "2026-10-23 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Debt Reconciliation",
- "name": "Doi Chieu Cong No",
+ "name": "Đối chiếu công nợ",
  "number_cards": [
   {
    "label": "Biên bản kỳ trước",

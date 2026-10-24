@@ -14,6 +14,7 @@ from erpnext.warehouse_operations.vitri.goi_y import goi_y_o
 from erpnext.warehouse_operations.vitri.o_tem import kiem_o_tem
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
 from erpnext.warehouse_operations.vitri.so import ton_o
+from erpnext.warehouse_operations.vitri.so_lo import kem_so_lo_hien_thi
 
 # Giống `tem.py`: thủ kho phải tự làm được, đây là việc hằng ngày chứ không
 # phải thao tác thiết lập. Khác `bat_kho.py` (sinh ô, bật kho) vốn chỉ mở
@@ -33,6 +34,7 @@ def _kiem_tra_quyen():
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def hang_chua_xep(kho: str) -> list[dict]:
 	"""Các dòng tồn ở ô "Chưa xếp vị trí" của `kho`, dạng dòng phiếu sẵn.
 
@@ -234,6 +236,7 @@ def _da_len_phieu(doc, o: str, vat_tu: str, so_lo: str | None) -> float:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def phieu_xep_dang_lam(kho: str | None = None) -> dict:
 	"""Kho để xếp + phiếu nháp đang làm dở của người dùng ở kho đó (nếu có).
 
@@ -340,6 +343,7 @@ def _mo_ta_lo(kho: str, vat_tu: str, so_lo: str | None) -> dict:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def quet_de_xep(kho: str, ma: str) -> dict:
 	"""Nhận diện một mã quét trên trang xếp hàng.
 
@@ -391,6 +395,7 @@ def quet_de_xep(kho: str, ma: str) -> dict:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def them_dong_xep(kho: str, vat_tu: str, so_lo: str | None, tu_o: str, den_o: str, so_luong) -> dict:
 	"""Thêm một dòng đã xác nhận vào phiếu nháp của người dùng (tạo phiếu nếu chưa có).
 
@@ -441,6 +446,7 @@ def them_dong_xep(kho: str, vat_tu: str, so_lo: str | None, tu_o: str, den_o: st
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def xoa_dong_xep(phieu: str, dong: str) -> dict | None:
 	"""Bỏ một dòng khỏi phiếu nháp. Dòng cuối đi thì gỡ luôn phiếu nháp rỗng.
 
@@ -463,6 +469,7 @@ def xoa_dong_xep(phieu: str, dong: str) -> dict | None:
 
 
 @frappe.whitelist()
+@kem_so_lo_hien_thi
 def duyet_phieu_xep(phieu: str) -> dict:
 	"""Duyệt phiếu — ghi sổ vị trí. Hỏng thì phiếu nháp và các dòng còn NGUYÊN.
 

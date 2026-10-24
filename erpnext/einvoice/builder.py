@@ -20,11 +20,11 @@ from frappe.utils import flt, get_fullname, nowdate
 
 from erpnext.einvoice.constants import (
 	CANCEL_BLOCKING_STATUSES,
-	EDITABLE_STATUSES,
 	INVOICE_TYPE_ORIGINAL,
 	LIVE_STATUSES,
 	MAX_LEN,
 	PROCESS_TYPE_GOODS,
+	RESYNC_STATUSES,
 	SOURCE_DELIVERY_NOTE_V2,
 	SOURCE_SALES_INVOICE,
 	STATUS_CANCELLED,
@@ -117,11 +117,17 @@ def create_from_delivery_note(delivery_note=None):
 
 @frappe.whitelist()
 def resync_from_source(fei):
-	"""Nút 2 — nạp lại dữ liệu từ chứng từ nguồn, ghi đè master và dòng hàng."""
+	"""Nút 2 — nạp lại dữ liệu từ chứng từ nguồn, ghi đè master và dòng hàng (Q7).
+
+	Bấm là chạy, không hỏi lại. Trả ``{"ok", "changed", "message"}``: ``changed`` là
+	danh sách "Trường: cũ → mới" để kế toán biết vừa đổi gì — chỉ để biết, không chặn.
+	Không có gì đổi thì không lưu và **giữ nguyên trạng thái**: khách không phải
+	duyệt lại một bản nháp y hệt bản đã gửi.
+	"""
 	settings = check_enabled()
 	doc = frappe.get_doc(FEI, fei)
 
-	if doc.status not in EDITABLE_STATUSES:
+	if doc.status not in RESYNC_STATUSES:
 		frappe.throw(
 			_("Hóa đơn đang ở trạng thái {0} nên không đồng bộ lại được từ chứng từ nguồn.").format(
 				doc.status
@@ -132,8 +138,17 @@ def resync_from_source(fei):
 		source = _load_delivery_note(doc.delivery_note)
 	else:
 		source = _load_sales_invoice(doc.sales_invoice)
+	before = _resync_snapshot(doc)
 	_copy_from_source(doc, source, settings)
+	changed = _describe_changes(doc, before, _resync_snapshot(doc))
+	if not changed:
+		return {
+			"ok": True,
+			"changed": [],
+			"message": _("Dữ liệu đã khớp với chứng từ nguồn — không có gì thay đổi."),
+		}
 
+	was_draft = doc.status == STATUS_DRAFT
 	# Dữ liệu vừa đổi nên mọi xác nhận trước đó của khách không còn giá trị.
 	# `revision_count` đếm số lần **quay về Nháp từ 02/03/04** (mục C2.2 #19), nên
 	# đồng bộ lại một bản ghi đang là Nháp thì không tính thêm một vòng sửa —
@@ -142,10 +157,80 @@ def resync_from_source(fei):
 		doc.revision_count = (doc.revision_count or 0) + 1
 	doc.status = STATUS_DRAFT
 	doc.flags.ignore_permissions = True
+	# Nguồn thiếu địa chỉ/email vẫn phải lấy về được: lỗi hiện ở bảng kiểm tra dữ
+	# liệu trên form, và chốt chặn thật nằm ở nút phát hành (`validate_before_send`).
+	doc.flags.ignore_mandatory = True
 	doc.save()
 
 	stamp_source_documents(doc.name)
-	return doc.name
+	message = (
+		_("Đã đồng bộ lại từ chứng từ nguồn. Các trường thay đổi:")
+		+ "<br>"
+		+ "<br>".join(frappe.utils.escape_html(change) for change in changed)
+	)
+	if not was_draft:
+		message += "<br><br>" + _("Hóa đơn đã về Nháp — gửi lại bản nháp cho khách nếu cần khách duyệt.")
+	return {"ok": True, "changed": changed, "message": message}
+
+
+# Trường master mà `_copy_from_source` ghi — đúng những gì Đồng bộ lại có thể đổi.
+# Không có `invoice_date`: ngày hóa đơn luôn đặt về hôm nay, báo ra chỉ gây nhiễu.
+_RESYNC_FIELDS = (
+	"customer",
+	"customer_code",
+	"customer_name",
+	"customer_tax_code",
+	"customer_type",
+	"address",
+	"buyer",
+	"phone_number",
+	"email_deliver",
+	"payment_method",
+	"currency",
+	"exchange_rate",
+	"human_name",
+	"totals_manual_override",
+	"amount",
+	"tax_amount",
+	"total_amount",
+)
+
+
+def _resync_snapshot(doc):
+	"""Giá trị so sánh được của master và dòng hàng — số làm tròn để 1.0 và 1 không "khác"."""
+	master = {}
+	for fieldname in _RESYNC_FIELDS:
+		value = doc.get(fieldname)
+		master[fieldname] = flt(value, 6) if isinstance(value, int | float) else (value or "")
+	lines = [
+		(
+			line.item_code or "",
+			line.item_name or "",
+			line.uom or "",
+			flt(line.qty, 6),
+			flt(line.price, 6),
+			flt(line.discount_amount, 6),
+			str(line.tax_rate or ""),
+		)
+		for line in doc.lines or []
+	]
+	return master, lines
+
+
+def _describe_changes(doc, before, after):
+	"""Danh sách "Nhãn: cũ → mới" — chỉ để kế toán biết, không phải hộp xác nhận."""
+	meta = frappe.get_meta(FEI)
+	(old_master, old_lines), (new_master, new_lines) = before, after
+	changes = [
+		f"{_(meta.get_label(fieldname))}: {old_master[fieldname] or '—'} → {new_master[fieldname] or '—'}"
+		for fieldname in _RESYNC_FIELDS
+		if old_master[fieldname] != new_master[fieldname]
+	]
+	if old_lines != new_lines:
+		changes.append(
+			_("Dòng hàng: {0} dòng → {1} dòng (có thay đổi)").format(len(old_lines), len(new_lines))
+		)
+	return changes
 
 
 @frappe.whitelist()

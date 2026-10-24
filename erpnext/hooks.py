@@ -423,7 +423,11 @@ doc_events = {
 		# Thêm vào ĐÚNG dict con đã có ở trên, KHÔNG tạo khoá "Batch" thứ hai:
 		# khoá sau nuốt khoá trước trong im lặng và móc NCC sẽ biến mất mà
 		# không ai thấy.
-		"validate": "erpnext.warehouse_operations.vitri.ma_vach.kiem_ky_tu_lo",
+		"validate": [
+			"erpnext.warehouse_operations.vitri.ma_vach.kiem_ky_tu_lo",
+			# Lô tạo ngoài `Batch Entry` lấy mã lô làm số lô (spec tách số lô 19/10/2026).
+			"erpnext.warehouse_operations.vitri.lo_ncc.dien_so_lo_neu_trong",
+		],
 	},
 	# Kho đã bật quản lý vị trí: số lô phải đến từ phiếu nhập lô, không gõ tay trên
 	# phiếu nhập. Chủ đầu tư chốt 17/09/2026 sau khi phiếu MAT-PRE-2026-00008 được
@@ -534,6 +538,10 @@ naming_series_variables = {
 # if payment entry not in auto cancel exempted doctypes it will cancel payment entry.
 auto_cancel_exempted_doctypes = [
 	"Payment Entry",
+	# `Batch Entry` chỉ huỷ được SAU khi phiếu nhập đã huỷ (guard `on_cancel`).
+	# Hộp "Cancel All" trên form phiếu nhập huỷ chứng từ liên kết TRƯỚC phiếu
+	# gốc, nên để nó huỷ BE là khoá chết cả hai (PNL-2026-00006, 19/10/2026).
+	"Batch Entry",
 ]
 
 scheduler_events = {

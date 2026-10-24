@@ -20,8 +20,9 @@ from erpnext.einvoice.constants import (
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.tests.test_fast_approval import Mailbox
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
+from erpnext.einvoice.tests.test_fast_invoice_email import use_miyano_template
 from erpnext.einvoice.tests.test_fast_pdf import pdf_envelope, sent_payload
-from erpnext.einvoice.tests.test_fixtures import attach_official_xml, make_sales_invoice
+from erpnext.einvoice.tests.test_fixtures import LOOKUP_CODE, attach_official_xml, make_sales_invoice
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -31,6 +32,7 @@ class SendInvoiceBase(FrappeTestCase):
 	def setUp(self):
 		frappe.db.rollback()
 		configure(token="TOKEN-ABC", token_time=now_datetime())
+		use_miyano_template()
 		self.si = make_sales_invoice()
 		self.fei = frappe.get_doc(FEI, create_from_sales_invoice(self.si.name))
 		frappe.db.set_value(
@@ -97,13 +99,15 @@ class TestSendViaErp(SendInvoiceBase):
 		self.assertIsNotNone(self.fei.invoice_sent_time)
 
 	def test_email_carries_the_number_serial_and_lookup_code(self):
-		"""Khách cần mã tra cứu để tự đối chiếu trên cổng của Fast/CQT."""
+		"""Khách cần mã tra cứu in trên PDF để tự đối chiếu trên cổng của Fast — không phải keySearch."""
+		frappe.db.set_value(FEI, self.fei.name, "fast_lookup_code", LOOKUP_CODE)
 		send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
 
 		body = self.mailbox.sent[0]["message"]
 		self.assertIn("2", body)
 		self.assertIn("1C26TMY", body)
-		self.assertIn("KS-ABC-123", body)
+		self.assertIn(LOOKUP_CODE, body)
+		self.assertNotIn("KS-ABC-123", body)
 
 	def test_official_pdf_is_attached(self):
 		send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
@@ -128,6 +132,38 @@ class TestSendViaErp(SendInvoiceBase):
 		self.fei.reload()
 		self.assertEqual(self.fei.invoice_send_count, 2)
 		self.assertEqual(self.fei.invoice_sent_to, "them@bvx.vn")
+
+	def test_reply_to_is_the_sender_email(self):
+		configure(invoice_sender_email="hd@miyano.vn")
+		send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
+		self.assertEqual(self.mailbox.sent[0]["reply_to"], "hd@miyano.vn")
+
+	def test_settings_cc_is_added_to_the_dialog_cc(self):
+		configure(invoice_email_cc="kt@miyano.vn")
+		send_invoice_to_customer(self.fei.name, cc="sep@bvx.vn; KT@miyano.vn", mailer=self.mailbox)
+		self.assertEqual(self.mailbox.sent[0]["cc"], ["kt@miyano.vn", "sep@bvx.vn"])
+
+	def test_several_recipients_are_all_kept(self):
+		send_invoice_to_customer(self.fei.name, recipients=" a@bvx.vn; b@bvx.vn ,", mailer=self.mailbox)
+		self.assertEqual(self.mailbox.sent[0]["recipients"], ["a@bvx.vn", "b@bvx.vn"])
+
+	def test_failed_mailer_marks_the_log_failed_and_nothing_sent(self):
+		def broken_mailer(**kwargs):
+			raise Exception("SMTP từ chối")
+
+		with self.assertRaises(Exception):
+			send_invoice_to_customer(self.fei.name, mailer=broken_mailer)
+
+		log = frappe.get_all(
+			LOG,
+			filters={"fei_document": self.fei.name, "operation": "Email"},
+			fields=["success", "status", "error_message"],
+			order_by="creation desc",
+			limit=1,
+		)[0]
+		self.assertEqual((log.success, log.status), (0, "Lỗi"))
+		self.assertIn("SMTP từ chối", log.error_message)
+		self.assertEqual(frappe.db.get_value(FEI, self.fei.name, "invoice_send_count"), 0)
 
 	def test_sending_is_logged(self):
 		send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
@@ -196,13 +232,13 @@ class TestSendPreconditions(SendInvoiceBase):
 		with self.assertRaises(frappe.ValidationError):
 			send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
 
-	def test_erp_sending_needs_the_xml_too(self):
-		"""Có PDF mà chưa đính XML thì chưa gửi — báo rõ còn thiếu XML."""
+	def test_erp_sending_without_xml_attaches_only_the_pdf(self):
+		"""XML không bắt buộc (Q2): khách tự tải XML trên trang tra cứu của Fast."""
 		self._attach_official_pdf()
-		with self.assertRaises(frappe.ValidationError) as caught:
-			send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
-		self.assertIn("XML", str(caught.exception))
-		self.assertEqual(self.mailbox.sent, [])
+		send_invoice_to_customer(self.fei.name, mailer=self.mailbox)
+
+		self.assertEqual(self.mailbox.sent[0]["attachments"], [{"file_url": self.fei.official_pdf}])
+		self.assertEqual(frappe.db.get_value(FEI, self.fei.name, "status"), STATUS_SENT)
 
 	def test_missing_recipient_is_refused(self):
 		self._attach_official_pdf()

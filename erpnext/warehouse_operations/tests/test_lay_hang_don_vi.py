@@ -351,6 +351,18 @@ class TestTemKien(FrappeTestCase):
 		self.assertIn("DEMO", t["F7"])  # tên khách
 		self.assertEqual(t["F5"], "HSD 2029/06/30")
 
+	def test_tem_kien_in_so_lo_ma_vach_in_ma_lo(self):
+		"""Spec tách số lô 19/10/2026: F6 hiện số lô NCC, mã vạch vẫn mã hoá mã lô."""
+		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay
+		from erpnext.warehouse_operations.vitri.tem_kien import du_lieu_tem_kien
+
+		frappe.db.set_value("Batch", LO_DV, "custom_so_lo", "SO-NCC-DV")
+		ghi_da_lay(self.dn.name, self.dong, LO_DV, O_GAN, 5, don_vi=HOP)
+		t = du_lieu_tem_kien(self.dn.name)[0]
+		self.assertEqual(t["F6"], "Lô SO-NCC-DV")
+		self.assertEqual((t["so_lo"], t["ma_vach"], t["F10"], t["F11"]), (LO_DV,) * 4)
+		self.assertEqual(t["so_lo_hien_thi"], "SO-NCC-DV")
+
 	def test_300_cai_chia_3_kien_va_danh_so_noi_tiep_ca_phieu(self):
 		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay
 		from erpnext.warehouse_operations.vitri.tem_kien import du_lieu_tem_kien
@@ -424,9 +436,39 @@ class TestChanDuyet(FrappeTestCase):
 	def _duyet(self):
 		frappe.get_doc("Delivery Note", self.dn.name).submit()
 
-	def test_chua_lay_gi_bi_chan(self):
-		with self.assertRaisesRegex(frappe.ValidationError, "chưa lấy hàng"):
-			self._duyet()
+	def test_chua_lay_gi_thi_duyet_thang_tru_theo_fefo(self):
+		"""Nới 30/09/2026: phiếu chưa ai quét được duyệt như ERPNext gốc — sổ vị
+		trí tự trừ ô theo FEFO."""
+		from erpnext.warehouse_operations.vitri import so
+
+		self._duyet()
+		self.assertEqual(frappe.db.get_value("Delivery Note", self.dn.name, "docstatus"), 1)
+		self.assertEqual(so.ton_o(O_GAN, VT_DV, LO_DV), 2500.0)
+
+	def test_hang_chua_xep_len_ke_van_xuat_duoc(self):
+		"""Hàng mới nhập, CHƯA xếp lên kệ (còn ở ô "Chưa xếp vị trí") vẫn xuất
+		được khi duyệt thẳng — trừ đúng ô chưa xếp."""
+		from erpnext.warehouse_operations.vitri import so
+
+		frappe.get_doc(
+			{
+				"doctype": "Stock Entry", "stock_entry_type": "Material Receipt", "company": CTY,
+				"items": [{
+					"item_code": VT_DV, "qty": 700, "t_warehouse": KHO, "basic_rate": 10,
+					"batch_no": LO_DV, "use_serial_batch_fields": 1,
+				}],
+			}
+		).insert(ignore_permissions=True).submit()
+		chua_xep = frappe.db.get_value("Storage Location", {"kho": KHO, "la_o_chua_xep": 1})
+		# Dọn hàng đang nằm ở ô kệ để FEFO chỉ còn ô chưa xếp mà lấy.
+		dn_ke = _phieu_giao_dv(30)  # 30 Hộp = 3000 Nos, vét sạch O_GAN
+		frappe.get_doc("Delivery Note", dn_ke.name).submit()
+		self.assertEqual(so.ton_o(O_GAN, VT_DV, LO_DV), 0.0)
+		truoc = so.ton_o(chua_xep, VT_DV, LO_DV)
+
+		self._duyet()  # 500 Nos
+		self.assertEqual(frappe.db.get_value("Delivery Note", self.dn.name, "docstatus"), 1)
+		self.assertEqual(so.ton_o(chua_xep, VT_DV, LO_DV), truoc - 500)
 
 	def test_lay_do_dang_bi_chan(self):
 		from erpnext.warehouse_operations.vitri.lay_hang import ghi_da_lay

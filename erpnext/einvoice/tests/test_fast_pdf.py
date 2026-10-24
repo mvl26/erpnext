@@ -12,12 +12,19 @@ from erpnext.einvoice.actions import (
 	download_converted_pdf,
 	download_official_pdf,
 	download_pending_official_pdfs,
+	fill_lookup_from_pdf,
 )
 from erpnext.einvoice.builder import create_from_sales_invoice
 from erpnext.einvoice.constants import STATUS_DRAFT, STATUS_ISSUED, STATUS_TAX_ACCEPTED
 from erpnext.einvoice.fast_client import FastClient
 from erpnext.einvoice.tests.test_fast_client import FakeTransport, checkkey_ok, configure, envelope
-from erpnext.einvoice.tests.test_fixtures import make_sales_invoice, minimal_pdf_bytes
+from erpnext.einvoice.tests.test_fixtures import (
+	LOOKUP_CODE,
+	LOOKUP_URL,
+	lookup_pdf_bytes,
+	make_sales_invoice,
+	minimal_pdf_bytes,
+)
 
 FEI = "Fast EInvoice Document"
 LOG = "Fast EInvoice Log"
@@ -25,6 +32,11 @@ LOG = "Fast EInvoice Log"
 
 def pdf_envelope(extra=b""):
 	return envelope(1, base64.b64encode(minimal_pdf_bytes() + extra).decode())
+
+
+def lookup_envelope(**kwargs):
+	"""PDF chính thức có in mã tra cứu và trang tra cứu, như PDF thật của Fast."""
+	return envelope(1, base64.b64encode(lookup_pdf_bytes(**kwargs)).decode())
 
 
 def sent_payload(body):
@@ -134,6 +146,57 @@ class TestOfficialPdf(PdfTestBase):
 		self.assertFalse(result["ok"])
 		self.assertIn("ký số", result["message"])
 		self.assertNotIn("không rõ mã", result["message"])
+
+
+class TestLookupCodeFromPdf(PdfTestBase):
+	"""Mục 4.3 — mã tra cứu ngắn và trang tra cứu đọc từ PDF chính thức."""
+
+	def test_download_reads_the_lookup_code_and_url(self):
+		download_official_pdf(self.fei.name, client=self._client(lookup_envelope()))
+
+		self.fei.reload()
+		self.assertEqual(self.fei.fast_lookup_code, LOOKUP_CODE)
+		self.assertEqual(self.fei.fast_lookup_url, LOOKUP_URL)
+
+	def test_unreadable_pdf_keeps_the_pdf_and_leaves_a_comment(self):
+		download_official_pdf(self.fei.name, client=self._client(pdf_envelope()))
+
+		self.fei.reload()
+		self.assertTrue(self.fei.official_pdf)
+		self.assertFalse(self.fei.fast_lookup_code)
+		comments = frappe.get_all(
+			"Comment",
+			filters={"reference_doctype": FEI, "reference_name": self.fei.name},
+			pluck="content",
+		)
+		self.assertTrue(any("Không đọc được mã tra cứu từ PDF" in (c or "") for c in comments))
+
+	def test_redownload_overwrites_a_hand_typed_code(self):
+		frappe.db.set_value(FEI, self.fei.name, "fast_lookup_code", "SAI")
+		download_official_pdf(self.fei.name, client=self._client(lookup_envelope()))
+
+		self.assertEqual(frappe.db.get_value(FEI, self.fei.name, "fast_lookup_code"), LOOKUP_CODE)
+
+	def test_fill_lookup_from_pdf_keeps_old_value_when_unreadable(self):
+		frappe.db.set_value(FEI, self.fei.name, {"fast_lookup_code": "X", "fast_lookup_url": "https://cu/"})
+
+		self.assertFalse(fill_lookup_from_pdf(self.fei.name, minimal_pdf_bytes()))
+		self.assertEqual(frappe.db.get_value(FEI, self.fei.name, "fast_lookup_code"), "X")
+		self.assertEqual(frappe.db.get_value(FEI, self.fei.name, "fast_lookup_url"), "https://cu/")
+
+	def test_fill_lookup_from_pdf_keeps_the_old_url_when_only_the_code_is_printed(self):
+		frappe.db.set_value(FEI, self.fei.name, "fast_lookup_url", "https://cu/")
+
+		self.assertTrue(fill_lookup_from_pdf(self.fei.name, lookup_pdf_bytes(url="")))
+		self.assertEqual(frappe.db.get_value(FEI, self.fei.name, "fast_lookup_code"), LOOKUP_CODE)
+		self.assertEqual(frappe.db.get_value(FEI, self.fei.name, "fast_lookup_url"), "https://cu/")
+
+	def test_lookup_fields_stay_editable_after_issuance(self):
+		"""Không đọc được thì kế toán chép tay — trường phải sửa được khi hóa đơn đã khóa."""
+		self.fei.reload()
+		self.fei.fast_lookup_code = "6D TAY"
+		self.fei.save()
+		self.assertEqual(frappe.db.get_value(FEI, self.fei.name, "fast_lookup_code"), "6D TAY")
 
 
 class TestConvertedPdf(PdfTestBase):
