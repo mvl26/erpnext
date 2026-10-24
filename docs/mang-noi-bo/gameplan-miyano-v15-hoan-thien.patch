@@ -1,0 +1,70 @@
+diff --git a/gameplan/gameplan/doctype/gp_project/gp_project.py b/gameplan/gameplan/doctype/gp_project/gp_project.py
+index 26acb10..446cf40 100644
+--- a/gameplan/gameplan/doctype/gp_project/gp_project.py
++++ b/gameplan/gameplan/doctype/gp_project/gp_project.py
+@@ -75,9 +75,9 @@ class GPProject(ManageMembersMixin, Archivable, Document):
+ 			self.icon = get_random_gemoji().emoji
+ 
+ 		if not self.readme:
+-			self.readme = f"""<h3>Welcome to the {self.title} page!</h3>
+-			<p>You can add a brief introduction about this project, links,
+-			resources, and other important information here.</p>
++			self.readme = f"""<h3>Chào mừng đến với nhóm {self.title}!</h3>
++			<p>Bạn có thể thêm phần giới thiệu ngắn về nhóm này, các liên kết,
++			tài nguyên và thông tin cần thiết tại đây.</p>
+ 			"""
+ 
+ 		self.append(
+diff --git a/gameplan/gameplan/doctype/gp_team/gp_team.py b/gameplan/gameplan/doctype/gp_team/gp_team.py
+index 05985a8..242c078 100644
+--- a/gameplan/gameplan/doctype/gp_team/gp_team.py
++++ b/gameplan/gameplan/doctype/gp_team/gp_team.py
+@@ -54,9 +54,9 @@ class GPTeam(Archivable, Document):
+ 			self.icon = get_random_gemoji().emoji
+ 
+ 		if not self.readme:
+-			self.readme = f"""<h3>Welcome to the {self.title} team page!</h3>
+-			<p>You can add a brief introduction about the team, important links, resources,
+-			and other important information here.</p>
++			self.readme = f"""<h3>Chào mừng đến với không gian {self.title}!</h3>
++			<p>Bạn có thể thêm phần giới thiệu ngắn về không gian này, các liên kết quan trọng,
++			tài nguyên và thông tin cần thiết tại đây.</p>
+ 			"""
+ 
+ 		self.add_member(frappe.session.user)
+diff --git a/gameplan/miyano/setup.py b/gameplan/miyano/setup.py
+index bd9039f..22bcfb9 100644
+--- a/gameplan/miyano/setup.py
++++ b/gameplan/miyano/setup.py
+@@ -80,6 +80,7 @@ def setup_miyano(team_title=TEAM_TITLE):
+ 
+ 	has_department = bool(frappe.db.exists("DocType", "Department"))
+ 	created = []
++	missing_departments = []
+ 	for g in GROUPS:
+ 		if frappe.db.exists("GP Project", {"title": g["title"], "team": team}):
+ 			continue
+@@ -97,6 +98,7 @@ def setup_miyano(team_title=TEAM_TITLE):
+ 		)
+ 		for dept in g["departments"]:
+ 			if has_department and not frappe.db.exists("Department", dept):
++				missing_departments.append((g["title"], dept))
+ 				continue
+ 			project.append("miyano_posters", {"poster_type": "Phòng ban", "department": dept})
+ 		project.insert(ignore_permissions=True)
+@@ -107,4 +109,14 @@ def setup_miyano(team_title=TEAM_TITLE):
+ 	print(f"Không gian: {team}")
+ 	print(f"Nhóm mới tạo: {', '.join(created) or '(không có)'}")
+ 	print(f"Đồng bộ nhân sự: {result}")
+-	return {"team": team, "created": created, "sync": result}
++	for title, dept in missing_departments:
++		print(
++			f"CẢNH BÁO: nhóm “{title}” chưa gán được phòng ban “{dept}” vì không có trên ERP. "
++			"Vào menu nhóm → Quyền đăng bài & thông báo để gán đúng phòng ban."
++		)
++	return {
++		"team": team,
++		"created": created,
++		"sync": result,
++		"missing_departments": missing_departments,
++	}
