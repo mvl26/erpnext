@@ -46,8 +46,9 @@ HOANG_LAM = "DEMO Bảng giá Hoàng Lâm"
 BAN_LE = "DEMO Bảng giá bán lẻ"
 BANG_GIA_DEMO = (MUA_VIETMED, MUA_HUNG_MINH, HIMEDIC, CHO_HIMEDIC, HOANG_LAM, BAN_LE)
 EMAIL_DEMO = "himedic.demo@example.com"
-VAI_TRO_GIAM_DOC = "DEMO Giám đốc"
-NHOM_NHAN_VIEN = ["Sales User", "Sales Manager", "Sales Master Manager", "Item Manager", "Purchase User"]
+# Chỉ dùng vai trò có sẵn (không tạo vai trò): Giám đốc = Sales Manager, nên nhân viên không có vai trò này.
+VAI_TRO_GIAM_DOC = "Sales Manager"
+NHOM_NHAN_VIEN = ["Sales User", "Sales Master Manager", "Item Manager", "Purchase User"]
 NGUOI_DUNG = (
 	("demo.nhanvien@example.com", "DEMO Nhân viên", NHOM_NHAN_VIEN),
 	("demo.giamdoc@example.com", "DEMO Giám đốc", [*NHOM_NHAN_VIEN, VAI_TRO_GIAM_DOC]),
@@ -79,8 +80,7 @@ def tao_demo():
 	KHO = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
 	d = getdate(nowdate())
 
-	# Vai trò và người dùng mẫu để test quyền bằng nút Impersonate (không đặt mật khẩu).
-	dam_bao("Role", VAI_TRO_GIAM_DOC, {"role_name": VAI_TRO_GIAM_DOC, "desk_access": 1})
+	# Người dùng mẫu để test quyền bằng nút Impersonate (không đặt mật khẩu).
 	for email, ten, vai_tro in NGUOI_DUNG:
 		if not frappe.db.exists("User", email):
 			frappe.get_doc(

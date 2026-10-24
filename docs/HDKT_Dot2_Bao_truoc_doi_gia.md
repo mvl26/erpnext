@@ -10,7 +10,7 @@
 Quy tắc để đối chiếu khi test:
 
 - "DEMO Bảng giá Himedic" có **Báo trước khi đổi giá** (7 ngày). Giá mới phải vào **bảng giá chờ** "DEMO Bảng giá Himedic - Chờ báo" trước. Người nhập giá mới vào bảng chờ là người dùng — hệ thống **không** tự tạo nháp từ báo giá NCC (BA12 D09: bảng giá khách hàng cập nhật thủ công).
-- Chỉ **Giám đốc** (vai trò ở Selling Settings → "Vai trò được sửa hệ số giá bán", demo: `DEMO Giám đốc`) được **Gửi thông báo đổi giá** và đổi cài đặt báo trước.
+- Chỉ **Giám đốc** (vai trò ở Selling Settings → "Vai trò được sửa hệ số giá bán", demo: `Sales Manager`, vai trò có sẵn) được **Gửi thông báo đổi giá** và đổi cài đặt báo trước.
 - Gửi: một email gom mọi giá chờ; giá chuyển sang bảng giá chính; giá cũ giữ nguyên. Ngày hiệu lực **trước ngày gửi → bị chặn**; **dưới 7 ngày → cảnh báo + đánh dấu Báo gấp**, vẫn gửi được.
 - Trên bảng giá chính: không thêm thẳng, không sửa giá/ngày, không xóa.
 

@@ -41,7 +41,7 @@ Dữ liệu demo:
 | Khách | `DEMO-Himedic` hệ số 1,01 (HĐNT-HIMEDIC-2026) · `DEMO-Hoàng Lâm` 1,05 (HĐNT-HOANGLAM-2026) · `DEMO-Khách lẻ` không hệ số |
 | Bảng giá bán | `DEMO Bảng giá Himedic`: VT-01 120.000, VT-02 50.500, VT-03 30.000, VT-05 10.100/Cái · `DEMO Bảng giá Hoàng Lâm`: VT-02 52.500 (không có VT-01) |
 | SO nháp | ① Himedic: VT-01 124.692, VT-02 50.500, VT-05 2 Hộp 101.000, email người đặt đơn `himedic.demo@example.com` · ② Himedic: VT-01 125.000, VT-03 30.000 · ③ Hoàng Lâm: VT-02 52.500, VT-01 129.630 · ④ Khách lẻ: VT-01 150.000 |
-| Người dùng (Impersonate) | `demo.nhanvien@example.com` (bán hàng) · `demo.giamdoc@example.com` (vai trò **DEMO Giám đốc**, được sửa hệ số) |
+| Người dùng (Impersonate) | `demo.nhanvien@example.com` (bán hàng) · `demo.giamdoc@example.com` (vai trò **Sales Manager**, được sửa hệ số). Chỉ dùng vai trò có sẵn: `demo.nhanvien` không có Sales Manager |
 
 ## A. Nghiệm thu BA12
 
@@ -63,9 +63,9 @@ Dữ liệu demo:
 | B1 | Mở Khách hàng DEMO-Himedic → mục **Hệ số giá bán** | Bảng "Hệ số theo khách hàng": 1,01 / HĐNT-HIMEDIC-2026 / từ ngày; không có cột Mặt hàng. Bảng "Hệ số theo mặt hàng" **khóa** (vì đã có hệ số chung) | ☐ |
 | B2 | `demo.giamdoc`: thêm dòng hệ số thứ hai 1,02 từ hôm nay, không điền "Hiệu lực đến" cho dòng cũ → Lưu | Bị chặn "… cùng hiệu lực từ … Đặt ngày hiệu lực đến cho dòng 1" (không báo thiếu "Mặt hàng"). Đặt dòng 1 đến hôm qua → Lưu được. SO ① lưu lại → hệ số 1,02. Xóa dòng mới, bỏ ngày đến dòng 1 để trả về như cũ | ☐ |
 | B3 | Dòng hệ số không có số hợp đồng / hệ số = 0 / đến trước từ | Bị chặn với thông báo tương ứng | ☐ |
-| B4 | `demo.nhanvien` mở DEMO-Himedic | Hai bảng hệ số **chỉ đọc**. Sửa ô khác (vd. ghi chú) → Lưu được. Gửi API đổi hệ số → bị chặn "Chỉ vai trò DEMO Giám đốc được sửa hệ số giá bán" | ☐ |
+| B4 | `demo.nhanvien` mở DEMO-Himedic | Hai bảng hệ số **chỉ đọc**. Sửa ô khác (vd. ghi chú) → Lưu được. Gửi API đổi hệ số → bị chặn "Chỉ vai trò Sales Manager được sửa hệ số giá bán" | ☐ |
 | B5 | `demo.giamdoc` tạo khách mới không có hệ số chung, thêm **Hệ số theo mặt hàng**: VT-02 1,05 → tạo SO VT-02 52.500 | Dòng bỏ trống Mặt hàng → báo thiếu "Mặt hàng"; Số hợp đồng để trống vẫn lưu được (Q5). VT-02 hệ số 1,05, Khớp; mặt hàng khác của khách này không kiểm (R07) | ☐ |
-| B6 | Selling Settings → mục **Kiểm giá bán theo hệ số khách hàng** | Có ô "Bật kiểm giá bán", "Bắt buộc đính kèm văn bản chấp thuận" và "Vai trò được sửa hệ số giá bán"; **không còn** % lãi mặc định, Chế độ, Vai trò duyệt. `demo.nhanvien` thấy chỉ đọc | ☐ |
+| B6 | Selling Settings → mục **Kiểm giá bán theo hệ số khách hàng** | Có ô "Bật kiểm giá bán", "Bắt buộc đính kèm văn bản chấp thuận" và "Vai trò được sửa hệ số giá bán"; **không còn** % lãi mặc định, Chế độ, Vai trò duyệt. `demo.nhanvien` không mở được Selling Settings (không có quyền; chỉ Sales Manager có) | ☐ |
 | B7 | Bỏ tích "Bật kiểm giá bán" → SO ② Lưu, Submit | Không kiểm, Submit được. Bật lại | ☐ |
 
 ## C. Giá mua, làm tròn, ĐVT (R02, R03, R08, D04)
@@ -96,7 +96,7 @@ Dữ liệu demo:
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
 | F1 | **Q1.** `demo.nhanvien` mở SO ① dòng VT-01, điền Số văn bản `VB-01/2026`, Người đại diện `Ông A`, Ngày chấp thuận hôm nay → Lưu | Mục "Khách chấp thuận giá mới": **Người nhập chấp thuận** = demo.nhanvien, **Thời điểm nhập** = lúc lưu (chỉ đọc); bỏ tích **Chờ khách chấp thuận giá** | ☐ |
-| F2 | **Q1.** Submit SO ở F1. `demo.nhanvien` sửa Số văn bản thành `VB-02/2026` → Cập nhật | Bị chặn: "Thông tin khách chấp thuận đã điền chỉ vai trò DEMO Giám đốc được sửa…". `demo.giamdoc` sửa → được; Người nhập đổi thành demo.giamdoc. Lịch sử sửa xem ở timeline (Version) | ☐ |
+| F2 | **Q1.** Submit SO ở F1. `demo.nhanvien` sửa Số văn bản thành `VB-02/2026` → Cập nhật | Bị chặn: "Thông tin khách chấp thuận đã điền chỉ vai trò Sales Manager được sửa…". `demo.giamdoc` sửa → được; Người nhập đổi thành demo.giamdoc. Lịch sử sửa xem ở timeline (Version) | ☐ |
 | F3 | **Q1.** `demo.giamdoc`: Selling Settings bật **Bắt buộc đính kèm văn bản chấp thuận**. SO nháp có dòng khác bảng giá, điền 3 ô, không đính kèm → Submit | Bị chặn, báo thiếu "Tệp văn bản chấp thuận". Đính kèm tệp ở ô đó → Submit được. **Tắt lại** ô cài đặt | ☐ |
 | F4 | **Q2.** Mở SO ③ (Hoàng Lâm) dòng VT-01 | Tích **Chưa có trong bảng giá KH** và **Đề xuất khác bảng giá**; giá bảng giá trống; cảnh báo "chưa có trong bảng giá KH DEMO Bảng giá Hoàng Lâm — Submit cần …". Submit không có 3 thông tin → bị chặn. Điền đủ, thêm email liên hệ → Submit → email: giá cũ **"Chưa có trong bảng giá"** | ☐ |
 | F5 | **Q2.** SO ① (nháp) đổi ô **Bảng giá** trên đơn sang `DEMO Bảng giá Hoàng Lâm` → Lưu | Dòng VT-01 vẫn so với **DEMO Bảng giá Himedic** (bảng giá mặc định của khách): giá bảng giá 120.000, vẫn khác bảng giá. Đổi bảng giá trên đơn không né được R05 | ☐ |
