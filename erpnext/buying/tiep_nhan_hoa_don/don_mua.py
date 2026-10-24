@@ -4,7 +4,9 @@
 
 - `before_validate`: dòng chưa gắn HĐK mà có đúng một HĐK mua đã Nộp, còn hiệu lực tại ngày đơn, của
   NCC chứa mặt hàng → tự tích "Against Blanket Order". ERPNext khi đó tự cộng số đã đặt vào HĐK và
-  chặn đặt vượt hạn mức (Buying Settings → Blanket Order Allowance).
+  chặn đặt vượt hạn mức (Buying Settings → Blanket Order Allowance); dòng HĐK số lượng 0 (không cam kết)
+  thì ERPNext không chặn. Mặt hàng có ở cả hợp đồng gốc và phụ lục của nó: gắn phụ lục. Đơn giá đơn
+  khung ghi giá chưa VAT (D4-6); đơn giá của dòng vẫn lấy từ bảng giá mua như thường.
 - `validate`: sau đơn này số đã đặt đạt ngưỡng cảnh báo (cài đặt, mặc định 90%) thì cảnh báo.
 """
 
@@ -14,6 +16,7 @@ from frappe.query_builder.functions import Sum
 from frappe.utils import flt
 
 from erpnext.buying.tiep_nhan_hoa_don.cau_hinh import cai_dat
+from erpnext.buying.tiep_nhan_hoa_don.hop_dong_khung import gia_chua_vat
 
 
 def _so(x):
@@ -29,7 +32,7 @@ def _hdk_hieu_luc(supplier, company, ngay, items):
 		frappe.qb.from_(boi)
 		.join(bo)
 		.on(bo.name == boi.parent)
-		.select(boi.item_code, bo.name, boi.rate)
+		.select(boi.item_code, bo.name, boi.rate, boi.thue_suat, bo.gia_gom_vat, bo.hop_dong_goc)
 		.where(
 			(bo.docstatus == 1)
 			& (bo.blanket_order_type == "Purchasing")
@@ -46,20 +49,35 @@ def _hdk_hieu_luc(supplier, company, ngay, items):
 
 
 def gan_hop_dong_khung(doc, method=None):
-	"""`before_validate` của Purchase Order."""
-	can = [d for d in doc.items if d.item_code and not d.get("blanket_order")]
-	if not can or not doc.supplier or not doc.transaction_date:
+	"""`before_validate` của Purchase Order. Dòng đã có đơn khung (người dùng tích Theo đơn khung, ERPNext
+	tự chọn) cũng được chuẩn hóa: chuyển sang phụ lục của hợp đồng đã chọn nếu phụ lục có mặt hàng, và
+	Đơn giá đơn khung luôn là giá chưa VAT."""
+	dong = [d for d in doc.items if d.item_code]
+	if not dong or not doc.supplier or not doc.transaction_date:
 		return
-	hdk = _hdk_hieu_luc(doc.supplier, doc.company, doc.transaction_date, {d.item_code for d in can})
+	hdk = _hdk_hieu_luc(doc.supplier, doc.company, doc.transaction_date, {d.item_code for d in dong})
 	nhieu = []
-	for d in can:
+	for d in dong:
 		ds = hdk.get(d.item_code) or []
-		if len(ds) == 1:
+		goc = {r.hop_dong_goc for r in ds if r.hop_dong_goc}
+		chon = None
+		if d.get("blanket_order"):
+			chon = next((r for r in ds if r.name == d.blanket_order), None)
+			phu_luc = [r for r in ds if chon and r.hop_dong_goc == chon.name]
+			if len(phu_luc) == 1:
+				chon = phu_luc[0]
+		else:
+			ds = [r for r in ds if r.name not in goc]  # phụ lục thay giá của hợp đồng gốc
+			if len(ds) == 1:
+				chon = ds[0]
+			elif len(ds) > 1:
+				nhieu.append(
+					_("Dòng {0} ({1}): {2}").format(d.idx, d.item_code, ", ".join(r.name for r in ds))
+				)
+		if chon:
 			d.against_blanket_order = 1
-			d.blanket_order = ds[0].name
-			d.blanket_order_rate = ds[0].rate
-		elif len(ds) > 1:
-			nhieu.append(_("Dòng {0} ({1}): {2}").format(d.idx, d.item_code, ", ".join(r.name for r in ds)))
+			d.blanket_order = chon.name
+			d.blanket_order_rate = gia_chua_vat(chon.rate, chon.thue_suat, chon.gia_gom_vat)
 	if nhieu:
 		frappe.msgprint(
 			_("Nhiều hợp đồng khung cùng hiệu lực, chưa tự gắn; chọn Hợp đồng khung trên dòng:")

@@ -24,6 +24,24 @@ from erpnext.selling.kiem_gia.gia_goc import tim_gia_mua
 TEN_HDK = "Ống thông tiểu Foley 2 nhánh cỡ 16Fr"
 TEN_HD = "Sonde Foley 2 way size 16"
 GIA = 12500
+# Thông tin các bên bắt buộc khi Nộp (hợp đồng nguyên tắc mẫu); MST Bên B lấy từ thẻ NCC.
+CAC_BEN = {
+	"order_date": nowdate(),
+	"dai_dien_ben_a": "Đại diện A",
+	"chuc_vu_ben_a": "Giám đốc vận hành",
+	"mst_ben_a": MST_MIYANO,
+	"dia_chi_ben_a": "Hà Nội",
+	"tai_khoan_ben_a": "0001",
+	"ngan_hang_ben_a": "Ngân hàng A",
+	"dai_dien_ben_b": "Đại diện B",
+	"chuc_vu_ben_b": "Giám đốc",
+	"dien_thoai_ben_b": "0240000000",
+	"dia_chi_ben_b": "Hà Nội",
+	"tai_khoan_ben_b": "0002",
+	"ngan_hang_ben_b": "Ngân hàng B",
+	"dia_diem_giao": "Kho Miyano",
+	"dieu_kien_bao_quan": "2 - 8°C",
+}
 
 
 class TiepNhanCase(FrappeTestCase):
@@ -120,8 +138,9 @@ class TiepNhanCase(FrappeTestCase):
 			doc.append("supplier_items", {"supplier": self.ncc, "supplier_part_no": ma_ncc})
 		return doc.insert(ignore_permissions=True).name
 
-	def hdk(self, dong, so="2601", nop=True):
-		"""`dong`: [(item, qty, rate)] hoặc thêm dict trường riêng của dòng."""
+	def hdk(self, dong, so="2601", nop=True, quyen=False, **dau):
+		"""`dong`: [(item, qty, rate)] hoặc thêm dict trường riêng của dòng; `dau`: trường đầu phiếu;
+		`quyen`: kiểm quyền của người dùng hiện tại khi lưu (mặc định bỏ qua)."""
 		doc = frappe.get_doc(
 			{
 				"doctype": "Blanket Order",
@@ -132,11 +151,14 @@ class TiepNhanCase(FrappeTestCase):
 				"from_date": add_days(nowdate(), -30),
 				"to_date": add_days(nowdate(), 300),
 				"bang_gia_mua": self.bang_gia,
+				**CAC_BEN,
+				**dau,
 				"items": [
 					{
 						"item_code": d[0],
 						"qty": d[1],
 						"rate": d[2],
+						"ma_hang_ncc": f"NCC-{d[0][-6:]}",
 						"ten_hdk": TEN_HDK,
 						"quy_cach": "16Fr",
 						"hang_sx": "Hãng A",
@@ -148,7 +170,7 @@ class TiepNhanCase(FrappeTestCase):
 					for d in dong
 				],
 			}
-		).insert(ignore_permissions=True)
+		).insert(ignore_permissions=not quyen)
 		if nop:
 			doc.submit()
 		return doc
@@ -266,6 +288,146 @@ class TestHopDongKhung(TiepNhanCase):
 			flt(frappe.db.get_value("Blanket Order Item", {"parent": hdk.name}, "ordered_qty")), 95
 		)
 		self.assertRaises(frappe.ValidationError, self.po, [(item, 10, GIA)])
+
+	def test_thieu_thong_tin_hop_dong_khong_nop_duoc(self):
+		# Bên B: NCC của test chưa có hợp đồng nào nên không được tự điền (Bên A thì được điền theo hợp
+		# đồng gần nhất của công ty trên site).
+		doc = self.hdk([(self.item(), 100, GIA)], nop=False, dai_dien_ben_b="", dia_diem_giao="")
+		self.assertRaisesRegex(frappe.ValidationError, "Đại diện Bên B.*Địa điểm giao hàng", doc.submit)
+
+	def test_dieu_khoan_mac_dinh_theo_hop_dong_mau(self):
+		doc = self.hdk([(self.item(), 100, GIA)])
+		self.assertEqual(
+			(doc.thoi_han_thanh_toan, doc.bao_truoc_doi_gia, doc.phuong_thuc_thanh_toan, doc.mst_ben_b),
+			(30, 30, "Chuyển khoản", self.mst),
+		)
+
+	def test_tu_dien_thong_tin_cac_ben_theo_hop_dong_gan_nhat(self):
+		# Từ ngày mới nhất để là "hợp đồng gần nhất" của công ty dù site đã có hợp đồng khác.
+		self.hdk([(self.item(), 100, GIA)], from_date=add_days(nowdate(), 1))
+		trong = {f: "" for f in CAC_BEN if f.endswith(("_ben_a", "_ben_b"))}
+		doc = self.hdk([(self.item(), 100, GIA)], so="2602", nop=False, **trong)
+		self.assertEqual(
+			(doc.dai_dien_ben_a, doc.tai_khoan_ben_b, doc.mst_ben_b),
+			(CAC_BEN["dai_dien_ben_a"], CAC_BEN["tai_khoan_ben_b"], self.mst),
+		)
+
+	def test_gia_gom_vat_quy_ve_chua_vat(self):
+		item = self.item(ten="Ascaris IgG Elisa Kit")
+		dong = {"thue_suat": "5%", "ten_hdk": "Ascaris IgG Elisa Kit", "ma_hang_ncc": "5002"}
+		hdk = self.hdk([(item, 0, 3949000, dong)], gia_gom_vat=1, khong_cam_ket_so_luong=1)
+		chua_vat = 3760952  # 3.949.000 / 1,05 làm tròn đến đồng
+		gia = frappe.db.get_value("Item Price", {"hop_dong_khung": hdk.name}, ["price_list_rate", "note"])
+		self.assertEqual(flt(gia[0]), chua_vat)
+		self.assertIn("đã gồm VAT 5%", gia[1])
+		self.assertEqual(flt(tim_gia_mua(item, self.ncc, nowdate(), self.company).gia_kho), chua_vat)
+		po = self.po([(item, 7, chua_vat)])
+		self.assertEqual(flt(po.items[0].blanket_order_rate), chua_vat)
+		# ERPNext trên form điền Đơn giá đơn khung = giá hợp đồng (đã gồm VAT); khi Lưu quy về chưa VAT.
+		doc = frappe.copy_doc(po)
+		doc.items[0].blanket_order_rate = 3949000
+		doc.insert(ignore_permissions=True)
+		self.assertEqual(flt(doc.items[0].blanket_order_rate), chua_vat)
+
+		# Hóa đơn ghi đơn giá chưa VAT chẵn đồng: không cảnh báo, và Hóa đơn mua tạo ra khớp Phiếu nhập
+		# (Đợt 3 so 0 đồng) vì Đơn mua / Phiếu nhập cũng mang giá chẵn đồng.
+		self.pr(po)
+		p = self.phieu([("5002", "Ascaris IgG Elisa Kit", "Cái", 7, 3760952, "5%")])
+		self.assertEqual((p.items[0].cach_khop, p.items[0].canh_bao_chan), ("Tầng 1 - Mã", 0))
+		pi = frappe.get_doc("Purchase Invoice", tao_hoa_don_mua(p.name))
+		self.assertEqual(pi.trang_thai_doi_soat_pr, "Khớp")
+		# Hóa đơn theo giá 10 - 30 hộp (chỉ ghi chú trong hợp đồng): lệch giá, chặn.
+		p = self.phieu([("5002", "Ascaris IgG Elisa Kit", "Cái", 7, 3630952, "5%")])
+		self.assertTrue(p.items[0].canh_bao_chan)
+		self.assertIn("đã gồm VAT 5%", p.items[0].canh_bao)
+
+	def test_khong_cam_ket_so_luong(self):
+		item = self.item()
+		doc = self.hdk([(item, 0, GIA)], nop=False)
+		self.assertRaisesRegex(frappe.ValidationError, "số lượng hợp đồng phải lớn hơn 0", doc.submit)
+		self.hdk([(item, 0, GIA)], so="2602", khong_cam_ket_so_luong=1)
+		frappe.clear_messages()
+		po = self.po([(item, 5000, GIA)])  # không giới hạn: ERPNext không chặn, không cảnh báo
+		self.assertTrue(po.items[0].blanket_order)
+		self.assertNotIn("hạn mức", " ".join(str(m) for m in frappe.get_message_log()))
+		self.pr(po)
+		p = self.phieu([("", TEN_HD, "Cái", 5000, GIA, "10%")])
+		self.assertFalse(p.items[0].canh_bao_chan)
+
+	def test_dvt_hop_dong_phai_la_dvt_kho(self):
+		khac = frappe.db.get_value("UOM", {"name": ("!=", self.uom)}, "name")
+		self.assertRaisesRegex(
+			frappe.ValidationError,
+			"ĐVT theo hợp đồng",
+			self.hdk,
+			[(self.item(), 100, GIA, {"dvt_hdk": khac})],
+			nop=False,
+		)
+
+	def test_tang1_ma_hang_ncc_ghi_trong_hop_dong(self):
+		item = self.item()
+		self.hdk([(item, 1000, GIA, {"ma_hang_ncc": "GT-5041"})])
+		po = self.po([(item, 100, GIA)])
+		self.pr(po)
+		p = self.phieu([("GT-5041", "Tên khác hẳn", "Cái", 100, GIA, "10%")])
+		self.assertEqual((p.items[0].item_code, p.items[0].cach_khop), (item, "Tầng 1 - Mã"))
+
+	def test_phu_luc_doi_gia_va_them_hang(self):
+		a, b = self.item(), self.item()
+		goc = self.hdk([(a, 1000, GIA)], so="HĐ 26/01")
+		pl = self.hdk(
+			[(a, 1000, GIA + 1000), (b, 500, GIA)],
+			so="",
+			nop=False,
+			hop_dong_goc=goc.name,
+			from_date=add_days(nowdate(), -5),
+		)
+		self.assertEqual(pl.order_no, "HĐ 26/01")
+		self.assertEqual(
+			[d.ma_dong_hdk[-3:] for d in pl.items], ["002", "003"], "phụ lục đánh số tiếp hợp đồng gốc"
+		)
+		self.assertRaisesRegex(frappe.ValidationError, "Số phụ lục", pl.submit)
+		pl.reload()
+		pl.so_phu_luc = "01"
+		pl.submit()
+		po = self.po([(a, 10, GIA + 1000)])
+		self.assertEqual(po.items[0].blanket_order, pl.name, "gắn phụ lục, không gắn hợp đồng gốc")
+		# Người dùng tích Theo đơn khung trên form: ERPNext tự chọn hợp đồng gốc; khi Lưu chuyển sang phụ lục.
+		doc = frappe.copy_doc(po)
+		doc.items[0].update(
+			{"against_blanket_order": 1, "blanket_order": goc.name, "blanket_order_rate": GIA}
+		)
+		doc.insert(ignore_permissions=True)
+		self.assertEqual(
+			(doc.items[0].blanket_order, flt(doc.items[0].blanket_order_rate)), (pl.name, GIA + 1000)
+		)
+		self.assertEqual(flt(tim_gia_mua(a, self.ncc, nowdate(), self.company).gia_kho), GIA + 1000)
+
+		cung_ngay = self.hdk([(a, 10, GIA + 2000)], so="", nop=False, hop_dong_goc=goc.name, so_phu_luc="02")
+		self.assertRaisesRegex(frappe.ValidationError, "Từ ngày sau", cung_ngay.submit)
+
+
+class TestQuyenDonKhung(TiepNhanCase):
+	def setUp(self):
+		super().setUp()
+		from erpnext.buying.tiep_nhan_hoa_don.truong_tuy_bien import phan_quyen_don_khung
+
+		phan_quyen_don_khung()
+		self.addCleanup(frappe.clear_cache, doctype="Blanket Order")
+
+	def test_nhan_vien_nhap_truong_bo_phan_nop(self):
+		item = self.item()
+		frappe.set_user(self.user("Purchase User"))
+		doc = self.hdk([(item, 100, GIA)], nop=False, quyen=True)
+		self.assertRaises(frappe.PermissionError, doc.submit)
+		frappe.set_user(self.user("Purchase Manager"))
+		frappe.get_doc("Blanket Order", doc.name).submit()
+		self.assertEqual(frappe.db.get_value("Blanket Order", doc.name, "docstatus"), 1)
+
+	def test_ke_toan_chi_xem(self):
+		item = self.item()
+		frappe.set_user(self.user("Accounts User"))
+		self.assertRaises(frappe.PermissionError, self.hdk, [(item, 100, GIA)], nop=False, quyen=True)
 
 
 class TestTiepNhanHoaDon(TiepNhanCase):

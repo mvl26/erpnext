@@ -18,6 +18,17 @@
 | D4-4 | Ba câu hỏi mở của FRD (20.3) thành ô cài đặt: người duyệt lệch giá HĐK = vai trò (mặc định Ban Điều hành của Đợt 3), ngưỡng cảnh báo hạn mức (mặc định 90%), hóa đơn hàng ngoài HĐK **vẫn nhận**, chuyển chọn tay |
 | D4-5 | Theo nguyên tắc BA12 / YC5: không sửa JSON DocType chuẩn. Trường thêm là Custom Field; DocType mới đặt ở module Buying; điểm gắn ở `hooks.py` |
 
+Bổ sung 24/10/2026, theo hợp đồng nguyên tắc mẫu `001-GREENTECH-MIYANO_HDNT_v2.docx` (người dùng gửi):
+
+| Mã | Quyết định |
+|---|---|
+| D4-6 | Đơn khung có đủ thông tin của hợp đồng nguyên tắc mẫu (mục 2.1); thiếu thì không Nộp được. **Giá đã gồm VAT** (Điều 2.3) là một ô của hợp đồng. Khi tích, hệ thống quy về giá chưa VAT theo thuế suất dòng, **làm tròn đến đồng**, để: ghi bảng giá mua (kiểm giá bán Đợt 1 dùng giá chưa VAT); ghi Đơn giá đơn khung trên Đơn mua; so với đơn giá hóa đơn (dung sai 1 đồng: NCC có thể làm tròn theo chiều khác). Làm tròn đến đồng để Đơn mua, Phiếu nhập và hóa đơn điện tử cùng một số, nên đối soát Đợt 3 (so 0 đồng) không lệch vì phần lẻ của phép chia (lần chạy thật 24/10 với giá 3.760.952,38 đã lệch 0,38 đồng) |
+| D4-7 | **Một đơn giá mỗi dòng.** Mẫu có 2 mức giá theo số hộp mỗi đơn (5 – 9 / 10 – 30 hộp): mức khác ghi ở Ghi chú giá. Hóa đơn theo mức khác thì bị cảnh báo lệch giá hợp đồng và cần người duyệt (người dùng chọn 24/10) |
+| D4-8 | **Không cam kết số lượng** (Điều 2.2): ô trên hợp đồng. Khi tích, dòng để Số lượng 0 = không giới hạn: không cảnh báo, không chặn hạn mức. ERPNext vốn bỏ qua kiểm vượt khi `qty` = 0. Không tích thì mỗi dòng phải có số lượng |
+| D4-9 | **Đã Nộp thì không sửa** (chuẩn ERPNext): chỉ Đến ngày sửa được để gia hạn (Điều 12.1), và Frappe đòi quyền Nộp. Bổ sung mặt hàng / đổi giá theo phụ lục (Điều 2.4, 2.6, 12.2): lập Đơn khung mới có **Phụ lục của hợp đồng** = hợp đồng gốc. Phụ lục lấy số hợp đồng của gốc; mã dòng đánh số tiếp; phụ lục đổi giá phải có Từ ngày sau Từ ngày của gốc. Đơn mua ưu tiên gắn phụ lục; kiểm giá Đợt 1 lấy giá có Từ ngày mới nhất. Dòng Đơn mua đã có đơn khung (người dùng tích Theo đơn khung, ERPNext tự chọn hợp đồng đầu tiên và điền giá hợp đồng nguyên văn) cũng được chuẩn hóa khi Lưu: chuyển sang phụ lục của hợp đồng đã chọn, Đơn giá đơn khung = giá chưa VAT |
+| D4-10 | **Quyền trên Đơn khung** (người dùng chọn 24/10): Purchase User tạo, sửa bản nháp; Purchase Manager Nộp, Hủy, Sửa đổi, gia hạn; Accounts User, Accounts Manager, Stock User chỉ xem; System Manager giữ quyền chuẩn. Custom DocPerm tạo ở `after_migrate` **một lần**, khi Blanket Order chưa có Custom DocPerm nào; quản trị chỉnh lại trong Role Permission Manager thì migrate sau không ghi đè |
+| D4-11 | **Không tự tạo vai trò**, chỉ dùng vai trò có sẵn. Demo Đợt 4: duyệt lệch giá / vượt hạn mức và duyệt ánh xạ tên = Purchase Manager (production chọn ở Cài đặt tiếp nhận hóa đơn NCC). Demo Đợt 1 – 2: "Giám đốc" = Sales Manager, nhân viên demo không có vai trò này |
+
 ## 2. Hợp đồng khung (Blanket Order, Purchasing)
 
 ERPNext đã có: một dòng một mặt hàng, `qty` (hạn mức), `ordered_qty` (đã đặt qua PO), `party_item_code`
@@ -28,15 +39,16 @@ Thêm (Custom Field):
 
 | DocType | Trường |
 |---|---|
-| Blanket Order | `bang_gia_mua` (Price List mua; mặc định bảng giá mặc định của NCC) |
-| Blanket Order Item | `ma_dong_hdk` (mã dòng, tự sinh, sửa được trước khi Nộp, duy nhất), `ten_hdk` (tên nguyên văn), `quy_cach`, `chat_lieu`, `hang_sx`, `nuoc_sx`, `so_luu_hanh`, `thue_suat` (%), `da_lap_hoa_don` (số lượng đã lập hóa đơn mua đã Nộp, chỉ đọc) |
+| Blanket Order | `bang_gia_mua` (Price List mua; mặc định bảng giá mặc định của NCC). Mục hợp đồng (D4-6, chỉ hiện với loại mua): `ma_hop_dong` (phần [Mã hợp đồng] của mã dòng, trống = Số hợp đồng bỏ dấu), `hop_dong_goc` + `so_phu_luc` (phụ lục, D4-9), `tep_hop_dong`. **Các bên ký:** đại diện, chức vụ, MST, địa chỉ, số tài khoản, ngân hàng của Bên A và Bên B, thêm điện thoại và fax của Bên B; MST lấy từ Company / Supplier. **Điều khoản** (mặc định theo mẫu): `gia_gom_vat`, `gia_gom_chi_phi_giao`, `khong_cam_ket_so_luong`, báo trước đổi giá 30 ngày / ngừng cung cấp 90 ngày, tự động gia hạn (12 tháng, báo trước 30 ngày), xác nhận đơn 1 ngày, giao hàng 3 – 5 ngày, địa điểm giao, hạn dùng còn lại tối thiểu, điều kiện bảo quản, chứng từ kèm mỗi lần giao, đổi hàng không đạt 5 ngày, phương thức và thời hạn thanh toán (30 ngày, tính từ ngày nhận đủ hàng, hóa đơn và chứng từ), phạt chậm giao 0,5 %/ngày tối đa 8 %, được hủy khi chậm quá 7 ngày, phạt vi phạm khác 8 %. Nhãn "Order No" dịch là "Số hợp đồng"; "Order Date" (Ngày đặt) là ngày ký |
+| Blanket Order Item | `ma_hang_ncc` (mã hàng NCC theo hợp đồng; trống thì lấy mã trên thẻ mặt hàng; tầng 1 khớp mã này), `ma_dong_hdk` (mã dòng, tự sinh, sửa được trước khi Nộp, duy nhất), `ten_hdk` (tên nguyên văn), `quy_cach`, `chat_lieu`, `hang_sx`, `nuoc_sx`, `so_luu_hanh`, `dvt_hdk` (ĐVT theo hợp đồng, phải là ĐVT kho), `thue_suat` (%), `ghi_chu_gia` (D4-7), `da_lap_hoa_don` (số lượng đã lập hóa đơn mua đã Nộp, chỉ đọc) |
 | Supplier, Item Group | `ma_viet_tat` (phần [NCC], [Nhóm] của mã dòng; trống thì lấy chữ cái đầu của tên) |
 | Item Price | `hop_dong_khung` (Link Blanket Order, chỉ đọc): giá do HĐK ghi |
 
 Quy tắc:
-- Nộp HĐK mua: bắt buộc Số HĐK, bảng giá mua, và trên mỗi dòng: tên HĐK, quy cách, hãng, nước sản xuất, số lưu hành, đơn giá > 0, thuế suất, số lượng > 0 (FR-02 áp ở dòng HĐK thay vì thẻ vật tư, D4-1).
+- Lưu: ô trống của các bên được điền từ thẻ công ty / NCC (MST, địa chỉ mặc định, tài khoản ngân hàng), rồi từ hợp đồng mua đã Nộp gần nhất của công ty / NCC (đại diện, chức vụ). Mã hàng NCC theo hợp đồng lấy từ thẻ mặt hàng nếu trống; ĐVT theo hợp đồng mặc định ĐVT kho, khác ĐVT kho thì chặn.
+- Nộp HĐK mua: bắt buộc Số hợp đồng, ngày ký, NCC, bảng giá mua, thông tin các bên (trừ fax), địa điểm giao, hạn dùng còn lại, điều kiện bảo quản, chứng từ kèm theo, phương thức và mốc tính thời hạn thanh toán (các ô số đã có mặc định). Trên mỗi dòng: mã hàng NCC, tên HĐK, quy cách, hãng, nước sản xuất, số lưu hành, thuế suất, đơn giá > 0, số lượng > 0 trừ khi không cam kết số lượng (FR-02 áp ở dòng HĐK thay vì thẻ vật tư, D4-1).
 - `ma_dong_hdk` trùng với dòng HĐK khác chưa hủy: chặn (BR-01).
-- Nộp: ghi / cập nhật Item Price (bảng giá mua, mặt hàng, NCC, `valid_from` = từ ngày, `valid_upto` = đến ngày, ĐVT kho). Đã có giá cùng (bảng giá, mặt hàng, NCC, từ ngày) thì cập nhật giá đó. Hủy: xóa các Item Price có `hop_dong_khung` = HĐK này.
+- Nộp: ghi / cập nhật Item Price (bảng giá mua, mặt hàng, NCC, `valid_from` = từ ngày, `valid_upto` = đến ngày, ĐVT kho, giá chưa VAT — D4-6). Đã có giá cùng (bảng giá, mặt hàng, NCC, từ ngày) thì cập nhật giá đó. Hủy: xóa các Item Price có `hop_dong_khung` = HĐK này.
 - PO: dòng chưa gắn HĐK mà có đúng một HĐK đã Nộp còn hiệu lực của NCC chứa mặt hàng → tự gắn (`against_blanket_order`, `blanket_order`, `blanket_order_rate`), để ERPNext tính đã đặt và chặn vượt. Sau đơn này đạt ≥ ngưỡng cảnh báo hạn mức thì cảnh báo (FR-11).
 - Hóa đơn mua Nộp / hủy: cập nhật `da_lap_hoa_don` của dòng HĐK (FR-23, lũy kế đã mua).
 
@@ -128,8 +140,10 @@ giá PO; mẫu in PO và email đặt hàng có mã dòng HĐK; màn hình tra c
 | HĐK: Nộp ghi giá HĐ nguyên tắc và kiểm giá Đợt 1 đọc được, Hủy xóa giá; mã dòng tự sinh, không trùng; thiếu thông tin không Nộp được; PO tự gắn HĐK, cảnh báo ≥ 90%, ERPNext chặn vượt | `TestHopDongKhung` |
 | Phiếu tiếp nhận: tầng 3 (TC-12) → Hóa đơn mua nháp gắn Phiếu nhập, Đợt 3 báo Khớp, đề xuất ánh xạ Chờ duyệt, Nộp → Đã ghi sổ + lũy kế HĐK, Hủy → mở lại; tầng 1 mã NCC; tầng 2 chỉ ánh xạ Đang dùng; TC-13 → chọn tay; TC-10 sai MST, TC-11 trùng → Từ chối; TC-14 lệch giá HĐK chặn đến khi được duyệt (vai trò); vượt hạn mức; lệch số học; chưa có Phiếu nhập; hóa đơn từng phần; xóa hóa đơn nháp mở lại phiếu; BR-10 nhiều ứng viên | `TestTiepNhanHoaDon` |
 | Bảng ánh xạ tên: chỉ người duyệt đổi trạng thái; không trùng tên chuẩn hóa trong một NCC | `TestBangAnhXa` |
+| Hợp đồng nguyên tắc (24/10, D4-6 → D4-10): thiếu thông tin các bên / điều khoản không Nộp được; điều khoản mặc định theo mẫu; tự điền các bên theo hợp đồng gần nhất; giá gồm VAT quy về chưa VAT chẵn đồng (bảng giá mua, kiểm giá Đợt 1, Đơn giá đơn khung, hóa đơn khớp và Hóa đơn mua khớp Phiếu nhập; giá bậc 2 bị chặn); không cam kết số lượng (không chặn, không cảnh báo); ĐVT theo hợp đồng phải là ĐVT kho; tầng 1 theo mã hàng NCC ghi trong hợp đồng; phụ lục (số hợp đồng của gốc, mã dòng đánh số tiếp, thiếu Số phụ lục không Nộp được, Đơn mua gắn phụ lục kể cả khi người dùng đã chọn hợp đồng gốc, cùng Từ ngày với gốc thì chặn) | `TestHopDongKhung` |
+| Quyền Đơn khung: Purchase User lưu nháp nhưng không Nộp được, Purchase Manager Nộp; Accounts User không tạo được | `TestQuyenDonKhung` |
 
-Tổng 30 test mới đạt; chạy chung với test Đợt 1 – 3 (kiểm giá, thông báo, đối soát PR ↔ PI): 473 test đạt, 3 bỏ qua.
+Tổng 40 test Đợt 4 đạt; chạy chung với test Đợt 1 – 3 (kiểm giá, thông báo, đối soát PR ↔ PI): 483 test đạt, 3 bỏ qua (24/10/2026).
 
 **Lưu ý chạy test từ worktree:** `frappe.get_hooks` đọc `app_hooks` từ Redis dùng chung (trừ khi `developer_mode`),
 và `chay_test.py` nạp `doc_events` một lần cho cả tiến trình. Chạy từ worktree thì dùng

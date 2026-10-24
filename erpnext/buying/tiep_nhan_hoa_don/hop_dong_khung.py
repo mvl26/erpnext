@@ -1,11 +1,16 @@
 # Copyright (c) 2026, Công ty TNHH Miyano Việt Nam
 
-"""Hợp đồng khung (HĐK) = Blanket Order loại Purchasing (spec 2026-10-23 mục 2; D4-1, D4-2).
+"""Hợp đồng khung (HĐK) = Blanket Order loại Purchasing (spec 2026-10-23 mục 2; D4-1, D4-2, D4-6 → D4-9).
 
-- Mã dòng HĐK `[NCC]-[Số HĐK]-[Nhóm]-[STT]`: tự sinh khi có Số HĐK, sửa được trước khi Nộp, không
-  trùng giữa các HĐK chưa hủy (BR-01).
-- Nộp: bắt buộc đủ thông tin dòng (FR-02, áp ở dòng HĐK vì giữ mã hàng hiện tại) và ghi giá từng
-  dòng vào bảng giá mua của NCC — nguồn giá "HĐ nguyên tắc" của kiểm giá Đợt 1. Hủy: xóa các giá đó.
+- Mã dòng HĐK `[NCC]-[Mã hợp đồng]-[Nhóm]-[STT]`: tự sinh khi có Số hợp đồng, sửa được trước khi Nộp,
+  không trùng giữa các HĐK chưa hủy (BR-01). STT nối tiếp số đã dùng, nên phụ lục cùng số hợp đồng
+  đánh số tiếp theo hợp đồng gốc.
+- Lưu: điền ô trống của thông tin các bên (thẻ công ty / NCC, hợp đồng gần nhất), ĐVT theo hợp đồng.
+- Nộp: bắt buộc đủ thông tin hợp đồng nguyên tắc và thông tin dòng (FR-02, áp ở dòng HĐK vì giữ mã
+  hàng hiện tại); ghi giá chưa VAT từng dòng vào bảng giá mua của NCC — nguồn giá "HĐ nguyên tắc" của
+  kiểm giá Đợt 1. Hủy: xóa các giá đó.
+- Đã Nộp thì không sửa được (chuẩn ERPNext, trừ Đến ngày để gia hạn). Bổ sung mặt hàng / đổi giá
+  theo phụ lục: Đơn khung mới có `hop_dong_goc`.
 - `da_lap_hoa_don`: lũy kế số lượng trên Hóa đơn mua đã Nộp của các dòng Đơn mua gắn HĐK (FR-23).
 """
 
@@ -14,11 +19,37 @@ import re
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Sum
-from frappe.utils import flt
+from frappe.utils import flt, fmt_money, getdate
 
 from erpnext.buying.tiep_nhan_hoa_don.chuan_hoa import bo_dau
 
+BAT_BUOC_DAU = (
+	("order_no", "Số hợp đồng"),
+	("order_date", "Ngày ký (Ngày đặt)"),
+	("supplier", "Nhà cung cấp"),
+	("bang_gia_mua", "Bảng giá mua"),
+	("dai_dien_ben_a", "Đại diện Bên A"),
+	("chuc_vu_ben_a", "Chức vụ đại diện Bên A"),
+	("mst_ben_a", "MST Bên A"),
+	("dia_chi_ben_a", "Địa chỉ Bên A"),
+	("tai_khoan_ben_a", "Số tài khoản Bên A"),
+	("ngan_hang_ben_a", "Ngân hàng Bên A"),
+	("dai_dien_ben_b", "Đại diện Bên B"),
+	("chuc_vu_ben_b", "Chức vụ đại diện Bên B"),
+	("mst_ben_b", "MST Bên B"),
+	("dien_thoai_ben_b", "Điện thoại Bên B"),
+	("dia_chi_ben_b", "Địa chỉ Bên B"),
+	("tai_khoan_ben_b", "Số tài khoản Bên B"),
+	("ngan_hang_ben_b", "Ngân hàng Bên B"),
+	("dia_diem_giao", "Địa điểm giao hàng"),
+	("han_dung_con_lai", "Hạn dùng còn lại tối thiểu khi giao"),
+	("dieu_kien_bao_quan", "Điều kiện bảo quản, vận chuyển"),
+	("chung_tu_kem_theo", "Chứng từ kèm mỗi lần giao"),
+	("phuong_thuc_thanh_toan", "Phương thức thanh toán"),
+	("moc_thanh_toan", "Thời hạn thanh toán tính từ"),
+)
 BAT_BUOC_DONG = (
+	("ma_hang_ncc", "Mã hàng NCC theo hợp đồng"),
 	("ten_hdk", "Tên theo hợp đồng"),
 	("quy_cach", "Quy cách"),
 	("hang_sx", "Hãng sản xuất"),
@@ -26,10 +57,41 @@ BAT_BUOC_DONG = (
 	("so_luu_hanh", "Số lưu hành / công bố"),
 	("thue_suat", "Thuế suất GTGT"),
 )
+BEN_A = (
+	"dai_dien_ben_a",
+	"chuc_vu_ben_a",
+	"mst_ben_a",
+	"dia_chi_ben_a",
+	"tai_khoan_ben_a",
+	"ngan_hang_ben_a",
+)
+BEN_B = (
+	"dai_dien_ben_b",
+	"chuc_vu_ben_b",
+	"mst_ben_b",
+	"dien_thoai_ben_b",
+	"fax_ben_b",
+	"dia_chi_ben_b",
+	"tai_khoan_ben_b",
+	"ngan_hang_ben_b",
+)
 
 
 def la_hdk_mua(doc):
 	return doc.get("blanket_order_type") == "Purchasing"
+
+
+def ty_le_thue(thue_suat):
+	"""`10%` -> 0.1; `KCT`, `0%`, trống -> 0."""
+	so = re.match(r"\s*(\d+(?:[.,]\d+)?)", thue_suat or "")
+	return flt(so.group(1).replace(",", ".")) / 100 if so else 0
+
+
+def gia_chua_vat(gia, thue_suat, gom_vat):
+	"""Đơn giá HĐK quy về chưa VAT (D4-6): hợp đồng ghi giá đã gồm VAT thì chia cho (1 + thuế suất) rồi
+	làm tròn đến đồng. Bảng giá mua, Đơn mua, Phiếu nhập và hóa đơn điện tử cùng ghi một số chẵn đồng,
+	nên đối soát Phiếu nhập ↔ Hóa đơn (Đợt 3, so 0 đồng) không lệch vì phần lẻ của phép chia."""
+	return flt(flt(gia) / (1 + ty_le_thue(thue_suat)), 0) if gom_vat else flt(gia)
 
 
 def viet_tat(doctype, name):
@@ -41,14 +103,30 @@ def viet_tat(doctype, name):
 
 
 def sinh_ma_dong(doc):
-	if not doc.order_no:
+	so = doc.get("ma_hop_dong") or doc.order_no
+	if not so:
 		return
 	ncc = viet_tat("Supplier", doc.supplier)
-	so = re.sub(r"[^A-Z0-9]", "", bo_dau(doc.order_no).upper())
+	so = re.sub(r"[^A-Z0-9]", "", bo_dau(so).upper())
+	da_dung = {d.ma_dong_hdk for d in doc.items if d.get("ma_dong_hdk")} | set(
+		frappe.get_all(
+			"Blanket Order Item",
+			filters={
+				"ma_dong_hdk": ("like", f"{ncc}-{so}-%"),
+				"parent": ("!=", doc.name or ""),
+				"docstatus": ("<", 2),
+			},
+			pluck="ma_dong_hdk",
+		)
+	)
 	for d in doc.items:
 		if not d.get("ma_dong_hdk") and d.item_code:
 			nhom = viet_tat("Item Group", frappe.get_cached_value("Item", d.item_code, "item_group"))
-			d.ma_dong_hdk = f"{ncc}-{so}-{nhom}-{d.idx:03d}"
+			stt = 1
+			while f"{ncc}-{so}-{nhom}-{stt:03d}" in da_dung:
+				stt += 1
+			d.ma_dong_hdk = f"{ncc}-{so}-{nhom}-{stt:03d}"
+			da_dung.add(d.ma_dong_hdk)
 
 
 def _kiem_trung_ma(doc):
@@ -69,18 +147,156 @@ def _kiem_trung_ma(doc):
 		)
 
 
+# --- Thông tin các bên ------------------------------------------------------------
+
+
+def _dia_chi(ten):
+	a = (
+		frappe.db.get_value(
+			"Address", ten, ["address_line1", "address_line2", "city", "state", "phone", "fax"], as_dict=True
+		)
+		if ten
+		else None
+	)
+	if not a:
+		return {}
+	return {
+		"dia_chi": ", ".join(x for x in (a.address_line1, a.address_line2, a.city, a.state) if x),
+		"dien_thoai": a.phone,
+		"fax": a.fax,
+	}
+
+
+def _tai_khoan(filters):
+	tk = frappe.get_all(
+		"Bank Account",
+		filters={"disabled": 0, **filters},
+		fields=["bank_account_no", "bank"],
+		order_by="is_default desc, creation desc",
+		limit=1,
+	)
+	return tk[0] if tk else frappe._dict()
+
+
+def _ben_a_tu_cong_ty(company):
+	from frappe.contacts.doctype.address.address import get_default_address
+
+	dc = _dia_chi(get_default_address("Company", company))
+	tk = _tai_khoan({"is_company_account": 1, "company": company})
+	return {
+		"mst_ben_a": frappe.get_cached_value("Company", company, "tax_id"),
+		"dia_chi_ben_a": dc.get("dia_chi"),
+		"tai_khoan_ben_a": tk.bank_account_no,
+		"ngan_hang_ben_a": tk.bank,
+	}
+
+
+def _ben_b_tu_ncc(supplier):
+	from frappe.contacts.doctype.address.address import get_default_address
+
+	s = frappe.db.get_value(
+		"Supplier", supplier, ["tax_id", "supplier_primary_address", "mobile_no"], as_dict=True
+	)
+	dc = _dia_chi(s.supplier_primary_address or get_default_address("Supplier", supplier))
+	tk = _tai_khoan({"party_type": "Supplier", "party": supplier})
+	return {
+		"mst_ben_b": s.tax_id,
+		"dia_chi_ben_b": dc.get("dia_chi"),
+		"dien_thoai_ben_b": dc.get("dien_thoai") or s.mobile_no,
+		"fax_ben_b": dc.get("fax"),
+		"tai_khoan_ben_b": tk.bank_account_no,
+		"ngan_hang_ben_b": tk.bank,
+	}
+
+
+def _hdk_gan_nhat(doc, loc):
+	"""Thông tin các bên của hợp đồng khung mua đã Nộp gần nhất khớp `loc` (đại diện, chức vụ không có
+	trên thẻ công ty / NCC)."""
+	ten = frappe.get_all(
+		"Blanket Order",
+		filters={"blanket_order_type": "Purchasing", "docstatus": 1, "name": ("!=", doc.name or ""), **loc},
+		order_by="from_date desc, creation desc",
+		limit=1,
+		pluck="name",
+	)
+	return frappe.db.get_value("Blanket Order", ten[0], [*BEN_A, *BEN_B], as_dict=True) if ten else {}
+
+
+def _dien(doc, truong, nguon):
+	for f in truong:
+		if not doc.get(f) and nguon.get(f):
+			doc.set(f, nguon[f])
+
+
+def dien_thong_tin_cac_ben(doc):
+	"""Chỉ điền ô còn trống: trước hết theo thẻ công ty / NCC, sau đó theo hợp đồng gần nhất."""
+	if doc.company:
+		_dien(doc, BEN_A, _ben_a_tu_cong_ty(doc.company))
+		if any(not doc.get(f) for f in BEN_A):
+			_dien(doc, BEN_A, _hdk_gan_nhat(doc, {"company": doc.company}))
+	if doc.supplier:
+		_dien(doc, BEN_B, _ben_b_tu_ncc(doc.supplier))
+		if any(not doc.get(f) for f in BEN_B):
+			_dien(doc, BEN_B, _hdk_gan_nhat(doc, {"supplier": doc.supplier}))
+
+
+# --- Phụ lục, dòng -----------------------------------------------------------------
+
+
+def _hop_dong_goc(doc):
+	if not doc.get("hop_dong_goc"):
+		return None
+	goc = frappe.db.get_value(
+		"Blanket Order",
+		doc.hop_dong_goc,
+		["name", "supplier", "blanket_order_type", "docstatus", "order_no", "ma_hop_dong", "from_date"],
+		as_dict=True,
+	)
+	if (
+		not goc
+		or goc.docstatus != 1
+		or goc.blanket_order_type != "Purchasing"
+		or goc.supplier != doc.supplier
+	):
+		frappe.throw(_("Hợp đồng gốc phải là Đơn khung mua đã Nộp của cùng nhà cung cấp."))
+	return goc
+
+
+def _dong(doc):
+	for d in doc.items:
+		if not d.item_code:
+			continue
+		if not d.get("ma_hang_ncc") and d.party_item_code:
+			d.ma_hang_ncc = d.party_item_code
+		kho = frappe.get_cached_value("Item", d.item_code, "stock_uom")
+		if not d.get("dvt_hdk"):
+			d.dvt_hdk = kho
+		elif d.dvt_hdk != kho:
+			frappe.throw(
+				_(
+					"Dòng {0} ({1}): ĐVT theo hợp đồng {2} khác ĐVT kho của mặt hàng ({3}). Quy đổi số lượng và đơn giá về {3}, hoặc sửa ĐVT kho của mặt hàng."
+				).format(d.idx, d.item_code, d.dvt_hdk, kho)
+			)
+
+
 # --- doc_events của Blanket Order ------------------------------------------------
 
 
 def khi_validate(doc, method=None):
 	if not la_hdk_mua(doc):
 		return
+	goc = _hop_dong_goc(doc)
+	if goc:
+		doc.order_no = doc.order_no or goc.order_no
+		doc.ma_hop_dong = doc.get("ma_hop_dong") or goc.ma_hop_dong
 	if not doc.get("bang_gia_mua") and doc.supplier:
 		pl = frappe.db.get_value("Supplier", doc.supplier, "default_price_list")
 		if pl and frappe.db.get_value("Price List", pl, "buying"):
 			doc.bang_gia_mua = pl
 	if doc.get("bang_gia_mua") and not frappe.db.get_value("Price List", doc.bang_gia_mua, "buying"):
 		frappe.throw(_("Bảng giá {0} không phải bảng giá mua.").format(frappe.bold(doc.bang_gia_mua)))
+	dien_thong_tin_cac_ben(doc)
+	_dong(doc)
 	sinh_ma_dong(doc)
 	_kiem_trung_ma(doc)
 
@@ -88,26 +304,45 @@ def khi_validate(doc, method=None):
 def truoc_khi_nop(doc, method=None):
 	if not la_hdk_mua(doc):
 		return
-	meta = frappe.get_meta("Blanket Order")
-	thieu = [_(meta.get_label(f)) for f in ("order_no", "supplier", "bang_gia_mua") if not doc.get(f)]
+	thieu = [_(nhan) for f, nhan in BAT_BUOC_DAU if not doc.get(f)]
+	goc = _hop_dong_goc(doc)
+	if goc and not doc.get("so_phu_luc"):
+		thieu.append(_("Số phụ lục"))
+	can_so_luong = not doc.get("khong_cam_ket_so_luong")
 	for d in doc.items:
 		thieu += [_("Dòng {0}: {1}").format(d.idx, _(nhan)) for f, nhan in BAT_BUOC_DONG if not d.get(f)]
 		if flt(d.rate) <= 0:
 			thieu.append(_("Dòng {0}: đơn giá phải lớn hơn 0").format(d.idx))
-		if flt(d.qty) <= 0:
-			thieu.append(_("Dòng {0}: số lượng hợp đồng phải lớn hơn 0").format(d.idx))
+		if can_so_luong and flt(d.qty) <= 0:
+			thieu.append(
+				_(
+					"Dòng {0}: số lượng hợp đồng phải lớn hơn 0 (hợp đồng không cam kết số lượng thì tích Không cam kết số lượng tối thiểu)"
+				).format(d.idx)
+			)
 	if thieu:
 		frappe.throw(
 			_("Hợp đồng khung thiếu thông tin:") + "<ul>" + "".join(f"<li>{t}</li>" for t in thieu) + "</ul>",
 			title=_("Chưa Nộp được hợp đồng khung"),
 		)
+	if goc:
+		# Cùng Từ ngày với giá của hợp đồng gốc thì phụ lục ghi đè giá gốc, hủy phụ lục sẽ mất giá gốc.
+		trung = {d.item_code for d in doc.items} & set(
+			frappe.get_all("Blanket Order Item", filters={"parent": goc.name}, pluck="item_code")
+		)
+		if trung and getdate(doc.from_date) <= getdate(goc.from_date):
+			frappe.throw(
+				_("Phụ lục đổi giá mặt hàng {0} phải có Từ ngày sau Từ ngày của hợp đồng gốc ({1}).").format(
+					", ".join(sorted(trung)), frappe.format(goc.from_date, "Date")
+				)
+			)
 
 
 def khi_nop(doc, method=None):
-	"""Ghi giá từng dòng vào bảng giá mua (D4-2). Đã có giá cùng (bảng giá, mặt hàng, NCC, từ ngày)
-	thì cập nhật giá đó: hai giá cùng ngày hiệu lực làm kiểm giá Đợt 1 báo lỗi."""
+	"""Ghi giá chưa VAT từng dòng vào bảng giá mua (D4-2, D4-6). Đã có giá cùng (bảng giá, mặt hàng,
+	NCC, từ ngày) thì cập nhật giá đó: hai giá cùng ngày hiệu lực làm kiểm giá Đợt 1 báo lỗi."""
 	if not la_hdk_mua(doc):
 		return
+	gom_vat = doc.get("gia_gom_vat")
 	for d in doc.items:
 		ten = frappe.db.get_value(
 			"Item Price",
@@ -119,17 +354,22 @@ def khi_nop(doc, method=None):
 			},
 		)
 		gia = frappe.get_doc("Item Price", ten) if ten else frappe.new_doc("Item Price")
+		ghi_chu = _("Hợp đồng khung {0}, dòng {1}").format(doc.order_no, d.ma_dong_hdk)
+		if gom_vat:
+			ghi_chu += _(" (hợp đồng ghi {0} đã gồm VAT {1})").format(
+				fmt_money(d.rate, precision=0), d.thue_suat
+			)
 		gia.update(
 			{
 				"item_code": d.item_code,
 				"price_list": doc.bang_gia_mua,
 				"supplier": doc.supplier,
 				"uom": frappe.get_cached_value("Item", d.item_code, "stock_uom"),
-				"price_list_rate": d.rate,
+				"price_list_rate": gia_chua_vat(d.rate, d.thue_suat, gom_vat),
 				"valid_from": doc.from_date,
 				"valid_upto": doc.to_date,
 				"hop_dong_khung": doc.name,
-				"note": _("Hợp đồng khung {0}, dòng {1}").format(doc.order_no, d.ma_dong_hdk),
+				"note": ghi_chu,
 			}
 		)
 		gia.flags.ignore_permissions = True

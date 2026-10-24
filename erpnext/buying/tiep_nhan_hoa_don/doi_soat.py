@@ -11,12 +11,14 @@ import json
 
 import frappe
 from frappe import _
+from frappe.query_builder import Order
 from frappe.query_builder.functions import Sum
 from frappe.utils import flt, fmt_money, getdate, now_datetime, today
 
 from erpnext.buying.tiep_nhan_hoa_don.cau_hinh import bo_chuan_hoa, cai_dat, co_quyen_duyet_lech_gia
 from erpnext.buying.tiep_nhan_hoa_don.chuan_hoa import bo_dau
 from erpnext.buying.tiep_nhan_hoa_don.doc_xml import HANG_HOA, LoiDocHoaDon, chuan_mst, doc_hoa_don_xml
+from erpnext.buying.tiep_nhan_hoa_don.hop_dong_khung import gia_chua_vat
 
 MOI = "Mới tiếp nhận"
 DA_TRICH_XUAT = "Đã trích xuất"
@@ -37,6 +39,8 @@ CHUA_KHOP = "Chưa khớp"
 
 TRUONG_DUYET = ("ly_do_duyet", "nguoi_duyet", "thoi_diem_duyet", "dau_van_tay_canh_bao")
 DUNG_SAI_TIEN = 0.5  # VND: hóa đơn ghi đến đồng, giá trên chứng từ có thể có phần lẻ
+# Giá HĐK gồm VAT quy ra chưa VAT (làm tròn đến đồng); NCC có thể làm tròn theo chiều khác 1 đồng.
+DUNG_SAI_GOM_VAT = 1
 
 
 def xu_ly(doc):
@@ -313,9 +317,10 @@ class DoiSoat:
 		)
 
 	def _dong_hdk(self):
+		"""Dòng HĐK còn hiệu lực của NCC; phụ lục (Từ ngày sau) đứng trước hợp đồng gốc."""
 		bo = frappe.qb.DocType("Blanket Order")
 		boi = frappe.qb.DocType("Blanket Order Item")
-		return (
+		dong = (
 			frappe.qb.from_(boi)
 			.join(bo)
 			.on(bo.name == boi.parent)
@@ -324,11 +329,13 @@ class DoiSoat:
 				boi.item_code,
 				boi.ma_dong_hdk,
 				boi.party_item_code,
+				boi.ma_hang_ncc,
 				boi.ten_hdk,
 				boi.rate,
 				boi.thue_suat,
 				boi.qty,
 				boi.da_lap_hoa_don,
+				bo.gia_gom_vat,
 			)
 			.where(
 				(bo.docstatus == 1)
@@ -338,8 +345,12 @@ class DoiSoat:
 				& (bo.from_date <= self.ngay)
 				& (bo.to_date >= self.ngay)
 			)
+			.orderby(bo.from_date, order=Order.desc)
 			.run(as_dict=True)
 		)
+		for h in dong:
+			h.gia_chua_vat = gia_chua_vat(h.rate, h.thue_suat, h.gia_gom_vat)
+		return dong
 
 	def _dong_don_mua(self):
 		"""Dòng Đơn mua đã Nộp của NCC còn số lượng chưa lập hóa đơn (theo Hóa đơn mua đã Nộp)."""
@@ -425,7 +436,9 @@ class DoiSoat:
 		# Tầng 1: mã trên hóa đơn
 		ma = (row.ma_hang_hd or "").strip()
 		if ma:
-			ung_vien = {h.item_code for h in self.hdk if ma in (h.ma_dong_hdk, h.party_item_code)}
+			ung_vien = {
+				h.item_code for h in self.hdk if ma in (h.ma_dong_hdk, h.party_item_code, h.ma_hang_ncc)
+			}
 			if ma in self.ma_ncc:
 				ung_vien.add(self.ma_ncc[ma])
 			if frappe.db.exists("Item", ma):
@@ -578,18 +591,27 @@ class DoiSoat:
 			)
 			if h:
 				row.blanket_order, row.ma_dong_hdk = h.blanket_order, h.ma_dong_hdk
-				gia_hdk = flt(h.rate) * cf
-				if abs(flt(row.don_gia) - gia_hdk) > DUNG_SAI_TIEN:
+				gia_hdk = flt(h.gia_chua_vat) * cf
+				dung_sai = DUNG_SAI_GOM_VAT if h.gia_gom_vat else DUNG_SAI_TIEN
+				if abs(flt(row.don_gia) - gia_hdk) > dung_sai * cf:
+					goc = (
+						_(" (chưa VAT; hợp đồng ghi {0} đã gồm VAT {1})").format(
+							_tien(flt(h.rate) * cf), h.thue_suat
+						)
+						if h.gia_gom_vat
+						else ""
+					)
 					ghi_chu.append(
 						(
-							_("Đơn giá {0} khác giá hợp đồng khung {1} ({2}).").format(
-								_tien(row.don_gia), _tien(gia_hdk), h.ma_dong_hdk
+							_("Đơn giá {0} khác giá hợp đồng khung {1}{2} ({3}).").format(
+								_tien(row.don_gia), _tien(gia_hdk), goc, h.ma_dong_hdk
 							),
 							True,
 						)
 					)
 				con = flt(h.qty) - flt(h.da_lap_hoa_don)
-				if flt(row.so_luong) * cf > con + 1e-9:
+				# Số lượng 0: hợp đồng không cam kết số lượng, không có hạn mức.
+				if flt(h.qty) and flt(row.so_luong) * cf > con + 1e-9:
 					ghi_chu.append(
 						(
 							_("Vượt hạn mức hợp đồng khung: còn {0}, hóa đơn {1} (ĐVT kho).").format(

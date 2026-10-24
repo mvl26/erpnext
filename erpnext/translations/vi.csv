@@ -9853,3 +9853,4 @@ Supplier Invoice Intake Settings,Cài đặt tiếp nhận hóa đơn NCC
 Supplier Item Alias,Bảng ánh xạ tên hàng NCC
 Supplier Invoice Synonym,Từ đồng nghĩa tên hàng
 Item {0} cannot be ordered more than {1} against Blanket Order {2}.,Mặt hàng {0} không được đặt quá {1} theo đơn khung {2}.
+Order No,Số hợp đồng
