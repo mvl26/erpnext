@@ -12,8 +12,9 @@ Trả cài đặt về như trước lần chạy đầu:
 - TỪ CHỐI chạy trên site `miyano` (production).
 - Mỗi lần chạy tạo một NCC demo MỚI (`DEMO-D4 NCC 01`, `02`...; MST riêng) cùng hai hợp đồng khung
   đã Nộp, Đơn mua hàng, Phiếu nhập mua (đã Nộp) và tệp XML hóa đơn điện tử cho từng kịch bản; bộ cũ
-  không bị đụng. Hợp đồng 1 (HĐK xx/2026) ghi giá chưa VAT, có hạn mức. Hợp đồng 2 (HĐNT xx) theo
-  mẫu hợp đồng nguyên tắc: giá đã gồm VAT 5%, không cam kết số lượng, tự động gia hạn.
+  không bị đụng. Hợp đồng 1 (HĐK xx/2026) ghi giá chưa VAT, có hạn mức. Hợp đồng 2 (HĐNT xx) giá đã
+  gồm VAT 5%, không cam kết số lượng. Mỗi hợp đồng một Mẫu điều khoản (Terms and Conditions) khác
+  nhau: điều khoản riêng từng NCC không phải trường cố định.
 - Chỉ gán vai trò có sẵn cho người dùng demo, không tạo vai trò. Cần NCC riêng vì mã dòng hợp đồng không được trùng, và Đơn mua chỉ tự gắn hợp
   đồng khung khi NCC có đúng một hợp đồng còn hiệu lực chứa mặt hàng.
 - Tệp XML ghi vào `<site>/private/demo_tiep_nhan_hoa_don/<NCC>/`. Mỗi hóa đơn ghi số Đơn mua của
@@ -30,8 +31,8 @@ Kịch bản (giá chưa VAT, VAT 10%; mã dòng hợp đồng in ra khi chạy)
   C1 Đơn mua 100 Găng tay khám x 2.000; tên khác -> tầng 3, đề xuất Bảng ánh xạ tên
   C2 Đơn mua 120 Găng tay khám, cùng tên trên hóa đơn, sau khi ánh xạ được duyệt -> tầng 2
   D  Đơn mua 100 Gạc 10cm x 10cm x 5.000; hóa đơn gạc 7,5cm -> không tự khớp, chọn tay
-  E  Đơn mua 100 Ống thông Foley x 13.000 (khác giá hợp đồng 12.500) -> cảnh báo chặn, trưởng bộ
-     phận (Purchase Manager) duyệt
+  E  Đơn mua 100 Ống thông Foley x 13.000 (khác giá hợp đồng 12.500) -> cảnh báo chặn, giám đốc
+     (Sales Manager) duyệt
   F  Hợp đồng 100 Bơm tiêm x 3.000, Đơn mua 100; hóa đơn 120, ghi mã dòng hợp đồng -> vượt hạn mức
   G  như A nhưng MST người mua sai -> Từ chối
   I  Đơn mua 50 Ống thông Foley; tổng thanh toán trên hóa đơn lệch 1.000 -> kiểm số học
@@ -43,6 +44,8 @@ Kịch bản (giá chưa VAT, VAT 10%; mã dòng hợp đồng in ra khi chạy)
   N  Đơn mua 20 Băng dính (không thuộc hợp đồng khung); hóa đơn ghi mã hàng Miyano -> tầng 1, chỉ ghi chú
   O  Hợp đồng 2: Đơn mua 7 hộp kit ELISA x 3.760.952 (= 3.949.000 gồm VAT 5%, làm tròn đến đồng);
      hóa đơn ghi mã hàng NCC 5002 -> khớp, Hóa đơn mua khớp Phiếu nhập
+  Q  Hợp đồng 2: Đơn mua 10 đầu côn x 5.000 (= 5.250 gồm VAT); hóa đơn 5.001 -> trong dung sai 1 đồng,
+     Hóa đơn mua Khớp và Nộp được
   P  Hợp đồng 2: Đơn mua 12 hộp theo giá 10 - 30 hộp (3.812.500 gồm VAT, chỉ ghi chú trong hợp đồng)
      -> hóa đơn lệch giá hợp đồng, cảnh báo chặn, cần duyệt
 """
@@ -60,13 +63,15 @@ TEP_CAI_DAT_CU = "demo_tiep_nhan_hoa_don_cai_dat_cu.json"
 THU_MUC_XML = "demo_tiep_nhan_hoa_don"
 MST_MIYANO = "0109529507"
 BANG_GIA = "DEMO Mua - Hợp đồng khung"
-# Vai trò có sẵn: trưởng bộ phận chuỗi cung ứng duyệt lệch giá / vượt hạn mức (production chọn ở cài đặt).
-VAI_TRO_DUYET = "Purchase Manager"
+# Vai trò có sẵn của giám đốc: Nộp hợp đồng khung, duyệt lệch giá / vượt hạn mức, duyệt ánh xạ tên.
+VAI_TRO_DUYET = "Sales Manager"
 MA_HANG_NCC = "NCC-FL216"
 THUE_10 = "GTGT mua vào 10%"
 THUE_5 = "GTGT mua vào 5%"
 ELISA = ("DEMO-HDK-08", "Ascaris IgG Elisa Kit", 3949000, "5002")
 GIA_ELISA_BAC_2 = 3812500
+# Hàng giá thấp của hợp đồng 2: 5.250 gồm VAT 5% = 5.000 chưa VAT (kịch bản Q, dung sai 1 đồng).
+DAU_CON = ("DEMO-HDK-10", "Đầu côn vô trùng 200µl", 5250, "DC200")
 # Thông tin hợp đồng nguyên tắc bắt buộc khi Nộp (theo mẫu 001-GREENTECH/MIYANO, dữ liệu giả).
 HOP_DONG = {
 	"dai_dien_ben_a": "DEMO Đại diện Miyano",
@@ -81,8 +86,27 @@ HOP_DONG = {
 	"dia_chi_ben_b": "DEMO địa chỉ Bên B, Hà Nội",
 	"tai_khoan_ben_b": "DEMO-0002",
 	"ngan_hang_ben_b": "DEMO Ngân hàng B - Chi nhánh 2",
-	"dia_diem_giao": "Kho Miyano (DEMO)",
-	"dieu_kien_bao_quan": "Theo yêu cầu của nhà sản xuất",
+}
+# Mẫu điều khoản do người dùng tự tạo, mỗi loại hợp đồng / NCC một mẫu (dữ liệu giả).
+MAU_DIEU_KHOAN = {
+	"DEMO Mẫu điều khoản - vật tư y tế": (
+		"<ol><li>Giá chưa gồm thuế GTGT, giữ ổn định trong thời hạn hợp đồng; điều chỉnh phải thỏa"
+		" thuận bằng văn bản, báo trước 30 ngày.</li><li>Bên A đặt hàng bằng email; Bên B xác nhận"
+		" trong 01 ngày làm việc.</li><li>Giao hàng trong 05 ngày làm việc tại kho Bên A.</li><li>Hàng"
+		" mới 100%, số lưu hành còn hiệu lực, hạn dùng còn lại tối thiểu 12 tháng.</li><li>Thanh toán"
+		" chuyển khoản trong 45 ngày kể từ ngày nhận đủ hàng và hóa đơn hợp lệ.</li><li>Phạt chậm"
+		" giao 0,3%/ngày, tối đa 8%.</li></ol>"
+	),
+	"DEMO Mẫu điều khoản - hóa chất xét nghiệm": (
+		"<ol><li>Đơn giá đã gồm thuế GTGT, vận chuyển, bảo quản lạnh; không cam kết số lượng tối"
+		" thiểu.</li><li>Đơn giá theo số hộp mỗi đơn: 05 - 09 hộp và 10 - 30 hộp.</li><li>Bên B xác"
+		" nhận đơn trong 01 ngày; giao trong 03 - 05 ngày.</li><li>Hạn dùng còn lại tối thiểu 2/3 tổng"
+		" hạn dùng và 06 tháng; bảo quản 2 - 8°C.</li><li>Mỗi lần giao kèm hóa đơn điện tử, biên bản"
+		" giao nhận, COA theo lô, CO, CQ.</li><li>Thanh toán trong 30 ngày kể từ ngày nhận đủ hàng,"
+		" hóa đơn và chứng từ.</li><li>Phạt chậm giao 0,5%/ngày, tối đa 8%; chậm quá 07 ngày Bên A"
+		" được hủy phần chưa giao.</li><li>Hiệu lực 01 năm, tự động gia hạn 01 năm nếu không bên nào"
+		" báo trước 30 ngày.</li></ol>"
+	),
 }
 
 CAI_DAT = "Supplier Invoice Intake Settings"
@@ -91,7 +115,7 @@ CAI_DAT_TIEP_NHAN = {
 	"mst_nguoi_mua": MST_MIYANO,
 	"nguong_canh_bao_han_muc": 90.0,
 	"vai_tro_duyet_lech_gia": VAI_TRO_DUYET,
-	"vai_tro_duyet_anh_xa": "Purchase Manager",
+	"vai_tro_duyet_anh_xa": VAI_TRO_DUYET,
 }
 # Như production (spec Đợt 3 mục 3.5): hóa đơn từ phiếu tiếp nhận đi tiếp qua đối soát Phiếu nhập.
 BUYING_SETTINGS = {
@@ -105,7 +129,9 @@ ACCOUNTS_SETTINGS = {"round_row_wise_tax": 1}
 
 NGUOI_DUNG = (
 	("demo.nvmuahang@example.com", "DEMO NV Mua hàng", ["Purchase User", "Stock User"]),
-	("demo.chuoicungung@example.com", "DEMO Chuỗi cung ứng", ["Purchase Manager", "Purchase User"]),
+	("demo.giamdoc@example.com", "DEMO Giám đốc", [VAI_TRO_DUYET, "Purchase User"]),
+	# Trưởng phòng mua hàng: nhập nháp như nhân viên, không Nộp hợp đồng khung.
+	("demo.chuoicungung@example.com", "DEMO Trưởng phòng mua hàng", ["Purchase Manager", "Purchase User"]),
 	("demo.ketoan@example.com", "DEMO Kế toán", ["Accounts User", "Purchase User", "Stock User"]),
 	# Xóa hóa đơn mua nháp cần Accounts Manager (Kế toán không có quyền xóa).
 	(
@@ -294,13 +320,19 @@ def tao_demo():
 		},
 	)
 	dat_cai_dat(cong_ty)
+	for ten, noi_dung in MAU_DIEU_KHOAN.items():
+		dam_bao("Terms and Conditions", ten, {"title": ten, "buying": 1, "selling": 0, "terms": noi_dung})
+	mau_1, mau_2 = MAU_DIEU_KHOAN
 	ncc, so_lan = _ncc_moi(frappe.db.get_value("Supplier Group", {"is_group": 0}, "name"))
 	mst_ncc = frappe.db.get_value("Supplier", ncc, "tax_id")
 
 	nhom_hang = frappe.db.get_value("Item Group", {"is_group": 0}, "name")
 	for uom in ("Cái", "Hộp"):
 		dam_bao("UOM", uom, {"uom_name": uom, "must_be_whole_number": 1})
-	for code, ten, dvt in [(c, t, "Cái") for c, t, _hdk in MAT_HANG] + [(ELISA[0], ELISA[1], "Hộp")]:
+	for code, ten, dvt in [(c, t, "Cái") for c, t, _hdk in MAT_HANG] + [
+		(ELISA[0], ELISA[1], "Hộp"),
+		(DAU_CON[0], DAU_CON[1], "Cái"),
+	]:
 		dam_bao(
 			"Item",
 			code,
@@ -329,6 +361,8 @@ def tao_demo():
 			"to_date": add_days(nowdate(), 335),
 			"bang_gia_mua": BANG_GIA,
 			**HOP_DONG,
+			"tc_name": mau_1,
+			"terms": MAU_DIEU_KHOAN[mau_1],
 			"items": [
 				{
 					"item_code": code,
@@ -365,11 +399,10 @@ def tao_demo():
 			"to_date": add_days(nowdate(), 355),
 			"bang_gia_mua": BANG_GIA,
 			**HOP_DONG,
-			"dieu_kien_bao_quan": "2 - 8°C với kit ELISA",
+			"tc_name": mau_2,
+			"terms": MAU_DIEU_KHOAN[mau_2],
 			"gia_gom_vat": 1,
-			"gia_gom_chi_phi_giao": 1,
 			"khong_cam_ket_so_luong": 1,
-			"tu_dong_gia_han": 1,
 			"items": [
 				{
 					"item_code": ma_code,
@@ -383,7 +416,19 @@ def tao_demo():
 					"so_luu_hanh": "DEMO-SLH-08",
 					"thue_suat": "5%",
 					"ghi_chu_gia": "10 - 30 hộp/đơn: 3.812.500 (đã gồm VAT)",
-				}
+				},
+				{
+					"item_code": DAU_CON[0],
+					"qty": 0,
+					"rate": DAU_CON[2],
+					"ma_hang_ncc": DAU_CON[3],
+					"ten_hdk": DAU_CON[1],
+					"quy_cach": "200µl",
+					"hang_sx": "DEMO Hãng G",
+					"nuoc_sx": "Đức",
+					"so_luu_hanh": "DEMO-SLH-10",
+					"thue_suat": "5%",
+				},
 			],
 		}
 	).insert(ignore_permissions=True)
@@ -474,7 +519,7 @@ def tao_demo():
 	dong_e = [(MA_HANG_NCC, sonde, "Cái", 100, 13000, "10%")]
 	ghi(
 		"E",
-		"Lệch giá hợp đồng, trưởng bộ phận duyệt",
+		"Lệch giá hợp đồng, giám đốc duyệt",
 		xml("E_lech_gia_hdk.xml", don, dong_e),
 		don,
 		pr(don, "E"),
@@ -524,6 +569,13 @@ def tao_demo():
 	don = po([(ma_code, 12, bac_2)], mau=mau_thue_5)
 	dong_p = [(ma_ncc_elisa, ten_elisa, "Hộp", 12, int(bac_2), "5%")]
 	ghi("P", "Giá bậc 2 -> lệch giá hợp đồng", xml("P_gia_bac_2.xml", don, dong_p), don, pr(don, "P"))
+	# NCC làm tròn lên 1 đồng ở hàng giá thấp: trong dung sai, Hóa đơn mua Khớp và Nộp được.
+	gia_dc = gia_chua_vat(DAU_CON[2], "5%", 1)
+	don = po([(DAU_CON[0], 10, gia_dc)], mau=mau_thue_5)
+	dong_q = [(DAU_CON[3], DAU_CON[1], "Cái", 10, int(gia_dc) + 1, "5%")]
+	ghi(
+		"Q", "Hóa đơn cao hơn 1 đồng (dung sai)", xml("Q_dung_sai_1_dong.xml", don, dong_q), don, pr(don, "Q")
+	)
 
 	print(f"\nNCC: {ncc} (MST {mst_ncc}, mã viết tắt D4N{so_lan:02d}).")
 	print(f"Hợp đồng khung 1: {hdk.name} ({hdk.order_no}). Hợp đồng 2: {hdnt.name} ({hdnt.order_no}).")
@@ -538,7 +590,7 @@ def tao_demo():
 	print(
 		"\nNgười dùng (Impersonate): "
 		+ ", ".join(email for email, _ten, _vai_tro in NGUOI_DUNG)
-		+ f". Duyệt lệch giá / vượt hạn mức và duyệt ánh xạ tên: vai trò {VAI_TRO_DUYET}."
+		+ f". Nộp hợp đồng khung, duyệt lệch giá / vượt hạn mức, duyệt ánh xạ tên: vai trò {VAI_TRO_DUYET}."
 	)
 
 
