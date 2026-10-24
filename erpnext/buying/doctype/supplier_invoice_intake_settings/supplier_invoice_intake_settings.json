@@ -12,6 +12,11 @@
   "nguong_canh_bao_han_muc",
   "vai_tro_duyet_lech_gia",
   "vai_tro_duyet_anh_xa",
+  "hop_dong_khung_section",
+  "tom_tat_truong_bat_buoc",
+  "truong_bat_buoc_hdk",
+  "truong_bat_buoc_dong_hdk",
+  "da_khoi_tao_truong_bat_buoc",
   "khop_ten_section",
   "nguong_tu_dong",
   "nguong_xac_nhan",
@@ -50,14 +55,44 @@
    "fieldtype": "Link",
    "options": "Role",
    "label": "Vai trò duyệt lệch giá, vượt hạn mức",
-   "description": "Trống: Vai trò Ban Điều hành trong Thiết lập mua hàng; trống nữa: chỉ System Manager."
+   "description": "Trống: Vai trò Ban Điều hành trong Thiết lập mua hàng; trống nữa: Sales Manager (giám đốc)."
   },
   {
    "fieldname": "vai_tro_duyet_anh_xa",
    "fieldtype": "Link",
    "options": "Role",
    "label": "Vai trò duyệt Bảng ánh xạ tên",
-   "description": "Trống: Purchase Manager."
+   "description": "Trống: Sales Manager (giám đốc)."
+  },
+  {
+   "fieldname": "hop_dong_khung_section",
+   "fieldtype": "Section Break",
+   "label": "Hợp đồng khung",
+   "description": "Luôn bắt buộc: Nhà cung cấp, Số hợp đồng, Bảng giá mua, đơn giá > 0, số lượng > 0 (trừ hợp đồng không cam kết số lượng), Số phụ lục khi là phụ lục. Các trường khác: bấm Chọn trường bắt buộc khi Nộp hợp đồng khung. Trường quản trị tự thêm bằng Customize Form cũng chọn được."
+  },
+  {
+   "fieldname": "tom_tat_truong_bat_buoc",
+   "fieldtype": "HTML",
+   "label": "Trường bắt buộc khi Nộp"
+  },
+  {
+   "fieldname": "truong_bat_buoc_hdk",
+   "fieldtype": "Small Text",
+   "hidden": 1,
+   "label": "Trường bắt buộc khi Nộp - đầu hợp đồng"
+  },
+  {
+   "fieldname": "truong_bat_buoc_dong_hdk",
+   "fieldtype": "Small Text",
+   "hidden": 1,
+   "label": "Trường bắt buộc khi Nộp - dòng hợp đồng"
+  },
+  {
+   "fieldname": "da_khoi_tao_truong_bat_buoc",
+   "fieldtype": "Check",
+   "default": "0",
+   "hidden": 1,
+   "label": "Đã gieo danh sách trường bắt buộc mặc định"
   },
   {
    "fieldname": "khop_ten_section",
@@ -119,7 +154,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-23 16:00:00.000000",
+ "modified": "2026-10-24 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Buying",
  "name": "Supplier Invoice Intake Settings",

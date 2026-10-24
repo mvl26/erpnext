@@ -18,7 +18,7 @@ from frappe.utils import flt, fmt_money, getdate, now_datetime, today
 from erpnext.buying.tiep_nhan_hoa_don.cau_hinh import bo_chuan_hoa, cai_dat, co_quyen_duyet_lech_gia
 from erpnext.buying.tiep_nhan_hoa_don.chuan_hoa import bo_dau
 from erpnext.buying.tiep_nhan_hoa_don.doc_xml import HANG_HOA, LoiDocHoaDon, chuan_mst, doc_hoa_don_xml
-from erpnext.buying.tiep_nhan_hoa_don.hop_dong_khung import gia_chua_vat
+from erpnext.buying.tiep_nhan_hoa_don.hop_dong_khung import DUNG_SAI_GIA_GOM_VAT, gia_chua_vat
 
 MOI = "Mới tiếp nhận"
 DA_TRICH_XUAT = "Đã trích xuất"
@@ -39,8 +39,6 @@ CHUA_KHOP = "Chưa khớp"
 
 TRUONG_DUYET = ("ly_do_duyet", "nguoi_duyet", "thoi_diem_duyet", "dau_van_tay_canh_bao")
 DUNG_SAI_TIEN = 0.5  # VND: hóa đơn ghi đến đồng, giá trên chứng từ có thể có phần lẻ
-# Giá HĐK gồm VAT quy ra chưa VAT (làm tròn đến đồng); NCC có thể làm tròn theo chiều khác 1 đồng.
-DUNG_SAI_GOM_VAT = 1
 
 
 def xu_ly(doc):
@@ -592,8 +590,9 @@ class DoiSoat:
 			if h:
 				row.blanket_order, row.ma_dong_hdk = h.blanket_order, h.ma_dong_hdk
 				gia_hdk = flt(h.gia_chua_vat) * cf
-				dung_sai = DUNG_SAI_GOM_VAT if h.gia_gom_vat else DUNG_SAI_TIEN
-				if abs(flt(row.don_gia) - gia_hdk) > dung_sai * cf:
+				# Giá gồm VAT: 1 đồng trên đơn giá hóa đơn, như đối soát Đợt 3 (D4-12).
+				nguong = DUNG_SAI_GIA_GOM_VAT if h.gia_gom_vat else DUNG_SAI_TIEN * cf
+				if abs(flt(row.don_gia) - gia_hdk) > nguong:
 					goc = (
 						_(" (chưa VAT; hợp đồng ghi {0} đã gồm VAT {1})").format(
 							_tien(flt(h.rate) * cf), h.thue_suat

@@ -86,6 +86,8 @@ def truoc_khi_nop(doc, method=None):
 	trang_thai = doc.get("trang_thai_doi_soat_pr")
 	if trang_thai == NGOAI_LE:
 		vuot_hoa_don.cho_vuot_don_mua_khi_co_ngoai_le(doc)
+	elif trang_thai == KHOP:
+		vuot_hoa_don.cho_vuot_don_mua_trong_dung_sai_gia_gom_vat(doc)
 	if not trang_thai or trang_thai in (KHOP, NGOAI_LE):
 		return
 	frappe.throw(
@@ -486,6 +488,15 @@ def tinh_chenh_lech(doc):
 
 	ten_dong = [d.pr_detail for d in doc.items if d.pr_detail]
 	pr_items, phieu, thue_phieu = _du_lieu_phieu_nhap(ten_dong)
+	# Dòng gắn hợp đồng khung giá đã gồm VAT (Đợt 4, D4-12): giá chưa VAT là số quy đổi, NCC có thể làm
+	# tròn khác 1 đồng / ĐVT kho. Dung sai chỉ cho các dòng này; dòng khác vẫn so 0 đồng.
+	from erpnext.buying.tiep_nhan_hoa_don.hop_dong_khung import (
+		DUNG_SAI_GIA_GOM_VAT,
+		dong_don_mua_gia_gom_vat,
+	)
+
+	gom_vat = dong_don_mua_gia_gom_vat({d.po_detail for d in doc.items if d.get("po_detail")})
+	dung_sai_tien_hang = dung_sai_thue = 0.0
 	con = ghep_dong.con_cho_lap_hoa_don(ten_dong, tru_hoa_don=doc.name)
 	hang_kho = set(
 		frappe.get_all(
@@ -569,11 +580,15 @@ def tinh_chenh_lech(doc):
 			doc.flags.con_chua_lap_hoa_don.append((p.parent, p.item_code, -lech_sl, p.stock_uom))
 			lech_sl = 0
 		sl_ky_vong = sl_hd if tung_phan and not lech_sl else sl_pr  # số được lập hóa đơn lần này
+		# 1 đồng trên đơn giá ghi ở hóa đơn (ĐVT của dòng), tức 1 / hệ số quy đổi theo ĐVT kho.
+		dung_sai = DUNG_SAI_GIA_GOM_VAT if any(d.get("po_detail") in gom_vat for d in cac_dong) else 0
 		lech_gia = [
 			(d, flt(d.net_rate) / (flt(d.conversion_factor) or 1))
 			for d in cac_dong
-			if flt(flt(d.net_rate) / (flt(d.conversion_factor) or 1) - gia_pr, p_gia)
+			if abs(flt(flt(d.net_rate) / (flt(d.conversion_factor) or 1) - gia_pr, p_gia))
+			> dung_sai / (flt(d.conversion_factor) or 1)
 		]
+		dung_sai_dong = dung_sai * sum(flt(d.qty) for d in cac_dong)
 		if lech_sl or flt(sl_ky_vong - flt(p.stock_qty), p_sl):
 			tron_ven = False
 
@@ -626,7 +641,7 @@ def tinh_chenh_lech(doc):
 		else:
 			tien_pr = flt(gia_pr * sl_ky_vong, p_tien)
 		tien_hd = flt(sum(flt(d.net_amount) for d in cac_dong), p_tien)
-		if not (lech_sl or lech_gia) and flt(tien_hd - tien_pr, p_tien):
+		if not (lech_sl or lech_gia) and abs(flt(tien_hd - tien_pr, p_tien)) > dung_sai_dong:
 			them(
 				"Thành tiền",
 				vi_tri,
@@ -638,6 +653,9 @@ def tinh_chenh_lech(doc):
 				nhanh_goi_y=GOI_Y_HD_NCC,
 			)
 		tien_hang_ky_vong += tien_pr
+		if dung_sai:
+			dung_sai_tien_hang += dung_sai_dong
+			dung_sai_thue += dung_sai_dong * ts_pr / 100 + 1  # + làm tròn thuế của dòng
 		theo_hang = json.loads(p.item_tax_rate or "{}")
 		for t in thue_phieu.get(p.parent, []):
 			if _la_thue_tren_tien_hang(t):
@@ -670,16 +688,17 @@ def tinh_chenh_lech(doc):
 	tong_ky_vong = flt(tong_ky_vong, p_tien)
 
 	pr_lien_quan = ", ".join(dong_theo_phieu)
-	for tieu_chi, ky_vong, thuc_te in (
-		("Tổng tiền hàng", tien_hang_ky_vong, flt(doc.net_total, p_tien)),
+	for tieu_chi, ky_vong, thuc_te, dung_sai in (
+		("Tổng tiền hàng", tien_hang_ky_vong, flt(doc.net_total, p_tien), dung_sai_tien_hang),
 		(
 			"Tổng thuế",
 			flt(tong_ky_vong - tien_hang_ky_vong, p_tien),
 			flt(flt(doc.grand_total) - flt(doc.net_total), p_tien),
+			dung_sai_thue,
 		),
-		("Tổng thanh toán", tong_ky_vong, flt(doc.grand_total, p_tien)),
+		("Tổng thanh toán", tong_ky_vong, flt(doc.grand_total, p_tien), dung_sai_tien_hang + dung_sai_thue),
 	):
-		if flt(thuc_te - ky_vong, p_tien):
+		if abs(flt(thuc_te - ky_vong, p_tien)) > dung_sai:
 			them(
 				tieu_chi,
 				None,

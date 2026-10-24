@@ -16,6 +16,7 @@ from frappe.utils import add_days, flt, nowdate
 from erpnext.buying.doctype.purchase_order.purchase_order import make_purchase_receipt
 from erpnext.buying.tests.mau_hoa_don_xml import MST_MIYANO, xml_hoa_don
 from erpnext.buying.tiep_nhan_hoa_don.anh_xa import doi_trang_thai
+from erpnext.buying.tiep_nhan_hoa_don.cau_hinh import TRUONG_BAT_BUOC_MAC_DINH, TRUONG_DONG_BAT_BUOC_MAC_DINH
 from erpnext.buying.tiep_nhan_hoa_don.doi_soat import duyet_canh_bao
 from erpnext.buying.tiep_nhan_hoa_don.tao_hoa_don import tao_hoa_don_mua
 from erpnext.controllers.accounts_controller import get_taxes_and_charges
@@ -39,8 +40,7 @@ CAC_BEN = {
 	"dia_chi_ben_b": "Hà Nội",
 	"tai_khoan_ben_b": "0002",
 	"ngan_hang_ben_b": "Ngân hàng B",
-	"dia_diem_giao": "Kho Miyano",
-	"dieu_kien_bao_quan": "2 - 8°C",
+	"terms": "<p>Điều khoản thử của hợp đồng</p>",
 }
 
 
@@ -92,6 +92,8 @@ class TiepNhanCase(FrappeTestCase):
 				"vai_tro_duyet_lech_gia": None,
 				"vai_tro_duyet_anh_xa": None,
 				"nguong_canh_bao_han_muc": 90,
+				"truong_bat_buoc_hdk": "\n".join(TRUONG_BAT_BUOC_MAC_DINH),
+				"truong_bat_buoc_dong_hdk": "\n".join(TRUONG_DONG_BAT_BUOC_MAC_DINH),
 			},
 		)
 		for dt in ("Buying Settings", "Accounts Settings", "Supplier Invoice Intake Settings"):
@@ -292,15 +294,24 @@ class TestHopDongKhung(TiepNhanCase):
 	def test_thieu_thong_tin_hop_dong_khong_nop_duoc(self):
 		# Bên B: NCC của test chưa có hợp đồng nào nên không được tự điền (Bên A thì được điền theo hợp
 		# đồng gần nhất của công ty trên site).
-		doc = self.hdk([(self.item(), 100, GIA)], nop=False, dai_dien_ben_b="", dia_diem_giao="")
-		self.assertRaisesRegex(frappe.ValidationError, "Đại diện Bên B.*Địa điểm giao hàng", doc.submit)
+		doc = self.hdk([(self.item(), 100, GIA)], nop=False, dai_dien_ben_b="", tai_khoan_ben_b="")
+		self.assertRaisesRegex(frappe.ValidationError, "Đại diện Bên B.*Số tài khoản Bên B", doc.submit)
 
-	def test_dieu_khoan_mac_dinh_theo_hop_dong_mau(self):
-		doc = self.hdk([(self.item(), 100, GIA)])
-		self.assertEqual(
-			(doc.thoi_han_thanh_toan, doc.bao_truoc_doi_gia, doc.phuong_thuc_thanh_toan, doc.mst_ben_b),
-			(30, 30, "Chuyển khoản", self.mst),
-		)
+	def test_truong_bat_buoc_theo_cai_dat(self):
+		"""Mỗi NCC một kiểu hợp đồng: trường bắt buộc khi Nộp chọn ở Cài đặt, không cố định (D4-13)."""
+		cai_dat = "Supplier Invoice Intake Settings"
+		frappe.db.set_single_value(cai_dat, {"truong_bat_buoc_hdk": "", "truong_bat_buoc_dong_hdk": ""})
+		trong = {f: "" for f in CAC_BEN if f != "order_date"}
+		dong = {f: "" for f in ("ten_hdk", "quy_cach", "hang_sx", "nuoc_sx", "so_luu_hanh", "thue_suat")}
+		self.hdk([(self.item(), 100, GIA, dong)], **trong)  # chỉ còn trường hệ thống cần: Nộp được
+
+		frappe.db.set_single_value(cai_dat, "truong_bat_buoc_hdk", "tep_hop_dong")
+		doc = self.hdk([(self.item(), 100, GIA)], so="2602", nop=False)
+		self.assertRaisesRegex(frappe.ValidationError, "Tệp hợp đồng đã ký", doc.submit)
+
+		s = frappe.get_doc(cai_dat)
+		s.truong_bat_buoc_dong_hdk = "quy_cach\nkhong_co_truong_nay"
+		self.assertRaisesRegex(frappe.ValidationError, "khong_co_truong_nay", s.save)
 
 	def test_tu_dien_thong_tin_cac_ben_theo_hop_dong_gan_nhat(self):
 		# Từ ngày mới nhất để là "hợp đồng gần nhất" của công ty dù site đã có hợp đồng khác.
@@ -340,6 +351,37 @@ class TestHopDongKhung(TiepNhanCase):
 		p = self.phieu([("5002", "Ascaris IgG Elisa Kit", "Cái", 7, 3630952, "5%")])
 		self.assertTrue(p.items[0].canh_bao_chan)
 		self.assertIn("đã gồm VAT 5%", p.items[0].canh_bao)
+
+		# NCC làm tròn lên 1 đồng: phiếu không cảnh báo, đối soát Đợt 3 cho dung sai 1 đồng (D4-12).
+		po2 = self.po([(item, 7, chua_vat)])
+		self.pr(po2)
+		p = self.phieu(
+			[("5002", "Ascaris IgG Elisa Kit", "Cái", 7, chua_vat + 1, "5%")], ghi_chu=f"PO {po2.name}"
+		)
+		self.assertEqual((p.purchase_order, p.items[0].canh_bao_chan), (po2.name, 0))
+		pi = frappe.get_doc("Purchase Invoice", tao_hoa_don_mua(p.name))
+		self.assertEqual((flt(pi.items[0].rate), pi.trang_thai_doi_soat_pr), (chua_vat + 1, "Khớp"))
+
+	def test_gia_gom_vat_hang_gia_thap_nop_duoc_khi_hoa_don_cao_hon_1_dong(self):
+		"""ERPNext chỉ cho vượt thành tiền dòng Đơn mua 0,01%: 10 x 5.001 so với 10 x 5.000 là 0,02%.
+		Dòng thuộc hợp đồng giá gồm VAT, trong dung sai, Khớp thì phải Nộp được (D4-12)."""
+		item = self.item(ten="RF-Absorbent 20ml")
+		dong = {"thue_suat": "5%", "ten_hdk": "RF-Absorbent 20ml", "ma_hang_ncc": "Z200"}
+		self.hdk([(item, 0, 5250, dong)], gia_gom_vat=1, khong_cam_ket_so_luong=1)  # 5.000 chưa VAT
+		po = self.po([(item, 10, 5000)])
+		self.pr(po)
+		p = self.phieu([("Z200", "RF-Absorbent 20ml", "Cái", 10, 5001, "5%")], ghi_chu=f"PO {po.name}")
+		self.assertEqual(p.trang_thai, "Đã đối soát")
+		pi = frappe.get_doc("Purchase Invoice", tao_hoa_don_mua(p.name))
+		self.assertEqual(pi.trang_thai_doi_soat_pr, "Khớp")
+		pi.submit()
+		self.assertEqual(pi.docstatus, 1)
+
+		# Lệch 2 đồng / đơn vị: ngoài dung sai, đối soát Đợt 3 báo Lệch.
+		po = self.po([(item, 10, 5000)])
+		self.pr(po)
+		p = self.phieu([("Z200", "RF-Absorbent 20ml", "Cái", 10, 5002, "5%")], ghi_chu=f"PO {po.name}")
+		self.assertTrue(p.items[0].canh_bao_chan, "phiếu tiếp nhận cũng chỉ cho 1 đồng")
 
 	def test_khong_cam_ket_so_luong(self):
 		item = self.item()
@@ -412,15 +454,19 @@ class TestQuyenDonKhung(TiepNhanCase):
 		super().setUp()
 		from erpnext.buying.tiep_nhan_hoa_don.truong_tuy_bien import phan_quyen_don_khung
 
+		# Dựng lại quyền theo code hiện tại (site có thể còn quyền cũ); hoàn tác cùng savepoint của test.
+		frappe.db.delete("Custom DocPerm", {"parent": "Blanket Order"})
 		phan_quyen_don_khung()
 		self.addCleanup(frappe.clear_cache, doctype="Blanket Order")
 
-	def test_nhan_vien_nhap_truong_bo_phan_nop(self):
+	def test_nhan_vien_nhap_giam_doc_nop(self):
 		item = self.item()
 		frappe.set_user(self.user("Purchase User"))
 		doc = self.hdk([(item, 100, GIA)], nop=False, quyen=True)
 		self.assertRaises(frappe.PermissionError, doc.submit)
 		frappe.set_user(self.user("Purchase Manager"))
+		self.assertRaises(frappe.PermissionError, frappe.get_doc("Blanket Order", doc.name).submit)
+		frappe.set_user(self.user("Sales Manager"))
 		frappe.get_doc("Blanket Order", doc.name).submit()
 		self.assertEqual(frappe.db.get_value("Blanket Order", doc.name, "docstatus"), 1)
 
@@ -620,6 +666,8 @@ class TestBangAnhXa(TiepNhanCase):
 		).insert()
 		self.assertRaises(frappe.PermissionError, doi_trang_thai, ax.name, "Đang dùng")
 		frappe.set_user(self.user("Purchase Manager"))
+		self.assertRaises(frappe.PermissionError, doi_trang_thai, ax.name, "Đang dùng")
+		frappe.set_user(self.user("Sales Manager", "Purchase User"))  # giám đốc duyệt (D4-10)
 		self.assertEqual(doi_trang_thai(ax.name, "Đang dùng"), 1)
 
 	def test_khong_trung_ten_chuan_hoa_trong_mot_ncc(self):

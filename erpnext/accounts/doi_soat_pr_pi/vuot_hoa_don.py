@@ -13,7 +13,8 @@ Hai lớp này chặn trước khi hóa đơn có Bảng chênh lệch, nên kh�
 Cách làm, chỉ cho Hóa đơn mua thuộc phạm vi đối soát, không sửa core: thay hai hàm đó trên CHÍNH
 đối tượng hóa đơn đang lưu (thuộc tính của instance, không đổi class):
 - Lúc lưu: bỏ kiểm vượt Phiếu nhập — đối soát 0 đồng đã bắt mọi khoản cao hơn và chặn Nộp.
-- Lúc Nộp: bỏ kiểm vượt Đơn mua hàng CHỈ khi hóa đơn có ngoại lệ đã được duyệt.
+- Lúc Nộp: bỏ kiểm vượt Đơn mua hàng CHỈ khi hóa đơn có ngoại lệ đã được duyệt, hoặc khi hóa đơn
+  Khớp nhờ dung sai của hợp đồng khung giá gồm VAT (Đợt 4, D4-12) và phần vượt nằm trong dung sai.
 ERPNext đổi tên hàm thì phần thay không còn tác dụng và chặn chuẩn quay lại (an toàn); test
 `TestHoaDonCaoHonPhieuNhap` báo việc đó.
 
@@ -55,6 +56,36 @@ def cho_vuot_don_mua_khi_co_ngoai_le(doc):
 			indicator="orange",
 			alert=True,
 		)
+
+	doc.check_overflow_with_allowance = check_overflow_with_allowance
+
+
+def cho_vuot_don_mua_trong_dung_sai_gia_gom_vat(doc):
+	"""Gọi ở `before_submit`, khi hóa đơn Khớp. Đối soát cho dòng gắn hợp đồng khung giá gồm VAT lệch
+	1 đồng / đơn vị (D4-12), nhưng ERPNext chỉ cho vượt thành tiền dòng Đơn mua 0,01%: hàng giá thấp
+	(5.000 đồng, +1 đồng = 0,02%) sẽ bị chặn lúc Nộp dù đang Khớp, và không có nút duyệt ngoại lệ.
+	Bỏ kiểm cho các dòng đó khi phần vượt ≤ dung sai x số lượng dòng Đơn mua; vượt hơn thì vẫn chặn."""
+	from erpnext.buying.tiep_nhan_hoa_don.hop_dong_khung import (
+		DUNG_SAI_GIA_GOM_VAT,
+		dong_don_mua_gia_gom_vat,
+	)
+
+	gom_vat = dong_don_mua_gia_gom_vat({d.po_detail for d in doc.items if d.get("po_detail")})
+	if not gom_vat:
+		return
+	goc = doc.check_overflow_with_allowance
+
+	def check_overflow_with_allowance(item, args):
+		ten = args.get("name")  # dòng Đơn mua đang kiểm (status_updater đặt trước khi gọi)
+		if (
+			"qty" not in args["target_ref_field"]
+			and args.get("target_dt") == "Purchase Order Item"
+			and ten in gom_vat
+		):
+			vuot = flt(item[args["target_field"]]) - flt(item[args["target_ref_field"]])
+			if vuot <= DUNG_SAI_GIA_GOM_VAT * flt(frappe.db.get_value("Purchase Order Item", ten, "qty")):
+				return
+		return goc(item, args)
 
 	doc.check_overflow_with_allowance = check_overflow_with_allowance
 

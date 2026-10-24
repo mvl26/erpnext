@@ -6,9 +6,10 @@
   không trùng giữa các HĐK chưa hủy (BR-01). STT nối tiếp số đã dùng, nên phụ lục cùng số hợp đồng
   đánh số tiếp theo hợp đồng gốc.
 - Lưu: điền ô trống của thông tin các bên (thẻ công ty / NCC, hợp đồng gần nhất), ĐVT theo hợp đồng.
-- Nộp: bắt buộc đủ thông tin hợp đồng nguyên tắc và thông tin dòng (FR-02, áp ở dòng HĐK vì giữ mã
-  hàng hiện tại); ghi giá chưa VAT từng dòng vào bảng giá mua của NCC — nguồn giá "HĐ nguyên tắc" của
-  kiểm giá Đợt 1. Hủy: xóa các giá đó.
+- Nộp: bắt buộc NCC, Số hợp đồng, Bảng giá mua và các trường chọn ở Cài đặt tiếp nhận hóa đơn NCC
+  (mặc định: thông tin các bên, điều khoản, thông tin dòng theo FR-02 — áp ở dòng HĐK vì giữ mã hàng
+  hiện tại); ghi giá chưa VAT từng dòng vào bảng giá mua của NCC — nguồn giá "HĐ nguyên tắc" của kiểm
+  giá Đợt 1. Hủy: xóa các giá đó. Điều khoản riêng từng NCC ghi ở Điều khoản và điều kiện (mẫu tự tạo).
 - Đã Nộp thì không sửa được (chuẩn ERPNext, trừ Đến ngày để gia hạn). Bổ sung mặt hàng / đổi giá
   theo phụ lục: Đơn khung mới có `hop_dong_goc`.
 - `da_lap_hoa_don`: lũy kế số lượng trên Hóa đơn mua đã Nộp của các dòng Đơn mua gắn HĐK (FR-23).
@@ -21,42 +22,11 @@ from frappe import _
 from frappe.query_builder.functions import Sum
 from frappe.utils import flt, fmt_money, getdate
 
+from erpnext.buying.tiep_nhan_hoa_don.cau_hinh import cai_dat
 from erpnext.buying.tiep_nhan_hoa_don.chuan_hoa import bo_dau
 
-BAT_BUOC_DAU = (
-	("order_no", "Số hợp đồng"),
-	("order_date", "Ngày ký (Ngày đặt)"),
-	("supplier", "Nhà cung cấp"),
-	("bang_gia_mua", "Bảng giá mua"),
-	("dai_dien_ben_a", "Đại diện Bên A"),
-	("chuc_vu_ben_a", "Chức vụ đại diện Bên A"),
-	("mst_ben_a", "MST Bên A"),
-	("dia_chi_ben_a", "Địa chỉ Bên A"),
-	("tai_khoan_ben_a", "Số tài khoản Bên A"),
-	("ngan_hang_ben_a", "Ngân hàng Bên A"),
-	("dai_dien_ben_b", "Đại diện Bên B"),
-	("chuc_vu_ben_b", "Chức vụ đại diện Bên B"),
-	("mst_ben_b", "MST Bên B"),
-	("dien_thoai_ben_b", "Điện thoại Bên B"),
-	("dia_chi_ben_b", "Địa chỉ Bên B"),
-	("tai_khoan_ben_b", "Số tài khoản Bên B"),
-	("ngan_hang_ben_b", "Ngân hàng Bên B"),
-	("dia_diem_giao", "Địa điểm giao hàng"),
-	("han_dung_con_lai", "Hạn dùng còn lại tối thiểu khi giao"),
-	("dieu_kien_bao_quan", "Điều kiện bảo quản, vận chuyển"),
-	("chung_tu_kem_theo", "Chứng từ kèm mỗi lần giao"),
-	("phuong_thuc_thanh_toan", "Phương thức thanh toán"),
-	("moc_thanh_toan", "Thời hạn thanh toán tính từ"),
-)
-BAT_BUOC_DONG = (
-	("ma_hang_ncc", "Mã hàng NCC theo hợp đồng"),
-	("ten_hdk", "Tên theo hợp đồng"),
-	("quy_cach", "Quy cách"),
-	("hang_sx", "Hãng sản xuất"),
-	("nuoc_sx", "Nước sản xuất"),
-	("so_luu_hanh", "Số lưu hành / công bố"),
-	("thue_suat", "Thuế suất GTGT"),
-)
+# Hệ thống luôn cần (mã dòng, ghi giá HĐ nguyên tắc); trường bắt buộc khác chọn ở Cài đặt (D4-13).
+LUON_BAT_BUOC = (("supplier", "Nhà cung cấp"), ("order_no", "Số hợp đồng"), ("bang_gia_mua", "Bảng giá mua"))
 BEN_A = (
 	"dai_dien_ben_a",
 	"chuc_vu_ben_a",
@@ -77,6 +47,11 @@ BEN_B = (
 )
 
 
+# Giá HĐK gồm VAT quy ra chưa VAT (làm tròn đến đồng); NCC có thể làm tròn theo chiều khác 1 đồng.
+# Dùng ở phiếu tiếp nhận và ở đối soát Phiếu nhập ↔ Hóa đơn (Đợt 3) — D4-6, D4-12.
+DUNG_SAI_GIA_GOM_VAT = 1
+
+
 def la_hdk_mua(doc):
 	return doc.get("blanket_order_type") == "Purchasing"
 
@@ -92,6 +67,24 @@ def gia_chua_vat(gia, thue_suat, gom_vat):
 	làm tròn đến đồng. Bảng giá mua, Đơn mua, Phiếu nhập và hóa đơn điện tử cùng ghi một số chẵn đồng,
 	nên đối soát Phiếu nhập ↔ Hóa đơn (Đợt 3, so 0 đồng) không lệch vì phần lẻ của phép chia."""
 	return flt(flt(gia) / (1 + ty_le_thue(thue_suat)), 0) if gom_vat else flt(gia)
+
+
+def dong_don_mua_gia_gom_vat(po_details):
+	"""Các dòng Đơn mua (trong `po_details`) gắn hợp đồng khung có đơn giá đã gồm VAT. Site chưa có
+	trường của Đợt 4 thì rỗng."""
+	if not po_details or not frappe.db.has_column("Blanket Order", "gia_gom_vat"):
+		return set()
+	poi = frappe.qb.DocType("Purchase Order Item")
+	bo = frappe.qb.DocType("Blanket Order")
+	return {
+		ten
+		for (ten,) in frappe.qb.from_(poi)
+		.join(bo)
+		.on(bo.name == poi.blanket_order)
+		.select(poi.name)
+		.where(poi.name.isin(list(po_details)) & (bo.gia_gom_vat == 1))
+		.run()
+	}
 
 
 def viet_tat(doctype, name):
@@ -304,13 +297,17 @@ def khi_validate(doc, method=None):
 def truoc_khi_nop(doc, method=None):
 	if not la_hdk_mua(doc):
 		return
-	thieu = [_(nhan) for f, nhan in BAT_BUOC_DAU if not doc.get(f)]
+	c = cai_dat()
+	meta, meta_dong = frappe.get_meta("Blanket Order"), frappe.get_meta("Blanket Order Item")
+	dau = [*LUON_BAT_BUOC, *((f, meta.get_label(f)) for f in c.truong_bat_buoc_hdk if meta.has_field(f))]
+	dong = [(f, meta_dong.get_label(f)) for f in c.truong_bat_buoc_dong_hdk if meta_dong.has_field(f)]
+	thieu = [_(nhan) for f, nhan in dau if not frappe.utils.strip_html(str(doc.get(f) or "")).strip()]
 	goc = _hop_dong_goc(doc)
 	if goc and not doc.get("so_phu_luc"):
 		thieu.append(_("Số phụ lục"))
 	can_so_luong = not doc.get("khong_cam_ket_so_luong")
 	for d in doc.items:
-		thieu += [_("Dòng {0}: {1}").format(d.idx, _(nhan)) for f, nhan in BAT_BUOC_DONG if not d.get(f)]
+		thieu += [_("Dòng {0}: {1}").format(d.idx, _(nhan)) for f, nhan in dong if not d.get(f)]
 		if flt(d.rate) <= 0:
 			thieu.append(_("Dòng {0}: đơn giá phải lớn hơn 0").format(d.idx))
 		if can_so_luong and flt(d.qty) <= 0:

@@ -9,6 +9,7 @@ mỗi lần migrate (`after_migrate`), chạy lại nhiều lần an toàn (`upd
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
+from erpnext.buying.tiep_nhan_hoa_don.cau_hinh import TRUONG_BAT_BUOC_MAC_DINH, TRUONG_DONG_BAT_BUOC_MAC_DINH
 from erpnext.buying.tiep_nhan_hoa_don.chuan_hoa import DONG_NGHIA_MAC_DINH
 
 THUE_SUAT = "\n10%\n8%\n5%\n0%\nKCT"
@@ -81,13 +82,11 @@ def _dong_hdk():
 	)
 
 
-def _so_ngay(fieldname, label, default, **f):
-	return {"fieldname": fieldname, "fieldtype": "Int", "label": label, "default": str(default), **f}
-
-
 def _hop_dong():
-	"""Thông tin của hợp đồng nguyên tắc (theo mẫu 001-GREENTECH/MIYANO): phụ lục, các bên, điều khoản.
-	Giá trị mặc định là điều khoản của mẫu. Chỉ hiện với Đơn khung loại mua."""
+	"""Khung chung của hợp đồng nguyên tắc, hợp đồng nào cũng có hoặc hệ thống cần dùng (D4-6, D4-13): mã
+	hợp đồng trong mã dòng, phụ lục, tệp đã ký, giá gồm VAT, không cam kết số lượng, các bên ký. Điều
+	khoản riêng của từng NCC không thành trường cố định: ghi ở mục Điều khoản và điều kiện chuẩn của
+	ERPNext, lấy từ Mẫu điều khoản (Terms and Conditions) người dùng tự tạo. Chỉ hiện với loại mua."""
 	return [
 		{
 			"fieldname": "bang_gia_mua",
@@ -120,6 +119,18 @@ def _hop_dong():
 				"depends_on": "hop_dong_goc",
 			},
 			{"fieldname": "tep_hop_dong", "fieldtype": "Attach", "label": "Tệp hợp đồng đã ký"},
+			{
+				"fieldname": "gia_gom_vat",
+				"fieldtype": "Check",
+				"label": "Đơn giá đã gồm thuế GTGT",
+				"description": "Tích thì hệ thống quy đơn giá về giá chưa VAT theo Thuế suất của dòng (làm tròn đến đồng) khi ghi bảng giá mua, khi gắn Đơn mua và khi so với hóa đơn.",
+			},
+			{
+				"fieldname": "khong_cam_ket_so_luong",
+				"fieldtype": "Check",
+				"label": "Không cam kết số lượng tối thiểu",
+				"description": "Tích: dòng để Số lượng 0 là không giới hạn, không cảnh báo hay chặn hạn mức. Không tích: dòng nào cũng phải có số lượng (hạn mức).",
+			},
 			{
 				"fieldname": "cac_ben_section",
 				"fieldtype": "Section Break",
@@ -158,97 +169,6 @@ def _hop_dong():
 				"description": "Tài khoản nhận thanh toán theo hợp đồng.",
 			},
 			{"fieldname": "ngan_hang_ben_b", "fieldtype": "Data", "label": "Ngân hàng Bên B (mở tại)"},
-			{
-				"fieldname": "dieu_khoan_hdnt_section",
-				"fieldtype": "Section Break",
-				"label": "Điều khoản hợp đồng nguyên tắc",
-				"collapsible": 1,
-			},
-			{
-				"fieldname": "gia_gom_vat",
-				"fieldtype": "Check",
-				"label": "Đơn giá đã gồm thuế GTGT",
-				"description": "Tích thì hệ thống quy đơn giá về giá chưa VAT theo Thuế suất của dòng khi ghi bảng giá mua, khi gắn Đơn mua và khi so với hóa đơn.",
-			},
-			{
-				"fieldname": "gia_gom_chi_phi_giao",
-				"fieldtype": "Check",
-				"label": "Đơn giá đã gồm vận chuyển, bảo quản, bảo hiểm, bốc xếp",
-			},
-			{
-				"fieldname": "khong_cam_ket_so_luong",
-				"fieldtype": "Check",
-				"label": "Không cam kết số lượng tối thiểu",
-				"description": "Tích: dòng để Số lượng 0 là không giới hạn, không cảnh báo hay chặn hạn mức. Không tích: dòng nào cũng phải có số lượng (hạn mức).",
-			},
-			_so_ngay("bao_truoc_doi_gia", "NCC báo trước khi đổi giá (ngày)", 30),
-			_so_ngay("bao_truoc_ngung_cung_cap", "NCC báo trước khi ngừng cung cấp (ngày)", 90),
-			{"fieldname": "tu_dong_gia_han", "fieldtype": "Check", "label": "Tự động gia hạn khi hết hạn"},
-			_so_ngay("so_thang_gia_han", "Mỗi lần gia hạn (tháng)", 12, depends_on="tu_dong_gia_han"),
-			_so_ngay(
-				"bao_truoc_khong_gia_han",
-				"Báo không gia hạn trước (ngày)",
-				30,
-				depends_on="tu_dong_gia_han",
-				description="Gia hạn: người có quyền Nộp sửa Đến ngày (ô duy nhất sửa được sau khi Nộp).",
-			),
-			{"fieldname": "dieu_khoan_cb_1", "fieldtype": "Column Break"},
-			_so_ngay("xac_nhan_don_trong", "NCC xác nhận đơn trong (ngày)", 1),
-			_so_ngay("giao_hang_tu_ngay", "Giao hàng sau khi NCC nhận đơn, từ (ngày)", 3),
-			_so_ngay("giao_hang_den_ngay", "đến (ngày)", 5),
-			{"fieldname": "dia_diem_giao", "fieldtype": "Small Text", "label": "Địa điểm giao hàng"},
-			{
-				"fieldname": "han_dung_con_lai",
-				"fieldtype": "Data",
-				"label": "Hạn dùng còn lại tối thiểu khi giao",
-				"default": "2/3 tổng hạn dùng, tối thiểu 06 tháng",
-			},
-			{
-				"fieldname": "dieu_kien_bao_quan",
-				"fieldtype": "Data",
-				"label": "Điều kiện bảo quản, vận chuyển",
-			},
-			{
-				"fieldname": "chung_tu_kem_theo",
-				"fieldtype": "Small Text",
-				"label": "Chứng từ kèm mỗi lần giao",
-				"default": "Hóa đơn điện tử; biên bản giao nhận (tên, mã hàng, số lượng, số lô, hạn dùng, số hóa đơn); COA theo lô; CO, CQ",
-			},
-			_so_ngay("doi_hang_trong", "Đổi hàng không đạt trong (ngày)", 5),
-			{"fieldname": "dieu_khoan_cb_2", "fieldtype": "Column Break"},
-			{
-				"fieldname": "phuong_thuc_thanh_toan",
-				"fieldtype": "Select",
-				"options": "Chuyển khoản\nTiền mặt\nKhác",
-				"default": "Chuyển khoản",
-				"label": "Phương thức thanh toán",
-			},
-			_so_ngay("thoi_han_thanh_toan", "Thời hạn thanh toán (ngày)", 30),
-			{
-				"fieldname": "moc_thanh_toan",
-				"fieldtype": "Data",
-				"label": "Thời hạn thanh toán tính từ",
-				"default": "Ngày nhận đủ hàng, hóa đơn và chứng từ",
-			},
-			{
-				"fieldname": "phat_cham_giao",
-				"fieldtype": "Percent",
-				"label": "Phạt chậm giao (% / ngày)",
-				"default": "0.5",
-			},
-			{
-				"fieldname": "phat_cham_giao_toi_da",
-				"fieldtype": "Percent",
-				"label": "Phạt chậm giao tối đa (%)",
-				"default": "8",
-			},
-			_so_ngay("huy_khi_cham_qua", "Được hủy phần chưa giao khi chậm quá (ngày)", 7),
-			{
-				"fieldname": "phat_vi_pham_khac",
-				"fieldtype": "Percent",
-				"label": "Phạt vi phạm khác (%)",
-				"default": "8",
-			},
 			depends_on=MUA,
 		),
 	]
@@ -341,29 +261,21 @@ CUSTOM_FIELDS = {
 }
 
 
-# Quyền trên Đơn khung (người dùng chọn 24/10/2026): nhân viên mua hàng nhập bản nháp, trưởng bộ phận
-# Nộp / Hủy / Sửa đổi / gia hạn Đến ngày (Frappe đòi quyền Nộp để sửa ô sau khi Nộp), kế toán và kho
-# chỉ xem. Chỉ dùng vai trò đã có; System Manager giữ quyền chuẩn của DocType.
+# Quyền trên Đơn khung: nhân viên mua hàng nhập bản nháp; giám đốc (Sales Manager, như kiểm giá bán
+# Đợt 1 - 2) Nộp / Hủy / Sửa đổi / gia hạn Đến ngày (Frappe đòi quyền Nộp để sửa ô sau khi Nộp); kế
+# toán và kho chỉ xem (người dùng chọn 24 - 25/10/2026). Chỉ dùng vai trò có sẵn; System Manager giữ
+# quyền chuẩn của DocType.
+NHAP_NHAP = ("read", "write", "create", "print", "email", "report", "share")
+CHI_XEM = ("read", "print", "report")
 QUYEN_DON_KHUNG = {
-	"Purchase Manager": (
-		"read",
-		"write",
-		"create",
-		"delete",
-		"submit",
-		"cancel",
-		"amend",
-		"print",
-		"email",
-		"report",
-		"export",
-		"share",
-	),
-	"Purchase User": ("read", "write", "create", "print", "email", "report", "share"),
-	"Accounts Manager": ("read", "print", "report"),
-	"Accounts User": ("read", "print", "report"),
-	"Stock User": ("read", "print", "report"),
+	"Sales Manager": (*NHAP_NHAP, "delete", "submit", "cancel", "amend", "export"),
+	"Purchase Manager": NHAP_NHAP,
+	"Purchase User": NHAP_NHAP,
+	"Accounts Manager": CHI_XEM,
+	"Accounts User": CHI_XEM,
+	"Stock User": CHI_XEM,
 }
+VAI_TRO_GIAM_DOC = "Sales Manager"
 
 
 def phan_quyen_don_khung():
@@ -397,12 +309,26 @@ def tao_truong_tuy_bien():
 	"""Gọi từ `after_migrate`. Lần đầu (cài đặt chưa lưu) gieo giá trị mặc định và từ đồng nghĩa."""
 	create_custom_fields(CUSTOM_FIELDS, update=True)
 	phan_quyen_don_khung()
+	if frappe.db.exists("DocType", CAI_DAT) and not frappe.db.get_single_value(
+		CAI_DAT, "da_khoi_tao_truong_bat_buoc"
+	):
+		# Một lần: quản trị bỏ bớt / thêm trường ở Cài đặt thì migrate sau không ghi đè (D4-13).
+		frappe.db.set_single_value(
+			CAI_DAT,
+			{
+				"truong_bat_buoc_hdk": "\n".join(TRUONG_BAT_BUOC_MAC_DINH),
+				"truong_bat_buoc_dong_hdk": "\n".join(TRUONG_DONG_BAT_BUOC_MAC_DINH),
+				"da_khoi_tao_truong_bat_buoc": 1,
+			},
+		)
 	if frappe.db.exists("DocType", CAI_DAT) and not frappe.db.get_single_value(CAI_DAT, "nguong_tu_dong"):
 		s = frappe.get_single(CAI_DAT)
 		s.update(
 			{
 				"bat_tiep_nhan": 1,
 				"nguong_canh_bao_han_muc": 90,
+				"vai_tro_duyet_lech_gia": VAI_TRO_GIAM_DOC,
+				"vai_tro_duyet_anh_xa": VAI_TRO_GIAM_DOC,
 				"nguong_tu_dong": 0.75,
 				"nguong_xac_nhan": 0.55,
 				"trong_so_jaccard": 0.6,
