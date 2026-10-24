@@ -63,7 +63,7 @@
       </nav>
       <div class="mt-6 flex items-center justify-between px-3">
         <h3 class="text-sm font-medium text-ink-gray-5">Không gian</h3>
-        <Button label="Tạo không gian" variant="ghost" @click="showAddTeamDialog = true">
+        <Button v-if="canCreateGroup" label="Tạo không gian" variant="ghost" @click="showAddTeamDialog = true">
           <template #icon><LucidePlus class="h-4 w-4" /></template>
         </Button>
       </div>
@@ -145,6 +145,7 @@ import { Tooltip } from 'frappe-ui'
 import Links from './Links.vue'
 import Link from './Link.vue'
 import AddTeamDialog from './AddTeamDialog.vue'
+import { postPermissions, canCreateGroup } from '@/data/postPermissions'
 import UserDropdown from './UserDropdown.vue'
 import ChevronTriangle from './icons/ChevronTriangle.vue'
 import { activeTeams, teams } from '@/data/teams'
@@ -182,6 +183,9 @@ export default {
     this.sidebarWidth = sidebarWidth
   },
   computed: {
+    canCreateGroup() {
+      return postPermissions.data ? canCreateGroup() : false
+    },
     navigation() {
       return [
         {

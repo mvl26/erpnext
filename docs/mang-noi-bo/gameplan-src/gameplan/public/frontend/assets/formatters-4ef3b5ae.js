@@ -1,0 +1,1 @@
+import{p as n}from"./projects-eb4f4b5f.js";import{c as p}from"./index-ca684e67.js";let r={};function f(e){if(e==null)return"";let t=e.toString();return r[t]||(r[t]=p(()=>{if(n.data.length>0){const o=n.data.find(i=>i.name.toString()===t);if(o)return o.title}return t})),r[t]}export{f as p};

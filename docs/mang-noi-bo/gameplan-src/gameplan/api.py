@@ -93,6 +93,16 @@ def invite_by_email(emails: str, role: str, projects: list = None):
 	email_list = split_emails(email_string)
 	if not email_list:
 		return
+	from gameplan.miyano import utils as miyano_utils
+
+	for email in email_list:
+		# Miyano: chỉ tài khoản nhân viên cùng công ty mới được vào, không mời người ngoài qua email
+		user = frappe.db.get_value("User", {"email": email})
+		if not user or not miyano_utils.is_company_user(user):
+			frappe.throw(
+				frappe._("Chỉ nhân viên của công ty (có tài khoản ERP) mới được thêm vào Mạng nội bộ: {0}").format(email),
+				frappe.PermissionError,
+			)
 	existing_members = frappe.db.get_all("User", filters={"email": ["in", email_list]}, pluck="email")
 	existing_invites = frappe.db.get_all(
 		"GP Invitation",

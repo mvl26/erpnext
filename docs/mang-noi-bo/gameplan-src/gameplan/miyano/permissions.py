@@ -1,7 +1,12 @@
 import frappe
 from frappe import _
 
+from gameplan.miyano import utils
 from gameplan.miyano.utils import get_user_department, is_admin
+
+# Phòng ban được tạo nhóm: HCNS và Ban lãnh đạo. Người khác do quản trị viên cấp vai trò CREATOR_ROLE.
+GROUP_CREATOR_DEPARTMENTS = ("P. HCNS - pháp chế - M", "Ban lãnh đạo - M")
+CREATOR_ROLE = "Gameplan Group Creator"
 
 MIYANO_PROJECT_FIELDS = (
 	"miyano_restrict_posting",
@@ -33,6 +38,32 @@ def can_post(project, user=None):
 		if p.department and department and p.department == department:
 			return True
 	return False
+
+
+def can_create_group(user=None):
+	"""Người dùng có được tạo nhóm / không gian mới không: quản trị, HCNS, Ban lãnh đạo hoặc
+	người được quản trị viên cấp vai trò Gameplan Group Creator."""
+	user = user or frappe.session.user
+	if utils.is_admin(user):
+		return True
+	if CREATOR_ROLE in frappe.get_roles(user):
+		return True
+	department = utils.get_user_department(user)
+	return bool(department and department in GROUP_CREATOR_DEPARTMENTS)
+
+
+def validate_new_group(doc, method=None):
+	"""Hook GP Project / GP Team.before_insert: chỉ người có quyền mới được tạo nhóm, không gian."""
+	if frappe.flags.in_install or frappe.flags.in_migrate or frappe.flags.in_import:
+		return
+	if not can_create_group(doc.owner or frappe.session.user):
+		frappe.throw(
+			_(
+				"Bạn chưa có quyền tạo nhóm. Chỉ quản trị viên, phòng HCNS, Ban lãnh đạo hoặc người được "
+				"quản trị viên cấp quyền mới tạo được nhóm."
+			),
+			frappe.PermissionError,
+		)
 
 
 def validate_new_discussion(doc, method=None):

@@ -21,6 +21,33 @@ def get_user_department(user):
 	return frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, "department")
 
 
+def get_allowed_companies():
+	"""Công ty được dùng Mạng nội bộ: site_config `gameplan_companies`, mặc định là Company mặc định."""
+	configured = frappe.conf.get("gameplan_companies")
+	if configured:
+		return list(configured)
+	default = frappe.defaults.get_global_default("company")
+	return [default] if default else []
+
+
+def get_user_company(user):
+	"""Công ty của nhân viên đang làm việc gắn với tài khoản (nếu có module HR)."""
+	if not user or not doctype_exists("Employee"):
+		return None
+	return frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, "company")
+
+
+def is_company_user(user):
+	"""Tài khoản thuộc nhân viên đang làm việc của công ty được phép dùng Mạng nội bộ."""
+	if user == "Administrator" or not doctype_exists("Employee"):
+		return True
+	company = get_user_company(user)
+	if not company:
+		return False
+	allowed = get_allowed_companies()
+	return not allowed or company in allowed
+
+
 def get_active_member_users():
 	"""Danh sách tài khoản đang có quyền dùng Mạng nội bộ (thành viên/quản trị)."""
 	HasRole = frappe.qb.DocType("Has Role")

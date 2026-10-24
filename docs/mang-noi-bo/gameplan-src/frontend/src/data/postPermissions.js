@@ -17,6 +17,12 @@ export function canPostIn(project) {
   return value === undefined ? true : value
 }
 
+// Chỉ quản trị viên, HCNS, Ban lãnh đạo hoặc người được cấp quyền mới tạo được nhóm / không gian
+export function canCreateGroup() {
+  let data = postPermissions.data || {}
+  return Boolean(data.is_admin || data.can_create_group)
+}
+
 export function isMiyanoAdmin() {
   return Boolean(postPermissions.data?.is_admin)
 }

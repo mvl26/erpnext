@@ -142,7 +142,11 @@ doc_events = {
 		"on_update": "gameplan.miyano.files.link_files",
 	},
 	"GP Project": {
+		"before_insert": "gameplan.miyano.permissions.validate_new_group",
 		"validate": "gameplan.miyano.permissions.validate_project",
+	},
+	"GP Team": {
+		"before_insert": "gameplan.miyano.permissions.validate_new_group",
 	},
 	"GP Notification": {
 		"after_insert": "gameplan.miyano.notifications.send_notification_email",

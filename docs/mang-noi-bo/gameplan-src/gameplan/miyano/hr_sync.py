@@ -7,7 +7,7 @@
 
 import frappe
 
-from gameplan.miyano.utils import doctype_exists
+from gameplan.miyano.utils import doctype_exists, is_company_user
 
 MEMBER_ROLE = "Gameplan Member"
 DEFAULT_TEAM_KEY = "miyano_default_team"
@@ -30,6 +30,10 @@ def ensure_member(user):
 	changed = False
 	user_doc = frappe.get_doc("User", user)
 	if not user_doc.enabled:
+		return False
+	if not is_company_user(user):
+		# Nhân viên công ty khác (hoặc không phải nhân viên đang làm việc): không cho vào Mạng nội bộ
+		remove_member(user)
 		return False
 	roles = {r.role for r in user_doc.roles}
 	if MEMBER_ROLE not in roles and "Gameplan Admin" not in roles:

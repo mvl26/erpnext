@@ -16,7 +16,7 @@
               { label: 'Đang hoạt động', value: 'Active' },
               { label: 'Đã lưu trữ', value: 'Archived' },
             ]" v-model="activeTab" />
-          <Button v-if="teamProjects.length" @click="createNewProjectDialog = true" variant="solid">
+          <Button v-if="teamProjects.length && canCreateGroup" @click="createNewProjectDialog = true" variant="solid">
             <template #prefix>
               <LucidePlus class="h-4 w-4" />
             </template>
@@ -74,7 +74,7 @@
           </div>
         </li>
         <button
-          v-if="teamProjects.length === 0"
+          v-if="teamProjects.length === 0 && canCreateGroup"
           class="group relative flex items-center space-x-4 rounded-xl border border-gray-100 p-2 text-left transition-colors focus-within:ring-2 focus-within:ring-blue-500 hover:bg-surface-gray-2"
           @click="createNewProjectDialog = true"
         >
@@ -123,6 +123,7 @@
 <script>
 import { Dialog, FormControl, TextInput, TabButtons } from 'frappe-ui'
 import { projects, getTeamProjects, getTeamArchivedProjects } from '@/data/projects'
+import { postPermissions, canCreateGroup } from '@/data/postPermissions'
 
 export default {
   name: 'TeamOverview',
@@ -141,6 +142,10 @@ export default {
     }
   },
   computed: {
+    canCreateGroup() {
+      // phụ thuộc postPermissions.data để tự cập nhật khi tải xong
+      return postPermissions.data ? canCreateGroup() : false
+    },
     projects() {
       return projects
     },

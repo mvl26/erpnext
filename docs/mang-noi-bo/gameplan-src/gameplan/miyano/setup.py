@@ -54,6 +54,15 @@ GROUPS = [
 
 def after_migrate():
 	setup_department_link()
+	ensure_creator_role()
+
+
+def ensure_creator_role():
+	"""Vai trò quản trị viên cấp cho người ngoài HCNS / Ban lãnh đạo được tạo nhóm."""
+	from gameplan.miyano.permissions import CREATOR_ROLE
+
+	if not frappe.db.exists("Role", CREATOR_ROLE):
+		frappe.get_doc(doctype="Role", role_name=CREATOR_ROLE, desk_access=1).insert(ignore_permissions=True)
 
 
 def setup_department_link():
@@ -68,6 +77,7 @@ def setup_department_link():
 
 def setup_miyano(team_title=TEAM_TITLE):
 	setup_department_link()
+	ensure_creator_role()
 
 	team = get_default_team()
 	if not team:
