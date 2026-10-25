@@ -64,6 +64,7 @@ def khi_validate(doc, method=None):
 		_ghi_ket_qua(doc, tinh_chenh_lech(doc))
 		_bao_phan_con_lai(doc)
 	_ghi_ngay_lech(doc)
+	_ghi_nhat_ky_neu_doi(doc)
 
 
 def _bao_phan_con_lai(doc):
@@ -88,6 +89,8 @@ def truoc_khi_nop(doc, method=None):
 		vuot_hoa_don.cho_vuot_don_mua_khi_co_ngoai_le(doc)
 	elif trang_thai == KHOP:
 		vuot_hoa_don.cho_vuot_don_mua_trong_dung_sai_gia_gom_vat(doc)
+	if trang_thai in (KHOP, NGOAI_LE):
+		ghi_nhat_ky(doc, NK_NOP)
 	if not trang_thai or trang_thai in (KHOP, NGOAI_LE):
 		return
 	frappe.throw(
@@ -240,7 +243,9 @@ def _danh_dau_chua_doi_soat(hoa_don, phieu_nhap):
 		{"trang_thai_doi_soat_pr": CHUA_DOI_SOAT, "lech_tu_ngay": cu.lech_tu_ngay or today()},
 		update_modified=False,
 	)
-	frappe.get_doc("Purchase Invoice", hoa_don).add_comment(
+	doc = frappe.get_doc("Purchase Invoice", hoa_don)
+	ghi_nhat_ky(doc, NK_PHIEU_NHAP, phieu_nhap=phieu_nhap, chenh_lech=[])
+	doc.add_comment(
 		"Info",
 		_("Phiếu nhập mua {0} vừa thay đổi; hóa đơn sẽ được đối soát lại khi lưu hoặc Nộp.").format(
 			phieu_nhap
@@ -343,19 +348,71 @@ def _ghi_ket_qua(doc, chenh_lech):
 		)
 
 
+def _mot_diem(r):
+	vi_tri = _("Dòng {0}").format(r.dong_hoa_don) if r.dong_hoa_don else _("Tổng")
+	return f"{vi_tri} · {_(r.tieu_chi)}{(' · ' + r.item_code) if r.item_code else ''}: " + _(
+		"Phiếu nhập {0}, Hóa đơn {1}"
+	).format(r.gia_tri_pr or "-", r.gia_tri_pi or "-")
+
+
 def _danh_sach_html(chenh_lech, gioi_han=10):
-	dong = []
-	for r in (chenh_lech or [])[:gioi_han]:
-		vi_tri = _("Dòng {0}").format(r.dong_hoa_don) if r.dong_hoa_don else _("Tổng")
-		dong.append(
-			f"<li>{vi_tri} · {_(r.tieu_chi)}{(' · ' + r.item_code) if r.item_code else ''}: "
-			+ _("Phiếu nhập {0}, Hóa đơn {1}").format(r.gia_tri_pr or "-", r.gia_tri_pi or "-")
-			+ "</li>"
-		)
+	dong = [f"<li>{_mot_diem(r)}</li>" for r in (chenh_lech or [])[:gioi_han]]
 	con = len(chenh_lech or []) - gioi_han
 	if con > 0:
 		dong.append("<li>" + _("... và {0} điểm khác").format(con) + "</li>")
 	return f"<ul>{''.join(dong)}</ul>"
+
+
+# --- Nhật ký đối soát (6.3.4: không xóa được) --------------------------------------
+
+NHAT_KY = "Purchase Invoice PR Reconciliation Log"
+NK_DOI_SOAT = "Đối soát"
+NK_NGOAI_LE = "Duyệt ngoại lệ"
+NK_NOP = "Nộp hóa đơn"
+NK_PHIEU_NHAP = "Phiếu nhập thay đổi"
+
+
+def ghi_nhat_ky(doc, su_kien, phieu_nhap=None, chenh_lech=None):
+	"""Thêm một dòng nhật ký với trạng thái và bảng chênh lệch hiện tại của hóa đơn."""
+	if chenh_lech is None:
+		chenh_lech = doc.get("chenh_lech_pr") or []
+	frappe.get_doc(
+		{
+			"doctype": NHAT_KY,
+			"hoa_don": doc.name,
+			"nha_cung_cap": doc.supplier,
+			"su_kien": su_kien,
+			"trang_thai": doc.get("trang_thai_doi_soat_pr"),
+			"so_diem_lech": len(chenh_lech),
+			"thoi_diem": now_datetime(),
+			"nguoi": frappe.session.user,
+			"phieu_nhap": phieu_nhap or doc.flags.get("doi_soat_tu_phieu_nhap"),
+			"ly_do": doc.get("ly_do_ngoai_le") if su_kien == NK_NGOAI_LE else None,
+			"van_tay": van_tay(chenh_lech) if chenh_lech else None,
+			"chi_tiet": "\n".join(_mot_diem(r) for r in chenh_lech) or None,
+		}
+	).insert(ignore_permissions=True)
+
+
+def _ghi_nhat_ky_neu_doi(doc):
+	"""Lưu nháp nhiều lần mà kết quả không đổi thì không ghi thêm: chỉ ghi khi trạng thái hay bảng
+	chênh lệch khác dòng nhật ký gần nhất, và luôn ghi lần duyệt ngoại lệ."""
+	trang_thai = doc.get("trang_thai_doi_soat_pr")
+	if not trang_thai:
+		return
+	if doc.flags.get("duyet_ngoai_le") and trang_thai == NGOAI_LE:
+		ghi_nhat_ky(doc, NK_NGOAI_LE)
+		return
+	gan_nhat = frappe.db.get_value(
+		NHAT_KY, {"hoa_don": doc.name}, ["trang_thai", "van_tay"], as_dict=True, order_by="creation desc"
+	)
+	chenh_lech = doc.get("chenh_lech_pr") or []
+	if gan_nhat and (gan_nhat.trang_thai, gan_nhat.van_tay or None) == (
+		trang_thai,
+		van_tay(chenh_lech) if chenh_lech else None,
+	):
+		return
+	ghi_nhat_ky(doc, NK_DOI_SOAT)
 
 
 # --- Tính chênh lệch --------------------------------------------------------------

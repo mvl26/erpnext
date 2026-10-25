@@ -995,6 +995,19 @@ Tổng: 42 test Đợt 2 + 109 test Đợt 1 = **151 test đạt**. Thêm `scrip
 
 ---
 
+### 14.4 Bổ sung 25/10/2026: chặn chồng khoảng ngày (T10)
+
+Rà soát 24/10 thấy T10 mới làm một phần (chỉ chặn trùng ngày với bảng giá chính, lúc gửi). Người dùng duyệt làm tiếp 25/10. Quy tắc, áp cho bảng giá có báo trước và bảng giá chờ của nó, theo từng mặt hàng + ĐVT + khách + lô:
+
+| Trường hợp | Kết quả |
+|---|---|
+| Giá sau không có Hiệu lực đến (cách đổi giá thường, T1b) | Được: giá sau tự thay giá trước từ ngày của nó |
+| Hai giá cùng ngày hiệu lực từ | Chặn: không biết áp giá nào |
+| Giá trước có Hiệu lực đến kéo sang ngày của giá sau | Chặn |
+| Giá sau có Hiệu lực đến trong khi giá trước còn hiệu lực | Chặn: hết hạn thì giá trước tự quay lại mà khách không được báo (email đổi giá chỉ ghi ngày áp dụng). Muốn quay về giá cũ: thêm một dòng giá mới |
+
+Chặn ngay khi lưu giá chờ, và kiểm lại lúc Gửi thông báo đổi giá (lỗi thì không dòng nào được chuyển). Code `bao_truoc.chong_lan`, `cap_chong_lan`; test `test_t10_*` trong `test_kiem_gia_bao_truoc.py` (42 test).
+
 ## 15. BA12 thay thế / bổ sung YC3–YC4 (22/10/2026)
 
 Căn cứ: BA12 V1.0 "Đối soát giá mua – giá bán theo hệ số khách hàng" (CHỐT ĐỂ BUILD) và trả lời của PO ngày 22/10/2026. Thiết kế kỹ thuật đầy đủ: **`docs/BA12_TKKT_DoiSoatGiaMuaGiaBan.md`**. Phần nào ở mục 4, 6.1, 13, 14 mâu thuẫn với BA12 thì **BA12 thắng**.
@@ -1049,7 +1062,9 @@ Sửa kèm trong Supply Notification (`registry.py`): bản đồ điểm thông
 | E9: tổng ĐNTT chưa hủy (kể cả nháp) ≤ số tiền hóa đơn, cho mọi đường tạo; khóa dòng hóa đơn và đọc tổng bằng lệnh có khóa | `de_nghi_thanh_toan.kiem_tong_de_nghi` (`Payment Request.validate`) | S12, S13, `test_huy_dntt_thi_tao_lai_duoc`; S15: `scripts/kiem_dong_thoi_dntt.py` |
 | Thông báo (6.3.9): NTF-16 (hóa đơn lệch lúc tạo), NTF-17 (chuyển sang Lệch) → Mua hàng + người lập; NTF-18 (chọn nhánh b1) → Kho; NTF-19 nút "Gửi NCC bảng chênh lệch" trên hóa đơn nháp đang lệch (b2), CC người lập | `supply_notification/constants.py`; `setup.build_point` nhận thêm `watch_field`, `watch_value` | (cấu hình, kiểm bằng migrate) |
 
-S3 (lệch ĐVT): ERPNext chặn ngay khi lưu, test `test_s3_lech_dvt_bi_chan_ngay_khi_luu`. Tổng: **47 test đạt** (chạy bằng `scripts/chay_test.py` trên `erpnext.localhost`).
+| Nhật ký đối soát không xóa được (6.3.4, bổ sung 25/10/2026): mỗi lần trạng thái hay bảng chênh lệch đổi, mỗi lần duyệt ngoại lệ, khi Nộp hóa đơn và khi Phiếu nhập liên quan bị hủy, hệ thống thêm một dòng (trạng thái, số điểm lệch, chi tiết chênh lệch lúc đó, người, thời điểm, Phiếu nhập, lý do ngoại lệ). Không vai trò nào có quyền tạo / sửa / xóa; controller chặn cả đường bỏ qua quyền. Ô hóa đơn là Data nên hóa đơn nháp vẫn xóa được và nhật ký còn lại. Nút **Đối soát Phiếu nhập → Nhật ký đối soát** trên hóa đơn | DocType mới `accounts/doctype/purchase_invoice_pr_reconciliation_log/`; `doi_soat.ghi_nhat_ky` (gọi trong `validate`, `before_submit`, `_danh_dau_chua_doi_soat` — không thêm khóa hooks) | `TestNhatKyDoiSoat` (5 test, gồm chuỗi bước HDKT C1 → C10), `test_purchase_invoice_pr_reconciliation_log.py` (3 test) |
+
+S3 (lệch ĐVT): ERPNext chặn ngay khi lưu, test `test_s3_lech_dvt_bi_chan_ngay_khi_luu`. Tổng: **52 test đạt** + 3 test DocType nhật ký (chạy bằng `scripts/chay_test.py` trên `erpnext.localhost`).
 
 ### 16.3 Điều chỉnh khi code
 

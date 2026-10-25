@@ -14,6 +14,7 @@ Quy tắc để đối chiếu khi test:
 - So **0 đồng** với phần Phiếu nhập đã nhận mà chưa lập hóa đơn, theo ĐVT kho và giá trước thuế: số lượng, đơn giá, thuế suất, thành tiền từng dòng; rồi tổng tiền hàng, tổng thuế, tổng thanh toán (chỉ so tổng khi mọi dòng đã khớp).
 - Trạng thái đối soát (mục **Đối soát với Phiếu nhập mua**, dưới bảng mặt hàng; nhãn màu ở đầu form): **Khớp** xanh lá, **Lệch** đỏ, **Ngoại lệ đã duyệt** cam, **Chưa đối soát** xám.
 - Lệch thì **không Nộp được**. Kế toán trưởng / Ban Điều hành có thể **Duyệt ngoại lệ** (bắt buộc lý do). Sửa hóa đơn làm chênh lệch đổi thì phê duyệt mất hiệu lực. Hóa đơn **cao hơn** giá trị Phiếu nhập thì không duyệt ngoại lệ được.
+- Mỗi lần kết quả đối soát đổi, mỗi lần duyệt ngoại lệ, khi Nộp hóa đơn và khi Phiếu nhập liên quan bị hủy đều ghi vào **Nhật ký đối soát** (menu **Đối soát Phiếu nhập → Nhật ký đối soát** trên hóa đơn). Không ai sửa hay xóa được nhật ký.
 - Nộp hóa đơn Khớp / có ngoại lệ → hệ thống tạo **Yêu cầu thanh toán (ĐNTT) nháp**, đính kèm file hóa đơn, giao việc cho người duyệt. Tổng ĐNTT chưa hủy của một hóa đơn (kể cả bản nháp) không được vượt số tiền hóa đơn.
 
 ## 0. Chuẩn bị
@@ -66,6 +67,8 @@ Cách lập hóa đơn trong các bước dưới: mở Phiếu nhập → **T�
 | C8 | `demo.ketoan` sửa Số lượng **8** → Lưu | Thông báo cam "Chênh lệch đã thay đổi sau khi demo.ketoantruong@example.com duyệt ngoại lệ, nên phê duyệt cũ không còn hiệu lực." Trạng thái về **Lệch**; ô duyệt trống; mức lệch −2. Nhật ký gửi thông báo có thêm **NTF-17** (chuyển sang Lệch), Sent | ☐ |
 | C9 | Sửa lại **9** → Lưu | Vẫn **Lệch** (phê duyệt cũ không tự quay lại) | ☐ |
 | C10 | `demo.ketoantruong` Duyệt ngoại lệ lại. `demo.ketoan` **Nộp** | Nộp được. ĐNTT nháp **990.000**, nội dung "Đối soát Phiếu nhập: Ngoại lệ đã duyệt" | ☐ |
+| C11 | Trên hóa đơn C1 (đã Nộp) bấm **Đối soát Phiếu nhập → Nhật ký đối soát** | Danh sách nhật ký lọc theo hóa đơn, mới nhất ở trên, 6 dòng: Nộp hóa đơn (Ngoại lệ đã duyệt) · Duyệt ngoại lệ (C10) · Đối soát Lệch (C9) · Đối soát Lệch (C8) · Duyệt ngoại lệ (C7) · Đối soát Lệch (C1). Mở dòng C7: Lý do ngoại lệ "NCC giao thiếu 1, đã thỏa thuận". Mở dòng C8: mục "Chênh lệch lúc ghi" có "Dòng 1 · Số lượng · DEMO-VT-01: Phiếu nhập 10 Cái, Hóa đơn 8 Cái" | ☐ |
+| C12 | Administrator mở một dòng nhật ký, thử sửa; ở danh sách chọn dòng → Thao tác → Xóa | Mọi ô chỉ đọc, không lưu được; xóa bị chặn "Nhật ký đối soát không xóa được." | ☐ |
 
 ## D. Lệch đơn giá, thuế suất; hóa đơn điều chỉnh (kịch bản C, D)
 

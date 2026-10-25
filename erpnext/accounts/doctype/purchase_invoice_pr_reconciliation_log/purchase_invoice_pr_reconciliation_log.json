@@ -1,0 +1,166 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-10-25 15:00:00.000000",
+ "description": "Nhật ký đối soát Phiếu nhập mua ↔ Hóa đơn mua. Hệ thống tự ghi mỗi khi kết quả đối soát thay đổi, khi duyệt ngoại lệ, khi Nộp hóa đơn và khi Phiếu nhập liên quan thay đổi. Không ai sửa hay xóa được.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "hoa_don",
+  "nha_cung_cap",
+  "su_kien",
+  "trang_thai",
+  "so_diem_lech",
+  "column_break_nhat_ky",
+  "thoi_diem",
+  "nguoi",
+  "phieu_nhap",
+  "ly_do",
+  "van_tay",
+  "chi_tiet_section",
+  "chi_tiet"
+ ],
+ "fields": [
+  {
+   "description": "Data, không Link: Link sẽ chặn xóa hóa đơn nháp; nhật ký phải còn cả khi hóa đơn đã bị xóa.",
+   "fieldname": "hoa_don",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Hóa đơn mua",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "nha_cung_cap",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Nhà cung cấp",
+   "options": "Supplier",
+   "read_only": 1
+  },
+  {
+   "fieldname": "su_kien",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Sự kiện",
+   "options": "\nĐối soát\nDuyệt ngoại lệ\nNộp hóa đơn\nPhiếu nhập thay đổi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Trạng thái đối soát",
+   "options": "\nChưa đối soát\nKhớp\nLệch\nNgoại lệ đã duyệt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_diem_lech",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Số điểm lệch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_nhat_ky",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "thoi_diem",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Thời điểm",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Link",
+   "label": "Người thực hiện",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "description": "Phiếu nhập mua vừa Nộp / bị hủy làm hóa đơn được đối soát lại.",
+   "fieldname": "phieu_nhap",
+   "fieldtype": "Data",
+   "label": "Phiếu nhập mua",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do",
+   "fieldtype": "Small Text",
+   "label": "Lý do ngoại lệ",
+   "read_only": 1
+  },
+  {
+   "description": "Dấu của bảng chênh lệch, để biết hai lần đối soát có cùng chênh lệch không.",
+   "fieldname": "van_tay",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Dấu chênh lệch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chi_tiet_section",
+   "fieldtype": "Section Break",
+   "label": "Chênh lệch lúc ghi"
+  },
+  {
+   "fieldname": "chi_tiet",
+   "fieldtype": "Long Text",
+   "label": "Chi tiết",
+   "read_only": 1
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-25 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Accounts",
+ "name": "Purchase Invoice PR Reconciliation Log",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  },
+  {
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager"
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User"
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Purchase Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Purchase User"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "hoa_don"
+}

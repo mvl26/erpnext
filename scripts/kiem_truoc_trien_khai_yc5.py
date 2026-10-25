@@ -3,7 +3,8 @@
 Gom dữ liệu để chọn giá trị Buying Settings (spec 2026-10-21 mục 16.4): ô cài đặt ERPNext ảnh
 hưởng tới luồng, hộp thư gửi đi, tài khoản làm tròn, vai trò ứng viên cho Kế toán trưởng / Ban
 Điều hành kèm người đang giữ, người nhận NTF-16 → 19, NCC ứng viên bật thử. Không chọn thay
-người dùng: in số liệu và lý do, người có quyền quyết định.
+người dùng: in số liệu và lý do, người có quyền quyết định. Mục 0 kiểm múi giờ, dùng chung cho
+mọi đợt.
 
 	cd ~/frappe-bench/sites
 	../env/bin/python ../apps/erpnext/scripts/kiem_truoc_trien_khai_yc5.py --site miyano [--ngay 90]
@@ -20,6 +21,7 @@ from frappe.utils import add_days, cint, nowdate
 
 CAN_XEM = "[CẦN XEM]"
 DAT = "[ĐẠT]"
+MUI_GIO_VN = "Asia/Ho_Chi_Minh"
 
 
 def tieu_de(text):
@@ -57,6 +59,28 @@ def nguoi_giu(role):
 		pluck="name",
 		order_by="name",
 	)
+
+
+def kiem_mui_gio():
+	"""Site test cài ngày 20/10/2026 bị chọn nhầm Etc/GMT+7 (= UTC-7): "hôm nay" của hệ thống chậm
+	14 tiếng, lệch ngày chứng từ, hạn nhắc và giờ chạy việc theo lịch của mọi đợt."""
+	tieu_de("0. Múi giờ (ngày hôm nay của chứng từ, hạn nhắc, giờ chạy việc theo lịch)")
+	he_thong = frappe.db.get_single_value("System Settings", "time_zone")
+	print(f"  {DAT if he_thong == MUI_GIO_VN else CAN_XEM:10} System Settings · Time Zone: {he_thong}")
+	if he_thong != MUI_GIO_VN:
+		print(
+			f"             Nên là {MUI_GIO_VN}. Etc/GMT+7 là UTC-7 (ký hiệu POSIX đảo dấu), chậm giờ Việt"
+			" Nam 14 tiếng. Giờ đã lưu theo múi giờ cũ không tự dời khi đổi: quyết định trước khi đổi."
+		)
+	nguoi_dung = frappe.db.sql(
+		"""select ifnull(time_zone, '') as mui_gio, count(*) as so from tabUser
+		where enabled = 1 group by mui_gio""",
+		as_dict=True,
+	)
+	for h in nguoi_dung:
+		h.danh_dau = DAT if h.mui_gio in ("", MUI_GIO_VN) else CAN_XEM
+		h.mui_gio = h.mui_gio or "(theo hệ thống)"
+	bang(nguoi_dung, [("danh_dau", ""), ("mui_gio", "Múi giờ người dùng"), ("so", "Số người")])
 
 
 def kiem_cai_dat():
@@ -332,6 +356,7 @@ def main():
 		frappe.db.sql("SET SESSION TRANSACTION READ ONLY")
 		frappe.db.rollback()  # giao dịch kế tiếp mới mang thuộc tính READ ONLY
 		print(f"Site {args.site}, ngày {nowdate()} — chỉ đọc")
+		kiem_mui_gio()
 		kiem_cai_dat()
 		kiem_truong_yc5()
 		kiem_vai_tro()

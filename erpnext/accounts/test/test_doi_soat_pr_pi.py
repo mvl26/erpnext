@@ -12,7 +12,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, flt, getdate, nowdate
 
-from erpnext.accounts.doi_soat_pr_pi.doi_soat import doi_soat_lai, duyet_ngoai_le
+from erpnext.accounts.doi_soat_pr_pi.doi_soat import NHAT_KY, doi_soat_lai, duyet_ngoai_le
 from erpnext.accounts.doi_soat_pr_pi.nhac_lech import hoa_don_lech_qua_han, nhac_ke_toan_truong
 from erpnext.buying.doctype.purchase_order.purchase_order import make_purchase_invoice as pi_tu_po
 from erpnext.buying.doctype.purchase_order.purchase_order import make_purchase_receipt
@@ -789,3 +789,99 @@ class TestNhacLechTon(DoiSoatCase):
 		self.assertIn(pi.name, [r.name for r in hoa_don_lech_qua_han(3)])
 		self.cai_dat(so_ngay_nhac_lech=0)
 		self.assertEqual(nhac_ke_toan_truong(), 0)
+
+
+class TestNhatKyDoiSoat(DoiSoatCase):
+	"""6.3.4: nhật ký đối soát không xóa được. Bảng chênh lệch trên hóa đơn chỉ giữ kết quả mới nhất;
+	nhật ký giữ mọi lần kết quả thay đổi."""
+
+	def nhat_ky(self, pi):
+		return frappe.get_all(
+			NHAT_KY,
+			filters={"hoa_don": pi.name},
+			fields=["su_kien", "trang_thai", "so_diem_lech", "phieu_nhap", "ly_do", "chi_tiet", "nguoi"],
+			order_by="creation",
+		)
+
+	def test_ghi_khi_ket_qua_doi_va_khi_nop(self):
+		pr = self.pr(self.po([(self.item(), 10)]))
+		pi = self.pi(pr, lambda pi: setattr(pi.items[0], "qty", 9))
+		pi.save()  # lưu lại mà kết quả không đổi: không ghi thêm
+		pi.items[0].qty = 10
+		pi.save()
+		pi.submit()
+
+		nk = self.nhat_ky(pi)
+		self.assertEqual(
+			[(r.su_kien, r.trang_thai, r.so_diem_lech) for r in nk],
+			[("Đối soát", "Lệch", 1), ("Đối soát", "Khớp", 0), ("Nộp hóa đơn", "Khớp", 0)],
+		)
+		self.assertIn("Số lượng", nk[0].chi_tiet)
+		self.assertEqual(nk[0].nguoi, "Administrator")
+
+	def test_ghi_lan_duyet_ngoai_le_kem_ly_do(self):
+		pr = self.pr(self.po([(self.item(), 10)]))
+		pi = self.pi(pr, lambda pi: setattr(pi.items[0], "qty", 9))
+		duyet_ngoai_le(pi.name, "NCC giao thiếu, đã thỏa thuận")
+
+		nk = self.nhat_ky(pi)
+		self.assertEqual(
+			[(r.su_kien, r.trang_thai) for r in nk],
+			[("Đối soát", "Lệch"), ("Duyệt ngoại lệ", "Ngoại lệ đã duyệt")],
+		)
+		self.assertEqual(nk[1].ly_do, "NCC giao thiếu, đã thỏa thuận")
+
+	def test_ghi_khi_phieu_nhap_bi_huy_va_khi_ban_sua_duoc_nop(self):
+		pr = self.pr(self.po([(self.item(), 12)]), qty=10)
+		pi = self.pi(pr)
+		pr.reload()
+		pr.cancel()
+		sua = frappe.copy_doc(pr)
+		sua.docstatus = 0
+		sua.amended_from = pr.name
+		sua.items[0].qty = sua.items[0].received_qty = 11
+		sua.insert(ignore_permissions=True)
+		sua.submit()
+
+		self.assertEqual(
+			[(r.su_kien, r.trang_thai, r.phieu_nhap) for r in self.nhat_ky(pi)],
+			[
+				("Đối soát", "Khớp", None),
+				("Phiếu nhập thay đổi", "Chưa đối soát", pr.name),
+				("Đối soát", "Lệch", sua.name),
+			],
+		)
+
+	def test_xoa_hoa_don_nhap_van_duoc_va_nhat_ky_con_lai(self):
+		pr = self.pr(self.po([(self.item(), 10)]))
+		pi = self.pi(pr, lambda pi: setattr(pi.items[0], "qty", 9))
+		ten = pi.name
+		pi.delete()
+
+		self.assertEqual(frappe.db.count(NHAT_KY, {"hoa_don": ten}), 1)
+
+	def test_chuoi_buoc_hdkt_c1_den_c10(self):
+		"""HDKT Đợt 3 C11: thứ tự nhật ký sau các bước C1 → C10."""
+		pr = self.pr(self.po([(self.item(), 10)]))
+		pi = self.pi(pr, lambda pi: setattr(pi.items[0], "qty", 9))  # C1
+		duyet_ngoai_le(pi.name, "NCC giao thiếu 1, đã thỏa thuận")  # C7
+		for qty in (8, 9):  # C8, C9
+			pi.reload()
+			pi.items[0].qty = qty
+			pi.save()
+		duyet_ngoai_le(pi.name, "Duyệt lại")  # C10
+		pi.reload()
+		pi.submit()
+
+		self.assertEqual(
+			[(r.su_kien, r.trang_thai) for r in self.nhat_ky(pi)],
+			[
+				("Đối soát", "Lệch"),
+				("Duyệt ngoại lệ", "Ngoại lệ đã duyệt"),
+				("Đối soát", "Lệch"),
+				("Đối soát", "Lệch"),
+				("Duyệt ngoại lệ", "Ngoại lệ đã duyệt"),
+				("Nộp hóa đơn", "Ngoại lệ đã duyệt"),
+			],
+		)
+		self.assertIn("Hóa đơn 8", self.nhat_ky(pi)[2].chi_tiet)

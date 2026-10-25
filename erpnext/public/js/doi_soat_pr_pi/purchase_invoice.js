@@ -8,6 +8,14 @@ frappe.ui.form.on("Purchase Invoice", {
 
 		const mau = { Khớp: "green", Lệch: "red", "Ngoại lệ đã duyệt": "orange" }[trang_thai] || "gray";
 		frm.dashboard.add_indicator(__("Đối soát Phiếu nhập: {0}", [__(trang_thai)]), mau);
+		frm.add_custom_button(
+			__("Nhật ký đối soát"),
+			() =>
+				frappe.set_route("List", "Purchase Invoice PR Reconciliation Log", {
+					hoa_don: frm.doc.name,
+				}),
+			__("Đối soát Phiếu nhập")
+		);
 		if (frm.doc.docstatus !== 0) return;
 
 		if (trang_thai === "Lệch") {
