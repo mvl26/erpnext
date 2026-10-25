@@ -13,15 +13,18 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, flt, nowdate
 
+from erpnext.accounts.doctype.purchase_invoice.purchase_invoice import make_debit_note
 from erpnext.buying.doctype.purchase_order.purchase_order import make_purchase_receipt
 from erpnext.buying.tests.mau_hoa_don_xml import MST_MIYANO, xml_hoa_don
 from erpnext.buying.tiep_nhan_hoa_don.anh_xa import doi_trang_thai
 from erpnext.buying.tiep_nhan_hoa_don.cau_hinh import TRUONG_BAT_BUOC_MAC_DINH, TRUONG_DONG_BAT_BUOC_MAC_DINH
-from erpnext.buying.tiep_nhan_hoa_don.doi_soat import duyet_canh_bao
+from erpnext.buying.tiep_nhan_hoa_don.doi_soat import duyet_canh_bao, mo_lai, tu_choi, van_tay
+from erpnext.buying.tiep_nhan_hoa_don.hoa_don_lien_quan import bo_hoa_don_bi_thay_the
 from erpnext.buying.tiep_nhan_hoa_don.tao_hoa_don import tao_hoa_don_mua
 from erpnext.controllers.accounts_controller import get_taxes_and_charges
 from erpnext.selling.kiem_gia.gia_goc import tim_gia_mua
 
+PHIEU = "Supplier Invoice Intake"
 TEN_HDK = "Ống thông tiểu Foley 2 nhánh cỡ 16Fr"
 TEN_HD = "Sonde Foley 2 way size 16"
 GIA = 12500
@@ -42,6 +45,10 @@ CAC_BEN = {
 	"ngan_hang_ben_b": "Ngân hàng B",
 	"terms": "<p>Điều khoản thử của hợp đồng</p>",
 }
+
+
+def _tt(phieu):
+	return frappe.db.get_value(PHIEU, phieu, "trang_thai")
 
 
 class TiepNhanCase(FrappeTestCase):
@@ -670,6 +677,37 @@ class TestBangAnhXa(TiepNhanCase):
 		frappe.set_user(self.user("Sales Manager", "Purchase User"))  # giám đốc duyệt (D4-10)
 		self.assertEqual(doi_trang_thai(ax.name, "Đang dùng"), 1)
 
+	def test_sua_anh_xa_da_duyet_phai_duyet_lai(self):
+		a, b = self.item(), self.item()
+		ax = frappe.get_doc(
+			{
+				"doctype": "Supplier Item Alias",
+				"supplier": self.ncc,
+				"ten_tren_hoa_don": "Tên B",
+				"item_code": a,
+			}
+		).insert(ignore_permissions=True)
+		giam_doc = self.user("Sales Manager", "Purchase User")
+		nhan_vien = self.user("Purchase User")
+		frappe.set_user(giam_doc)
+		doi_trang_thai(ax.name, "Đang dùng")
+
+		frappe.set_user(nhan_vien)
+		ax = frappe.get_doc("Supplier Item Alias", ax.name)
+		ax.ten_tren_hoa_don = "TÊN B"  # cùng tên chuẩn hóa: ánh xạ không đổi
+		ax.save()
+		self.assertEqual((ax.trang_thai, ax.nguoi_duyet), ("Đang dùng", giam_doc))
+		ax.update({"item_code": b, "nguoi_duyet": nhan_vien})  # tự ghi người duyệt cũng bị bỏ
+		ax.save()
+		self.assertEqual((ax.trang_thai, ax.nguoi_duyet, ax.thoi_diem_duyet), ("Chờ duyệt", None, None))
+
+		frappe.set_user(giam_doc)
+		doi_trang_thai(ax.name, "Đang dùng")
+		ax = frappe.get_doc("Supplier Item Alias", ax.name)
+		ax.item_code = a  # chính người duyệt sửa: coi như duyệt lại
+		ax.save()
+		self.assertEqual((ax.trang_thai, ax.nguoi_duyet), ("Đang dùng", giam_doc))
+
 	def test_khong_trung_ten_chuan_hoa_trong_mot_ncc(self):
 		item = self.item()
 		frappe.get_doc(
@@ -692,3 +730,279 @@ class TestBangAnhXa(TiepNhanCase):
 			).insert,
 			ignore_permissions=True,
 		)
+
+
+class TestTrangThaiVaTuChoi(TiepNhanCase):
+	def test_st05a_lech_pr_pi_roi_ve_da_tao_nhap(self):
+		item = self.item()
+		self.hdk([(item, 1000, GIA)])
+		self.pr(self.po([(item, 500, GIA)]), qty=480)  # Kho nhận thiếu 20
+		p = self.phieu([("", TEN_HD, "Cái", 500, GIA, "10%")])
+		self.assertEqual(p.trang_thai, "Đã đối soát")
+
+		pi = frappe.get_doc("Purchase Invoice", tao_hoa_don_mua(p.name))
+		self.assertEqual(pi.trang_thai_doi_soat_pr, "Lệch")
+		self.assertEqual(_tt(p.name), "Lệch PR-PI", "ST-05a")
+		pi.save()
+		self.assertEqual(_tt(p.name), "Lệch PR-PI")
+
+		pi.items[0].qty = 480  # nhánh (a): sửa hóa đơn theo số Kho thực nhận
+		pi.save()
+		self.assertEqual(pi.trang_thai_doi_soat_pr, "Khớp")
+		self.assertEqual(_tt(p.name), "Đã tạo nháp hóa đơn mua")
+
+	def test_tu_choi_tay_xoa_hoa_don_nhap_va_mo_lai(self):
+		self.du_bo()
+		p = self.phieu([("", TEN_HD, "Cái", 500, GIA, "10%")])
+		pi = tao_hoa_don_mua(p.name)
+		self.assertRaises(frappe.ValidationError, tu_choi, p.name, " ")
+		self.assertEqual(tu_choi(p.name, "NCC báo hủy hóa đơn"), "Từ chối")
+		self.assertFalse(frappe.db.exists("Purchase Invoice", pi))
+		p.reload()
+		self.assertEqual(
+			(p.tu_choi_tay, p.nguoi_tu_choi, p.ly_do_tu_choi, p.purchase_invoice),
+			(1, "Administrator", "NCC báo hủy hóa đơn", None),
+		)
+		p.tu_choi_tay = 0  # sửa thẳng qua form / API không bỏ được Từ chối tay
+		p.save()
+		self.assertEqual((p.trang_thai, p.tu_choi_tay), ("Từ chối", 1))
+
+		self.assertEqual(mo_lai(p.name), "Đã đối soát")
+		p.reload()
+		self.assertFalse(p.tu_choi_tay or p.ly_do_tu_choi or p.nguoi_tu_choi)
+		self.assertRaises(frappe.ValidationError, mo_lai, p.name)
+
+	def test_tu_choi_tay_khong_ap_cho_phieu_da_ghi_so(self):
+		self.du_bo()
+		p = self.phieu([("", TEN_HD, "Cái", 500, GIA, "10%")])
+		frappe.get_doc("Purchase Invoice", tao_hoa_don_mua(p.name)).submit()
+		self.assertRaisesRegex(frappe.ValidationError, "hủy hóa đơn đó trước", tu_choi, p.name, "thử")
+
+	def test_ke_toan_chi_xem_phieu(self):
+		self.du_bo()
+		p = self.phieu([("", TEN_HD, "Cái", 500, GIA, "10%")])
+		frappe.set_user(self.user("Accounts Manager"))
+		self.assertTrue(frappe.has_permission(PHIEU, "read", doc=p.name))
+		self.assertFalse(frappe.has_permission(PHIEU, "write", doc=p.name))
+		self.assertFalse(frappe.has_permission(PHIEU, "create"))
+		self.assertRaises(frappe.PermissionError, tu_choi, p.name, "thử")
+		self.assertRaises(frappe.PermissionError, tao_hoa_don_mua, p.name)
+
+	def test_khong_gia_mao_duoc_phe_duyet_canh_bao(self):
+		item = self.item(ma_ncc="ABC-FL216")
+		self.hdk([(item, 1000, GIA)])
+		self.pr(self.po([(item, 100, GIA + 500)]))
+		p = self.phieu([("ABC-FL216", TEN_HD, "Cái", 100, GIA + 500, "10%")])
+		self.assertTrue(p.items[0].canh_bao_chan)
+		p.update(
+			{"ly_do_duyet": "tự duyệt", "nguoi_duyet": "Administrator", "dau_van_tay_canh_bao": van_tay(p)}
+		)
+		p.save()
+		self.assertEqual((p.trang_thai, p.nguoi_duyet), ("Chờ xử lý thủ công", None))
+
+
+class TestHoaDonThayThe(TiepNhanCase):
+	def thay_the(self, so_goc, so=None):
+		return self.phieu(
+			[("", TEN_HD, "Cái", 500, GIA, "10%")],
+			so=so or frappe.generate_hash(length=8),
+			lien_quan=("1", "C26TAB", so_goc, "2026-10-23"),
+		)
+
+	def test_goc_chua_co_hoa_don_mua_tu_choi_phieu_cu(self):
+		self.du_bo()
+		goc = self.phieu([("", TEN_HD, "Cái", 500, GIA, "10%")], so="0000101")
+		tt = self.thay_the("101")  # số không có số 0 đầu vẫn nhận ra
+		self.assertEqual(
+			(tt.tinh_chat_hoa_don, tt.phieu_lien_quan, tt.trang_thai), ("Thay thế", goc.name, "Đã đối soát")
+		)
+		self.assertFalse(tt.nghi_trung, "cùng ngày, cùng tổng với hóa đơn bị thay thế: không phải trùng")
+		goc.reload()
+		self.assertEqual(goc.trang_thai, "Từ chối")
+		self.assertIn("bị thay thế", goc.ly_do_tu_choi)
+		self.assertRaises(frappe.ValidationError, tao_hoa_don_mua, goc.name)
+		self.assertTrue(tao_hoa_don_mua(tt.name))
+
+		tu_choi(tt.name, "NCC gửi nhầm hóa đơn thay thế")
+		self.assertEqual(_tt(goc.name), "Đã đối soát", "hóa đơn thay thế bị Từ chối thì phiếu cũ mở lại")
+
+	def test_goc_co_hoa_don_nhap_bo_ban_nhap(self):
+		self.du_bo()
+		goc = self.phieu([("", TEN_HD, "Cái", 500, GIA, "10%")], so="0000201")
+		pi = tao_hoa_don_mua(goc.name)
+		tt = self.thay_the("0000201")
+		self.assertEqual(tt.trang_thai, "Chờ xử lý thủ công")
+		self.assertIn("Bỏ hóa đơn bị thay thế", tt.canh_bao)
+		self.assertEqual(bo_hoa_don_bi_thay_the(tt.name), "Đã đối soát")
+		self.assertFalse(frappe.db.exists("Purchase Invoice", pi))
+		self.assertEqual(_tt(goc.name), "Từ chối")
+
+	def test_goc_da_ghi_so_phai_huy_truoc(self):
+		self.du_bo()
+		goc = self.phieu([("", TEN_HD, "Cái", 500, GIA, "10%")], so="0000301")
+		pi = frappe.get_doc("Purchase Invoice", tao_hoa_don_mua(goc.name))
+		pi.submit()
+		tt = self.thay_the("0000301")
+		self.assertEqual(tt.trang_thai, "Chờ xử lý thủ công")
+		self.assertIn("đã ghi sổ", tt.canh_bao)
+		self.assertRaises(frappe.ValidationError, bo_hoa_don_bi_thay_the, tt.name)
+		pi.cancel()
+		self.assertEqual((_tt(tt.name), _tt(goc.name)), ("Đã đối soát", "Từ chối"))
+
+	def test_hoa_don_cu_chua_tiep_nhan(self):
+		self.du_bo()
+		tt = self.thay_the("0009999")
+		self.assertEqual((tt.trang_thai, tt.phieu_lien_quan), ("Đã đối soát", None))
+		self.assertIn("chưa có trên hệ thống", tt.canh_bao)
+
+
+class TestHoaDonDieuChinh(TiepNhanCase):
+	def dieu_chinh(self, so_goc, dong, so=None):
+		return self.phieu(
+			dong, so=so or frappe.generate_hash(length=8), lien_quan=("2", "C26TAB", so_goc, "2026-10-23")
+		)
+
+	def test_b2_giam_so_luong_gop_vao_mot_hoa_don_mua(self):
+		item = self.item()
+		self.hdk([(item, 1000, GIA)])
+		self.pr(self.po([(item, 500, GIA)]), qty=480)
+		goc = self.phieu([("", TEN_HD, "Cái", 500, GIA, "10%")], so="0000401")
+		cu = tao_hoa_don_mua(goc.name)
+		self.assertEqual(_tt(goc.name), "Lệch PR-PI")
+
+		dc = self.dieu_chinh("0000401", [("", TEN_HD, "Cái", -20, GIA, "10%")], so="0000402")
+		r = dc.items[0]
+		self.assertEqual(
+			(dc.trang_thai, dc.phieu_lien_quan, dc.hoa_don_mua_lien_quan), ("Đã đối soát", goc.name, cu)
+		)
+		self.assertEqual(
+			(r.dong_goc, r.kieu_dieu_chinh, r.item_code, r.cach_khop),
+			(1, "Số lượng", item, "Dòng hóa đơn gốc"),
+		)
+		self.assertEqual(_tt(goc.name), "Lệch PR-PI", "phiếu gốc giữ hóa đơn nháp cũ tới khi lập lại")
+
+		lap_cu = frappe.db.get_value("Purchase Invoice", cu, "creation")
+		moi = frappe.get_doc("Purchase Invoice", tao_hoa_don_mua(dc.name))
+		# Bản nháp cũ bị xóa, bản mới lập lại (Frappe có thể cấp lại đúng số vừa xóa).
+		self.assertNotEqual(moi.creation, lap_cu)
+		self.assertEqual(frappe.db.count("Purchase Invoice", {"supplier": self.ncc, "docstatus": 0}), 1)
+		self.assertEqual(
+			(flt(moi.items[0].qty), moi.bill_no, moi.trang_thai_doi_soat_pr), (480, "0000401", "Khớp")
+		)
+		self.assertIn("0000402", moi.hoa_don_dieu_chinh)
+		self.assertEqual(
+			frappe.db.count(
+				"File", {"attached_to_doctype": "Purchase Invoice", "attached_to_name": moi.name}
+			),
+			2,
+		)
+		goc.reload()
+		self.assertEqual((flt(goc.items[0].so_luong_sau_dc), flt(goc.items[0].don_gia_sau_dc)), (480, GIA))
+		for ten in (goc.name, dc.name):
+			self.assertEqual(
+				frappe.db.get_value(PHIEU, ten, ["trang_thai", "purchase_invoice"]),
+				("Đã tạo nháp hóa đơn mua", moi.name),
+			)
+
+		moi.submit()
+		self.assertEqual((_tt(goc.name), _tt(dc.name)), ("Đã ghi sổ", "Đã ghi sổ"))
+		moi.cancel()
+		self.assertEqual((_tt(goc.name), _tt(dc.name)), ("Đã đối soát", "Đã đối soát"))
+
+	def test_ke_toan_xoa_ban_nhap_roi_mua_hang_lap_lai(self):
+		"""Kế toán chỉ xem phiếu, nhân viên mua hàng không xóa được Hóa đơn mua: kế toán xóa bản nháp trên
+		Hóa đơn mua, phiếu tự tính lại, nhân viên mua hàng bấm Lập."""
+		item = self.item()
+		self.hdk([(item, 1000, GIA)])
+		self.pr(self.po([(item, 500, GIA)]), qty=480)
+		goc = self.phieu([("", TEN_HD, "Cái", 500, GIA, "10%")], so="0000451")
+		cu = tao_hoa_don_mua(goc.name)
+		dc = self.dieu_chinh("0000451", [("", TEN_HD, "Cái", -20, GIA, "10%")])
+		frappe.delete_doc("Purchase Invoice", cu)  # Kế toán (có quyền xóa) xóa bản nháp
+		self.assertEqual(_tt(goc.name), "Đã đối soát")
+		self.assertEqual(flt(frappe.get_doc(PHIEU, goc.name).items[0].so_luong_sau_dc), 480)
+		frappe.set_user(self.user("Purchase User"))
+		moi = frappe.get_doc("Purchase Invoice", tao_hoa_don_mua(dc.name))
+		self.assertEqual((flt(moi.items[0].qty), moi.trang_thai_doi_soat_pr), (480, "Khớp"))
+
+	def test_giam_gia_truoc_khi_lap_hoa_don(self):
+		item = self.item(ma_ncc="ABC-FL216")
+		self.hdk([(item, 1000, GIA)])
+		self.pr(self.po([(item, 500, GIA)]))
+		goc = self.phieu([("ABC-FL216", TEN_HD, "Cái", 500, GIA + 100, "10%")], so="0000501")
+		self.assertEqual(goc.trang_thai, "Chờ xử lý thủ công")
+		self.assertIn("khác giá hợp đồng khung", goc.items[0].canh_bao)
+
+		dc = self.dieu_chinh("0000501", [("ABC-FL216", TEN_HD, "Cái", 500, -100, "10%")])
+		self.assertEqual((dc.items[0].kieu_dieu_chinh, dc.trang_thai), ("Đơn giá", "Đã đối soát"))
+		goc.reload()
+		self.assertEqual(
+			(goc.trang_thai, flt(goc.items[0].so_luong_sau_dc), flt(goc.items[0].don_gia_sau_dc)),
+			("Đã đối soát", 500, GIA),
+		)
+		pi = frappe.get_doc("Purchase Invoice", tao_hoa_don_mua(goc.name))
+		self.assertEqual((flt(pi.items[0].rate), pi.trang_thai_doi_soat_pr), (GIA, "Khớp"))
+		self.assertEqual(_tt(dc.name), "Đã tạo nháp hóa đơn mua")
+
+	def test_goc_da_ghi_so_ke_toan_lap_hoa_don_tra_hang(self):
+		self.du_bo()
+		goc = self.phieu([("", TEN_HD, "Cái", 500, GIA, "10%")], so="0000601")
+		pi = frappe.get_doc("Purchase Invoice", tao_hoa_don_mua(goc.name))
+		pi.submit()
+		dc = self.dieu_chinh("0000601", [("", TEN_HD, "Cái", -20, GIA, "10%")], so="0000602")
+		self.assertEqual(dc.trang_thai, "Chờ xử lý thủ công")
+		self.assertIn("lập tay", dc.canh_bao)
+		self.assertRaises(frappe.ValidationError, tao_hoa_don_mua, dc.name)
+
+		tra = make_debit_note(pi.name)
+		tra.bill_no = "602"  # số không có số 0 đầu vẫn nối được
+		tra.items[0].qty = -20
+		tra.insert()
+		self.assertEqual(
+			frappe.db.get_value(PHIEU, dc.name, ["trang_thai", "purchase_invoice"]),
+			("Đã tạo nháp hóa đơn mua", tra.name),
+		)
+		self.assertEqual(frappe.db.get_value("Purchase Invoice", tra.name, "phieu_tiep_nhan"), dc.name)
+		frappe.delete_doc("Purchase Invoice", tra.name)
+		self.assertEqual(
+			frappe.db.get_value(PHIEU, dc.name, ["trang_thai", "purchase_invoice"]),
+			("Chờ xử lý thủ công", None),
+		)
+
+	def test_chua_co_hoa_don_goc(self):
+		self.du_bo()
+		dc = self.dieu_chinh("0009998", [("", TEN_HD, "Cái", -20, GIA, "10%")])
+		self.assertEqual(dc.trang_thai, "Chờ xử lý thủ công")
+		self.assertIn("Chưa có hóa đơn gốc", dc.canh_bao)
+
+	def test_doi_thue_suat_xu_ly_tay_va_chan_phieu_goc(self):
+		self.du_bo()
+		goc = self.phieu([("", TEN_HD, "Cái", 500, GIA, "10%")], so="0000701")
+		dc = self.dieu_chinh("0000701", [("", TEN_HD, "Cái", 0, 0, "8%", 1, -62500)])
+		self.assertEqual(dc.trang_thai, "Chờ xử lý thủ công")
+		self.assertIn("thuế suất", dc.items[0].canh_bao)
+		goc.reload()
+		self.assertEqual(goc.trang_thai, "Chờ xử lý thủ công")
+		self.assertIn("chưa xử lý xong", goc.canh_bao)
+		tu_choi(dc.name, "Kế toán xử lý tay")
+		self.assertEqual(_tt(goc.name), "Đã đối soát")
+
+	def test_chon_tay_dong_goc(self):
+		a = self.item()
+		b = self.item(ten="Găng tay khám nitrile cỡ M")
+		self.hdk(
+			[(a, 1000, GIA), (b, 1000, 3000, {"ten_hdk": "Găng tay khám nitrile cỡ M", "quy_cach": "M"})]
+		)
+		self.pr(self.po([(a, 500, GIA), (b, 100, 3000)]))
+		goc = self.phieu(
+			[("", TEN_HD, "Cái", 500, GIA, "10%"), ("", "Găng tay nitrile size M", "Cái", 100, 3000, "10%")],
+			so="0000801",
+		)
+		dc = self.dieu_chinh("0000801", [("", "Điều chỉnh giảm theo biên bản", "Cái", -10, 3000, "10%")])
+		self.assertEqual((dc.items[0].trang_thai_dong, dc.trang_thai), ("Chưa khớp", "Chờ xử lý thủ công"))
+		dc.items[0].dong_goc, dc.items[0].chon_tay = 2, 1
+		dc.save()
+		self.assertEqual((dc.items[0].kieu_dieu_chinh, dc.trang_thai), ("Số lượng", "Đã đối soát"))
+		goc.reload()
+		self.assertEqual(flt(goc.items[1].so_luong_sau_dc), 90)
+		self.assertFalse(goc.items[0].dieu_chinh)

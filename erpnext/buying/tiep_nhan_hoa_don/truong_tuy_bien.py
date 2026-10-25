@@ -215,6 +215,15 @@ CUSTOM_FIELDS = {
 			depends_on="phieu_tiep_nhan",
 			insert_after="bill_date",
 		),
+		_ro(
+			fieldname="hoa_don_dieu_chinh",
+			fieldtype="Small Text",
+			label="Hóa đơn điều chỉnh đã gộp",
+			description="Hóa đơn này lập theo số sau điều chỉnh: hóa đơn gốc (Số hóa đơn NCC) cộng các hóa"
+			" đơn điều chỉnh này.",
+			depends_on="hoa_don_dieu_chinh",
+			insert_after="phieu_tiep_nhan",
+		),
 	],
 	"Purchase Invoice Item": [
 		_ro(

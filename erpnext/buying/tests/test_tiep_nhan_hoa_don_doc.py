@@ -74,6 +74,28 @@ class TestDocXml(unittest.TestCase):
 			kq = doc_hoa_don_xml(xml_hoa_don([("", "Gạc", "Gói", 1, 1000, "8%")], **kw))
 			self.assertEqual(kq["dong_hang"][0]["ten_hang"], "Gạc", kw)
 
+	def test_hoa_don_dieu_chinh_doc_hoa_don_lien_quan(self):
+		kq = doc_hoa_don_xml(
+			xml_hoa_don(
+				[("", "Gạc", "Gói", -20, 1000, "8%")], lien_quan=("2", "C26TAB", "0000101", "2026-10-20")
+			)
+		)
+		self.assertEqual(
+			kq["lien_quan"],
+			{
+				"tinh_chat": "Điều chỉnh",
+				"mau_so": "1",
+				"ky_hieu": "C26TAB",
+				"so_hoa_don": "0000101",
+				"ngay": "2026-10-20",
+				"ghi_chu": "",
+			},
+		)
+		self.assertEqual((kq["dong_hang"][0]["so_luong"], kq["tong_tien_hang"]), (-20, -20000))
+		self.assertEqual(
+			doc_hoa_don_xml(xml_hoa_don([("", "Gạc", "Gói", 1, 1000, "8%")]))["lien_quan"]["tinh_chat"], ""
+		)
+
 	def test_dong_khong_phai_hang_hoa_van_doc_kem_tinh_chat(self):
 		kq = doc_hoa_don_xml(
 			xml_hoa_don([("", "Gạc", "Gói", 1, 1000, "8%"), ("", "Hàng tặng kèm", "Gói", 1, 0, "8%", 2)])

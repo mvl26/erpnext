@@ -14,6 +14,12 @@
   "don_gia",
   "thanh_tien",
   "thue_suat",
+  "dong_goc",
+  "kieu_dieu_chinh",
+  "so_luong_sau_dc",
+  "don_gia_sau_dc",
+  "thanh_tien_sau_dc",
+  "dieu_chinh",
   "column_break_1",
   "item_code",
   "item_name",
@@ -86,6 +92,49 @@
    "label": "Thuế suất"
   },
   {
+   "fieldname": "dong_goc",
+   "fieldtype": "Int",
+   "label": "Dòng hóa đơn gốc (STT)",
+   "depends_on": "eval:parent.tinh_chat_hoa_don == 'Điều chỉnh'",
+   "description": "Dòng của hóa đơn gốc mà dòng này điều chỉnh."
+  },
+  {
+   "fieldname": "kieu_dieu_chinh",
+   "fieldtype": "Select",
+   "options": "\nSố lượng\nĐơn giá",
+   "label": "Điều chỉnh theo",
+   "depends_on": "eval:parent.tinh_chat_hoa_don == 'Điều chỉnh'",
+   "description": "Số lượng: số lượng trên dòng là phần tăng / giảm. Đơn giá: chỉ đổi tiền, số lượng giữ nguyên."
+  },
+  {
+   "read_only": 1,
+   "fieldname": "so_luong_sau_dc",
+   "fieldtype": "Float",
+   "label": "Số lượng sau điều chỉnh",
+   "depends_on": "dieu_chinh"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "don_gia_sau_dc",
+   "fieldtype": "Currency",
+   "label": "Đơn giá sau điều chỉnh",
+   "depends_on": "dieu_chinh"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "thanh_tien_sau_dc",
+   "fieldtype": "Currency",
+   "label": "Thành tiền sau điều chỉnh",
+   "depends_on": "dieu_chinh"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "dieu_chinh",
+   "fieldtype": "Small Text",
+   "label": "Hóa đơn điều chỉnh đã gộp",
+   "depends_on": "dieu_chinh"
+  },
+  {
    "fieldname": "column_break_1",
    "fieldtype": "Column Break"
   },
@@ -140,7 +189,7 @@
    "read_only": 1,
    "fieldname": "cach_khop",
    "fieldtype": "Select",
-   "options": "\nTầng 1 - Mã\nTầng 2 - Ánh xạ tên\nTầng 3 - Đơn mua\nChọn tay",
+   "options": "\nTầng 1 - Mã\nTầng 2 - Ánh xạ tên\nTầng 3 - Đơn mua\nChọn tay\nDòng hóa đơn gốc",
    "label": "Cách khớp"
   },
   {
@@ -186,7 +235,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-23 16:00:00.000000",
+ "modified": "2026-10-25 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Buying",
  "name": "Supplier Invoice Intake Item",

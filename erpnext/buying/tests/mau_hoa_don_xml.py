@@ -19,14 +19,17 @@ def xml_hoa_don(
 	tong=None,
 	boc_tdiep=False,
 	namespace=False,
+	lien_quan=None,
 ):
-	"""`dong`: [(mã, tên, ĐVT, số lượng, đơn giá, thuế suất)] hoặc thêm phần tử thứ 7 là TChat."""
+	"""`dong`: [(mã, tên, ĐVT, số lượng, đơn giá, thuế suất)], thêm phần tử thứ 7 là TChat, thứ 8 là
+	thành tiền (mặc định số lượng x đơn giá). `lien_quan`: (TCHDon 1 thay thế / 2 điều chỉnh, ký hiệu,
+	số, ngày) của hóa đơn bị thay thế / bị điều chỉnh."""
 	hang = []
 	tien_hang = thue = 0
 	for i, d in enumerate(dong, 1):
 		ma, ten, dvt, sl, gia, ts = d[:6]
 		tchat = d[6] if len(d) > 6 else 1
-		tt = sl * gia
+		tt = d[7] if len(d) > 7 else sl * gia
 		if tchat == 1:
 			tien_hang += tt
 			thue += tt * float(str(ts).rstrip("%") or 0) / 100 if str(ts)[0].isdigit() else 0
@@ -37,10 +40,17 @@ def xml_hoa_don(
 		)
 	tong = tong or (tien_hang, thue, tien_hang + thue)
 	ns = ' xmlns="http://example.invalid/hddt"' if namespace else ""
+	lq = ""
+	if lien_quan:
+		lq = (
+			f"<TTHDLQuan><TCHDon>{lien_quan[0]}</TCHDon><LHDCLQuan>1</LHDCLQuan><KHMSHDCLQuan>1</KHMSHDCLQuan>"
+			f"<KHHDCLQuan>{lien_quan[1]}</KHHDCLQuan><SHDCLQuan>{lien_quan[2]}</SHDCLQuan>"
+			f"<NLHDCLQuan>{lien_quan[3]}</NLHDCLQuan></TTHDLQuan>"
+		)
 	hdon = (
 		f"<HDon{ns}><DLHDon Id='data'><TTChung><PBan>2.0.0</PBan><THDon>Hóa đơn giá trị gia tăng</THDon>"
 		f"<KHMSHDon>1</KHMSHDon><KHHDon>{ky_hieu}</KHHDon><SHDon>{so}</SHDon><NLap>{ngay}</NLap>"
-		f"<DVTTe>VND</DVTTe><TGia>1</TGia></TTChung>"
+		f"<DVTTe>VND</DVTTe><TGia>1</TGia>{lq}</TTChung>"
 		f"<NDHDon><NBan><Ten>{escape(ten_ban)}</Ten><MST>{mst_ban}</MST></NBan>"
 		f"<NMua><Ten>Công ty TNHH Miyano Việt Nam</Ten><MST>{mst_mua}</MST></NMua>"
 		f"<DSHHDVu>{''.join(hang)}</DSHHDVu>"

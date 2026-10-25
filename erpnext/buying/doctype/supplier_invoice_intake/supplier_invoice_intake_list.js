@@ -7,6 +7,7 @@ frappe.listview_settings["Supplier Invoice Intake"] = {
 			"Đã đối soát": "green",
 			"Chờ xử lý thủ công": "orange",
 			"Đã tạo nháp hóa đơn mua": "blue",
+			"Lệch PR-PI": "red",
 			"Đã ghi sổ": "green",
 			"Từ chối": "red",
 		};

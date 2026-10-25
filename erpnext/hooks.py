@@ -525,6 +525,9 @@ doc_events = {
 			"erpnext.accounts.doi_soat_pr_pi.doi_soat.khi_validate",
 		],
 		"before_submit": "erpnext.accounts.doi_soat_pr_pi.doi_soat.truoc_khi_nop",
+		# Đợt 4: phiếu tiếp nhận Đã tạo nháp / Lệch PR-PI theo đối soát; nối chứng từ lập tay cho hóa
+		# đơn điều chỉnh. (Báo Mua hàng khi lệch: NTF-16 / NTF-17 của Supply Notification.)
+		"on_update": "erpnext.buying.tiep_nhan_hoa_don.tao_hoa_don.khi_luu_hoa_don",
 		"on_submit": [
 			"erpnext.accounts.doi_soat_pr_pi.de_nghi_thanh_toan.tao_khi_nop_hoa_don",
 			# Đợt 4: lũy kế đã lập hóa đơn của hợp đồng khung, phiếu tiếp nhận → Đã ghi sổ.
@@ -537,6 +540,7 @@ doc_events = {
 		# Đợt 4: hóa đơn nháp tạo từ phiếu tiếp nhận bị xóa thì phiếu mở lại. Chạy trước bước Frappe kiểm
 		# liên kết, nên phiếu đang trỏ vào hóa đơn không chặn việc xóa.
 		"on_trash": "erpnext.buying.tiep_nhan_hoa_don.tao_hoa_don.khi_xoa_hoa_don",
+		"after_delete": "erpnext.buying.tiep_nhan_hoa_don.tao_hoa_don.sau_khi_xoa_hoa_don",
 		"onload": "erpnext.accounts.doi_soat_pr_pi.doi_soat.khi_tai",
 	},
 	# E9: tổng ĐNTT (kể cả nháp) không vượt hóa đơn, cho mọi đường tạo ĐNTT.
