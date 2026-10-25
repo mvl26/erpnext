@@ -40,6 +40,9 @@ Gặp lỗi thiếu tài khoản kho khi Nộp chứng từ kho, hoặc lỗi m�
 | H7 | Sửa giá dòng H6 = 10.600 → Lưu; rồi xóa dòng | Đều được (nháp tự do sửa/xóa) | ☐ |
 | H8 | Tạo Sales Order cho DEMO-Himedic, chọn Price List = **DEMO Bảng giá Himedic - Chờ báo** → Lưu | Bị chặn: "… là bảng giá chờ (giá chưa báo cho khách). Dùng bảng giá DEMO Bảng giá Himedic" (T4) | ☐ |
 | H9 | Sửa giá dòng của bảng giá **mua** (vd. DEMO Mua - Hùng Minh) | Sửa bình thường — bảng giá mua không bị ảnh hưởng | ☐ |
+| H10 | Item Price → New: bảng giá **Chờ báo**, DEMO-VT-05, 10.300, Valid From = đúng ngày hiệu lực của dòng 10.100 đang có trên DEMO Bảng giá Himedic → Lưu | Bị chặn: "Giá DEMO-VT-05 (Cái) từ … chồng lên giá từ … của bảng giá DEMO Bảng giá Himedic. Mỗi ngày chỉ một giá…" (T10) | ☐ |
+| H11 | Như H10 nhưng Valid From = D+7 và **Valid Upto = D+30** → Lưu | Bị chặn như H10 (T10): hết hạn thì giá cũ 10.100 tự quay lại mà khách không được báo | ☐ |
+| H12 | Như H11 nhưng để trống Valid Upto → Lưu; rồi xóa dòng vừa tạo | Lưu được (giá sau thay giá trước — T1b); xóa được | ☐ |
 
 ## K. Trạng thái "Đang trong thời hạn báo giá" trên SO
 
@@ -73,7 +76,7 @@ Gặp lỗi thiếu tài khoản kho khi Nộp chứng từ kho, hoặc lỗi m�
 | I13 | Tạo SO DEMO-Himedic ngày **D+4** có VT-02 → xem giá gợi ý | 50.500 (giá cũ). Ngày **D+5** → 52.000 (giá theo ngày SO — D4-4, T5) | ☐ |
 | I14 | Gửi khi bảng chờ trống | Báo "Bảng giá chờ … không có giá nào để gửi" | ☐ |
 | I15 | Xóa email nhận trên bảng giá (Giám đốc) rồi gửi | Báo "chưa có Email nhận thông báo đổi giá". Điền lại email | ☐ |
-| I16 | Thêm nháp VT-02 với **cùng Valid From** với một giá đã có trên bảng giá chính → Gửi | Báo "đã có giá cùng ngày hiệu lực …"; không dòng nào bị chuyển | ☐ |
+| I16 | (Chỉ test tự động) Bảng chờ còn dòng chồng ngày lập từ trước khi có kiểm T10 → Gửi | Báo "Giá chờ chồng khoảng ngày với giá khác…"; không dòng nào bị chuyển. Trên giao diện không tạo được dòng như vậy nữa (H10 chặn ngay khi lưu): `test_t10_an_overlap_left_in_the_pending_list_blocks_sending` | ☐ |
 | I17 | Tạo lại SO nháp như K2 → Lưu | Vẫn "Đang trong thời hạn báo giá", ghi chú "(đã báo)" | ☐ |
 
 ## L. Nhắc việc
@@ -104,7 +107,7 @@ Nhắc tự động chạy theo giờ trong Cài đặt thông báo (scheduler h
 
 ## Test tự động
 
-`erpnext/selling/tests/test_kiem_gia_bao_truoc.py` — 35 test (cài đặt bảng giá, chặn sửa, gửi thông báo, trạng thái đang trong thời hạn báo giá, nhắc việc, báo cáo). Chạy:
+`erpnext/selling/tests/test_kiem_gia_bao_truoc.py` — 42 test (cài đặt bảng giá, chặn sửa, gửi thông báo, trạng thái đang trong thời hạn báo giá, nhắc việc, báo cáo). Chạy:
 
 ```bash
 cd ~/frappe-bench/sites
@@ -115,4 +118,5 @@ cd ~/frappe-bench/sites
 
 - **Bỏ mục J** (Submit báo giá NCC tự tạo nháp giá Himedic): BA12 D09 — bảng giá khách hàng cập nhật thủ công; báo giá NCC nay chỉ là nguồn "Báo giá đợt" để tính giá đề xuất (D07), không ghi vào bảng giá nào.
 - Dòng "Đang trong thời hạn báo giá" không cần lý do và **không** bị đòi 3 thông tin chấp thuận R05 — **chỉ khi bán đúng giá bảng giá hiện hành** (Q7, PO chốt 22/10/2026). Bán giá mới sớm hoặc một giá khác là lệch bình thường (K5, K6).
+- T10 (25/10/2026): chặn chồng khoảng ngày ngay khi lưu giá chờ (H10–H12), không đợi tới lúc gửi; I16 chỉ còn kiểm bằng test tự động.
 - Trường trên Price List / Item Price là Custom Field (BA12 "không sửa core"); vị trí và nhãn trên form không đổi.

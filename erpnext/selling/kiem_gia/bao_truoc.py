@@ -128,8 +128,10 @@ def kiem_item_price(doc, method=None):
 	pl_truoc = truoc.price_list if truoc else None
 	if doc.flags.tu_thong_bao_doi_gia:
 		return
-	if not co_bao_truoc(pl_truoc) and bang_gia_chinh_cua(doc.price_list):
+	chinh = None if co_bao_truoc(pl_truoc) else bang_gia_chinh_cua(doc.price_list)
+	if chinh:
 		_dong_cho(doc)
+		_chan_chong_lan(doc, chinh)
 		return
 	if not (co_bao_truoc(doc.price_list) or co_bao_truoc(pl_truoc)):
 		return
@@ -182,6 +184,16 @@ def _dong_cho(doc):
 		doc.set(f, None)
 
 
+def _chan_chong_lan(doc, chinh):
+	"""Lưu dòng giá chờ: không chồng khoảng ngày với giá khác (T10)."""
+	for _d, k in cap_chong_lan(chinh, [doc]):
+		frappe.throw(
+			_(
+				"Giá {0} ({1}) {2} chồng lên giá {3} của bảng giá {4}. Mỗi ngày chỉ một giá: dùng ngày hiệu lực từ khác và để trống Hiệu lực đến, giá sau tự thay giá trước. Muốn quay về giá cũ thì thêm một dòng giá mới."
+			).format(frappe.bold(doc.item_code), doc.uom, _khoang_chu(doc), _khoang_chu(k), k.price_list)
+		)
+
+
 def _khac(a, b):
 	if a in (None, "") and b in (None, ""):
 		return False
@@ -190,6 +202,60 @@ def _khac(a, b):
 	if isinstance(a, int | float) or isinstance(b, int | float):
 		return float(a or 0) != float(b or 0)
 	return a != b
+
+
+# --- Khoảng ngày (T10) ---------------------------------------------------------
+
+
+def _khoang(d):
+	return getdate(d.valid_from or "2000-01-01"), getdate(d.valid_upto) if d.valid_upto else None
+
+
+def _khoang_chu(d):
+	tu, den = _khoang(d)
+	if den is None:
+		return _("từ {0}").format(frappe.format(tu, "Date"))
+	return f"{frappe.format(tu, 'Date')} → {frappe.format(den, 'Date')}"
+
+
+def chong_lan(a, b):
+	"""T10: hai dòng giá cùng mặt hàng, ĐVT, khách, lô có cùng hiệu lực ở một ngày nào đó.
+
+	Giá sau không có Hiệu lực đến tự thay giá trước từ ngày của nó (T1b, spec 6.2.1): đó là cách
+	đổi giá, không phải chồng lấn. Chồng lấn là: cùng ngày hiệu lực từ (không biết áp giá nào);
+	giá trước có Hiệu lực đến kéo sang giá sau; hoặc giá sau có Hiệu lực đến trong khi giá trước
+	còn hiệu lực — hết hạn thì giá trước tự quay lại mà khách không được báo (email đổi giá chỉ
+	ghi ngày áp dụng)."""
+	(tu_1, den_1), (tu_2, den_2) = sorted((_khoang(a), _khoang(b)), key=lambda k: k[0])
+	if tu_1 == tu_2:
+		return True
+	if den_1 is not None:
+		return den_1 >= tu_2
+	return den_2 is not None
+
+
+def _khoa(d):
+	return (d.item_code, d.uom, d.customer or "", d.batch_no or "")
+
+
+def cap_chong_lan(chinh, dong):
+	"""[(dòng trong `dong`, dòng khác)] chồng khoảng ngày (T10), xét cả bảng giá chính lẫn bảng
+	giá chờ của nó; mỗi cặp một lần."""
+	cho = frappe.db.get_value("Price List", chinh, "bang_gia_cho")
+	tat_ca = frappe.get_all(
+		"Item Price",
+		filters={"price_list": ("in", [chinh, cho]), "item_code": ("in", list({d.item_code for d in dong}))},
+		fields=["name", "price_list", "item_code", "uom", "customer", "batch_no", "valid_from", "valid_upto"],
+	)
+	kq, da_xet = [], set()
+	for d in dong:
+		for k in tat_ca:
+			cap = frozenset((d.name, k.name))
+			if k.name == d.name or cap in da_xet or _khoa(k) != _khoa(d) or not chong_lan(d, k):
+				continue
+			da_xet.add(cap)
+			kq.append((d, k))
+	return kq
 
 
 # --- Gửi thông báo đổi giá (2.4) ----------------------------------------------
@@ -215,7 +281,17 @@ def gui_thong_bao_doi_gia(price_list):
 	dong = frappe.get_all(
 		"Item Price",
 		filters={"price_list": pl.bang_gia_cho},
-		fields=["name", "item_code", "item_name", "uom", "customer", "price_list_rate", "valid_from"],
+		fields=[
+			"name",
+			"item_code",
+			"item_name",
+			"uom",
+			"customer",
+			"batch_no",
+			"price_list_rate",
+			"valid_from",
+			"valid_upto",
+		],
 		order_by="item_code, valid_from",
 	)
 	if not dong:
@@ -231,25 +307,17 @@ def gui_thong_bao_doi_gia(price_list):
 			title=_("Gửi thông báo đổi giá"),
 		)
 
-	trung = [
-		d
-		for d in dong
-		if frappe.db.exists(
-			"Item Price",
-			{
-				"price_list": price_list,
-				"item_code": d.item_code,
-				"uom": d.uom,
-				"customer": d.customer or ("is", "not set"),
-				"valid_from": d.valid_from,
-			},
-		)
-	]
-	if trung:
+	# T10. Giá chờ đã kiểm lúc lưu; kiểm lại vì bảng giá chính hay giá chờ khác có thể đổi sau đó.
+	chong = cap_chong_lan(price_list, dong)
+	if chong:
 		frappe.throw(
-			_("Bảng giá {0} đã có giá cùng ngày hiệu lực cho: {1}. Sửa ngày hiệu lực của giá chờ.").format(
-				price_list, ", ".join(f"{d.item_code} ({d.valid_from})" for d in trung)
-			),
+			_("Giá chờ chồng khoảng ngày với giá khác, sửa giá chờ trước khi gửi:")
+			+ "<ul>"
+			+ "".join(
+				f"<li>{d.item_code} ({d.uom}): {_khoang_chu(d)} — {_khoang_chu(k)} ({k.price_list})</li>"
+				for d, k in chong
+			)
+			+ "</ul>",
 			title=_("Gửi thông báo đổi giá"),
 		)
 

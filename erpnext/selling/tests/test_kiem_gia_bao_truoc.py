@@ -55,7 +55,7 @@ class BaoTruocCase(KiemChungTuCase):
 			.name
 		)
 
-	def gia(self, price_list, item, rate, valid_from):
+	def gia(self, price_list, item, rate, valid_from, **fields):
 		return frappe.get_doc(
 			{
 				"doctype": "Item Price",
@@ -65,6 +65,7 @@ class BaoTruocCase(KiemChungTuCase):
 				"price_list_rate": rate,
 				"valid_from": valid_from,
 				"currency": self.currency,
+				**fields,
 			}
 		).insert(ignore_permissions=True)
 
@@ -185,6 +186,61 @@ class TestChanSuaBangGiaChinh(BaoTruocCase):
 
 		frappe.delete_doc("Item Price", ip.name, ignore_permissions=True)
 
+	def test_t10_same_start_date_as_a_main_list_price_is_blocked(self):
+		self.assertRaisesRegex(
+			frappe.ValidationError,
+			"chồng lên",
+			self.gia,
+			self.cho,
+			self.item_a,
+			105000,
+			add_days(self.d, -30),
+		)
+
+	def test_t10_two_pending_prices_on_the_same_date_are_blocked(self):
+		# Hai dòng giống hệt nhau thì ERPNext đã chặn (trùng Item Price); khác Hiệu lực đến thì
+		# ERPNext để lọt, T10 chặn.
+		self.gia(self.cho, self.item_a, 105000, add_days(self.d, 7))
+
+		self.assertRaisesRegex(
+			frappe.ValidationError,
+			"chồng lên",
+			self.gia,
+			self.cho,
+			self.item_a,
+			106000,
+			add_days(self.d, 7),
+			valid_upto=add_days(self.d, 40),
+		)
+
+	def test_t10_an_end_date_that_would_bring_the_old_price_back_is_blocked(self):
+		# Hết hạn thì giá cũ (không có Hiệu lực đến) tự áp lại mà khách không được báo.
+		self.assertRaisesRegex(
+			frappe.ValidationError,
+			"chồng lên",
+			self.gia,
+			self.cho,
+			self.item_a,
+			105000,
+			add_days(self.d, 7),
+			valid_upto=add_days(self.d, 30),
+		)
+
+	def test_t10_an_end_date_running_into_the_next_price_is_blocked(self):
+		moi = self.item(50000)
+		self.gia(self.cho, moi, 50500, add_days(self.d, 7), valid_upto=add_days(self.d, 40))
+
+		self.assertRaisesRegex(
+			frappe.ValidationError, "chồng lên", self.gia, self.cho, moi, 51000, add_days(self.d, 20)
+		)
+
+	def test_t10_what_is_not_an_overlap(self):
+		# Giá sau không hạn thay giá trước (T1b); giá có hạn mà không còn giá nào khác; giá riêng
+		# của một khách là dòng khác.
+		self.gia(self.cho, self.item_a, 105000, add_days(self.d, 7))
+		self.gia(self.cho, self.item(50000), 50500, add_days(self.d, 7), valid_upto=add_days(self.d, 40))
+		self.gia(self.cho, self.item_a, 104000, add_days(self.d, -30), customer=self.khach)
+
 	def test_unrelated_price_lists_are_untouched(self):
 		ip = self.gia(self.mua, self.item_a, 90000, self.d)
 		ip.price_list_rate = 91000
@@ -268,10 +324,27 @@ class TestGuiThongBao(BaoTruocCase):
 			frappe.db.get_value("Item Price", moi.name, ["so_ngay_bao_truoc", "bao_gap"]), (0, 1)
 		)
 
-	def test_same_date_already_in_the_main_list_is_reported_before_sending(self):
-		self.gia(self.cho, self.item_a, 105000, add_days(self.d, -30))
+	def test_t10_an_overlap_left_in_the_pending_list_blocks_sending(self):
+		# Giá chờ lập trước khi có kiểm T10 (hoặc ghi thẳng DB): lúc gửi vẫn bị chặn, không dòng nào chuyển.
+		dau = self.gia(self.cho, self.item_a, 105000, add_days(self.d, 7))
+		sau = frappe.get_doc(
+			{
+				"doctype": "Item Price",
+				"price_list": self.cho,
+				"item_code": self.item_a,
+				"uom": "_KG Cái",
+				"price_list_rate": 106000,
+				"valid_from": add_days(self.d, 7),
+				"valid_upto": add_days(self.d, 40),
+				"currency": self.currency,
+			}
+		)
+		sau.flags.tu_thong_bao_doi_gia = True
+		sau.insert(ignore_permissions=True)
 
-		self.assertRaises(frappe.ValidationError, self.gui)
+		self.assertRaisesRegex(frappe.ValidationError, "chồng khoảng ngày", self.gui)
+		self.assertEqual(frappe.db.get_value("Item Price", dau.name, "price_list"), self.cho)
+		self.assertEqual(frappe.db.get_value("Item Price", sau.name, "price_list"), self.cho)
 
 	def test_nothing_to_send_or_no_email(self):
 		self.assertRaisesRegex(frappe.ValidationError, "không có giá", self.gui)
