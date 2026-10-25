@@ -28,7 +28,7 @@ Gắn qua hooks.py (`doc_events`), không sửa controller chuẩn.
 
 import frappe
 from frappe import _
-from frappe.utils import cint, flt, get_datetime, getdate
+from frappe.utils import cint, flt, fmt_money, get_datetime, getdate
 
 from erpnext.accounts.party import get_default_price_list
 from erpnext.selling.kiem_gia.cau_hinh import cau_hinh, he_so_ap_dung
@@ -405,15 +405,15 @@ def _canh_bao(doc, dong, sau_submit=False):
 	for d in dong:
 		if d.get("trang_thai_gia") in (THAP_HON, CAO_HON):
 			muc.append(
-				_("Dòng {0} - {1}: giá mua {2} ({3} {4}), hệ số {5}, giá đúng {6}, chênh {7:+,.0f}").format(
+				_("Dòng {0} - {1}: giá mua {2} ({3} {4}), hệ số {5}, giá đúng {6}, chênh {7}").format(
 					d.idx,
 					frappe.bold(d.item_code),
 					frappe.format(d.gia_mua, {"fieldtype": "Currency"}),
 					d.nguon_gia_mua,
 					d.chung_tu_gia_mua,
-					d.he_so_gia_ban,
+					fmt_money(d.he_so_gia_ban, precision=4),
 					frappe.format(d.gia_de_xuat, {"fieldtype": "Currency"}),
-					flt(d.chenh_lech_gia),
+					_so_co_dau(flt(d.chenh_lech_gia)),
 				)
 			)
 		elif d.get("trang_thai_gia") == CHUA_CO_GIA_MUA:
@@ -431,6 +431,12 @@ def _canh_bao(doc, dong, sau_submit=False):
 			title=_("Kiểm giá bán"),
 			indicator="orange",
 		)
+
+
+def _so_co_dau(so):
+	"""Số tiền có dấu theo định dạng số của hệ thống: "-6.250", không phải "-6,250" (dấu phẩy là
+	phần thập phân với người dùng Việt)."""
+	return ("+" if so > 0 else "-" if so < 0 else "") + fmt_money(abs(so), precision=0)
 
 
 def _khac_bang_gia(d, pl):

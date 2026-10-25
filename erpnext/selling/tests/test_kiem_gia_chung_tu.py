@@ -3,6 +3,8 @@
 """Kiểm giá bán trên Quotation và Sales Order theo hệ số khách hàng (BA12 R02-R05, R07,
 R08, D04, D07, D08; nghiệm thu A01-A04, A07; PO chốt Q2)."""
 
+from unittest.mock import patch
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, getdate, nowdate
@@ -283,6 +285,21 @@ class TestKiemGiaSalesOrder(KiemChungTuCase):
 		self.assertEqual((cao.trang_thai_gia, cao.chenh_lech_gia), (CAO_HON, 308))
 		self.assertEqual((thap.trang_thai_gia, thap.chenh_lech_gia), (THAP_HON, -692))
 		self.assertIn("124.692", self.canh_bao().replace(",", "."))
+
+	def test_the_warning_writes_numbers_in_the_system_number_format(self):
+		# Với định dạng số Việt, "-6,250" đọc thành âm sáu phẩy hai lăm.
+		item = self.item(123457)
+		goc = frappe.db.get_default
+
+		def dinh_dang_viet(key, *args, **kwargs):
+			return "#.###,##" if key == "number_format" else goc(key, *args, **kwargs)
+
+		frappe.clear_messages()
+		with patch.object(frappe.db, "get_default", side_effect=dinh_dang_viet):
+			self.so([self.row(item, 118442)])
+
+		self.assertIn("hệ số 1,01", self.canh_bao())
+		self.assertIn("chênh -6.250", self.canh_bao())
 
 	def test_d04_no_tolerance_after_rounding_to_the_dong(self):
 		item = self.item(123457)

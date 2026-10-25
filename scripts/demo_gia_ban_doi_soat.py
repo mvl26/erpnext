@@ -6,7 +6,8 @@ Chạy từ thư mục `sites` của bench:
 	../env/bin/python ../apps/erpnext/scripts/demo_gia_ban_doi_soat.py --site erpnext.localhost
 
 - Mọi bản ghi có tiền tố DEMO; chạy lại nhiều lần an toàn: giá demo và chứng từ demo còn
-  NHÁP được dựng lại từ đầu, chứng từ demo đã Submit giữ nguyên.
+  NHÁP được dựng lại từ đầu, chứng từ demo đã Submit giữ nguyên — trừ báo giá NCC demo đã
+  Submit: chuyển Stopped để giá mua luôn bắt đầu từ HĐ nguyên tắc (A01).
 - TỪ CHỐI chạy trên site `miyano` (production).
 - Bật "Kiểm giá bán" trên site demo.
 - Chỉ tạo chứng từ NHÁP; người xem tự Submit để thấy cảnh báo, chặn và email giá mới.
@@ -24,6 +25,9 @@ Kịch bản (nghiệm thu BA12):
   Q2   SO Hoàng Lâm có DEMO-VT-01, mặt hàng chưa có trong bảng giá Hoàng Lâm -> khác bảng
        giá, Submit cần 3 thông tin; email ghi giá cũ "Chưa có trong bảng giá"
   +    DEMO-VT-05 bán theo Hộp (10 Cái); DEMO-Hoàng Lâm hệ số 1,05
+  +    DEMO-KH B không có hệ số theo khách, có hệ số theo mặt hàng DEMO-VT-01 = 1,08
+  +    DEMO-Himedic có người liên hệ chính email himedic.demo@example.com: SO tạo trên form
+       tự có email người đặt đơn (A06)
 
 YC4 (báo trước khi đổi giá): "DEMO Bảng giá Himedic" bật Báo trước 7 ngày, bảng giá chờ
 "DEMO Bảng giá Himedic - Chờ báo", email demo himedic.demo@example.com; một nháp chờ gửi
@@ -134,23 +138,6 @@ def tao_demo():
 			},
 		)
 
-	nhom_khach = frappe.db.get_value("Customer Group", {"is_group": 0}, "name")
-	khu_vuc = frappe.db.get_value("Territory", {"is_group": 0}, "name")
-	tu_ngay = min(getdate("2026-10-01"), add_days(d, -30))
-	for ten, he_so, hop_dong, bang_gia in (
-		("DEMO-Himedic", 1.01, "HĐNT-HIMEDIC-2026", HIMEDIC),
-		("DEMO-Hoàng Lâm", 1.05, "HĐNT-HOANGLAM-2026", HOANG_LAM),
-		("DEMO-Khách lẻ", None, None, BAN_LE),
-	):
-		dam_bao("Customer", ten, khach(ten, nhom_khach, khu_vuc))
-		doc = frappe.get_doc("Customer", ten)
-		doc.default_price_list = bang_gia
-		doc.set("he_so_gia_ban", [])
-		doc.set("he_so_theo_mat_hang", [])
-		if he_so:
-			doc.append("he_so_gia_ban", {"he_so": he_so, "so_hop_dong": hop_dong, "tu_ngay": tu_ngay})
-		doc.save(ignore_permissions=True)
-
 	for code, ten, ncc_mac_dinh, hop in (
 		("DEMO-VT-01", "Găng tay y tế", "DEMO-Vietmed", None),
 		("DEMO-VT-02", "Bơm tiêm 5ml", "DEMO-Hùng Minh", None),
@@ -164,6 +151,41 @@ def tao_demo():
 			item.append("supplier_items", {"supplier": ncc_mac_dinh})
 			item.save(ignore_permissions=True)
 		frappe.db.set_value("Item Supplier", {"parent": code, "supplier": ncc_mac_dinh}, "is_default", 1)
+
+	# Sau mặt hàng: hệ số theo mặt hàng của DEMO-KH B trỏ tới DEMO-VT-01.
+	nhom_khach = frappe.db.get_value("Customer Group", {"is_group": 0}, "name")
+	khu_vuc = frappe.db.get_value("Territory", {"is_group": 0}, "name")
+	tu_ngay = min(getdate("2026-10-01"), add_days(d, -30))
+	for ten, he_so, hop_dong, bang_gia, theo_hang in (
+		("DEMO-Himedic", 1.01, "HĐNT-HIMEDIC-2026", HIMEDIC, None),
+		("DEMO-Hoàng Lâm", 1.05, "HĐNT-HOANGLAM-2026", HOANG_LAM, None),
+		("DEMO-KH B", None, None, None, ("DEMO-VT-01", 1.08)),
+		("DEMO-Khách lẻ", None, None, BAN_LE, None),
+	):
+		dam_bao("Customer", ten, khach(ten, nhom_khach, khu_vuc))
+		doc = frappe.get_doc("Customer", ten)
+		doc.default_price_list = bang_gia
+		doc.set("he_so_gia_ban", [])
+		doc.set("he_so_theo_mat_hang", [])
+		if he_so:
+			doc.append("he_so_gia_ban", {"he_so": he_so, "so_hop_dong": hop_dong, "tu_ngay": tu_ngay})
+		if theo_hang:
+			doc.append(
+				"he_so_theo_mat_hang", {"item_code": theo_hang[0], "he_so": theo_hang[1], "tu_ngay": tu_ngay}
+			)
+		doc.save(ignore_permissions=True)
+
+	# Người liên hệ chính của Himedic: chọn khách trên form SO là có email người đặt đơn (A06).
+	if not frappe.db.exists("Contact", {"email_id": EMAIL_DEMO}):
+		frappe.get_doc(
+			{
+				"doctype": "Contact",
+				"first_name": "DEMO Himedic đặt hàng",
+				"is_primary_contact": 1,
+				"email_ids": [{"email_id": EMAIL_DEMO, "is_primary": 1}],
+				"links": [{"link_doctype": "Customer", "link_name": "DEMO-Himedic"}],
+			}
+		).insert(ignore_permissions=True)
 
 	don_demo_cu()
 
@@ -240,6 +262,14 @@ def don_demo_cu():
 		"Supplier Quotation", filters={"supplier": ("like", "DEMO-%"), "docstatus": 0}, pluck="name"
 	):
 		frappe.delete_doc("Supplier Quotation", name, ignore_permissions=True, force=True)
+	# Báo giá đã Submit ở lần test trước vẫn là báo giá đợt còn hiệu lực, che giá HĐ nguyên tắc.
+	# Không Hủy được khi đã có Đơn mua lập từ báo giá; Stopped thì kiểm giá bỏ qua (D07).
+	for name in frappe.get_all(
+		"Supplier Quotation",
+		filters={"supplier": ("like", "DEMO-%"), "docstatus": 1, "status": ("!=", "Stopped")},
+		pluck="name",
+	):
+		frappe.db.set_value("Supplier Quotation", name, "status", "Stopped")
 	for name in frappe.get_all("Item Price", filters={"price_list": ("in", BANG_GIA_DEMO)}, pluck="name"):
 		frappe.delete_doc("Item Price", name, ignore_permissions=True, force=True)
 
