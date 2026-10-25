@@ -1,17 +1,23 @@
 # Kế hoạch triển khai "Mạng nội bộ Miyano" (Gameplan)
 
 App phụ `gameplan` (nhánh `miyano-v15`, AGPL-3.0) chạy cạnh ERP trên site `miyano`, đường dẫn `/g`.
-Mã nguồn app **không** nằm trong repo erpnext; thư mục này chỉ giữ tài liệu, script cài và patch.
+**Mã nguồn app nằm ở repo riêng `mvl26/gameplan`, nhánh `miyano-v15`, không nằm trong repo erpnext.**
+Thư mục này chỉ giữ tài liệu và script cài. Cài lên site bằng `bench get-app` + `install-app`
+(xem `miyano_install.sh`), không copy code vào erpnext.
 
 | File | Nội dung |
 | --- | --- |
 | `README_MIYANO.md` | Các thay đổi của bản Miyano so với Gameplan gốc |
 | `miyano_install.sh` | Script IT chạy trên server (tự backup, cài, thiết lập nhóm) |
-| `gameplan-miyano-v15-hoan-thien.patch` | Patch lên commit `e33fc3c` của `miyano-v15`: lời chào tiếng Việt, cảnh báo phòng ban thiếu |
+| `gameplan-miyano-v15-hoan-thien.patch` | Patch lịch sử lên `e33fc3c` (lời chào tiếng Việt, cảnh báo phòng ban thiếu). Đã nằm trong commit `f06479e` của `miyano-v15`, chỉ để tham chiếu |
+
+Các commit mới nhất của `miyano-v15`: `f06479e` (lời chào tiếng Việt, cảnh báo phòng ban),
+`a68ae3a` (chỉ HCNS / Ban lãnh đạo / quản trị / người được cấp vai trò *Gameplan Group Creator*
+tạo được nhóm; chỉ nhân viên cùng công ty được vào; cấu hình `gameplan_companies` trong `site_config.json`).
 
 ## 1. Chuẩn bị
 
-1. Áp patch lên repo gameplan, commit trên `miyano-v15`, đẩy lên `mvl26/gameplan` (AGPL-3.0 bắt buộc công khai mã nguồn).
+1. Đẩy nhánh `miyano-v15` của repo gameplan lên `mvl26/gameplan` (AGPL-3.0 bắt buộc công khai mã nguồn).
 2. Đối chiếu tên Department thật trên ERP với danh sách trong `gameplan/miyano/setup.py` (`GROUPS`).
 3. Xác nhận ERP có Email Account gửi mặc định (không có thì bài vẫn đăng, chỉ không có email).
 
