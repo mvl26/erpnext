@@ -48,6 +48,10 @@ Kịch bản (giá chưa VAT, VAT 10%; mã dòng hợp đồng in ra khi chạy)
      Hóa đơn mua Khớp và Nộp được
   P  Hợp đồng 2: Đơn mua 12 hộp theo giá 10 - 30 hộp (3.812.500 gồm VAT, chỉ ghi chú trong hợp đồng)
      -> hóa đơn lệch giá hợp đồng, cảnh báo chặn, cần duyệt
+  R  Đơn mua 44 Ống thông Foley, Kho chỉ nhận 42; hóa đơn R1 ghi 44 -> Hóa đơn mua lệch Phiếu nhập,
+     phiếu Lệch PR-PI; hóa đơn điều chỉnh giảm 2 (R2) -> lập lại một Hóa đơn mua 42, Khớp
+  S  Đơn mua 60 Ống thông Foley; hóa đơn S1, rồi hóa đơn S2 thay thế S1 -> bỏ Hóa đơn mua nháp của
+     S1, phiếu S1 Từ chối, S2 đi tiếp
 """
 
 import argparse
@@ -461,9 +465,12 @@ def tao_demo():
 		doc.submit()
 		return doc
 
-	def pr(don_mua, ma):
+	def pr(don_mua, ma, qty=None):
 		doc = make_purchase_receipt(don_mua.name)
 		doc.supplier_delivery_note = f"DEMO-D4-{ma}"
+		for d in doc.items:
+			if qty is not None:
+				d.qty = d.received_qty = qty
 		doc.insert(ignore_permissions=True)
 		doc.submit()
 		return doc
@@ -473,7 +480,8 @@ def tao_demo():
 	so_hd = iter(range(1, 100))
 
 	def xml(ten_tep, don_mua, dong, **kw):
-		kw.setdefault("so", f"{next(so_hd):08d}")
+		if "so" not in kw:
+			kw["so"] = f"{next(so_hd):08d}"
 		noi_dung = xml_hoa_don(
 			dong,
 			ky_hieu="C26TDM",
@@ -576,6 +584,23 @@ def tao_demo():
 	ghi(
 		"Q", "Hóa đơn cao hơn 1 đồng (dung sai)", xml("Q_dung_sai_1_dong.xml", don, dong_q), don, pr(don, "Q")
 	)
+	# Kho nhận thiếu: Hóa đơn mua lệch Phiếu nhập (ST-05a); NCC xuất hóa đơn điều chỉnh giảm.
+	don = po([("DEMO-HDK-01", 44, 12500)])
+	phieu_r = pr(don, "R", qty=42)
+	so_r1 = f"{next(so_hd):08d}"
+	tep_r1 = xml("R1_lech_pr_pi.xml", don, [("", sonde, "Cái", 44, 12500, "10%")], so=so_r1)
+	ghi("R1", "Kho nhận thiếu -> Lệch PR-PI", tep_r1, don, phieu_r)
+	lq = ("2", "C26TDM", so_r1, nowdate())
+	tep_r2 = xml("R2_dieu_chinh_giam.xml", don, [("", sonde, "Cái", -2, 12500, "10%")], lien_quan=lq)
+	ghi("R2", f"Điều chỉnh giảm 2 cho hóa đơn {so_r1}", tep_r2, don, phieu_r)
+	don = po([("DEMO-HDK-01", 60, 12500)])
+	phieu_s = pr(don, "S")
+	so_s1 = f"{next(so_hd):08d}"
+	tep_s1 = xml("S1_bi_thay_the.xml", don, [("", sonde, "Cái", 60, 12500, "10%")], so=so_s1)
+	ghi("S1", "Hóa đơn sẽ bị thay thế", tep_s1, don, phieu_s)
+	lq = ("1", "C26TDM", so_s1, nowdate())
+	tep_s2 = xml("S2_thay_the.xml", don, [("", sonde, "Cái", 60, 12500, "10%")], lien_quan=lq)
+	ghi("S2", f"Thay thế hóa đơn {so_s1}", tep_s2, don, phieu_s)
 
 	print(f"\nNCC: {ncc} (MST {mst_ncc}, mã viết tắt D4N{so_lan:02d}).")
 	print(f"Hợp đồng khung 1: {hdk.name} ({hdk.order_no}). Hợp đồng 2: {hdnt.name} ({hdnt.order_no}).")

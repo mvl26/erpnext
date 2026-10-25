@@ -20,6 +20,7 @@
   "so_hoa_don",
   "ngay_hoa_don",
   "so_po_tren_hoa_don",
+  "tinh_chat_hoa_don",
   "column_break_2",
   "ten_nguoi_ban",
   "mst_nguoi_ban",
@@ -29,6 +30,14 @@
   "tong_tien_hang",
   "tien_thue",
   "tong_thanh_toan",
+  "lien_quan_section",
+  "ky_hieu_lien_quan",
+  "so_hoa_don_lien_quan",
+  "ngay_hoa_don_lien_quan",
+  "column_break_5",
+  "phieu_lien_quan",
+  "hoa_don_mua_lien_quan",
+  "dieu_chinh_hop_le",
   "dong_section",
   "items",
   "canh_bao_section",
@@ -38,6 +47,9 @@
   "nghi_trung",
   "da_kiem_khong_trung",
   "ly_do_tu_choi",
+  "tu_choi_tay",
+  "nguoi_tu_choi",
+  "thoi_diem_tu_choi",
   "column_break_4",
   "ly_do_duyet",
   "nguoi_duyet",
@@ -76,7 +88,7 @@
    "read_only": 1,
    "fieldname": "trang_thai",
    "fieldtype": "Select",
-   "options": "Mới tiếp nhận\nĐã trích xuất\nĐã đối soát\nChờ xử lý thủ công\nĐã tạo nháp hóa đơn mua\nĐã ghi sổ\nTừ chối",
+   "options": "Mới tiếp nhận\nĐã trích xuất\nĐã đối soát\nChờ xử lý thủ công\nĐã tạo nháp hóa đơn mua\nLệch PR-PI\nĐã ghi sổ\nTừ chối",
    "default": "Mới tiếp nhận",
    "label": "Trạng thái",
    "in_list_view": 1,
@@ -148,6 +160,15 @@
    "label": "Số PO ghi trên hóa đơn"
   },
   {
+   "read_only": 1,
+   "fieldname": "tinh_chat_hoa_don",
+   "fieldtype": "Select",
+   "options": "Hóa đơn gốc\nThay thế\nĐiều chỉnh",
+   "default": "Hóa đơn gốc",
+   "label": "Tính chất hóa đơn",
+   "in_standard_filter": 1
+  },
+  {
    "fieldname": "column_break_2",
    "fieldtype": "Column Break"
   },
@@ -197,6 +218,55 @@
    "fieldtype": "Currency",
    "label": "Tổng thanh toán",
    "in_list_view": 1
+  },
+  {
+   "fieldname": "lien_quan_section",
+   "fieldtype": "Section Break",
+   "label": "Hóa đơn bị thay thế / bị điều chỉnh",
+   "depends_on": "eval:['Thay thế', 'Điều chỉnh'].includes(doc.tinh_chat_hoa_don)"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "ky_hieu_lien_quan",
+   "fieldtype": "Data",
+   "label": "Ký hiệu"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "so_hoa_don_lien_quan",
+   "fieldtype": "Data",
+   "label": "Số hóa đơn"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "ngay_hoa_don_lien_quan",
+   "fieldtype": "Date",
+   "label": "Ngày hóa đơn"
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "phieu_lien_quan",
+   "fieldtype": "Link",
+   "options": "Supplier Invoice Intake",
+   "label": "Phiếu tiếp nhận của hóa đơn đó"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "hoa_don_mua_lien_quan",
+   "fieldtype": "Link",
+   "options": "Purchase Invoice",
+   "label": "Hóa đơn mua của hóa đơn đó"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "dieu_chinh_hop_le",
+   "fieldtype": "Check",
+   "label": "Điều chỉnh gộp được vào hóa đơn gốc",
+   "hidden": 1
   },
   {
    "fieldname": "dong_section",
@@ -258,6 +328,28 @@
    "depends_on": "ly_do_tu_choi"
   },
   {
+   "read_only": 1,
+   "fieldname": "tu_choi_tay",
+   "fieldtype": "Check",
+   "label": "Từ chối tay",
+   "hidden": 1
+  },
+  {
+   "read_only": 1,
+   "fieldname": "nguoi_tu_choi",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Người từ chối",
+   "depends_on": "tu_choi_tay"
+  },
+  {
+   "read_only": 1,
+   "fieldname": "thoi_diem_tu_choi",
+   "fieldtype": "Datetime",
+   "label": "Thời điểm từ chối",
+   "depends_on": "tu_choi_tay"
+  },
+  {
    "fieldname": "column_break_4",
    "fieldtype": "Column Break"
   },
@@ -313,7 +405,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-23 16:00:00.000000",
+ "modified": "2026-10-25 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Buying",
  "name": "Supplier Invoice Intake",
@@ -358,13 +450,8 @@
   {
    "role": "Accounts Manager",
    "read": 1,
-   "write": 1,
-   "create": 1,
    "report": 1,
-   "export": 1,
-   "print": 1,
-   "email": 1,
-   "share": 1
+   "print": 1
   },
   {
    "role": "Accounts User",

@@ -16,6 +16,8 @@ from lxml import etree
 
 # TChat: 1 hàng hóa, dịch vụ; 2 khuyến mại; 3 chiết khấu thương mại; 4 ghi chú, diễn giải.
 HANG_HOA = 1
+# TTHDLQuan/TCHDon: tính chất của hóa đơn có liên quan tới một hóa đơn đã lập (NĐ 123/2020 Điều 19).
+TINH_CHAT_LIEN_QUAN = {"1": "Thay thế", "2": "Điều chỉnh"}
 MAU_SO_PO = re.compile(r"\bPUR-ORD-\d{4}-\d+\b")
 
 
@@ -87,6 +89,7 @@ def doc_hoa_don_xml(noi_dung):
 		)
 
 	toan = _con(nd, "TToan")
+	lq = _con(tt, "TTHDLQuan")
 	van_ban = " ".join(t for t in dl.itertext() if t and t.strip())
 	so_po = MAU_SO_PO.search(van_ban)
 	return {
@@ -102,6 +105,16 @@ def doc_hoa_don_xml(noi_dung):
 		"tong_tien_hang": flt(_chu(toan, "TgTCThue")),
 		"tien_thue": flt(_chu(toan, "TgTThue")),
 		"tong_thanh_toan": flt(_chu(toan, "TgTTTBSo")),
+		# Hóa đơn thay thế / điều chỉnh: hóa đơn bị thay thế / bị điều chỉnh. Hóa đơn điều chỉnh ghi phần
+		# tăng dương, phần giảm âm.
+		"lien_quan": {
+			"tinh_chat": TINH_CHAT_LIEN_QUAN.get(_chu(lq, "TCHDon"), ""),
+			"mau_so": _chu(lq, "KHMSHDCLQuan"),
+			"ky_hieu": _chu(lq, "KHHDCLQuan"),
+			"so_hoa_don": _chu(lq, "SHDCLQuan"),
+			"ngay": _chu(lq, "NLHDCLQuan"),
+			"ghi_chu": _chu(lq, "GChu"),
+		},
 	}
 
 

@@ -28,8 +28,14 @@ Bổ sung 24/10/2026, theo hợp đồng nguyên tắc mẫu `001-GREENTECH-MIYA
 | D4-9 | **Đã Nộp thì không sửa** (chuẩn ERPNext): chỉ Đến ngày sửa được để gia hạn (Điều 12.1), và Frappe đòi quyền Nộp. Bổ sung mặt hàng / đổi giá theo phụ lục (Điều 2.4, 2.6, 12.2): lập Đơn khung mới có **Phụ lục của hợp đồng** = hợp đồng gốc. Phụ lục lấy số hợp đồng của gốc; mã dòng đánh số tiếp; phụ lục đổi giá phải có Từ ngày sau Từ ngày của gốc. Đơn mua ưu tiên gắn phụ lục; kiểm giá Đợt 1 lấy giá có Từ ngày mới nhất. Dòng Đơn mua đã có đơn khung (người dùng tích Theo đơn khung, ERPNext tự chọn hợp đồng đầu tiên và điền giá hợp đồng nguyên văn) cũng được chuẩn hóa khi Lưu: chuyển sang phụ lục của hợp đồng đã chọn, Đơn giá đơn khung = giá chưa VAT |
 | D4-10 | **Quyền trên Đơn khung và người duyệt** (người dùng 25/10, thay bản 24/10 dùng Purchase Manager): giám đốc là người có quyền cao nhất, giữ vai trò **Sales Manager** (như kiểm giá bán Đợt 1 – 2) cho cả ba việc: Nộp / Hủy / Sửa đổi / gia hạn Đơn khung, duyệt lệch giá / vượt hạn mức, duyệt Bảng ánh xạ tên. Purchase User, Purchase Manager tạo, sửa bản nháp; Accounts User, Accounts Manager, Stock User chỉ xem; System Manager giữ quyền chuẩn. Custom DocPerm tạo ở `after_migrate` **một lần**, khi Blanket Order chưa có Custom DocPerm nào; quản trị chỉnh lại trong Role Permission Manager thì migrate sau không ghi đè. Hai ô vai trò duyệt của Cài đặt gieo Sales Manager lần đầu; để trống cũng hiểu là Sales Manager |
 | D4-11 | **Không tự tạo vai trò**, chỉ dùng vai trò có sẵn. Demo Đợt 1 – 4: giám đốc = `demo.giamdoc` (Sales Manager); nhân viên demo không có vai trò này |
-| D4-12 | **Đối soát Đợt 3 cho dung sai 1 đồng với hợp đồng giá gồm VAT** (người dùng 25/10). Chỉ áp cho dòng hóa đơn có `po_detail` thuộc dòng Đơn mua gắn Đơn khung tích Đơn giá đã gồm thuế GTGT: đơn giá lệch ≤ 1 đồng trên đơn giá hóa đơn (1 / hệ số quy đổi theo ĐVT kho); thành tiền dòng ≤ 1 đồng x số lượng hóa đơn; ba tổng cộng dồn dung sai các dòng đó, thêm 1 đồng / dòng cho làm tròn thuế. Lúc Nộp, ERPNext chỉ cho vượt thành tiền dòng Đơn mua 0,01 % (hàng 5.000 đồng + 1 đồng = 0,02 % bị chặn dù Khớp): hóa đơn Khớp được bỏ kiểm đó cho các dòng này khi phần vượt ≤ 1 đồng x số lượng dòng Đơn mua. Phiếu tiếp nhận dùng cùng dung sai. Dòng khác vẫn so 0 đồng |
+| D4-12 | **Đối soát Đợt 3 cho dung sai 1 đồng với hợp đồng giá gồm VAT** (người dùng 25/10). Chỉ áp cho dòng hóa đơn có `po_detail` thuộc dòng Đơn mua gắn Đơn khung tích Đơn giá đã gồm thuế GTGT: đơn giá lệch ≤ 1 đồng trên đơn giá hóa đơn (1 / hệ số quy đổi theo ĐVT kho); thành tiền dòng ≤ 1 đồng x số lượng hóa đơn; ba tổng cộng dồn dung sai các dòng đó, thêm 1 đồng / dòng cho làm tròn thuế. Lúc Nộp, ERPNext chỉ cho vượt thành tiền dòng Đơn mua 0,01 % (hàng 5.000 đồng + 1 đồng = 0,02 % bị chặn dù Khớp): hóa đơn Khớp được bỏ kiểm đó cho các dòng này khi phần vượt ≤ 1 đồng x số lượng dòng Đơn mua. Phiếu tiếp nhận dùng cùng dung sai. Dòng khác vẫn so 0 đồng. **Triển khai:** đối soát YC5 (`erpnext/accounts/doi_soat_pr_pi`) nay gọi code Đợt 4 (`hop_dong_khung.dong_don_mua_gia_gom_vat`), nên production phải lên Đợt 3 và Đợt 4 cùng nhau theo nhánh tích hợp `feat/auto-check-selling-price`; site chưa có trường Đợt 4 thì `has_column` bỏ qua, đối soát như cũ |
 | D4-13 | **Trường bắt buộc khi Nộp hợp đồng khung chọn ở Cài đặt tiếp nhận hóa đơn NCC** (mục Hợp đồng khung, nút Chọn trường bắt buộc khi Nộp hợp đồng khung), không cố định trong code. Hệ thống luôn cần: NCC, Số hợp đồng, Bảng giá mua, đơn giá > 0, số lượng > 0 trừ khi không cam kết, Số phụ lục khi là phụ lục. Gieo một lần (`da_khoi_tao_truong_bat_buoc`): ngày ký, đại diện và MST hai bên, tài khoản và ngân hàng Bên B, Chi tiết điều khoản; dòng: mã hàng NCC, tên theo hợp đồng, quy cách, hãng, nước sản xuất, số lưu hành, thuế suất (FR-02). Trường quản trị tự thêm bằng Customize Form chọn được như trường có sẵn |
+| D4-14 | **ST-05a "Lệch PR-PI"** (người dùng 25/10, spec 2026-10-21 mục 6.3.4). Hóa đơn mua nháp tạo từ phiếu bị đối soát Đợt 3 báo Lệch thì phiếu chuyển Lệch PR-PI (đỏ); hết lệch thì về Đã tạo nháp hóa đơn mua. Người theo dõi hóa đơn đầu vào lọc danh sách phiếu theo trạng thái này, không phải mở từng hóa đơn. Cách xử lý lệch giữ nguyên nhánh (a) / (b1) / (b2) của Đợt 3. Báo Mua hàng khi lệch đã có sẵn ở Supply Notification NTF-16 (lệch lúc tạo) và NTF-17 (chuyển sang Lệch), không viết thêm. Tên trạng thái dùng gạch ngang thường cho dễ lọc |
+| D4-15 | **Từ chối tay và Mở lại** (người dùng 25/10). Người có quyền sửa phiếu bấm Từ chối, bắt buộc ghi lý do; hệ thống lưu người và thời điểm từ chối. Phiếu đang có Hóa đơn mua nháp thì bản nháp bị xóa (cần quyền xóa Hóa đơn mua); đã ghi sổ thì phải hủy trước. Phiếu Từ chối tay không tính lại khi Lưu; Mở lại thì đối soát lại từ đầu. Các ô Từ chối tay và ô phê duyệt cảnh báo chỉ đổi được qua nút: giá trị gửi từ form, API hay import bị trả về giá trị đang lưu (trước đây ô phê duyệt cảnh báo sửa được qua API) |
+| D4-16 | **Hóa đơn thay thế** (người dùng 25/10). Đọc `TTChung/TTHDLQuan` (TCHDon 1), tìm hóa đơn bị thay thế theo MST người bán + ký hiệu + số (0000123 = 123). Hóa đơn cũ chưa có Hóa đơn mua thì phiếu cũ tự Từ chối ("bị thay thế bởi…"); có bản nháp do phiếu lập thì phiếu mới dừng, nút **Bỏ hóa đơn bị thay thế** xóa bản nháp và từ chối phiếu cũ; bản nháp nhập tay thì xóa tay; đã ghi sổ thì phải hủy Hóa đơn mua trước. Hóa đơn cũ chưa vào hệ thống thì chỉ cảnh báo. Phiếu thay thế bị Từ chối / xóa thì phiếu cũ mở lại |
+| D4-17 | **Hóa đơn điều chỉnh** (người dùng 25/10, TCHDon 2; phần tăng dương, phần giảm âm — NĐ 123/2020 Điều 19). Mỗi dòng gắn với dòng hóa đơn gốc nó điều chỉnh: theo mã trên hóa đơn, rồi tên chuẩn hóa, rồi hóa đơn gốc chỉ có một dòng; không được thì người dùng chọn STT. Kiểu: **Số lượng** khi đơn giá bằng đơn giá gốc (dấu theo thành tiền), còn lại **Đơn giá** (chỉ đổi tiền). Hóa đơn gốc **chưa ghi sổ**: gộp vào MỘT Hóa đơn mua theo số sau điều chỉnh; Số HĐ NCC là số hóa đơn gốc, ô "Hóa đơn điều chỉnh đã gộp" ghi số hóa đơn điều chỉnh, đính kèm cả hai XML. Hóa đơn gốc đang có bản nháp thì nút **Lập lại Hóa đơn mua nháp (gốc + điều chỉnh)** xóa bản cũ và lập lại, lỗi thì hoàn tác cả lần bấm. Đối soát 4 tầng, kiểm giá / hạn mức HĐK và Đợt 3 chạy trên số sau điều chỉnh. Hóa đơn gốc **đã ghi sổ**: kế toán lập tay Hóa đơn mua trả hàng / bổ sung với Số HĐ NCC = số hóa đơn điều chỉnh, phiếu tự nối vào chứng từ đó và chuyển trạng thái theo nó. Không gộp được, phải xử lý tay rồi Từ chối phiếu: đổi thuế suất, hóa đơn gốc nhập tay, số sau điều chỉnh âm |
+| D4-18 | **Sửa ánh xạ đã duyệt phải duyệt lại** (người dùng duyệt danh sách việc còn thiếu, 25/10). Dòng Bảng ánh xạ tên Đang dùng / Ngừng dùng bị người không có vai trò duyệt ánh xạ sửa NCC, tên (sau chuẩn hóa) hoặc Mặt hàng thì về Chờ duyệt, xóa người duyệt; tầng 2 thôi dùng tới khi duyệt lại. Chính người duyệt sửa thì coi như duyệt lại (ghi người, thời điểm). Ô Người duyệt / Thời điểm duyệt chỉ do server ghi |
+| D4-19 | **Kế toán chỉ xem Phiếu tiếp nhận** (FRD; người dùng 25/10). Accounts Manager như Accounts User: xem, báo cáo, in; nút thao tác trên phiếu ẩn khi không có quyền ghi. Các thao tác xóa Hóa đơn mua nháp của phiếu (Lập lại theo điều chỉnh, Bỏ hóa đơn bị thay thế, Từ chối phiếu có bản nháp) cần cả quyền ghi phiếu lẫn quyền xóa Hóa đơn mua; người không đủ hai quyền làm theo hai bước: kế toán xóa bản nháp trên Hóa đơn mua (phiếu tự tính lại), rồi mua hàng bấm nút trên phiếu |
 
 ## 2. Hợp đồng khung (Blanket Order, Purchasing)
 
@@ -63,13 +69,17 @@ Chờ duyệt (FR-22); người có vai trò duyệt ánh xạ (cài đặt) b�
 
 ## 4. Phiếu tiếp nhận hóa đơn (`Supplier Invoice Intake`, DT-07)
 
-Đầu phiếu: công ty, tệp XML, trạng thái (ST-01 → ST-07), NCC (tìm theo MST người bán), tên + MST người bán / người
-mua, ký hiệu, số, ngày hóa đơn, số PO ghi trên hóa đơn, Đơn mua hàng, tổng tiền hàng / thuế / thanh toán, tỷ lệ khớp,
-hóa đơn mua đã tạo, lý do từ chối, dữ liệu trích xuất (JSON), phê duyệt cảnh báo (người, lý do, thời điểm, dấu vân tay).
+Đầu phiếu: công ty, tệp XML, trạng thái (ST-01 → ST-07, thêm ST-05a Lệch PR-PI), NCC (tìm theo MST người bán), tên
++ MST người bán / người mua, ký hiệu, số, ngày hóa đơn, số PO ghi trên hóa đơn, tính chất hóa đơn (Hóa đơn gốc / Thay
+thế / Điều chỉnh) và hóa đơn liên quan (ký hiệu, số, ngày, phiếu và Hóa đơn mua của nó), Đơn mua hàng, tổng tiền hàng
+/ thuế / thanh toán, tỷ lệ khớp, hóa đơn mua đã tạo, lý do từ chối, Từ chối tay (người, thời điểm), dữ liệu trích xuất
+(JSON), phê duyệt cảnh báo (người, lý do, thời điểm, dấu vân tay).
 
 Dòng: STT, mã hàng / tên / ĐVT / số lượng / đơn giá / thành tiền / thuế suất **theo hóa đơn**; kết quả: mặt hàng,
 dòng HĐK, Đơn mua hàng + dòng, cách khớp (Tầng 1 mã / Tầng 2 ánh xạ tên / Tầng 3 Đơn mua / Chọn tay), điểm khớp,
-trạng thái dòng (Đã khớp / Chờ xác nhận / Chưa khớp), cảnh báo, ô Chọn tay / Đã xác nhận.
+trạng thái dòng (Đã khớp / Chờ xác nhận / Chưa khớp), cảnh báo, ô Chọn tay / Đã xác nhận. Hóa đơn điều chỉnh: dòng
+hóa đơn gốc (STT), điều chỉnh theo (Số lượng / Đơn giá); hóa đơn gốc: số lượng / đơn giá / thành tiền sau điều chỉnh và
+các hóa đơn điều chỉnh đã gộp.
 
 Luồng (mỗi lần Lưu chạy lại; dòng chọn tay giữ nguyên):
 1. Tệp mới → đọc XML (`HDon/DLHDon`: TTChung, NBan, NMua, DSHHDVu/HHDVu, TToan). Chỉ dòng hàng hóa (TChat 1); dòng
@@ -79,7 +89,9 @@ Luồng (mỗi lần Lưu chạy lại; dòng chọn tay giữ nguyên):
    không trùng" mới tạo hóa đơn (FR-17).
 3. Kiểm số học: tổng các dòng = tổng tiền hàng; thuế; tổng thanh toán. Lệch → ST-04 (11.1).
 4. Đối soát 4 tầng (mục 5) → mọi dòng Đã khớp và không còn cảnh báo chặn (hoặc đã được duyệt) → ST-03; còn lại ST-04.
-5. Nút **Tạo hóa đơn mua nháp** (ST-03) → ST-05. Hóa đơn mua Nộp → ST-06; hủy / xóa → về ST-03.
+5. Nút **Tạo hóa đơn mua nháp** (ST-03) → ST-05; đối soát Đợt 3 báo Lệch → ST-05a, hết lệch → ST-05 (D4-14). Hóa đơn
+   mua Nộp → ST-06; hủy / xóa → về ST-03.
+6. Hóa đơn thay thế / điều chỉnh: D4-16, D4-17 (`hoa_don_lien_quan`). Từ chối tay / Mở lại: D4-15.
 
 Cảnh báo theo dòng: lệch đơn giá HĐK (BR-05, chặn), vượt hạn mức HĐK còn lại (BR-06, chặn), ĐVT hoặc thuế suất khác
 HĐK (BR-07, chỉ ghi nhận). Cảnh báo chặn được người có vai trò duyệt lệch giá (cài đặt) **Duyệt** kèm lý do; phê duyệt
@@ -124,8 +136,8 @@ lệch giá (trống: Vai trò Ban Điều hành của Buying Settings, trống 
 | Loại | Đường dẫn |
 |---|---|
 | DocType mới | `erpnext/buying/doctype/supplier_invoice_intake{,_item}/`, `supplier_item_alias/`, `supplier_invoice_intake_settings/`, `supplier_invoice_synonym/` |
-| Logic | `erpnext/buying/tiep_nhan_hoa_don/` (`truong_tuy_bien`, `cau_hinh`, `chuan_hoa`, `doc_xml`, `hop_dong_khung`, `don_mua`, `doi_soat`, `tao_hoa_don`, `anh_xa`) |
-| Điểm gắn | `erpnext/hooks.py`: `after_migrate`, `doc_events` (Blanket Order, Purchase Order, Purchase Invoice) |
+| Logic | `erpnext/buying/tiep_nhan_hoa_don/` (`truong_tuy_bien`, `cau_hinh`, `chuan_hoa`, `doc_xml`, `hop_dong_khung`, `don_mua`, `doi_soat`, `hoa_don_lien_quan`, `tao_hoa_don`, `anh_xa`) |
+| Điểm gắn | `erpnext/hooks.py`: `after_migrate`, `doc_events` (Blanket Order, Purchase Order, Purchase Invoice: `on_update` cho ST-05 / ST-05a và chứng từ lập tay của hóa đơn điều chỉnh, `after_delete` để tính lại phiếu thay thế / điều chỉnh) |
 | Test | `erpnext/buying/tests/test_tiep_nhan_hoa_don*.py` |
 
 ## 9. Ngoài phần 1
@@ -138,14 +150,19 @@ giá PO; mẫu in PO và email đặt hàng có mã dòng HĐK; màn hình tra c
 
 | Phần | Test (`erpnext/buying/tests/`) |
 |---|---|
-| Chuẩn hóa, khóa quy cách, điểm tên (TC-12, TC-13), đọc XML (bọc `TDiep`, namespace, dòng không phải hàng hóa, tệp hỏng, chặn entity ngoài) | `test_tiep_nhan_hoa_don_doc.py` (12, không cần DB) |
+| Chuẩn hóa, khóa quy cách, điểm tên (TC-12, TC-13), đọc XML (bọc `TDiep`, namespace, dòng không phải hàng hóa, tệp hỏng, chặn entity ngoài, hóa đơn liên quan của hóa đơn điều chỉnh) | `test_tiep_nhan_hoa_don_doc.py` (13, không cần DB) |
 | HĐK: Nộp ghi giá HĐ nguyên tắc và kiểm giá Đợt 1 đọc được, Hủy xóa giá; mã dòng tự sinh, không trùng; thiếu thông tin không Nộp được; PO tự gắn HĐK, cảnh báo ≥ 90%, ERPNext chặn vượt | `TestHopDongKhung` |
 | Phiếu tiếp nhận: tầng 3 (TC-12) → Hóa đơn mua nháp gắn Phiếu nhập, Đợt 3 báo Khớp, đề xuất ánh xạ Chờ duyệt, Nộp → Đã ghi sổ + lũy kế HĐK, Hủy → mở lại; tầng 1 mã NCC; tầng 2 chỉ ánh xạ Đang dùng; TC-13 → chọn tay; TC-10 sai MST, TC-11 trùng → Từ chối; TC-14 lệch giá HĐK chặn đến khi được duyệt (vai trò); vượt hạn mức; lệch số học; chưa có Phiếu nhập; hóa đơn từng phần; xóa hóa đơn nháp mở lại phiếu; BR-10 nhiều ứng viên | `TestTiepNhanHoaDon` |
-| Bảng ánh xạ tên: chỉ người duyệt đổi trạng thái; không trùng tên chuẩn hóa trong một NCC | `TestBangAnhXa` |
+| Bảng ánh xạ tên: chỉ người duyệt đổi trạng thái; không trùng tên chuẩn hóa trong một NCC; sửa ánh xạ đã duyệt về Chờ duyệt, người duyệt sửa thì giữ, không tự ghi được người duyệt (D4-18) | `TestBangAnhXa` |
 | Hợp đồng nguyên tắc (24/10, D4-6 → D4-10): thiếu thông tin các bên / điều khoản không Nộp được; điều khoản mặc định theo mẫu; tự điền các bên theo hợp đồng gần nhất; giá gồm VAT quy về chưa VAT chẵn đồng (bảng giá mua, kiểm giá Đợt 1, Đơn giá đơn khung, hóa đơn khớp và Hóa đơn mua khớp Phiếu nhập; giá bậc 2 bị chặn); không cam kết số lượng (không chặn, không cảnh báo); ĐVT theo hợp đồng phải là ĐVT kho; tầng 1 theo mã hàng NCC ghi trong hợp đồng; phụ lục (số hợp đồng của gốc, mã dòng đánh số tiếp, thiếu Số phụ lục không Nộp được, Đơn mua gắn phụ lục kể cả khi người dùng đã chọn hợp đồng gốc, cùng Từ ngày với gốc thì chặn) | `TestHopDongKhung` |
 | Quyền Đơn khung: Purchase User lưu nháp nhưng không Nộp được, Purchase Manager Nộp; Accounts User không tạo được | `TestQuyenDonKhung` |
+| ST-05a, Từ chối tay, quyền phiếu (25/10, D4-14, D4-15, D4-19): kế toán chỉ xem phiếu, không Từ chối / tạo hóa đơn được; Kho nhận thiếu → Hóa đơn mua Lệch → phiếu Lệch PR-PI, sửa hóa đơn hết lệch → về Đã tạo nháp; Từ chối tay bắt buộc lý do, xóa hóa đơn nháp, sửa thẳng ô không bỏ được, Mở lại đối soát lại; phiếu đã ghi sổ không Từ chối được; ô phê duyệt cảnh báo không giả mạo được qua API | `TestTrangThaiVaTuChoi` |
+| Hóa đơn thay thế (D4-16): phiếu cũ chưa có Hóa đơn mua tự Từ chối, không báo nghi trùng; phiếu thay thế bị Từ chối thì phiếu cũ mở lại; có bản nháp → Bỏ hóa đơn bị thay thế; đã ghi sổ → phải hủy trước, hủy xong tự đi tiếp; hóa đơn cũ chưa tiếp nhận chỉ cảnh báo | `TestHoaDonThayThe` |
+| Hóa đơn điều chỉnh (D4-17): (b2) giảm số lượng khi gốc đang Lệch PR-PI → lập lại một Hóa đơn mua 480, Khớp, ghi số hóa đơn điều chỉnh, đính hai XML, Nộp / Hủy cập nhật cả hai phiếu; giảm giá trước khi lập hóa đơn hết cảnh báo lệch giá HĐK; kế toán xóa bản nháp rồi mua hàng lập lại (hai bước); gốc đã ghi sổ → nối Hóa đơn mua trả hàng kế toán lập (số 602 = 0000602), xóa chứng từ đó thì phiếu về Chờ xử lý; chưa có hóa đơn gốc; đổi thuế suất chặn cả phiếu gốc tới khi Từ chối phiếu điều chỉnh; chọn tay dòng gốc | `TestHoaDonDieuChinh` |
 
 Tổng 41 test Đợt 4 đạt (gồm trường bắt buộc theo Cài đặt, quyền Sales Manager, dung sai 1 đồng: hàng 5.000 đồng hóa đơn cao hơn 1 đồng vẫn Khớp và Nộp được — tắt bản vá thì ERPNext báo "over limit by Amount 10.0"); chạy chung với test Đợt 1 – 3 (kiểm giá, thông báo, đối soát PR ↔ PI, 47 test YC5 vẫn so 0 đồng cho dòng thường): 484 test đạt, 3 bỏ qua (24/10/2026).
+
+Thêm D4-14 → D4-17 (25/10/2026): 56 test Đợt 4 đạt; cả 25 module (Đợt 1 – 4, YC5, Supply Notification) chạy từ worktree với `--worktree`: 499 test đạt, 3 bỏ qua. Thêm D4-18, D4-19: 59 test Đợt 4 đạt, 47 test YC5 vẫn đạt.
 
 **Lưu ý chạy test từ worktree:** `frappe.get_hooks` đọc `app_hooks` từ Redis dùng chung (trừ khi `developer_mode`),
 và `chay_test.py` nạp `doc_events` một lần cho cả tiến trình. Chạy từ worktree thì dùng
@@ -156,15 +173,17 @@ cache mà web đang dùng. Script của worktree mà chạy thiếu cờ thì t�
 
 ### 10.1 Kiểm thử thủ công
 
-- `docs/HDKT_Dot4_Tiep_nhan_hoa_don_NCC.md`: các mục A – K, xử lý sự cố ở mục L.
+- `docs/HDKT_Dot4_Tiep_nhan_hoa_don_NCC.md`: các mục A – N, tắt công tắc ở mục O, xử lý sự cố ở mục P.
 - `scripts/demo_tiep_nhan_hoa_don.py`: mỗi lần chạy tạo một NCC demo mới (MST riêng), kèm:
   - hai hợp đồng khung đã Nộp, mỗi hợp đồng một Mẫu điều khoản;
-  - Đơn mua hàng và Phiếu nhập cho 17 kịch bản;
+  - Đơn mua hàng và Phiếu nhập cho 19 kịch bản (thêm R: Kho nhận thiếu → Lệch PR-PI → hóa đơn điều chỉnh giảm; S: hóa đơn thay thế);
   - tệp XML hóa đơn có ghi số Đơn mua.
 
   Script từ chối chạy trên `miyano`; `--tra-lai` trả cài đặt về như cũ.
 - Đã chạy thật mọi bước HDKT trên erpnext.localhost (23/10/2026) rồi hoàn tác. Trạng thái, số tiền và câu thông
-  báo trong HDKT lấy từ lần chạy đó.
+  báo trong HDKT lấy từ lần chạy đó. Các mục L – N (kịch bản R, S, Từ chối tay) chạy lại như vậy ngày 25/10/2026
+  bằng người dùng demo: nhân viên mua hàng không xóa được Hóa đơn mua nháp nên các nút Lập lại / Bỏ hóa đơn bị
+  thay thế / Từ chối phiếu có bản nháp do `demo.ketoantruong` bấm.
 - Sau lần chạy, câu cảnh báo in số theo định dạng hệ thống (95/100 (95%), 13.000), thay cho 95.0 / VND 13.000,00.
 - Đã thêm bản dịch tiếng Việt cho tên các DocType mới và câu chặn vượt hạn mức của ERPNext
   (`erpnext/translations/vi.csv`).

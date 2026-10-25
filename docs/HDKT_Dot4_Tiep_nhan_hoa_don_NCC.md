@@ -2,7 +2,7 @@
 
 | Mục | Nội dung |
 |---|---|
-| Phạm vi | FRD-MAP-01 phần 1, spec `docs/superpowers/specs/2026-10-23-tiep-nhan-hoa-don-ncc-design.md` (quyết định D4-1 → D4-13). Hợp đồng nguyên tắc mẫu Greentech chỉ để tham khảo: Đơn khung giữ khung chung, điều khoản riêng của từng NCC ghi theo Mẫu điều khoản. Chưa có ở phần 1: đọc ảnh / PDF hóa đơn, ràng buộc Yêu cầu vật tư → Đơn mua, mẫu in / email đặt hàng có mã dòng hợp đồng |
+| Phạm vi | FRD-MAP-01 phần 1, spec `docs/superpowers/specs/2026-10-23-tiep-nhan-hoa-don-ncc-design.md` (quyết định D4-1 → D4-19). Hợp đồng nguyên tắc mẫu Greentech chỉ để tham khảo: Đơn khung giữ khung chung, điều khoản riêng của từng NCC ghi theo Mẫu điều khoản. Chưa có ở phần 1: đọc ảnh / PDF hóa đơn, ràng buộc Yêu cầu vật tư → Đơn mua, mẫu in / email đặt hàng có mã dòng hợp đồng |
 | Site test | `erpnext.localhost` — `http://127.0.0.1:8000`. **Không test trên `miyano`.** |
 | Nhánh | `feat/tiep-nhan-chung-tu-ncc` (đã gộp vào `feat/auto-check-selling-price`). Thư mục chính của bench phải có code Đợt 4, đã `migrate` và `clear-cache` |
 | Dữ liệu | `scripts/demo_tiep_nhan_hoa_don.py`: mỗi lần chạy tạo một NCC demo mới (`DEMO-D4 NCC xx`, xx là số thứ tự lần chạy) kèm hai hợp đồng khung đã Nộp (mỗi hợp đồng một Mẫu điều khoản), Đơn mua hàng và Phiếu nhập mua đã Nộp cho từng kịch bản, và tệp XML hóa đơn điện tử. Phiếu tiếp nhận và hóa đơn mua do người test tự lập |
@@ -52,15 +52,22 @@ Quy tắc để đối chiếu khi test:
   - **Đã đối soát**: xanh lá;
   - **Chờ xử lý thủ công**: cam;
   - **Đã tạo nháp hóa đơn mua**: xanh dương;
+  - **Lệch PR-PI**: đỏ — hóa đơn mua nháp của phiếu bị đối soát Đợt 3 báo Lệch Phiếu nhập; hết lệch thì phiếu tự về Đã tạo nháp hóa đơn mua. Lọc danh sách phiếu theo trạng thái này để thấy mọi hóa đơn đang kẹt. Báo Mua hàng khi lệch là thông báo NTF-16 / NTF-17 của Đợt 3;
   - **Đã ghi sổ**: xanh lá;
-  - **Từ chối**: đỏ.
+  - **Từ chối**: đỏ. Hệ thống tự từ chối (sai MST người mua, trùng, bị thay thế), hoặc người dùng bấm **Từ chối** kèm lý do (Từ chối tay; bấm **Mở lại** để đối soát lại).
+- **Hóa đơn thay thế / điều chỉnh** (ô **Tính chất hóa đơn** trên phiếu, đọc từ XML): hệ thống tìm hóa đơn gốc theo MST người bán + ký hiệu + số.
+  - **Thay thế**: phiếu của hóa đơn cũ tự Từ chối. Hóa đơn cũ đã có Hóa đơn mua nháp thì bấm **Bỏ hóa đơn bị thay thế** (xóa bản nháp); đã ghi sổ thì phải hủy Hóa đơn mua đó trước.
+  - **Điều chỉnh** (phần tăng ghi dương, phần giảm ghi âm): mỗi dòng gắn với một dòng hóa đơn gốc. Hóa đơn gốc chưa ghi sổ thì gộp vào **một** Hóa đơn mua theo số sau điều chỉnh (nút **Lập / Lập lại Hóa đơn mua nháp (gốc + điều chỉnh)**). Hóa đơn gốc đã ghi sổ thì kế toán lập tay Hóa đơn mua trả hàng / bổ sung, Số hóa đơn NCC = số hóa đơn điều chỉnh; phiếu tự nối vào chứng từ đó.
+  - Xóa Hóa đơn mua nháp (Lập lại, Bỏ hóa đơn bị thay thế, Từ chối phiếu có bản nháp) cần quyền sửa phiếu **và** quyền xóa Hóa đơn mua: trong demo là `demo.ketoantruong` (có thêm vai trò Purchase User). Ở production kế toán chỉ xem phiếu, nên làm hai bước: kế toán xóa Hóa đơn mua nháp ngay trên Hóa đơn mua (phiếu tự tính lại), rồi nhân viên mua hàng bấm nút trên phiếu.
+- **Quyền trên phiếu tiếp nhận**: Purchase User, Purchase Manager tạo / sửa; Kế toán (Accounts User, Accounts Manager) **chỉ xem** — không có nút Lưu, Tạo Hóa đơn mua nháp, Từ chối. Người dùng demo kế toán có thêm Purchase User (dùng chung cho các đợt) nên vẫn sửa được phiếu.
+- **Bảng ánh xạ tên**: dòng đã duyệt (Đang dùng / Ngừng dùng) mà người không có vai trò duyệt sửa NCC, tên hoặc Mặt hàng thì tự về **Chờ duyệt**, tầng 2 thôi dùng tới khi giám đốc duyệt lại.
 - Hóa đơn mua tạo từ phiếu luôn là **nháp**; Kế toán kiểm rồi Nộp. Hóa đơn này đi tiếp qua đối soát Phiếu nhập ↔ Hóa đơn (Đợt 3) như hóa đơn nhập tay. Với dòng thuộc hợp đồng giá gồm VAT, đối soát Đợt 3 cho lệch tối đa 1 đồng trên đơn giá hóa đơn, và lúc Nộp không bị ERPNext chặn "over limit" vì phần vượt trong mức đó.
 
 ## 0. Chuẩn bị
 
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
-| 0.1 | Ở `sites` chạy:<br>`../env/bin/python ../apps/erpnext/scripts/demo_tiep_nhan_hoa_don.py --site erpnext.localhost` | In ra:<ul><li>các cài đặt vừa đổi (lần đầu có thêm dòng lưu cài đặt cũ);</li><li>tên NCC demo (`DEMO-D4 NCC xx`, MST 0109990xxx, mã viết tắt D4Nxx) và hai hợp đồng khung: `HĐK xx/2026`, `HĐNT xx-ELISA/MIYANO`;</li><li>7 mã dòng hợp đồng;</li><li>bảng 17 kịch bản (tệp XML, Đơn mua hàng, Phiếu nhập mua);</li><li>thư mục chứa tệp XML, kèm đường dẫn mở từ Windows: `\\wsl.localhost\Ubuntu-22.04\home\minhbitong\frappe\frappe-bench\sites\erpnext.localhost\private\demo_tiep_nhan_hoa_don\DEMO-D4_NCC_xx`.</li></ul>Chạy lại được: mỗi lần tạo NCC mới và thư mục XML mới. Dùng NCC của **lần chạy mới nhất** | ☐ |
+| 0.1 | Ở `sites` chạy:<br>`../env/bin/python ../apps/erpnext/scripts/demo_tiep_nhan_hoa_don.py --site erpnext.localhost` | In ra:<ul><li>các cài đặt vừa đổi (lần đầu có thêm dòng lưu cài đặt cũ);</li><li>tên NCC demo (`DEMO-D4 NCC xx`, MST 0109990xxx, mã viết tắt D4Nxx) và hai hợp đồng khung: `HĐK xx/2026`, `HĐNT xx-ELISA/MIYANO`;</li><li>7 mã dòng hợp đồng;</li><li>bảng 21 dòng kịch bản (tệp XML, Đơn mua hàng, Phiếu nhập mua);</li><li>thư mục chứa tệp XML, kèm đường dẫn mở từ Windows: `\\wsl.localhost\Ubuntu-22.04\home\minhbitong\frappe\frappe-bench\sites\erpnext.localhost\private\demo_tiep_nhan_hoa_don\DEMO-D4_NCC_xx`.</li></ul>Chạy lại được: mỗi lần tạo NCC mới và thư mục XML mới. Dùng NCC của **lần chạy mới nhất** | ☐ |
 | 0.2 | Thử chạy với `--site miyano` | Script từ chối: "Từ chối: không tạo dữ liệu demo trên site production." | ☐ |
 | 0.3 | Mở `/app/supplier-invoice-intake-settings` (**Cài đặt tiếp nhận hóa đơn NCC**) | <ul><li>Bật tiếp nhận hóa đơn: tích; MST người mua: 0109529507; Cảnh báo khi đặt hàng đạt (% hạn mức hợp đồng khung): 90.</li><li>Vai trò duyệt lệch giá, vượt hạn mức: **Sales Manager**; Vai trò duyệt Bảng ánh xạ tên: **Sales Manager**.</li><li>Mục **Hợp đồng khung**, ô "Trường bắt buộc khi Nộp": Đầu hợp đồng: Ngày đặt, Đại diện Bên A (Miyano), MST Bên A, Đại diện Bên B (NCC), MST Bên B, Số tài khoản Bên B, Ngân hàng Bên B (mở tại), Chi tiết điều khoản và điều kiện. Dòng hợp đồng: Mã hàng NCC theo hợp đồng, Tên theo hợp đồng, Quy cách, Hãng sản xuất, Nước sản xuất, Số lưu hành / công bố, Thuế suất GTGT.</li><li>Ngưỡng khớp tự động 0,75; Ngưỡng chờ xác nhận 0,55; Trọng số trùng từ 0,6; Trọng số giống chuỗi 0,4; từ đồng nghĩa 4 dòng; từ bỏ qua "size, cỡ, loại, cái".</li></ul> | ☐ |
 | 0.4 | Mở danh sách **Điều khoản và điều kiện** (`/app/terms-and-conditions`) | Có 2 mẫu do script tạo, loại Mua: "DEMO Mẫu điều khoản - vật tư y tế" (giá chưa VAT, giao 5 ngày, thanh toán 45 ngày…) và "DEMO Mẫu điều khoản - hóa chất xét nghiệm" (giá gồm VAT, giá theo số hộp, giao 3 – 5 ngày, thanh toán 30 ngày, tự động gia hạn…). Người dùng tự tạo mẫu cho từng NCC / loại hợp đồng như tạo bản ghi thường | ☐ |
@@ -76,7 +83,7 @@ Người dùng mẫu (Impersonate). Chỉ dùng vai trò có sẵn của hệ th
 | `demo.chuoicungung@example.com` | Trưởng phòng mua hàng (Purchase Manager) | Nhập nháp như nhân viên; không Nộp hợp đồng (B2) |
 | `demo.giamdoc@example.com` | Giám đốc (Sales Manager) | Nộp / Hủy / gia hạn hợp đồng khung, duyệt lệch giá / vượt hạn mức, duyệt Bảng ánh xạ tên |
 | `demo.ketoan@example.com` | Kế toán | Nộp hóa đơn mua |
-| `demo.ketoantruong@example.com` | Kế toán trưởng | Xóa hóa đơn mua nháp |
+| `demo.ketoantruong@example.com` | Kế toán trưởng | Xóa hóa đơn mua nháp; Lập lại hóa đơn theo điều chỉnh, Bỏ hóa đơn bị thay thế (L, M) |
 | Administrator | System Manager | Cài đặt, Kho nhập hàng |
 
 **Cách lập phiếu tiếp nhận** trong các bước dưới:
@@ -86,7 +93,7 @@ Người dùng mẫu (Impersonate). Chỉ dùng vai trò có sẵn của hệ th
 
 Mọi ô thông tin hóa đơn, NCC và Đơn mua hàng đều tự điền. Mỗi hóa đơn mẫu có ghi chú "Theo đơn đặt hàng PUR-ORD-…", nên phiếu chỉ khớp với Đơn mua của kịch bản đó.
 
-Số chứng từ thay đổi mỗi lần chạy. Số hóa đơn (ký hiệu C26TDM, số 00000001 → 00000017) và số tiền dưới đây là cố định.
+Số chứng từ thay đổi mỗi lần chạy. Số hóa đơn (ký hiệu C26TDM, số 00000001 → 00000021) và số tiền dưới đây là cố định.
 
 ## A. Cài đặt và quyền
 
@@ -151,6 +158,8 @@ Chọn NCC demo in ở 0.1.
 | E5 | `demo.giamdoc` bấm **Duyệt** (trên form, hoặc tích dòng ở danh sách → Thao tác → Duyệt) | **Đang dùng** (xanh lá); Người duyệt = demo.giamdoc, có Thời điểm duyệt. Nút Duyệt ẩn, còn nút **Ngừng dùng** | ☐ |
 | E6 | Mở lại phiếu E3 → **Lưu** | Đối soát lại: Cách khớp **Tầng 2 - Ánh xạ tên**, Điểm 1 | ☐ |
 | E7 | **Tạo Hóa đơn mua nháp** từ phiếu E3 | Tạo được. Dòng ánh xạ: Số lần dùng 1, có Lần dùng cuối | ☐ |
+| E8 | `demo.nvmuahang` mở dòng ánh xạ E5 (Đang dùng), đổi **Mặt hàng** = DEMO-HDK-02 → Lưu | Thông báo cam "Ánh xạ đã duyệt vừa bị sửa nên chuyển về Chờ duyệt, cần người duyệt ánh xạ duyệt lại." Trạng thái **Chờ duyệt**, ô Người duyệt / Thời điểm duyệt trống; tầng 2 không dùng dòng này tới khi duyệt lại | ☐ |
+| E9 | `demo.giamdoc` đổi Mặt hàng về DEMO-HDK-03 → Lưu → **Duyệt** | **Đang dùng**, Người duyệt = demo.giamdoc. (Giám đốc sửa một dòng đang Đang dùng thì dòng giữ Đang dùng: coi như duyệt lại) | ☐ |
 
 ## F. Khác quy cách → chọn tay (kịch bản D)
 
@@ -215,16 +224,61 @@ Hợp đồng 2 giống mẫu Greentech:
 | K7 | **Tạo Hóa đơn mua nháp** | Hóa đơn 10 × 5.001, đối soát Đợt 3: **Khớp** (dung sai 1 đồng / đơn vị). Có thể hiện cảnh báo cam chuẩn của ERPNext "Rate must be same as Purchase Order / Purchase Receipt (5001.0 / 5000.0)": chỉ cảnh báo, không chặn | ☐ |
 | K8 | `demo.ketoan` **Nộp** hóa đơn K7 | Nộp được, không bị chặn "over limit" dù hóa đơn cao hơn thành tiền Đơn mua 0,02%. Lệch 2 đồng trở lên thì phiếu báo lệch giá và Đợt 3 báo Lệch như thường | ☐ |
 
-## L. Tắt công tắc
+## L. Kho nhận thiếu → Lệch PR-PI → hóa đơn điều chỉnh (kịch bản R)
+
+Đơn mua R đặt 44 Ống thông Foley; Kho chỉ nhận **42** (Phiếu nhập R). Hóa đơn R1 (số 00000018) vẫn ghi 44 × 12.500. NCC sau đó xuất hóa đơn điều chỉnh giảm R2 (số 00000019): −2 × 12.500.
+
+| # | Bước | Kết quả mong đợi | ☐ |
+|---|---|---|---|
+| L1 | `demo.nvmuahang` lập phiếu với **R1_lech_pr_pi.xml** | **Đã đối soát**. Tính chất hóa đơn **Hóa đơn gốc**. Tổng 550.000 / 55.000 / 605.000. Dòng: Tầng 3 - Đơn mua, Đã khớp | ☐ |
+| L2 | Bấm **Tạo Hóa đơn mua nháp** | Thông báo cam "Hóa đơn lệch Phiếu nhập mua ở 1 điểm (xem Bảng chênh lệch). Chưa Nộp được." rồi thông báo xanh "Đã tạo Hóa đơn mua nháp ACC-PINV-…". Phiếu → **Lệch PR-PI** (đỏ), dòng giới thiệu đỏ "Hóa đơn mua ACC-PINV-… lệch Phiếu nhập mua. Mở Hóa đơn mua, xem Bảng chênh lệch và xử lý theo nhánh; khớp lại thì phiếu tự về Đã tạo nháp hóa đơn mua." Dòng thời gian: "Hóa đơn mua ACC-PINV-… lệch Phiếu nhập mua: phiếu chuyển Lệch PR-PI." | ☐ |
+| L3 | Mở hóa đơn mua L2 | Nháp, 44 × 12.500. **Đối soát Phiếu nhập: Lệch**. Bảng chênh lệch 1 dòng: Dòng 1 · Số lượng · Phiếu nhập "42 Cái", Hóa đơn "44 Cái", mức lệch 2, gợi ý "(b1) Phiếu nhập mua sai". Vài giây sau, **Supply Notification Dispatch Log** có dòng **NTF-16** cho hóa đơn này (người nhận demo.nvmuahang; production thêm phòng Mua hàng) | ☐ |
+| L4 | Mở danh sách **Phiếu tiếp nhận hóa đơn NCC**, lọc Trạng thái = **Lệch PR-PI** | Thấy phiếu L1, nhãn đỏ. Đây là danh sách hóa đơn đang kẹt, không phải mở từng hóa đơn mua | ☐ |
+| L5 | Giả sử Kho nhận đúng 42 và NCC đồng ý xuất hóa đơn điều chỉnh. `demo.nvmuahang` lập phiếu với **R2_dieu_chinh_giam.xml** | **Đã đối soát**. Tính chất hóa đơn **Điều chỉnh**; mục **Hóa đơn bị thay thế / bị điều chỉnh**: Ký hiệu C26TDM, Số 00000018, Ngày hôm nay, Phiếu tiếp nhận của hóa đơn đó = phiếu L1, Hóa đơn mua của hóa đơn đó = hóa đơn L2. Tổng −25.000 / −2.500 / −27.500. Dòng: Số lượng −2, **Dòng hóa đơn gốc (STT)** 1, **Điều chỉnh theo** Số lượng, Cách khớp "Dòng hóa đơn gốc", Mặt hàng DEMO-HDK-01. Dòng giới thiệu xanh "Hóa đơn điều chỉnh của phiếu TNHD-…". Có nút **Lập lại Hóa đơn mua nháp (gốc + điều chỉnh)** và **Mở phiếu hóa đơn gốc**. Phiếu L1 vẫn Lệch PR-PI | ☐ |
+| L6 | `demo.nvmuahang` bấm **Lập lại Hóa đơn mua nháp (gốc + điều chỉnh)** → xác nhận | Hộp xác nhận "Hóa đơn mua nháp hiện có của hóa đơn gốc sẽ bị xóa và lập lại theo số sau điều chỉnh. Tiếp tục?". Bấm Có thì bị chặn: "Bạn không có quyền xóa Hóa đơn mua nháp ACC-PINV-…: nhờ Kế toán xóa rồi làm lại." Không có gì thay đổi | ☐ |
+| L7 | `demo.ketoantruong` mở phiếu L5, bấm lại nút đó → xác nhận | "Đã tạo Hóa đơn mua nháp ACC-PINV-…" (số có thể trùng số bản vừa xóa). Phiếu L1 và L5: **Đã tạo nháp hóa đơn mua**, cùng trỏ vào hóa đơn này. Phiếu L1, dòng 1: Số lượng sau điều chỉnh **42**, Đơn giá sau điều chỉnh 12.500, Thành tiền sau điều chỉnh 525.000, Hóa đơn điều chỉnh đã gộp "C26TDM 00000019 (Số lượng): số lượng -2, thành tiền -25.000". Dòng thời gian phiếu L5: "Gộp vào Hóa đơn mua nháp ACC-PINV-… của hóa đơn gốc TNHD-…" | ☐ |
+| L8 | Mở hóa đơn mua L7 | Số hóa đơn NCC **00000018** (số hóa đơn gốc); ô **Hóa đơn điều chỉnh đã gộp** "C26TDM 00000019 ngày dd-mm-yyyy (phiếu TNHD-…)". 42 × 12.500, tổng 525.000 / 52.500 / 577.500. **Đối soát Phiếu nhập: Khớp**. Đính kèm hai tệp R1_lech_pr_pi.xml và R2_dieu_chinh_giam.xml | ☐ |
+| L9 | `demo.ketoan` **Nộp** hóa đơn L8 | Nộp được, "Đã tạo đề nghị thanh toán nháp ACC-PRQ-…". Phiếu L1 và L5: **Đã ghi sổ** | ☐ |
+
+Hóa đơn gốc **đã ghi sổ** rồi mới có hóa đơn điều chỉnh (không có trong demo): phiếu điều chỉnh dừng ở Chờ xử lý thủ công, cảnh báo "Hóa đơn gốc … đã ghi sổ ở Hóa đơn mua …. Kế toán lập tay Hóa đơn mua trả hàng (điều chỉnh giảm) hoặc Hóa đơn mua bổ sung (điều chỉnh tăng), Số hóa đơn NCC ghi …; phiếu này tự nối vào chứng từ đó." Kế toán lập chứng từ (ví dụ từ hóa đơn gốc: **Tạo → Trả hàng / Ghi nợ**), ghi Số hóa đơn NCC = số hóa đơn điều chỉnh, Lưu: phiếu tự chuyển Đã tạo nháp hóa đơn mua, Nộp chứng từ đó thì Đã ghi sổ. Hóa đơn điều chỉnh đổi thuế suất, hoặc hóa đơn gốc nhập tay không qua phiếu: phiếu dừng ở Chờ xử lý thủ công, kế toán xử lý tay rồi **Từ chối** phiếu.
+
+## M. Hóa đơn thay thế (kịch bản S)
+
+Hóa đơn S1 (số 00000020, 60 × 12.500) có sai sót; NCC xuất hóa đơn S2 (số 00000021) thay thế S1, cùng ngày, cùng số tiền.
+
+| # | Bước | Kết quả mong đợi | ☐ |
+|---|---|---|---|
+| M1 | `demo.nvmuahang` lập phiếu với **S1_bi_thay_the.xml** → **Tạo Hóa đơn mua nháp** | Phiếu Đã đối soát rồi Đã tạo nháp hóa đơn mua; hóa đơn mua Khớp | ☐ |
+| M2 | Lập phiếu với **S2_thay_the.xml** | **Chờ xử lý thủ công**. Tính chất hóa đơn **Thay thế**, hóa đơn bị thay thế C26TDM 00000020, Phiếu tiếp nhận của hóa đơn đó = phiếu M1. Cảnh báo của phiếu: "Hóa đơn bị thay thế C26TDM 00000020 đang có Hóa đơn mua nháp ACC-PINV-… (phiếu TNHD-…): bấm Bỏ hóa đơn bị thay thế để xóa bản nháp đó; phiếu TNHD-… chuyển Từ chối." Không bị báo nghi trùng dù cùng ngày, cùng tổng tiền với S1. Có nút **Bỏ hóa đơn bị thay thế** | ☐ |
+| M3 | `demo.nvmuahang` bấm **Bỏ hóa đơn bị thay thế** → xác nhận. Sau đó `demo.ketoantruong` làm lại | `demo.nvmuahang`: "Bạn không có quyền xóa Hóa đơn mua nháp ACC-PINV-…: nhờ Kế toán xóa rồi làm lại." `demo.ketoantruong`: hóa đơn mua M1 bị xóa; phiếu S2 → **Đã đối soát**; phiếu M1 → **Từ chối**: "Hóa đơn đã bị thay thế bởi hóa đơn C26TDM 00000021 (phiếu TNHD-…)." | ☐ |
+| M4 | Mở phiếu M1: không còn nút Tạo Hóa đơn mua nháp. Trên phiếu S2 bấm **Tạo Hóa đơn mua nháp** | Hóa đơn mua Số hóa đơn NCC **00000021**, 60 × 12.500, Khớp | ☐ |
+| M5 | (Tùy chọn) `demo.ketoantruong` bấm **Từ chối** trên phiếu S2, lý do "NCC gửi nhầm hóa đơn thay thế" | Hóa đơn mua M4 bị xóa, phiếu S2 Từ chối tay; phiếu M1 tự mở lại về **Đã đối soát** | ☐ |
+
+Hóa đơn bị thay thế **đã ghi sổ**: phiếu thay thế dừng ở Chờ xử lý thủ công, cảnh báo "… đã ghi sổ ở Hóa đơn mua …: hủy hóa đơn mua đó (gỡ thanh toán, Đề nghị thanh toán nếu có) rồi Lưu lại phiếu này." Hủy xong, phiếu thay thế tự đối soát tiếp và phiếu cũ chuyển Từ chối. Hóa đơn bị thay thế chưa từng tiếp nhận: phiếu thay thế đi tiếp, chỉ ghi "Thay thế hóa đơn …; hóa đơn đó chưa có trên hệ thống."
+
+## N. Từ chối tay
+
+Dùng phiếu D4 (**N_ngoai_hdk.xml**, Đã đối soát). Giả sử NCC báo hủy hóa đơn này.
+
+| # | Bước | Kết quả mong đợi | ☐ |
+|---|---|---|---|
+| N1 | `demo.nvmuahang` mở phiếu D4 → **Từ chối**. Để trống Lý do từ chối → Từ chối; rồi nhập "NCC báo hủy hóa đơn, sẽ xuất lại" → **Từ chối** | Để trống: không gửi được (ô bắt buộc). Có lý do: phiếu **Từ chối** (đỏ), dòng giới thiệu "Từ chối tay bởi … : NCC báo hủy hóa đơn, sẽ xuất lại"; hiện Người từ chối, Thời điểm từ chối. Ô tệp và dòng hàng khóa. Có nút **Mở lại**, không còn nút Từ chối | ☐ |
+| N2 | Bấm **Lưu** (hoặc sửa ô khác rồi Lưu) | Vẫn Từ chối: Lưu không tính lại phiếu Từ chối tay | ☐ |
+| N3 | Bấm **Mở lại** | **Đã đối soát**; ô lý do, người, thời điểm từ chối trống. Dòng thời gian ghi "Từ chối tay: …" và "Mở lại phiếu đã Từ chối tay." | ☐ |
+| N4 | **Tạo Hóa đơn mua nháp** từ phiếu D4. `demo.nvmuahang` bấm **Từ chối** | Hộp thoại có dòng đỏ "Hóa đơn mua nháp ACC-PINV-… của phiếu sẽ bị xóa." Bấm Từ chối: "Bạn không có quyền xóa Hóa đơn mua nháp …: nhờ Kế toán xóa rồi làm lại." | ☐ |
+| N5 | `demo.ketoantruong` làm lại N4 | Hóa đơn mua bị xóa, phiếu Từ chối tay (người từ chối demo.ketoantruong) | ☐ |
+| N6 | Mở phiếu C1 (Đã ghi sổ ở C5) | Không có nút Từ chối. Muốn từ chối phải hủy hóa đơn mua trước | ☐ |
+
+## O. Tắt công tắc
 
 Làm sau cùng.
 
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
-| L1 | Administrator bỏ tích **Bật tiếp nhận hóa đơn** → Lưu. Mở phiếu F1 → Lưu | Bị chặn: "Tiếp nhận hóa đơn đang tắt (Cài đặt tiếp nhận hóa đơn)." Bật lại sau khi thử | ☐ |
-| L2 | Ở `sites` chạy `../env/bin/python ../apps/erpnext/scripts/demo_tiep_nhan_hoa_don.py --site erpnext.localhost --tra-lai` | In các cài đặt được trả về như trước lần chạy demo đầu (MST người mua, vai trò duyệt…). Dữ liệu demo giữ nguyên | ☐ |
+| O1 | Administrator bỏ tích **Bật tiếp nhận hóa đơn** → Lưu. Mở phiếu F1 → Lưu | Bị chặn: "Tiếp nhận hóa đơn đang tắt (Cài đặt tiếp nhận hóa đơn)." Bật lại sau khi thử | ☐ |
+| O2 | Ở `sites` chạy `../env/bin/python ../apps/erpnext/scripts/demo_tiep_nhan_hoa_don.py --site erpnext.localhost --tra-lai` | In các cài đặt được trả về như trước lần chạy demo đầu (MST người mua, vai trò duyệt…). Dữ liệu demo giữ nguyên | ☐ |
 
-## M. Xử lý sự cố thường gặp
+## P. Xử lý sự cố thường gặp
 
 | Hiện tượng | Nguyên nhân | Cách xử lý |
 |---|---|---|
@@ -239,4 +293,6 @@ Làm sau cùng.
 | Nộp Đơn khung báo thiếu một trường mà hợp đồng của NCC này không có | Danh sách trường bắt buộc ở Cài đặt áp cho mọi hợp đồng | System Manager bỏ trường đó khỏi danh sách (Cài đặt tiếp nhận hóa đơn NCC → Chọn trường bắt buộc khi Nộp hợp đồng khung), hoặc ghi "Không có" vào ô |
 | Hợp đồng của NCC có điều khoản không có ô riêng | Điều khoản riêng không phải trường cố định | Ghi vào Chi tiết điều khoản và điều kiện; lập Mẫu điều khoản cho NCC đó để dùng lại. Cần lọc / báo cáo theo một điều khoản thì quản trị thêm trường bằng Customize Form và chọn bắt buộc ở Cài đặt nếu cần |
 | Phụ lục báo "Phụ lục đổi giá mặt hàng … phải có Từ ngày sau Từ ngày của hợp đồng gốc" | Phụ lục đổi giá cùng ngày bắt đầu với hợp đồng gốc | Đặt Từ ngày của phụ lục là ngày giá mới có hiệu lực |
+| Không bấm được Lập lại Hóa đơn mua nháp / Bỏ hóa đơn bị thay thế / Từ chối phiếu có bản nháp: "Bạn không có quyền xóa Hóa đơn mua nháp …" | Các nút này xóa Hóa đơn mua nháp, cần quyền xóa Hóa đơn mua | Người có quyền xóa (demo: `demo.ketoantruong`) bấm; hoặc Kế toán xóa hóa đơn nháp trước, phiếu tự tính lại |
+| Phiếu điều chỉnh "Chọn Dòng hóa đơn gốc (STT 1 – n) mà dòng này điều chỉnh." | Không nhận ra dòng gốc theo mã / tên, hóa đơn gốc có nhiều dòng | Nhập STT dòng của hóa đơn gốc vào ô Dòng hóa đơn gốc → Lưu; kiểm ô Điều chỉnh theo (Số lượng / Đơn giá) |
 | Hóa đơn của hợp đồng giá gồm VAT bị phiếu và Đợt 3 báo lệch đơn giá | Lệch hơn 1 đồng trên đơn giá hóa đơn (trong 1 đồng thì đã được bỏ qua) | Kiểm hóa đơn với NCC; giám đốc duyệt cảnh báo trên phiếu, Kế toán trưởng duyệt ngoại lệ ở Đợt 3 nếu chấp nhận |

@@ -3,7 +3,8 @@
 """Phiếu tiếp nhận hóa đơn NCC: đọc tệp, kiểm, đối soát 4 tầng (spec 2026-10-23 mục 4, 5; FRD mục 10).
 
 Chạy trong `validate` của phiếu, mỗi lần Lưu tính lại từ đầu (dòng Chọn tay giữ lựa chọn của người
-dùng). Khi đã có Hóa đơn mua nháp / đã ghi sổ thì phiếu khóa, không tính lại.
+dùng). Khi đã có Hóa đơn mua nháp / đã ghi sổ hoặc bị Từ chối tay thì phiếu khóa, không tính lại.
+Hóa đơn thay thế / điều chỉnh: `hoa_don_lien_quan`.
 """
 
 import hashlib
@@ -15,6 +16,7 @@ from frappe.query_builder import Order
 from frappe.query_builder.functions import Sum
 from frappe.utils import flt, fmt_money, getdate, now_datetime, today
 
+from erpnext.accounts.doi_soat_pr_pi.doi_soat import LECH
 from erpnext.buying.tiep_nhan_hoa_don.cau_hinh import bo_chuan_hoa, cai_dat, co_quyen_duyet_lech_gia
 from erpnext.buying.tiep_nhan_hoa_don.chuan_hoa import bo_dau
 from erpnext.buying.tiep_nhan_hoa_don.doc_xml import HANG_HOA, LoiDocHoaDon, chuan_mst, doc_hoa_don_xml
@@ -25,25 +27,40 @@ DA_TRICH_XUAT = "Đã trích xuất"
 DA_DOI_SOAT = "Đã đối soát"
 CHO_XU_LY = "Chờ xử lý thủ công"
 DA_TAO_HD = "Đã tạo nháp hóa đơn mua"
+LECH_PR_PI = "Lệch PR-PI"  # ST-05a: Hóa đơn mua nháp lệch Phiếu nhập (đối soát Đợt 3)
 DA_GHI_SO = "Đã ghi sổ"
 TU_CHOI = "Từ chối"
+CO_HOA_DON = (DA_TAO_HD, LECH_PR_PI, DA_GHI_SO)
+
+HD_GOC = "Hóa đơn gốc"
+THAY_THE = "Thay thế"
+DIEU_CHINH = "Điều chỉnh"
 
 TANG_1 = "Tầng 1 - Mã"
 TANG_2 = "Tầng 2 - Ánh xạ tên"
 TANG_3 = "Tầng 3 - Đơn mua"
 CHON_TAY = "Chọn tay"
+DONG_GOC = "Dòng hóa đơn gốc"  # dòng hóa đơn điều chỉnh: theo dòng hóa đơn gốc nó điều chỉnh
 
 DA_KHOP = "Đã khớp"
 CHO_XAC_NHAN = "Chờ xác nhận"
 CHUA_KHOP = "Chưa khớp"
 
 TRUONG_DUYET = ("ly_do_duyet", "nguoi_duyet", "thoi_diem_duyet", "dau_van_tay_canh_bao")
+TRUONG_TU_CHOI_TAY = ("tu_choi_tay", "nguoi_tu_choi", "thoi_diem_tu_choi")
 DUNG_SAI_TIEN = 0.5  # VND: hóa đơn ghi đến đồng, giá trên chứng từ có thể có phần lẻ
 
 
 def xu_ly(doc):
 	"""`validate` của Supplier Invoice Intake."""
-	if doc.trang_thai in (DA_TAO_HD, DA_GHI_SO) and doc.purchase_invoice:
+	# hoa_don_lien_quan dùng hằng và hàm của module này: nhập ở đây để tránh vòng import.
+	from erpnext.buying.tiep_nhan_hoa_don import hoa_don_lien_quan
+
+	_giu_truong_khoa(doc)
+	if doc.trang_thai in CO_HOA_DON and doc.purchase_invoice:
+		return
+	if doc.tu_choi_tay:
+		doc.trang_thai = TU_CHOI
 		return
 	c = cai_dat()
 	canh_bao = []
@@ -55,16 +72,46 @@ def xu_ly(doc):
 		return
 
 	_tim_ncc(doc, canh_bao)
-	if _tu_choi(doc, c, canh_bao):
+	if _tu_choi(doc, c, canh_bao, hoa_don_lien_quan.ly_do_bi_thay_the(doc)):
 		doc.canh_bao = "\n".join(canh_bao)
 		return
 	doc.ly_do_tu_choi = None
 	_kiem_so_hoc(doc, canh_bao)
+	chan = hoa_don_lien_quan.kiem(doc, canh_bao)
 	_kiem_nghi_trung(doc, canh_bao)
-	if doc.supplier:
+	if doc.supplier and doc.tinh_chat_hoa_don == DIEU_CHINH:
+		chan = hoa_don_lien_quan.khop_dieu_chinh(doc, c, canh_bao) or chan
+	elif doc.supplier:
+		chan = hoa_don_lien_quan.ap_dieu_chinh(doc, canh_bao) or chan
 		DoiSoat(doc, c).chay()
 	doc.canh_bao = "\n".join(canh_bao)
-	_ghi_trang_thai(doc)
+	_ghi_trang_thai(doc, chan)
+	if doc.purchase_invoice and doc.tinh_chat_hoa_don == DIEU_CHINH:
+		# Hóa đơn điều chỉnh vừa nối vào Hóa đơn mua kế toán lập tay (hóa đơn gốc đã ghi sổ).
+		doc.trang_thai = trang_thai_theo_hoa_don(doc.purchase_invoice) or CHO_XU_LY
+
+
+def trang_thai_theo_hoa_don(ten):
+	"""ST-05 / ST-05a / ST-06 của phiếu theo Hóa đơn mua nó trỏ tới; None khi hóa đơn đã hủy."""
+	hd = frappe.db.get_value("Purchase Invoice", ten, ["docstatus", "trang_thai_doi_soat_pr"], as_dict=True)
+	if not hd or hd.docstatus == 2:
+		return None
+	if hd.docstatus == 1:
+		return DA_GHI_SO
+	return LECH_PR_PI if hd.trang_thai_doi_soat_pr == LECH else DA_TAO_HD
+
+
+def _giu_truong_khoa(doc):
+	"""Phê duyệt cảnh báo và Từ chối tay chỉ đổi qua `duyet_canh_bao` / `tu_choi` / `mo_lai`: giá trị
+	gửi lên từ form, API hay import bị trả về giá trị đang lưu."""
+	truoc = doc.get_doc_before_save()
+	khoa = [] if doc.flags.get("duyet_canh_bao") else list(TRUONG_DUYET)
+	if not doc.flags.get("tu_choi_tay"):
+		khoa += TRUONG_TU_CHOI_TAY
+		if truoc and truoc.tu_choi_tay:
+			khoa.append("ly_do_tu_choi")
+	for f in khoa:
+		doc.set(f, truoc.get(f) if truoc else None)
 
 
 # --- Đọc tệp ----------------------------------------------------------------------
@@ -88,6 +135,7 @@ def _doc_tep(doc):
 		frappe.msgprint(str(e), title=_("Chưa đọc được hóa đơn"), indicator="red")
 		return False
 
+	lq = kq["lien_quan"] if kq["lien_quan"]["tinh_chat"] else {}
 	doc.update(
 		{
 			"tep_da_doc": doc.tep_hoa_don,
@@ -103,6 +151,10 @@ def _doc_tep(doc):
 			"tong_tien_hang": kq["tong_tien_hang"],
 			"tien_thue": kq["tien_thue"],
 			"tong_thanh_toan": kq["tong_thanh_toan"],
+			"tinh_chat_hoa_don": lq.get("tinh_chat") or HD_GOC,
+			"ky_hieu_lien_quan": lq.get("ky_hieu"),
+			"so_hoa_don_lien_quan": lq.get("so_hoa_don"),
+			"ngay_hoa_don_lien_quan": getdate(lq["ngay"]) if lq.get("ngay") else None,
 			"trang_thai": DA_TRICH_XUAT,
 			"supplier": None,
 			"purchase_order": None,
@@ -165,9 +217,10 @@ def _tim_ncc(doc, canh_bao):
 		canh_bao.append(_("Không có nhà cung cấp nào mang MST {0}. Chọn Nhà cung cấp.").format(mst))
 
 
-def _tu_choi(doc, c, canh_bao):
-	"""FR-16 (sai người mua) và BR-08 / TC-11 (đã tiếp nhận): dừng, không đối soát."""
-	ly_do = None
+def _tu_choi(doc, c, canh_bao, bi_thay_the=None):
+	"""FR-16 (sai người mua), BR-08 / TC-11 (đã tiếp nhận) và hóa đơn đã bị thay thế: dừng, không
+	đối soát."""
+	ly_do = bi_thay_the
 	mst = c.mst_nguoi_mua or frappe.db.get_value("Company", doc.company, "tax_id")
 	if not mst:
 		canh_bao.append(
@@ -175,7 +228,7 @@ def _tu_choi(doc, c, canh_bao):
 				"Chưa cài MST người mua (Cài đặt tiếp nhận hóa đơn hoặc MST công ty): chưa kiểm được người mua."
 			)
 		)
-	elif chuan_mst(doc.mst_nguoi_mua) != chuan_mst(mst):
+	elif not ly_do and chuan_mst(doc.mst_nguoi_mua) != chuan_mst(mst):
 		ly_do = _("MST người mua trên hóa đơn ({0}) khác MST của công ty ({1}).").format(
 			doc.mst_nguoi_mua or "-", mst
 		)
@@ -196,7 +249,9 @@ def _tu_choi(doc, c, canh_bao):
 			ly_do = _("Hóa đơn {0} {1} đã được tiếp nhận ở phiếu {2}.").format(
 				doc.ky_hieu, doc.so_hoa_don, trung[0]
 			)
-		elif doc.supplier:
+		elif doc.supplier and doc.tinh_chat_hoa_don != DIEU_CHINH:
+			# Hóa đơn điều chỉnh: Hóa đơn mua mang số của nó là chứng từ kế toán lập tay cho nó
+			# (hoa_don_lien_quan.kiem nối vào), không phải trùng.
 			hd = frappe.get_all(
 				"Purchase Invoice",
 				filters={
@@ -250,11 +305,14 @@ def _kiem_so_hoc(doc, canh_bao):
 def _kiem_nghi_trung(doc, canh_bao):
 	"""FR-17: cùng NCC, cùng ngày, cùng tổng tiền với hóa đơn khác (khác số) thì nghi ghi nhận trùng."""
 	khac = []
+	if doc.tinh_chat_hoa_don == DIEU_CHINH:
+		doc.nghi_trung = doc.da_kiem_khong_trung = 0  # chỉ ghi phần chênh, không phải bản sao
+		return
 	if doc.mst_nguoi_ban and doc.ngay_hoa_don:
 		khac = frappe.get_all(
 			"Supplier Invoice Intake",
 			filters={
-				"name": ("!=", doc.name or ""),
+				"name": ("not in", [doc.name or "", doc.phieu_lien_quan or ""]),
 				"trang_thai": ("!=", TU_CHOI),
 				"mst_nguoi_ban": doc.mst_nguoi_ban,
 				"ngay_hoa_don": doc.ngay_hoa_don,
@@ -270,7 +328,7 @@ def _kiem_nghi_trung(doc, canh_bao):
 				"bill_date": doc.ngay_hoa_don,
 				"grand_total": doc.tong_thanh_toan,
 				"docstatus": ("<", 2),
-				"name": ("!=", doc.purchase_invoice or ""),
+				"name": ("not in", [doc.purchase_invoice or "", doc.hoa_don_mua_lien_quan or ""]),
 			},
 			pluck="name",
 		)
@@ -293,6 +351,15 @@ def _tien(x):
 def _so(x):
 	"""Số lượng theo định dạng số của hệ thống (120, 1.880), không in 120.0."""
 	return frappe.format_value(flt(x), {"fieldtype": "Float"})
+
+
+def so_luong(row):
+	"""Số lượng dùng để đối soát và lập hóa đơn: sau điều chỉnh nếu có hóa đơn điều chỉnh đã gộp."""
+	return flt(row.so_luong_sau_dc) if row.get("dieu_chinh") else flt(row.so_luong)
+
+
+def don_gia(row):
+	return flt(row.don_gia_sau_dc) if row.get("dieu_chinh") else flt(row.don_gia)
 
 
 # --- Đối soát 4 tầng -----------------------------------------------------------------
@@ -404,6 +471,11 @@ class DoiSoat:
 			for f in ("cach_khop", "diem_khop", "blanket_order", "ma_dong_hdk", "canh_bao", "canh_bao_chan"):
 				row.set(f, None)
 			ghi_chu = []
+			if row.get("dieu_chinh") and not so_luong(row):
+				# Điều chỉnh giảm hết số lượng: không còn gì để khớp, không lập hóa đơn cho dòng này.
+				row.trang_thai_dong = DA_KHOP
+				row.canh_bao = _("Đã điều chỉnh giảm hết số lượng: không lập hóa đơn cho dòng này.")
+				continue
 			if row.chon_tay and row.item_code:
 				self._khop_tay(row)
 			else:
@@ -471,12 +543,9 @@ class DoiSoat:
 		if not item:
 			ung_vien = []
 			for p in self._dong_po_uu_tien():
-				if (
-					not self._cung_dvt(row.dvt_hd, p.uom)
-					or abs(flt(row.don_gia) - flt(p.rate)) > DUNG_SAI_TIEN
-				):
+				if not self._cung_dvt(row.dvt_hd, p.uom) or abs(don_gia(row) - flt(p.rate)) > DUNG_SAI_TIEN:
 					continue
-				if self._con_lai(p) + 1e-9 < flt(row.so_luong) * (flt(p.conversion_factor) or 1):
+				if self._con_lai(p) + 1e-9 < so_luong(row) * (flt(p.conversion_factor) or 1):
 					continue
 				ten_ss = self._ten_doi_chieu(p.item_code, p.blanket_order) if p.blanket_order else p.item_name
 				if self.bo.khoa_quy_cach(ten_ss) != khoa:
@@ -534,7 +603,7 @@ class DoiSoat:
 		"""Chọn dòng Đơn mua cho mặt hàng đã nhận ra: ưu tiên Đơn mua trên dòng / trên phiếu, rồi dòng
 		còn đúng bằng số lượng hóa đơn, rồi đơn cũ nhất còn đủ."""
 		if not dong_po:
-			sl = flt(row.so_luong)
+			sl = so_luong(row)
 			ung_vien = [p for p in self.don_mua if p.item_code == row.item_code and self._con_lai(p) > 0]
 			if row.purchase_order and row.chon_tay:
 				ung_vien = [p for p in ung_vien if p.parent == row.purchase_order]
@@ -545,7 +614,7 @@ class DoiSoat:
 			dong_po = (dung if len(dung) == 1 else du or ung_vien or [None])[0]
 		if dong_po:
 			row.purchase_order, row.po_detail = dong_po.parent, dong_po.name
-			self.da_phan[dong_po.name] = flt(self.da_phan.get(dong_po.name)) + flt(row.so_luong) * (
+			self.da_phan[dong_po.name] = flt(self.da_phan.get(dong_po.name)) + so_luong(row) * (
 				flt(dong_po.conversion_factor) or 1
 			)
 		else:
@@ -592,7 +661,7 @@ class DoiSoat:
 				gia_hdk = flt(h.gia_chua_vat) * cf
 				# Giá gồm VAT: 1 đồng trên đơn giá hóa đơn, như đối soát Đợt 3 (D4-12).
 				nguong = DUNG_SAI_GIA_GOM_VAT if h.gia_gom_vat else DUNG_SAI_TIEN * cf
-				if abs(flt(row.don_gia) - gia_hdk) > nguong:
+				if abs(don_gia(row) - gia_hdk) > nguong:
 					goc = (
 						_(" (chưa VAT; hợp đồng ghi {0} đã gồm VAT {1})").format(
 							_tien(flt(h.rate) * cf), h.thue_suat
@@ -603,18 +672,18 @@ class DoiSoat:
 					ghi_chu.append(
 						(
 							_("Đơn giá {0} khác giá hợp đồng khung {1}{2} ({3}).").format(
-								_tien(row.don_gia), _tien(gia_hdk), goc, h.ma_dong_hdk
+								_tien(don_gia(row)), _tien(gia_hdk), goc, h.ma_dong_hdk
 							),
 							True,
 						)
 					)
 				con = flt(h.qty) - flt(h.da_lap_hoa_don)
 				# Số lượng 0: hợp đồng không cam kết số lượng, không có hạn mức.
-				if flt(h.qty) and flt(row.so_luong) * cf > con + 1e-9:
+				if flt(h.qty) and so_luong(row) * cf > con + 1e-9:
 					ghi_chu.append(
 						(
 							_("Vượt hạn mức hợp đồng khung: còn {0}, hóa đơn {1} (ĐVT kho).").format(
-								_so(con), _so(flt(row.so_luong) * cf)
+								_so(con), _so(so_luong(row) * cf)
 							),
 							True,
 						)
@@ -644,7 +713,8 @@ def van_tay(doc):
 	return hashlib.sha1(json.dumps(chan, ensure_ascii=False).encode()).hexdigest()[:20] if chan else None
 
 
-def _ghi_trang_thai(doc):
+def _ghi_trang_thai(doc, chan=False):
+	"""`chan`: điều kiện đầu phiếu chưa thỏa (hóa đơn thay thế / điều chỉnh) — không duyệt cho qua được."""
 	dau = van_tay(doc)
 	duyet = doc.flags.get("duyet_canh_bao")
 	if duyet and dau:
@@ -662,7 +732,8 @@ def _ghi_trang_thai(doc):
 			doc.set(f, None)
 	da_duyet = bool(dau and doc.nguoi_duyet and doc.dau_van_tay_canh_bao == dau)
 	xong = (
-		doc.supplier
+		not chan
+		and doc.supplier
 		and doc.items
 		and all(r.trang_thai_dong == DA_KHOP for r in doc.items)
 		and (not dau or da_duyet)
@@ -670,6 +741,8 @@ def _ghi_trang_thai(doc):
 		and (not doc.nghi_trung or doc.da_kiem_khong_trung)
 	)
 	doc.trang_thai = DA_DOI_SOAT if xong else CHO_XU_LY
+	# Hóa đơn điều chỉnh xử lý xong thì phiếu hóa đơn gốc gộp được nó (hoa_don_lien_quan.ap_dieu_chinh).
+	doc.dieu_chinh_hop_le = 1 if xong and doc.tinh_chat_hoa_don == DIEU_CHINH else 0
 
 
 @frappe.whitelist()
@@ -682,7 +755,7 @@ def duyet_canh_bao(phieu, ly_do):
 		frappe.throw(_("Bạn không có vai trò duyệt lệch giá / vượt hạn mức."), frappe.PermissionError)
 	doc = frappe.get_doc("Supplier Invoice Intake", phieu)
 	doc.check_permission("read")
-	if doc.trang_thai in (DA_TAO_HD, DA_GHI_SO, TU_CHOI):
+	if doc.trang_thai in (*CO_HOA_DON, TU_CHOI):
 		frappe.throw(_("Phiếu đang ở trạng thái {0}, không duyệt được.").format(doc.trang_thai))
 	if not van_tay(doc):
 		frappe.throw(_("Phiếu không có cảnh báo cần duyệt."))
@@ -690,3 +763,68 @@ def duyet_canh_bao(phieu, ly_do):
 	doc.flags.ignore_permissions = True
 	doc.save()
 	return doc.trang_thai
+
+
+# --- Từ chối tay ------------------------------------------------------------------------
+
+
+@frappe.whitelist()
+def tu_choi(phieu, ly_do):
+	"""Từ chối phiếu bằng tay (hóa đơn NCC hủy, không phải của Miyano, gửi nhầm...). Phiếu đang có Hóa
+	đơn mua nháp thì xóa bản nháp đó (cần quyền xóa Hóa đơn mua); đã ghi sổ thì phải hủy trước."""
+	ly_do = (ly_do or "").strip()
+	if not ly_do:
+		frappe.throw(_("Nhập lý do từ chối."))
+	doc = frappe.get_doc("Supplier Invoice Intake", phieu)
+	doc.check_permission("write")
+	if doc.tu_choi_tay:
+		frappe.throw(_("Phiếu đã bị Từ chối."))
+	if doc.purchase_invoice:
+		trang_thai_hd = frappe.db.get_value("Purchase Invoice", doc.purchase_invoice, "docstatus")
+		if trang_thai_hd == 1:
+			frappe.throw(
+				_("Phiếu đã ghi sổ ở Hóa đơn mua {0}: hủy hóa đơn đó trước rồi mới Từ chối.").format(
+					doc.purchase_invoice
+				)
+			)
+		if trang_thai_hd == 0:
+			xoa_hoa_don_nhap(doc.purchase_invoice)
+			doc.reload()
+	doc.flags.tu_choi_tay = True
+	doc.update(
+		{
+			"tu_choi_tay": 1,
+			"ly_do_tu_choi": ly_do,
+			"nguoi_tu_choi": frappe.session.user,
+			"thoi_diem_tu_choi": now_datetime(),
+		}
+	)
+	doc.save()
+	doc.add_comment("Info", _("Từ chối tay: {0}").format(ly_do))
+	return doc.trang_thai
+
+
+@frappe.whitelist()
+def mo_lai(phieu):
+	"""Bỏ Từ chối tay: phiếu được kiểm và đối soát lại từ đầu."""
+	doc = frappe.get_doc("Supplier Invoice Intake", phieu)
+	doc.check_permission("write")
+	if not doc.tu_choi_tay:
+		frappe.throw(
+			_("Chỉ mở lại được phiếu Từ chối tay. Phiếu do hệ thống từ chối: sửa nguyên nhân rồi Lưu lại.")
+		)
+	doc.flags.tu_choi_tay = True
+	doc.update({f: None for f in (*TRUONG_TU_CHOI_TAY, "ly_do_tu_choi")})
+	doc.save()
+	doc.add_comment("Info", _("Mở lại phiếu đã Từ chối tay."))
+	return doc.trang_thai
+
+
+def xoa_hoa_don_nhap(ten):
+	"""Xóa Hóa đơn mua nháp do phiếu tiếp nhận lập, theo quyền xóa của người đang thao tác."""
+	if not frappe.has_permission("Purchase Invoice", "delete", ten):
+		frappe.throw(
+			_("Bạn không có quyền xóa Hóa đơn mua nháp {0}: nhờ Kế toán xóa rồi làm lại.").format(ten),
+			frappe.PermissionError,
+		)
+	frappe.delete_doc("Purchase Invoice", ten)
