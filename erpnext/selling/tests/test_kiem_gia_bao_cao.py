@@ -80,6 +80,21 @@ class TestDoiSoatTheoSO(KiemChungTuCase):
 		khop.submit()
 		self.assertEqual([r.sales_order for r in self.chay(chi_lech=1)], [self.so_a.name])
 
+	def test_sales_user_can_open_the_report(self):
+		user = frappe.get_doc(
+			{
+				"doctype": "User",
+				"email": f"_kg_nvbh_{self.sfx}@example.com",
+				"first_name": "Nhân viên bán hàng",
+				"send_welcome_email": 0,
+				"roles": [{"role": "Sales User"}],
+			}
+		).insert(ignore_permissions=True)
+		self.addCleanup(frappe.set_user, "Administrator")
+		frappe.set_user(user.name)
+
+		self.assertTrue(frappe.get_doc("Report", "Doi Soat Gia Mua Gia Ban").is_permitted())
+
 	def test_q1_who_entered_the_acceptance_and_when(self):
 		r = self.chay()[0]
 
