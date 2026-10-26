@@ -77,6 +77,13 @@ class TestValidate(FrappeTestCase):
 		self.assertTrue(has(p.warnings, "Intranet Post", "custom"))
 		self.assertEqual(p.errors, [])
 
+	def test_frappe_doctype_outside_matrix_is_warning(self):
+		m = matrix_with({"ToDo": DocTypeEntry(state="keep_standard")})
+		p = validate(m, site_with(dt("ToDo"), dt("DuckDB Sync", app="frappe"), dt("Note", app="hrms")))
+		self.assertTrue(has(p.warnings, "DuckDB Sync", "frappe"))
+		self.assertFalse(has(p.errors, "DuckDB Sync"))
+		self.assertTrue(has(p.errors, "Note", "9.3.1"))
+
 	def test_matrix_doctype_missing_on_site_is_warning(self):
 		m = matrix_with({"Ghost": DocTypeEntry(state="g1_only")})
 		p = validate(m, site_with())

@@ -101,6 +101,13 @@ class _Checker:
 				self.warn(
 					name, "9.3.1", "DocType tạo tay trên site (custom), ngoài ma trận — giữ quyền đang có"
 				)
+			elif info.app == "frappe":
+				# a framework DocType of another frappe release — not business data; the sync leaves it as shipped
+				self.warn(
+					name,
+					"9.3.1",
+					"DocType của frappe chưa có trong ma trận (frappe khác bản?) — giữ quyền chuẩn",
+				)
 			else:
 				self.err(name, "9.3.1", "DocType trên site chưa có trong ma trận")
 		for name in self.m.doctypes:
