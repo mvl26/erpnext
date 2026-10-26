@@ -949,6 +949,15 @@
 		"Notification Log": {
 			"state": "keep_standard"
 		},
+		"Notification Type": {
+			"state": "keep_standard"
+		},
+		"Web Form Request": {
+			"state": "keep_standard"
+		},
+		"DuckDB Sync": {
+			"state": "keep_standard"
+		},
 		"Notification Settings": {
 			"state": "keep_standard"
 		},
