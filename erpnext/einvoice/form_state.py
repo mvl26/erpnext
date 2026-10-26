@@ -428,6 +428,8 @@ def get_delivery_note_state(delivery_note):
 	"""
 	if not frappe.db.exists("Delivery Note", delivery_note):
 		return {"documents": [], "message": ""}
+	# H6: get_all bên dưới không kiểm quyền — người gọi phải đọc được phiếu giao mình đang mở.
+	frappe.has_permission("Delivery Note", "read", delivery_note, throw=True)
 
 	sales_invoices = sorted(
 		{

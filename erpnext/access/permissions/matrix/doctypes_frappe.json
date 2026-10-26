@@ -1,0 +1,1127 @@
+{
+	"doctypes": {
+		"User": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW W1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"roles",
+						"role_profile_name",
+						"block_modules",
+						"sb_allow_modules",
+						"modules_html",
+						"user_type",
+						"api_key",
+						"api_secret",
+						"generate_keys",
+						"restrict_ip",
+						"login_after",
+						"login_before",
+						"third_party_authentication",
+						"user_emails",
+						"reset_password_key",
+						"last_reset_password_key_generated_on",
+						"sb1",
+						"sb2"
+					],
+					"read": [],
+					"write": [
+						"SYS"
+					]
+				}
+			},
+			"keep_standard_rows": [
+				"Desk User"
+			]
+		},
+		"Role Profile": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD W1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"roles"
+					],
+					"read": [],
+					"write": [
+						"SYS"
+					]
+				}
+			}
+		},
+		"Role": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD"
+			}
+		},
+		"Module Profile": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD"
+			}
+		},
+		"Custom DocPerm": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD"
+			}
+		},
+		"User Permission": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD"
+			}
+		},
+		"Custom Role": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD"
+			}
+		},
+		"Role Permission for Page and Report": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW"
+			}
+		},
+		"DocType": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Customize Form": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"DEV": "R"
+			}
+		},
+		"Custom Field": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Property Setter": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Client Script": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Server Script": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Print Format": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Print Format Field Template": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Print Style": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Workflow": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Workflow State": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Workflow Action Master": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Notification": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Assignment Rule": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Auto Email Report": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Webhook": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Email Account": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Email Domain": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Email Rule": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"System Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"DEV": "R"
+			}
+		},
+		"Security Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"DEV": "R"
+			}
+		},
+		"Print Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"DEV": "R"
+			}
+		},
+		"Network Printer Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Document Naming Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"DEV": "R"
+			}
+		},
+		"Document Naming Rule": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Scheduled Job Type": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Scheduler Event": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Log Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"DEV": "R"
+			}
+		},
+		"OAuth Client": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"OAuth Provider Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"DEV": "R"
+			}
+		},
+		"Connected App": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Social Login Key": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"LDAP Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"DEV": "R"
+			}
+		},
+		"Translation": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"User Group": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"User Type": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"DEV": "R"
+			}
+		},
+		"Navbar Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"DEV": "R"
+			}
+		},
+		"Session Default Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"DEV": "R"
+			}
+		},
+		"Global Search Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"DEV": "R"
+			}
+		},
+		"Letter Head": {
+			"state": "ref_master",
+			"perms": {
+				"SYS": "CRW",
+				"AM": "R",
+				"HM": "R",
+				"SM": "R",
+				"PM": "R"
+			}
+		},
+		"Email Template": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW",
+				"AM": "R",
+				"HM": "R",
+				"SM": "R",
+				"PM": "R"
+			}
+		},
+		"Report": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW"
+			}
+		},
+		"Prepared Report": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD",
+				"PRU": "R"
+			}
+		},
+		"Auto Repeat": {
+			"state": "matrix",
+			"perms": {
+				"AM": "CRW",
+				"SYS": "R"
+			}
+		},
+		"Data Import": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD"
+			}
+		},
+		"Data Import Log": {
+			"state": "matrix",
+			"perms": {
+				"AM": "CRW",
+				"HM": "CRW",
+				"IM": "CRW",
+				"PM": "CRW",
+				"SM": "CRW",
+				"SYS": "CRWD"
+			},
+			"scope": {
+				"AM": "o",
+				"HM": "o",
+				"IM": "o",
+				"PM": "o",
+				"SM": "o"
+			}
+		},
+		"Data Export": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW"
+			}
+		},
+		"Bulk Update": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW"
+			}
+		},
+		"Deleted Document": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R"
+			}
+		},
+		"Version": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"VW": "R"
+			}
+		},
+		"Access Log": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"VW": "R"
+			}
+		},
+		"Activity Log": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"VW": "R"
+			}
+		},
+		"View Log": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"VW": "R"
+			}
+		},
+		"Audit Trail": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"VW": "R"
+			}
+		},
+		"Permission Inspector": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW"
+			}
+		},
+		"Error Log": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"DEV": "R"
+			}
+		},
+		"Scheduled Job Log": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"DEV": "R"
+			}
+		},
+		"RQ Job": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"DEV": "R"
+			}
+		},
+		"RQ Worker": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"DEV": "R"
+			}
+		},
+		"Submission Queue": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"DEV": "R"
+			}
+		},
+		"Integration Request": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"DEV": "R"
+			}
+		},
+		"Webhook Request Log": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"DEV": "R"
+			}
+		},
+		"Email Queue": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"DEV": "R"
+			}
+		},
+		"Unhandled Email": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"DEV": "R"
+			}
+		},
+		"DocShare": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R"
+			}
+		},
+		"Document Share Key": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R"
+			}
+		},
+		"Dashboard": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW",
+				"WSM": "CRW"
+			},
+			"keep_standard_rows": [
+				"Desk User"
+			]
+		},
+		"Dashboard Chart": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW",
+				"WSM": "CRW"
+			},
+			"keep_standard_rows": [
+				"Desk User"
+			]
+		},
+		"Dashboard Chart Source": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW",
+				"WSM": "CRW"
+			},
+			"keep_standard_rows": [
+				"Desk User"
+			]
+		},
+		"Number Card": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW",
+				"WSM": "CRW"
+			},
+			"keep_standard_rows": [
+				"Desk User"
+			]
+		},
+		"Custom HTML Block": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW",
+				"WSM": "CRW"
+			},
+			"keep_standard_rows": [
+				"Desk User"
+			]
+		},
+		"Workspace": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW",
+				"WSM": "CRW"
+			},
+			"keep_standard_rows": [
+				"Desk User"
+			]
+		},
+		"Page": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRWD"
+			}
+		},
+		"Web Page View": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "R",
+				"WM": "R"
+			}
+		},
+		"Web Page": {
+			"state": "matrix",
+			"perms": {
+				"MK": "CRW R1",
+				"WM": "CRWD W1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"published"
+					],
+					"read": [
+						"MK"
+					],
+					"write": [
+						"WM"
+					]
+				}
+			}
+		},
+		"Blog Post": {
+			"state": "matrix",
+			"perms": {
+				"MK": "CRW R1",
+				"WM": "CRWD W1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"published"
+					],
+					"read": [
+						"MK"
+					],
+					"write": [
+						"WM"
+					]
+				}
+			}
+		},
+		"Blog Category": {
+			"state": "matrix",
+			"perms": {
+				"MK": "CRW R1",
+				"WM": "CRWD W1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"published"
+					],
+					"read": [
+						"MK"
+					],
+					"write": [
+						"WM"
+					]
+				}
+			}
+		},
+		"Web Form": {
+			"state": "matrix",
+			"perms": {
+				"MK": "CRW R1",
+				"WM": "CRWD W1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"published"
+					],
+					"read": [
+						"MK"
+					],
+					"write": [
+						"WM"
+					]
+				}
+			}
+		},
+		"Help Article": {
+			"state": "matrix",
+			"perms": {
+				"MK": "CRW R1",
+				"WM": "CRWD W1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"published"
+					],
+					"read": [
+						"MK"
+					],
+					"write": [
+						"WM"
+					]
+				}
+			}
+		},
+		"Help Category": {
+			"state": "matrix",
+			"perms": {
+				"MK": "CRW R1",
+				"WM": "CRWD W1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"published"
+					],
+					"read": [
+						"MK"
+					],
+					"write": [
+						"WM"
+					]
+				}
+			}
+		},
+		"Web Template": {
+			"state": "matrix",
+			"perms": {
+				"MK": "CRW",
+				"WM": "CRWD"
+			}
+		},
+		"Website Slideshow": {
+			"state": "matrix",
+			"perms": {
+				"MK": "CRW",
+				"WM": "CRWD"
+			}
+		},
+		"Website Settings": {
+			"state": "matrix",
+			"perms": {
+				"WM": "RW"
+			}
+		},
+		"Portal Settings": {
+			"state": "matrix",
+			"perms": {
+				"WM": "RW"
+			}
+		},
+		"Website Theme": {
+			"state": "matrix",
+			"perms": {
+				"WM": "CRW"
+			}
+		},
+		"Website Script": {
+			"state": "matrix",
+			"perms": {
+				"WM": "RW"
+			}
+		},
+		"About Us Settings": {
+			"state": "matrix",
+			"perms": {
+				"WM": "RW"
+			}
+		},
+		"Contact Us Settings": {
+			"state": "matrix",
+			"perms": {
+				"WM": "RW"
+			}
+		},
+		"Blog Settings": {
+			"state": "matrix",
+			"perms": {
+				"WM": "RW"
+			}
+		},
+		"Website Sidebar": {
+			"state": "matrix",
+			"perms": {
+				"WM": "CRW"
+			}
+		},
+		"Website Route Meta": {
+			"state": "matrix",
+			"perms": {
+				"WM": "CRW"
+			}
+		},
+		"Color": {
+			"state": "matrix",
+			"perms": {
+				"WM": "CRW"
+			}
+		},
+		"Email Group": {
+			"state": "matrix",
+			"perms": {
+				"NL": "CRW",
+				"MK": "CRW",
+				"SM": "R"
+			}
+		},
+		"Email Group Member": {
+			"state": "matrix",
+			"perms": {
+				"NL": "CRW",
+				"MK": "CRW",
+				"SM": "R"
+			}
+		},
+		"Newsletter": {
+			"state": "matrix",
+			"perms": {
+				"NL": "CRW",
+				"MK": "R",
+				"SM": "R"
+			}
+		},
+		"Country": {
+			"state": "ref_master",
+			"perms": {
+				"SYS": "CRW"
+			}
+		},
+		"Salutation": {
+			"state": "ref_master",
+			"perms": {
+				"SYS": "CRW"
+			}
+		},
+		"Gender": {
+			"state": "ref_master",
+			"perms": {
+				"SYS": "CRW"
+			}
+		},
+		"Address Template": {
+			"state": "ref_master",
+			"perms": {
+				"SYS": "CRW"
+			}
+		},
+		"Currency": {
+			"state": "ref_master",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRW"
+			},
+			"pda": true
+		},
+		"Contact": {
+			"state": "matrix",
+			"perms": {
+				"SU": "CRW",
+				"SM": "CRWOI",
+				"MK": "CRW",
+				"PU": "CRW",
+				"PM": "CRWOI",
+				"AU": "R",
+				"STU": "R",
+				"STM": "R",
+				"CUS": "RW",
+				"SUP": "RW"
+			},
+			"scope": {
+				"CUS": "o",
+				"SUP": "o"
+			}
+		},
+		"Address": {
+			"state": "matrix",
+			"perms": {
+				"SU": "CRW",
+				"SM": "CRWOI",
+				"MK": "CRW",
+				"PU": "CRW",
+				"PM": "CRWOI",
+				"AU": "R",
+				"STU": "R",
+				"STM": "R",
+				"CUS": "RW",
+				"SUP": "RW"
+			},
+			"scope": {
+				"CUS": "o",
+				"SUP": "o"
+			}
+		},
+		"ToDo": {
+			"state": "keep_standard"
+		},
+		"Note": {
+			"state": "keep_standard"
+		},
+		"Event": {
+			"state": "keep_standard"
+		},
+		"File": {
+			"state": "keep_standard"
+		},
+		"Comment": {
+			"state": "keep_standard"
+		},
+		"Communication": {
+			"state": "keep_standard"
+		},
+		"Kanban Board": {
+			"state": "keep_standard"
+		},
+		"Workflow Action": {
+			"state": "keep_standard"
+		},
+		"Notification Log": {
+			"state": "keep_standard"
+		},
+		"Notification Settings": {
+			"state": "keep_standard"
+		},
+		"Document Follow": {
+			"state": "keep_standard"
+		},
+		"Tag": {
+			"state": "keep_standard"
+		},
+		"Tag Link": {
+			"state": "keep_standard"
+		},
+		"Reminder": {
+			"state": "keep_standard"
+		},
+		"Route History": {
+			"state": "keep_standard"
+		},
+		"List Filter": {
+			"state": "keep_standard"
+		},
+		"List View Settings": {
+			"state": "keep_standard"
+		},
+		"Calendar View": {
+			"state": "keep_standard"
+		},
+		"Package": {
+			"state": "g1_only"
+		},
+		"Package Import": {
+			"state": "g1_only"
+		},
+		"Package Release": {
+			"state": "g1_only"
+		},
+		"Patch Log": {
+			"state": "g1_only"
+		},
+		"Module Def": {
+			"state": "g1_only"
+		},
+		"Changelog Feed": {
+			"state": "g1_only"
+		},
+		"Console Log": {
+			"state": "g1_only"
+		},
+		"Recorder": {
+			"state": "g1_only"
+		},
+		"Installed Applications": {
+			"state": "g1_only"
+		},
+		"Language": {
+			"state": "g1_only"
+		},
+		"Domain": {
+			"state": "g1_only"
+		},
+		"Success Action": {
+			"state": "g1_only"
+		},
+		"Transaction Log": {
+			"state": "g1_only"
+		},
+		"User Invitation": {
+			"state": "g1_only"
+		},
+		"Module Onboarding": {
+			"state": "g1_only"
+		},
+		"Onboarding Step": {
+			"state": "g1_only"
+		},
+		"Form Tour": {
+			"state": "g1_only"
+		},
+		"System Console": {
+			"state": "g1_only"
+		},
+		"System Health Report": {
+			"state": "g1_only"
+		},
+		"Desktop Icon": {
+			"state": "g1_only"
+		},
+		"Dashboard Settings": {
+			"state": "g1_only"
+		},
+		"DocType Layout": {
+			"state": "g1_only"
+		},
+		"Email Flag Queue": {
+			"state": "g1_only"
+		},
+		"Email Unsubscribe": {
+			"state": "g1_only"
+		},
+		"Google Calendar": {
+			"state": "g1_only"
+		},
+		"Google Contacts": {
+			"state": "g1_only"
+		},
+		"Google Drive": {
+			"state": "g1_only"
+		},
+		"Google Settings": {
+			"state": "g1_only"
+		},
+		"Dropbox Settings": {
+			"state": "g1_only"
+		},
+		"S3 Backup Settings": {
+			"state": "g1_only"
+		},
+		"Push Notification Settings": {
+			"state": "g1_only"
+		},
+		"OAuth Authorization Code": {
+			"state": "g1_only"
+		},
+		"OAuth Bearer Token": {
+			"state": "g1_only"
+		},
+		"Token Cache": {
+			"state": "g1_only"
+		},
+		"Slack Webhook URL": {
+			"state": "g1_only"
+		},
+		"SMS Settings": {
+			"state": "g1_only"
+		},
+		"Blogger": {
+			"state": "g1_only"
+		},
+		"Discussion Reply": {
+			"state": "g1_only"
+		},
+		"Discussion Topic": {
+			"state": "g1_only"
+		},
+		"Marketing Campaign": {
+			"state": "g1_only"
+		},
+		"Personal Data Deletion Request": {
+			"state": "g1_only"
+		},
+		"Personal Data Download Request": {
+			"state": "g1_only"
+		},
+		"Milestone": {
+			"state": "g1_only"
+		},
+		"Milestone Tracker": {
+			"state": "g1_only"
+		},
+		"Energy Point Log": {
+			"state": "g1_only"
+		},
+		"Energy Point Rule": {
+			"state": "g1_only"
+		},
+		"Energy Point Settings": {
+			"state": "g1_only"
+		},
+		"Domain Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW"
+			}
+		}
+	}
+}

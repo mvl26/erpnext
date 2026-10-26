@@ -24,15 +24,16 @@ Hàng KHÔNG quản lý lô không có tem lô → không có ô nào để so �
 import frappe
 from frappe import _
 
+from erpnext.warehouse_operations.vitri import vai_tro as vt
 from erpnext.warehouse_operations.vitri.cay import nhanh_bi_tat
 from erpnext.warehouse_operations.vitri.kho import kho_co_quan_ly_vi_tri
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
 from erpnext.warehouse_operations.vitri.so_lo import kem_so_lo_hien_thi
 
 # Đặt ô cho lô CHƯA có ô: việc hằng ngày của thủ kho (cùng bộ `nhap_lo`).
-VAI_TRO_DAT_O = {"System Manager", "Stock Manager", "Stock User"}
+VAI_TRO_DAT_O = {"Stock Manager", "Stock User", "MVL Kho PDA"}
 # Đổi ô của lô ĐÃ có ô: chỉ trưởng kho.
-VAI_TRO_DOI_O = {"System Manager", "Stock Manager"}
+VAI_TRO_DOI_O = {"Stock Manager"}
 
 # Cờ TRONG TIẾN TRÌNH (không đặt được qua HTTP), chỉ bộ test dùng để dựng tồn
 # ở nhiều ô cho các bài không nói về luật này (FEFO, lấy hàng...). Không đoạn
@@ -110,8 +111,8 @@ def kiem_o_tem(vat_tu: str, so_lo: str | None, kho: str | None = None) -> dict:
 		"kiem": True,
 		"chua_co_o": False,
 		"loi": _(
-			"Ô trên tem lô {0} không dùng được nữa: {1}. Trưởng kho mở lô, bấm \"Đổi ô trên "
-			"tem\" rồi in lại tem."
+			'Ô trên tem lô {0} không dùng được nữa: {1}. Trưởng kho mở lô, bấm "Đổi ô trên '
+			'tem" rồi in lại tem.'
 		).format(so_lo, ly_do)
 		if ly_do
 		else None,
@@ -149,7 +150,7 @@ def thong_tin_o_tem(so_lo: str) -> dict:
 	kho/trưởng kho, những người luật này nhắm tới, bị khoá ngoài (đo 19/09/2026).
 	"""
 	vai_tro = set(frappe.get_roles())
-	if not vai_tro & (VAI_TRO_DAT_O | {"Item Manager"}):
+	if not vt.co_quyen(VAI_TRO_DAT_O | {"Item Manager"}, vai_tro):
 		frappe.throw(_("Bạn không có quyền xem ô trên tem lô."), frappe.PermissionError)
 	lo = frappe.get_doc("Batch", so_lo)
 	o_hien = lo.get("custom_o_in_tem")
@@ -166,7 +167,7 @@ def thong_tin_o_tem(so_lo: str) -> dict:
 		"o": o_hien,
 		"kho": kho,
 		"goi_y": goi_y,
-		"duoc_doi": bool(vai_tro & (VAI_TRO_DOI_O if o_hien else VAI_TRO_DAT_O)),
+		"duoc_doi": vt.co_quyen(VAI_TRO_DOI_O if o_hien else VAI_TRO_DAT_O, vai_tro),
 		"loi": kiem_o_tem(lo.item, lo.name, kho)["loi"] if o_hien else None,
 	}
 
@@ -200,7 +201,7 @@ def doi_o_tren_tem(so_lo: str, o_moi: str, ly_do: str | None = None) -> dict:
 	lo = frappe.get_doc("Batch", so_lo)
 	o_cu = lo.get("custom_o_in_tem")
 	vai_tro = set(frappe.get_roles())
-	if not vai_tro & (VAI_TRO_DOI_O if o_cu else VAI_TRO_DAT_O):
+	if not vt.co_quyen(VAI_TRO_DOI_O if o_cu else VAI_TRO_DAT_O, vai_tro):
 		frappe.throw(
 			_("Chỉ trưởng kho (Stock Manager) được đổi ô đã in trên tem lô.")
 			if o_cu
@@ -333,5 +334,5 @@ def dat_o_hang_loat(dong) -> dict:
 
 
 def _kiem_quyen_dat_o():
-	if not set(frappe.get_roles()) & VAI_TRO_DAT_O:
+	if not vt.co_quyen(VAI_TRO_DAT_O):
 		frappe.throw(_("Bạn không có quyền đặt ô trên tem lô."), frappe.PermissionError)

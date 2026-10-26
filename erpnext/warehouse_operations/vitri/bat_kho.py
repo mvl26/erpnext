@@ -38,6 +38,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime, nowdate
 
+from erpnext.warehouse_operations.vitri import vai_tro as vt
 from erpnext.warehouse_operations.vitri.doi_soat import NGUONG_SAI_SO, doi_soat_kho, ton_kho_theo_lo
 from erpnext.warehouse_operations.vitri.kho import (
 	kho_co_quan_ly_vi_tri,
@@ -60,7 +61,7 @@ CHUNG_TU_CHUYEN_DOI = "Warehouse Location Setup"
 # Cùng vai trò với DocPerm của doctype `Warehouse Location Setup` — một
 # nguồn duy nhất giữa "ai được sửa doctype điều phối" và "ai được gọi RPC
 # vận hành nó" (xem `_kiem_tra_quyen`).
-VAI_TRO_DUOC_XU_LY_VI_TRI = {"System Manager", "Stock Manager"}
+VAI_TRO_DUOC_XU_LY_VI_TRI = {"Stock Manager"}
 
 
 def _kiem_tra_quyen(thao_tac: str = "xem", doi_tuong: str = "thông tin chuyển đổi vị trí kho"):
@@ -88,7 +89,7 @@ def _kiem_tra_quyen(thao_tac: str = "xem", doi_tuong: str = "thông tin chuyển
 	`sinh_ma.py` truyền `doi_tuong="mã ô"` để có câu đúng: "Bạn không có
 	quyền sinh mã ô."
 	"""
-	if not VAI_TRO_DUOC_XU_LY_VI_TRI & set(frappe.get_roles()):
+	if not vt.co_quyen(VAI_TRO_DUOC_XU_LY_VI_TRI):
 		frappe.throw(
 			_("Bạn không có quyền {0} {1}.").format(thao_tac, doi_tuong),
 			frappe.PermissionError,

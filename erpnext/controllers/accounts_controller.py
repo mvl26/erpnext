@@ -2847,6 +2847,8 @@ class AccountsController(TransactionBase):
 		jv.append("accounts", reconcilation_entry)
 		jv.append("accounts", advance_entry)
 
+		# Miyano RBAC: JE hệ thống, không qua WF-JE — xem erpnext/access/workflow_guard.py
+		jv.flags.ignore_permissions = True
 		jv.save()
 		jv.submit()
 
@@ -3723,6 +3725,10 @@ def update_child_qty_rate(parent_doctype, trans_items, parent_doctype_name, chil
 
 	parent = frappe.get_doc(parent_doctype, parent_doctype_name)
 
+	# Miyano RBAC H2 — xem erpnext/access/pricing_guard.py: giá dòng sửa/thêm ở đây phải được kiểm TRƯỚC khi
+	# dòng được ghi, vì `parent.save()` ở cuối đọc lại các dòng đã ghi nên không còn thấy giá cũ.
+	from erpnext.access.pricing_guard import REPRICE_FIELDS, check_update_item
+
 	check_doc_permissions(parent, "write")
 	_removed_items = validate_and_delete_children(parent, data)
 	items_added_or_removed |= _removed_items
@@ -3739,9 +3745,12 @@ def update_child_qty_rate(parent_doctype, trans_items, parent_doctype_name, chil
 			items_added_or_removed = True
 			check_doc_permissions(parent, "create")
 			child_item = get_new_child_item(d)
+			old_price = None  # Miyano RBAC H2
 		else:
 			check_doc_permissions(parent, "write")
 			child_item = frappe.get_doc(parent_doctype + " Item", d.get("docname"))
+			# Miyano RBAC H2 — giá trị dòng trước khi vòng lặp sửa (xem erpnext/access/pricing_guard.py)
+			old_price = frappe._dict({f: child_item.get(f) for f in REPRICE_FIELDS})
 
 			prev_rate, new_rate = flt(child_item.get("rate")), flt(d.get("rate"))
 			prev_qty, new_qty = flt(child_item.get("qty")), flt(d.get("qty"))
@@ -3854,6 +3863,9 @@ def update_child_qty_rate(parent_doctype, trans_items, parent_doctype_name, chil
 				child_item.margin_type = ""
 				child_item.margin_rate_or_amount = 0
 				child_item.rate_with_margin = 0
+
+		# Miyano RBAC H2 — xem erpnext/access/pricing_guard.py: kiểm giá trước khi ghi dòng
+		check_update_item(parent, child_item, old_price)
 
 		child_item.flags.ignore_validate_update_after_submit = True
 		if new_child_flag:

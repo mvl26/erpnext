@@ -14,8 +14,8 @@ import hashlib
 
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
-from frappe.permissions import add_permission, update_permission_property
 
+from erpnext.access.permissions.sync import is_enabled
 from erpnext.einvoice.constants import STATUSES
 
 # Kế toán làm nháp, gửi khách, xem PDF. Kế toán trưởng thêm quyền phát hành,
@@ -107,7 +107,6 @@ def setup_einvoice():
 	_make_sales_invoice_fields()
 	_make_delivery_note_fields()
 	_make_roles()
-	_grant_permissions()
 	_make_email_templates()
 
 
@@ -380,29 +379,8 @@ def _make_roles():
 			doc.insert()
 
 
-def _grant_permissions():
-	"""Kế toán soạn hóa đơn; chỉ kế toán trưởng được xóa.
-
-	Nhật ký chỉ đọc với cả hai role: log là bằng chứng đối chiếu với Fast và Cơ
-	quan Thuế, sửa được thì hết là bằng chứng.
-	"""
-	matrix = (
-		("Fast EInvoice Document", ROLE_STAFF, {"read": 1, "write": 1, "create": 1, "delete": 0}),
-		("Fast EInvoice Document", ROLE_CHIEF, {"read": 1, "write": 1, "create": 1, "delete": 1}),
-		("Fast EInvoice Log", ROLE_STAFF, {"read": 1, "write": 0, "create": 0, "delete": 0}),
-		("Fast EInvoice Log", ROLE_CHIEF, {"read": 1, "write": 0, "create": 0, "delete": 0}),
-		("Fast EInvoice Settings", ROLE_CHIEF, {"read": 1, "write": 0, "create": 0, "delete": 0}),
-		("Fast EInvoice Settings", ROLE_STAFF, {"read": 1, "write": 0, "create": 0, "delete": 0}),
-	)
-	for doctype, role, properties in matrix:
-		if not frappe.db.exists("DocType", doctype):
-			continue
-		add_permission(doctype, role, 0)
-		for name, value in properties.items():
-			update_permission_property(doctype, role, 0, name, value)
-
-
 def is_chief_accountant(user=None):
 	"""Ai được bấm các nút tiêu số hóa đơn thật (phát hành, hủy nội bộ)."""
 	roles = frappe.get_roles(user or frappe.session.user)
-	return ROLE_CHIEF in roles or "System Manager" in roles
+	# C4: sau go-live chỉ Kế toán trưởng HĐĐT; trước đó (cờ RBAC tắt) System Manager còn được.
+	return ROLE_CHIEF in roles or (not is_enabled() and "System Manager" in roles)

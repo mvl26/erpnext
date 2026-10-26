@@ -1,0 +1,49 @@
+{
+ "actions": [],
+ "creation": "2026-10-23 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "h1",
+  "h2",
+  "h3"
+ ],
+ "fields": [
+  {
+   "description": "Hạn mức H1: PO do nhân viên Mua hàng tự duyệt.",
+   "fieldname": "h1",
+   "fieldtype": "Currency",
+   "label": "Hạn mức H1 — PO nhân viên Mua hàng tự duyệt"
+  },
+  {
+   "description": "Hạn mức H2: PO do trưởng phòng Mua hàng duyệt.",
+   "fieldname": "h2",
+   "fieldtype": "Currency",
+   "label": "Hạn mức H2 — PO trưởng phòng Mua hàng duyệt"
+  },
+  {
+   "description": "Hạn mức H3: chi tiền, chi phí do Kế toán duyệt.",
+   "fieldname": "h3",
+   "fieldtype": "Currency",
+   "label": "Hạn mức H3 — chi tiền, chi phí do Kế toán duyệt"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-23 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Setup",
+ "name": "MVL Approval Limits",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

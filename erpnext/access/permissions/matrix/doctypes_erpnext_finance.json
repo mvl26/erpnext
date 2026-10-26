@@ -1,0 +1,883 @@
+{
+	"doctypes": {
+		"Journal Entry": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRWS PE",
+				"AM": "CRWSXA PE O"
+			},
+			"workflow": "WF-JE"
+		},
+		"Journal Entry Template": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Payment Entry": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRWS PE",
+				"AM": "CRWSXA PE O"
+			},
+			"workflow": "WF-PE"
+		},
+		"Payment Request": {
+			"state": "g1_only"
+		},
+		"Account": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW O I"
+			}
+		},
+		"Cost Center": {
+			"state": "ref_master",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW",
+				"PJM": "R"
+			}
+		},
+		"Finance Book": {
+			"state": "ref_master",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW",
+				"PJM": "R"
+			}
+		},
+		"Accounting Dimension": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW",
+				"PJM": "R"
+			}
+		},
+		"Accounting Dimension Filter": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW",
+				"PJM": "R"
+			}
+		},
+		"Monthly Distribution": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW",
+				"PJM": "R"
+			}
+		},
+		"Cost Center Allocation": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRWSXA"
+			}
+		},
+		"Budget": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRWSXA"
+			}
+		},
+		"Period Closing Voucher": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRWSXA"
+			}
+		},
+		"Fiscal Year": {
+			"state": "ref_master",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Accounting Period": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Company": {
+			"state": "ref_master",
+			"perms": {
+				"AU": "R",
+				"AM": "RW"
+			},
+			"pda": true
+		},
+		"Currency Exchange": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRW"
+			}
+		},
+		"Currency Exchange Settings": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "RW"
+			}
+		},
+		"Mode of Payment": {
+			"state": "ref_master",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Payment Terms Template": {
+			"state": "ref_master",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Payment Term": {
+			"state": "ref_master",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Tax Category": {
+			"state": "ref_master",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Item Tax Template": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Tax Withholding Category": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Tax Rule": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Shipping Rule": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Bank": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Bank Account Type": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Bank Account Subtype": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Bank Account": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRW"
+			},
+			"workflow": "WF-BA"
+		},
+		"Bank Guarantee": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRWS",
+				"AM": "CRWSXA",
+				"SM": "R",
+				"PM": "R"
+			}
+		},
+		"Bank Transaction": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRWS",
+				"AM": "CRWSXA"
+			}
+		},
+		"Bank Statement Import": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRW"
+			}
+		},
+		"Bank Reconciliation Tool": {
+			"state": "matrix",
+			"perms": {
+				"AU": "RW",
+				"AM": "RW"
+			}
+		},
+		"Bank Clearance": {
+			"state": "matrix",
+			"perms": {
+				"AU": "RW",
+				"AM": "RW"
+			}
+		},
+		"Payment Reconciliation": {
+			"state": "matrix",
+			"perms": {
+				"AU": "RW",
+				"AM": "RW"
+			}
+		},
+		"Process Payment Reconciliation": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRWS",
+				"AM": "CRWSXA"
+			}
+		},
+		"Process Payment Reconciliation Log": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "R"
+			}
+		},
+		"Unreconcile Payment": {
+			"state": "matrix",
+			"perms": {
+				"AM": "CRWSX"
+			}
+		},
+		"Exchange Rate Revaluation": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRWSXA"
+			}
+		},
+		"Process Statement Of Accounts": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRW"
+			}
+		},
+		"Cheque Print Template": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Party Link": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRWD"
+			}
+		},
+		"Repost Accounting Ledger": {
+			"state": "matrix",
+			"perms": {
+				"AM": "CRWSXA"
+			}
+		},
+		"Repost Payment Ledger": {
+			"state": "matrix",
+			"perms": {
+				"AM": "CRWSXA"
+			}
+		},
+		"Ledger Merge": {
+			"state": "matrix",
+			"perms": {
+				"AM": "CRW"
+			}
+		},
+		"Chart of Accounts Importer": {
+			"state": "matrix",
+			"perms": {
+				"AM": "RW"
+			}
+		},
+		"Opening Invoice Creation Tool": {
+			"state": "matrix",
+			"perms": {
+				"AM": "RW"
+			}
+		},
+		"Repost Accounting Ledger Settings": {
+			"state": "matrix",
+			"perms": {
+				"AM": "RW"
+			}
+		},
+		"FS Note Qualitative Info": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"GL Entry": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "R"
+			}
+		},
+		"Payment Ledger Entry": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "R"
+			}
+		},
+		"Advance Payment Ledger Entry": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "R"
+			}
+		},
+		"Account Closing Balance": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "R"
+			}
+		},
+		"Debt Reconciliation Statement": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRWSXA"
+			}
+		},
+		"Debt Reconciliation Settings": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "RW"
+			}
+		},
+		"Fast EInvoice Document": {
+			"state": "matrix",
+			"perms": {
+				"EI": "CRW",
+				"EIC": "CRWD"
+			}
+		},
+		"Fast EInvoice Log": {
+			"state": "matrix",
+			"perms": {
+				"EI": "R",
+				"EIC": "R"
+			}
+		},
+		"Fast EInvoice Settings": {
+			"state": "matrix",
+			"perms": {
+				"EI": "R",
+				"EIC": "R",
+				"SYS": "RW"
+			}
+		},
+		"Accounts Settings": {
+			"state": "ref_master",
+			"perms": {
+				"AM": "RW"
+			}
+		},
+		"Party Type": {
+			"state": "ref_master",
+			"perms": {}
+		},
+		"Print Heading": {
+			"state": "ref_master",
+			"perms": {}
+		},
+		"Asset": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRWSXA PE O",
+				"AO": "R",
+				"STM": "R",
+				"HM": "R"
+			}
+		},
+		"Asset Category": {
+			"state": "ref_master",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Asset Movement": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRWSXA",
+				"AO": "CRW"
+			}
+		},
+		"Asset Maintenance": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRWD",
+				"AO": "CRW"
+			}
+		},
+		"Asset Maintenance Team": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRWD",
+				"AO": "CRW"
+			}
+		},
+		"Asset Maintenance Log": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRWSXA",
+				"AO": "CRWS"
+			}
+		},
+		"Asset Depreciation Schedule": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "CRWSXA"
+			}
+		},
+		"Asset Capitalization": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRWSXA"
+			}
+		},
+		"Asset Value Adjustment": {
+			"state": "matrix",
+			"perms": {
+				"AU": "CRW",
+				"AM": "CRWSXA"
+			}
+		},
+		"Asset Activity": {
+			"state": "matrix",
+			"perms": {
+				"AU": "R",
+				"AM": "R",
+				"AO": "R"
+			}
+		},
+		"Location": {
+			"state": "ref_master",
+			"perms": {
+				"AM": "CRW",
+				"AO": "CRW"
+			}
+		},
+		"Lead": {
+			"state": "matrix",
+			"perms": {
+				"SU": "CRW",
+				"SM": "CRW O I H",
+				"MK": "CRW"
+			}
+		},
+		"Opportunity": {
+			"state": "matrix",
+			"perms": {
+				"SU": "CRW",
+				"SM": "CRW O",
+				"MK": "R"
+			}
+		},
+		"Prospect": {
+			"state": "matrix",
+			"perms": {
+				"SU": "CRW",
+				"SM": "CRW O",
+				"MK": "R"
+			}
+		},
+		"Lead Source": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD",
+				"MK": "CRW"
+			}
+		},
+		"Sales Stage": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD"
+			}
+		},
+		"Opportunity Type": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD"
+			}
+		},
+		"Opportunity Lost Reason": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD"
+			}
+		},
+		"Market Segment": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD"
+			}
+		},
+		"Industry Type": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD"
+			}
+		},
+		"Competitor": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD"
+			}
+		},
+		"Campaign": {
+			"state": "matrix",
+			"perms": {
+				"SU": "R",
+				"SM": "R",
+				"MK": "CRW",
+				"NL": "CRW"
+			}
+		},
+		"Email Campaign": {
+			"state": "matrix",
+			"perms": {
+				"SU": "R",
+				"SM": "R",
+				"MK": "CRW",
+				"NL": "CRW"
+			}
+		},
+		"Appointment": {
+			"state": "matrix",
+			"perms": {
+				"SU": "CRW",
+				"SM": "CRW"
+			}
+		},
+		"Contract": {
+			"state": "matrix",
+			"perms": {
+				"SU": "CRW",
+				"SM": "CRWSXA",
+				"PU": "CRW",
+				"PM": "CRWSXA",
+				"HU": "CRW",
+				"HM": "CRWSXA",
+				"AM": "R"
+			}
+		},
+		"Contract Template": {
+			"state": "matrix",
+			"perms": {
+				"SM": "CRW",
+				"PM": "CRW",
+				"HM": "CRW"
+			}
+		},
+		"CRM Settings": {
+			"state": "matrix",
+			"perms": {
+				"SM": "RW"
+			}
+		},
+		"Appointment Booking Settings": {
+			"state": "matrix",
+			"perms": {
+				"SM": "RW"
+			}
+		},
+		"Project": {
+			"state": "matrix",
+			"perms": {
+				"PJU": "R",
+				"PJM": "CRW O",
+				"AM": "R"
+			}
+		},
+		"Task": {
+			"state": "matrix",
+			"perms": {
+				"PJM": "CRWD"
+			}
+		},
+		"Timesheet": {
+			"state": "matrix",
+			"perms": {
+				"PJU": "CRWS",
+				"PJM": "CRWSXA W1",
+				"DH": "R",
+				"AM": "R R1"
+			},
+			"scope": {
+				"PJU": "o",
+				"DH": "d"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"billing_details",
+						"total_billable_hours",
+						"total_billed_hours",
+						"total_costing_amount",
+						"total_billable_amount",
+						"total_billed_amount",
+						"base_total_costing_amount",
+						"base_total_billable_amount",
+						"base_total_billed_amount",
+						"Timesheet Detail.billing_hours",
+						"Timesheet Detail.billing_rate",
+						"Timesheet Detail.billing_amount",
+						"Timesheet Detail.costing_rate",
+						"Timesheet Detail.costing_amount",
+						"Timesheet Detail.base_billing_rate",
+						"Timesheet Detail.base_billing_amount",
+						"Timesheet Detail.base_costing_rate",
+						"Timesheet Detail.base_costing_amount"
+					],
+					"read": [
+						"AM"
+					],
+					"write": [
+						"PJM"
+					]
+				}
+			}
+		},
+		"Activity Type": {
+			"state": "ref_master",
+			"perms": {
+				"PJM": "CRW"
+			}
+		},
+		"Project Type": {
+			"state": "ref_master",
+			"perms": {
+				"PJM": "CRW"
+			}
+		},
+		"Task Type": {
+			"state": "ref_master",
+			"perms": {
+				"PJM": "CRW"
+			}
+		},
+		"Project Template": {
+			"state": "matrix",
+			"perms": {
+				"PJM": "CRW"
+			}
+		},
+		"Activity Cost": {
+			"state": "matrix",
+			"perms": {
+				"PJM": "CRW",
+				"AM": "R"
+			}
+		},
+		"Project Update": {
+			"state": "matrix",
+			"perms": {
+				"PJU": "R",
+				"PJM": "CRWSXA"
+			}
+		},
+		"Projects Settings": {
+			"state": "matrix",
+			"perms": {
+				"PJM": "RW"
+			}
+		},
+		"Issue": {
+			"state": "matrix",
+			"perms": {
+				"ST": "CRW",
+				"EMP": "CRW",
+				"CUS": "CRW"
+			},
+			"scope": {
+				"EMP": "o",
+				"CUS": "o"
+			}
+		},
+		"Issue Type": {
+			"state": "ref_master",
+			"perms": {
+				"SYS": "CRW"
+			}
+		},
+		"Issue Priority": {
+			"state": "ref_master",
+			"perms": {
+				"SYS": "CRW"
+			}
+		},
+		"Service Level Agreement": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW"
+			}
+		},
+		"Support Settings": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW"
+			}
+		},
+		"Non Conformance": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRW",
+				"QM": "CRWD",
+				"PU": "CRW",
+				"SU": "R"
+			}
+		},
+		"Quality Goal": {
+			"state": "matrix",
+			"perms": {
+				"QM": "CRW",
+				"STU": "R",
+				"PU": "R"
+			}
+		},
+		"Quality Procedure": {
+			"state": "matrix",
+			"perms": {
+				"QM": "CRW",
+				"STU": "R",
+				"PU": "R"
+			}
+		},
+		"Quality Review": {
+			"state": "matrix",
+			"perms": {
+				"QM": "CRW",
+				"STU": "R",
+				"PU": "R"
+			}
+		},
+		"Quality Action": {
+			"state": "matrix",
+			"perms": {
+				"QM": "CRW",
+				"STU": "R",
+				"PU": "R"
+			}
+		},
+		"Quality Meeting": {
+			"state": "matrix",
+			"perms": {
+				"QM": "CRW",
+				"STU": "R",
+				"PU": "R"
+			}
+		},
+		"Quality Feedback": {
+			"state": "matrix",
+			"perms": {
+				"QM": "CRW",
+				"STU": "R",
+				"PU": "R"
+			}
+		},
+		"Quality Feedback Template": {
+			"state": "matrix",
+			"perms": {
+				"QM": "CRW",
+				"STU": "R",
+				"PU": "R"
+			}
+		},
+		"Supply Notification Point": {
+			"state": "matrix",
+			"perms": {
+				"SNA": "CRWD",
+				"EMP": "R"
+			}
+		},
+		"Supply Notification Recipient Group": {
+			"state": "matrix",
+			"perms": {
+				"SNA": "CRWD",
+				"EMP": "R"
+			}
+		},
+		"Supply Notification Snippet": {
+			"state": "matrix",
+			"perms": {
+				"SNA": "CRWD",
+				"EMP": "R"
+			}
+		},
+		"Supply Notification Opt Out": {
+			"state": "matrix",
+			"perms": {
+				"SNA": "CRWD"
+			}
+		},
+		"Supply Notification Settings": {
+			"state": "matrix",
+			"perms": {
+				"SNA": "RW",
+				"EMP": "R"
+			}
+		},
+		"Supply Notification Dispatch Log": {
+			"state": "matrix",
+			"perms": {
+				"SNA": "R"
+			}
+		}
+	}
+}

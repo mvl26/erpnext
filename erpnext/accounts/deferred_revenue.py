@@ -602,6 +602,8 @@ def book_revenue_via_journal_entry(
 	journal_entry.append("accounts", credit_entry)
 
 	try:
+		# Miyano RBAC: JE hệ thống, không qua WF-JE — xem erpnext/access/workflow_guard.py
+		journal_entry.flags.ignore_permissions = True
 		journal_entry.save()
 
 		if submit:

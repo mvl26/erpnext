@@ -1,4 +1,4 @@
-"""API máy chủ cho màn hình `Batch Entry` và cho việc in nhãn lô 50×30 (spec khối C §7 Task 7).
+"""API máy chủ cho màn hình `Batch Entry` và cho việc in nhãn lô 50x30 (spec khối C §7 Task 7).
 
 Ba hàm, ba việc TÁCH BIỆT — cố ý không gộp, vì gộp là nguồn của đúng lớp lỗi dự
 án này đã trả giá nhiều lần ("màn hình nói một đằng, tem in ra một nẻo"):
@@ -30,6 +30,7 @@ import frappe
 from frappe import _
 from frappe.utils import getdate
 
+from erpnext.warehouse_operations.vitri import vai_tro as vt
 from erpnext.warehouse_operations.vitri.goi_y import goi_y_o
 from erpnext.warehouse_operations.vitri.ma_vi_tri import dinh_dang_nhan
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
@@ -37,7 +38,7 @@ from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
 # Cùng bộ vai trò với `xep.VAI_TRO_DUOC_XEP` / `tem.VAI_TRO_DUOC_IN_TEM`: nạp
 # dòng hàng và in nhãn đều là việc HẰNG NGÀY của thủ kho, không phải thao tác
 # thiết lập chỉ dành cho quản lý (khác `bat_kho.py`).
-VAI_TRO_DUOC_DUNG = {"System Manager", "Stock Manager", "Stock User"}
+VAI_TRO_DUOC_DUNG = {"Stock Manager", "Stock User"}
 
 # F8 khi CHƯA có ô nào để in — không đoán (mặt hàng chưa gán, hoặc không suy
 # được kho), và KHÔNG chặn in: một nhãn thiếu ô vẫn dán lên hàng được, còn
@@ -53,10 +54,8 @@ def _kiem_tra_quyen():
 	lệ không phải điều kiện đủ cho cả ba. `Website User` (khách hàng cổng
 	`miyano_portal`) không có vai trò nào trong tập này nên bị chặn.
 	"""
-	if not VAI_TRO_DUOC_DUNG & set(frappe.get_roles()):
-		frappe.throw(
-			_("Bạn không có quyền dùng chức năng nhập lô / in nhãn."), frappe.PermissionError
-		)
+	if not vt.co_quyen(VAI_TRO_DUOC_DUNG):
+		frappe.throw(_("Bạn không có quyền dùng chức năng nhập lô / in nhãn."), frappe.PermissionError)
 
 
 @frappe.whitelist()
@@ -112,8 +111,7 @@ def lay_dong_tu_phieu_nhap(phieu_nhap: str) -> list[dict]:
 			o, ly_do = (
 				None,
 				_(
-					"không gợi ý được cho {0} — xem Error Log. KHÔNG PHẢI mặt hàng chưa "
-					"gán, đừng gán lại"
+					"không gợi ý được cho {0} — xem Error Log. KHÔNG PHẢI mặt hàng chưa gán, đừng gán lại"
 				).format(d.vat_tu),
 			)
 		d["o_goi_y"], d["ly_do_goi_y"] = o, ly_do
@@ -284,8 +282,8 @@ def _danh_sach_lo(so_lo) -> list[str]:
 
 @frappe.whitelist()
 def du_lieu_tem(so_lo: list[str] | str) -> list[dict]:
-	"""Dữ liệu ĐÃ ĐỊNH DẠNG SẴN cho nhãn 50×30 của một hoặc nhiều lô — 11 ô
-	F1–F11 mỗi lô. Thứ tự trả về khớp thứ tự `so_lo` truyền vào.
+	"""Dữ liệu ĐÃ ĐỊNH DẠNG SẴN cho nhãn 50x30 của một hoặc nhiều lô — 11 ô
+	F1-F11 mỗi lô. Thứ tự trả về khớp thứ tự `so_lo` truyền vào.
 
 	`so_lo` nhận một tên lô, một danh sách tên lô, hoặc chuỗi JSON của danh
 	sách đó (dạng nó tới nơi khi JS gọi) — xem `_danh_sach_lo`.

@@ -10,16 +10,17 @@ import frappe
 from frappe import _
 from frappe.utils import flt, nowdate
 
+from erpnext.warehouse_operations.vitri import vai_tro as vt
 from erpnext.warehouse_operations.vitri.goi_y import goi_y_o
-from erpnext.warehouse_operations.vitri.o_tem import kiem_o_tem
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
+from erpnext.warehouse_operations.vitri.o_tem import kiem_o_tem
 from erpnext.warehouse_operations.vitri.so import ton_o
 from erpnext.warehouse_operations.vitri.so_lo import kem_so_lo_hien_thi
 
 # Giống `tem.py`: thủ kho phải tự làm được, đây là việc hằng ngày chứ không
 # phải thao tác thiết lập. Khác `bat_kho.py` (sinh ô, bật kho) vốn chỉ mở
 # cho quản lý.
-VAI_TRO_DUOC_XEP = {"System Manager", "Stock Manager", "Stock User"}
+VAI_TRO_DUOC_XEP = {"Stock Manager", "Stock User", "MVL Kho PDA"}
 
 
 def _kiem_tra_quyen():
@@ -29,7 +30,7 @@ def _kiem_tra_quyen():
 	hợp lệ không phải điều kiện đủ. `Website User` (khách hàng cổng) không có
 	vai trò nào ở đây nên bị chặn.
 	"""
-	if not VAI_TRO_DUOC_XEP & set(frappe.get_roles()):
+	if not vt.co_quyen(VAI_TRO_DUOC_XEP):
 		frappe.throw(_("Bạn không có quyền xem hàng chưa xếp vị trí."), frappe.PermissionError)
 
 
@@ -119,9 +120,7 @@ def hang_chua_xep(kho: str) -> list[dict]:
 				# văng ra NGOÀI khối `except`, làm sập đúng thứ khối này sinh ra
 				# để chặn. Xem lý lẽ đầy đủ ở `nhat_ky_loi.py`.
 				frappe.log_error(
-					title=cat_tieu_de(
-						f"vi_tri_kho: hang_chua_xep goi_y_o loi ({d.vat_tu}/{d.so_lo})"
-					)
+					title=cat_tieu_de(f"vi_tri_kho: hang_chua_xep goi_y_o loi ({d.vat_tu}/{d.so_lo})")
 				)
 				# Mục 5 (review tổng): câu cũ KHẲNG ĐỊNH đây là "lỗi dữ liệu vị
 				# trí" — sai, vì `except Exception` ở trên bắt MỌI ngoại lệ,
@@ -250,6 +249,7 @@ def phieu_xep_dang_lam(kho: str | None = None) -> dict:
 		if len(kho_ds) == 1:
 			kho = kho_ds[0]
 		else:
+			# H6: đã `_kiem_tra_quyen()` ở trên; chỉ đọc phiếu nháp của chính người gọi (owner).
 			gan_nhat = frappe.get_all(
 				DOCTYPE_PHIEU,
 				filters={"docstatus": 0, "owner": frappe.session.user},
@@ -316,9 +316,7 @@ def _mo_ta_lo(kho: str, vat_tu: str, so_lo: str | None) -> dict:
 		den_o, ly_do, tem_hong = goi_y_o(vat_tu, kho, so_lo)
 	except Exception:
 		# Cùng lẽ Ruling N ở `hang_chua_xep`: gợi ý hỏng không được chặn việc xếp.
-		frappe.log_error(
-			title=cat_tieu_de(f"vi_tri_kho: quet_de_xep goi_y_o loi ({vat_tu}/{so_lo})")
-		)
+		frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: quet_de_xep goi_y_o loi ({vat_tu}/{so_lo})"))
 		den_o, ly_do, tem_hong = None, _("không gợi ý được — xem Error Log"), False
 
 	return {
@@ -461,6 +459,7 @@ def xoa_dong_xep(phieu: str, dong: str) -> dict | None:
 
 	con_lai = [d for d in doc.items if d.name != dong]
 	if not con_lai:
+		# H6: đã `_kiem_tra_quyen()` và chỉ phiếu nháp của chính người gọi (xem docstring).
 		frappe.delete_doc(DOCTYPE_PHIEU, doc.name, ignore_permissions=True)
 		return None
 	doc.set("items", con_lai)

@@ -106,6 +106,8 @@ after_migrate = [
 	# tự phục hồi đó. `erpnext.warehouse_operations.tests.test_app_khoi_dong` khoá việc
 	# này còn trong danh sách.
 	"erpnext.warehouse_operations.vitri.cay.dam_bao_cay_da_dung",
+	# PHẢI Ở CUỐI: đồng bộ phân quyền RBAC (cờ `mvl_rbac_enabled`, tắt thì không làm gì).
+	"erpnext.access.permissions.sync.after_migrate",
 ]
 
 boot_session = "erpnext.startup.boot.boot_session"
@@ -371,21 +373,123 @@ period_closing_doctypes = [
 	"Subcontracting Receipt",
 ]
 
+# Phạm vi hồ sơ nhân sự [e]/[d] của RBAC (H8 — `erpnext/access/scope.py`; cờ `mvl_rbac_enabled`, tắt thì không
+# làm gì). Ghi cứng từng DocType có ô [e]/[d] trong ma trận vì hooks.py không được import `erpnext.access`;
+# `erpnext.access.tests.test_matrix_data.test_every_scoped_doctype_is_hooked` giữ hai danh sách khớp nhau.
+# Hook `has_permission` chỉ trả False hoặc None, không bao giờ True (R-2) để không che hook của app khác.
+permission_query_conditions = {
+	"Appraisal": "erpnext.access.scope.query_conditions",
+	"Attendance": "erpnext.access.scope.query_conditions",
+	"Attendance Request": "erpnext.access.scope.query_conditions",
+	"Business Trip": "erpnext.access.scope.query_conditions",
+	"Compensatory Leave Request": "erpnext.access.scope.query_conditions",
+	"Employee": "erpnext.access.scope.query_conditions",
+	"Employee Advance": "erpnext.access.scope.query_conditions",
+	"Employee Benefit Application": "erpnext.access.scope.query_conditions",
+	"Employee Benefit Claim": "erpnext.access.scope.query_conditions",
+	"Employee Checkin": "erpnext.access.scope.query_conditions",
+	"Employee Onboarding": "erpnext.access.scope.query_conditions",
+	"Employee Other Income": "erpnext.access.scope.query_conditions",
+	"Employee Performance Feedback": "erpnext.access.scope.query_conditions",
+	"Employee Promotion": "erpnext.access.scope.query_conditions",
+	"Employee Separation": "erpnext.access.scope.query_conditions",
+	"Employee Skill Map": "erpnext.access.scope.query_conditions",
+	"Employee Tax Exemption Declaration": "erpnext.access.scope.query_conditions",
+	"Employee Tax Exemption Proof Submission": "erpnext.access.scope.query_conditions",
+	"Employee Transfer": "erpnext.access.scope.query_conditions",
+	"Exit Interview": "erpnext.access.scope.query_conditions",
+	"Expense Claim": "erpnext.access.scope.query_conditions",
+	"Goal": "erpnext.access.scope.query_conditions",
+	"Job Requisition": "erpnext.access.scope.query_conditions",
+	"Leave Allocation": "erpnext.access.scope.query_conditions",
+	"Leave Application": "erpnext.access.scope.query_conditions",
+	"Leave Encashment": "erpnext.access.scope.query_conditions",
+	"Leave Ledger Entry": "erpnext.access.scope.query_conditions",
+	"Leave Policy Assignment": "erpnext.access.scope.query_conditions",
+	"Monthly Attendance Sheet": "erpnext.access.scope.query_conditions",
+	"Salary Slip": "erpnext.access.scope.query_conditions",
+	"Shift Assignment": "erpnext.access.scope.query_conditions",
+	"Shift Request": "erpnext.access.scope.query_conditions",
+	"Shift Schedule Assignment": "erpnext.access.scope.query_conditions",
+	"Staffing Plan": "erpnext.access.scope.query_conditions",
+	"Timesheet": "erpnext.access.scope.query_conditions",
+	# H1 — Contract theo `party_type` (`erpnext/access/contract_scope.py`), không phải [e]/[d]
+	"Contract": "erpnext.access.contract_scope.query_conditions",
+}
+
+has_permission = {
+	"Appraisal": "erpnext.access.scope.has_permission",
+	"Attendance": "erpnext.access.scope.has_permission",
+	"Attendance Request": "erpnext.access.scope.has_permission",
+	"Business Trip": "erpnext.access.scope.has_permission",
+	"Compensatory Leave Request": "erpnext.access.scope.has_permission",
+	"Employee": "erpnext.access.scope.has_permission",
+	"Employee Advance": "erpnext.access.scope.has_permission",
+	"Employee Benefit Application": "erpnext.access.scope.has_permission",
+	"Employee Benefit Claim": "erpnext.access.scope.has_permission",
+	"Employee Checkin": "erpnext.access.scope.has_permission",
+	"Employee Onboarding": "erpnext.access.scope.has_permission",
+	"Employee Other Income": "erpnext.access.scope.has_permission",
+	"Employee Performance Feedback": "erpnext.access.scope.has_permission",
+	"Employee Promotion": "erpnext.access.scope.has_permission",
+	"Employee Separation": "erpnext.access.scope.has_permission",
+	"Employee Skill Map": "erpnext.access.scope.has_permission",
+	"Employee Tax Exemption Declaration": "erpnext.access.scope.has_permission",
+	"Employee Tax Exemption Proof Submission": "erpnext.access.scope.has_permission",
+	"Employee Transfer": "erpnext.access.scope.has_permission",
+	"Exit Interview": "erpnext.access.scope.has_permission",
+	"Expense Claim": "erpnext.access.scope.has_permission",
+	"Goal": "erpnext.access.scope.has_permission",
+	"Job Requisition": "erpnext.access.scope.has_permission",
+	"Leave Allocation": "erpnext.access.scope.has_permission",
+	"Leave Application": "erpnext.access.scope.has_permission",
+	"Leave Encashment": "erpnext.access.scope.has_permission",
+	"Leave Ledger Entry": "erpnext.access.scope.has_permission",
+	"Leave Policy Assignment": "erpnext.access.scope.has_permission",
+	"Monthly Attendance Sheet": "erpnext.access.scope.has_permission",
+	"Salary Slip": "erpnext.access.scope.has_permission",
+	"Shift Assignment": "erpnext.access.scope.has_permission",
+	"Shift Request": "erpnext.access.scope.has_permission",
+	"Shift Schedule Assignment": "erpnext.access.scope.has_permission",
+	"Staffing Plan": "erpnext.access.scope.has_permission",
+	"Timesheet": "erpnext.access.scope.has_permission",
+	"Contract": "erpnext.access.contract_scope.has_permission",
+}
+
 doc_events = {
 	# Thông báo chuỗi cung ứng: BỐN móc duy nhất cho mọi chứng từ. Điểm thông báo
 	# nay là dữ liệu cấu hình, nên danh sách DocType không còn nằm trong code —
 	# `registry.has_points` (một lần đọc cache) cho bộ máy thoát ngay với DocType
 	# không có điểm. `on_change` chứ không phải `on_update`: ERPNext ghi các trường
 	# trạng thái bằng `db_set`, mà `db_set` chỉ chạy `on_change`.
+	#
+	# Chốt chặn workflow RBAC (H5, H10, H11 — `erpnext/access/workflow_guard.py`; cờ `mvl_rbac_enabled`,
+	# tắt thì không làm gì): `before_validate` chạy TRƯỚC controller (R-15), `validate` phải ở CUỐI list
+	# để thấy tổng tiền đã tính lại (R-16), `on_change` ghi dấu duyệt cho H10 (R-18), `before_cancel` đặt
+	# state Đã hủy (frappe bỏ qua bước này khi hủy).
 	"*": {
+		"before_validate": ["erpnext.access.workflow_guard.before_validate"],
 		"validate": [
 			"erpnext.support.doctype.service_level_agreement.service_level_agreement.apply",
 			"erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.check_for_running_deletion_job",
+			"erpnext.access.workflow_guard.validate",
 		],
+		"before_submit": ["erpnext.access.workflow_guard.before_submit"],
+		"before_cancel": ["erpnext.access.workflow_guard.before_cancel"],
 		"after_insert": "erpnext.supply_notification.events.after_insert",
 		"on_submit": "erpnext.supply_notification.events.on_submit",
 		"on_cancel": "erpnext.supply_notification.events.on_cancel",
-		"on_change": "erpnext.supply_notification.events.on_change",
+		"on_change": [
+			"erpnext.supply_notification.events.on_change",
+			"erpnext.access.workflow_guard.on_change",
+		],
+	},
+	# H9 — share Task / Job Applicant / Interview / Training Program / Training Event cho người được giao
+	# (`erpnext/access/assign_share.py`; Assign To huỷ là ToDo sang Cancelled nên cần cả `on_update`).
+	"ToDo": {
+		"after_insert": ["erpnext.access.assign_share.on_todo_change"],
+		"on_update": ["erpnext.access.assign_share.on_todo_change"],
+		"on_trash": ["erpnext.access.assign_share.on_todo_change"],
 	},
 	"Item": {
 		"validate": [
@@ -449,7 +553,26 @@ doc_events = {
 		"on_update": [
 			"erpnext.setup.doctype.employee.employee.update_user_permissions",
 			"erpnext.portal.utils.set_default_role",
+			"erpnext.access.audit_mail.on_change",
 		],
+	},
+	# H4 — mail kiểm toán khi đổi phân quyền (`erpnext/access/audit_mail.py`; cờ `mvl_rbac_enabled`, tắt thì không
+	# làm gì; im lặng khi đang sync). Has Role là bảng con nên móc này chỉ bắt lần chèn trực tiếp; đổi vai trò của
+	# User được phát hiện ở móc User ở trên.
+	**{
+		doctype: {
+			"on_update": "erpnext.access.audit_mail.on_change",
+			"on_trash": "erpnext.access.audit_mail.on_change",
+		}
+		for doctype in (
+			"Has Role",
+			"Role Profile",
+			"Custom DocPerm",
+			"Custom Role",
+			"User Permission",
+			"Workflow",
+			"MVL Approval Limits",
+		)
 	},
 	"Email Queue": {
 		"before_insert": "erpnext.utilities.email_guard.block_unsubscribed_recipients",
@@ -468,7 +591,22 @@ doc_events = {
 	"Event": {
 		"after_insert": "erpnext.crm.utils.link_events_with_prospect",
 	},
+	# H2 — giá dòng phải khớp giá chuẩn (dòng nguồn → Blanket Order → Item Price), trừ SM (bán) / PM (mua);
+	# trên Sales Order còn tính cờ `mvl_dung_gia_hd` cho WF-SO (`erpnext/access/pricing_guard.py`; cờ
+	# `mvl_rbac_enabled`, tắt thì không làm gì). Sales Invoice / Purchase Invoice gắn ở khoá riêng bên dưới.
+	"Quotation": {
+		"validate": ["erpnext.access.pricing_guard.validate"],
+	},
+	# "Update Items" trên SO/PO đã duyệt không chạy `validate`: H2 được gọi thẳng trong vòng lặp của
+	# `accounts_controller.update_child_qty_rate` (`pricing_guard.check_update_item`), không qua doc_events.
+	"Sales Order": {
+		"validate": ["erpnext.access.pricing_guard.validate"],
+	},
+	"Purchase Order": {
+		"validate": ["erpnext.access.pricing_guard.validate"],
+	},
 	"Sales Invoice": {
+		"validate": ["erpnext.access.pricing_guard.validate"],
 		"on_submit": [
 			"erpnext.regional.create_transaction_log",
 			"erpnext.regional.italy.utils.sales_invoice_on_submit",
@@ -486,9 +624,12 @@ doc_events = {
 		"validate": [
 			"erpnext.regional.united_arab_emirates.utils.update_grand_total_for_rcm",
 			"erpnext.regional.united_arab_emirates.utils.validate_returns",
+			"erpnext.access.pricing_guard.validate",
 		],
 	},
 	"Payment Entry": {
+		# H3 — chỉ dùng Bank Account đã duyệt (`erpnext/access/bank_account_guard.py`; cờ `mvl_rbac_enabled`)
+		"validate": ["erpnext.access.bank_account_guard.validate"],
 		"on_submit": "erpnext.regional.create_transaction_log",
 		"on_trash": "erpnext.regional.check_deletion_permission",
 	},
@@ -590,6 +731,7 @@ scheduler_events = {
 		"erpnext.utilities.bulk_transaction.retry",
 	],
 	"daily": [
+		"erpnext.access.temp_profiles.expire",
 		"erpnext.einvoice.doctype.fast_einvoice_log.fast_einvoice_log.delete_old_logs",
 		"erpnext.supply_notification.reminders.clear_old_dispatch_logs",
 		"erpnext.support.doctype.issue.issue.auto_close_tickets",
