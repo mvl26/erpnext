@@ -674,7 +674,7 @@ class TestBangAnhXa(TiepNhanCase):
 		self.assertRaises(frappe.PermissionError, doi_trang_thai, ax.name, "Đang dùng")
 		frappe.set_user(self.user("Purchase Manager"))
 		self.assertRaises(frappe.PermissionError, doi_trang_thai, ax.name, "Đang dùng")
-		frappe.set_user(self.user("Sales Manager", "Purchase User"))  # giám đốc duyệt (D4-10)
+		frappe.set_user(self.user("Sales Manager"))  # giám đốc duyệt (D4-10), chỉ cần vai trò này
 		self.assertEqual(doi_trang_thai(ax.name, "Đang dùng"), 1)
 
 	def test_sua_anh_xa_da_duyet_phai_duyet_lai(self):
@@ -687,7 +687,7 @@ class TestBangAnhXa(TiepNhanCase):
 				"item_code": a,
 			}
 		).insert(ignore_permissions=True)
-		giam_doc = self.user("Sales Manager", "Purchase User")
+		giam_doc = self.user("Sales Manager")
 		nhan_vien = self.user("Purchase User")
 		frappe.set_user(giam_doc)
 		doi_trang_thai(ax.name, "Đang dùng")
@@ -787,6 +787,16 @@ class TestTrangThaiVaTuChoi(TiepNhanCase):
 		self.assertFalse(frappe.has_permission(PHIEU, "create"))
 		self.assertRaises(frappe.PermissionError, tu_choi, p.name, "thử")
 		self.assertRaises(frappe.PermissionError, tao_hoa_don_mua, p.name)
+
+	def test_giam_doc_chi_co_sales_manager_xem_phieu_va_duyet(self):
+		item = self.item(ma_ncc="ABC-FL216")
+		self.hdk([(item, 1000, GIA)])
+		self.pr(self.po([(item, 100, GIA + 500)]))
+		p = self.phieu([("ABC-FL216", TEN_HD, "Cái", 100, GIA + 500, "10%")])
+		frappe.set_user(self.user("Sales Manager"))
+		self.assertTrue(frappe.has_permission(PHIEU, "read", doc=p.name))
+		self.assertFalse(frappe.has_permission(PHIEU, "write", doc=p.name))
+		self.assertEqual(duyet_canh_bao(p.name, "Giám đốc đồng ý giá mới"), "Đã đối soát")
 
 	def test_khong_gia_mao_duoc_phe_duyet_canh_bao(self):
 		item = self.item(ma_ncc="ABC-FL216")

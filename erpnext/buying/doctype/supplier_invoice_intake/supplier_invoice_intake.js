@@ -32,6 +32,8 @@ frappe.ui.form.on("Supplier Invoice Intake", {
 		if (!frm.is_new() && tt) {
 			frm.page.set_indicator(__(tt), erpnext.tiep_nhan_hoa_don.MAU[tt] || "gray");
 		}
+		// set_intro nối thêm khối; lần Lưu đầu refresh chạy hai lần nên xóa dòng cũ trước.
+		frm.set_intro();
 		const khoa =
 			(["Đã tạo nháp hóa đơn mua", "Lệch PR-PI", "Đã ghi sổ"].includes(tt) &&
 				frm.doc.purchase_invoice) ||
