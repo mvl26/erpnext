@@ -11,8 +11,8 @@ from frappe import _
 from frappe.utils import flt, nowdate
 
 from erpnext.warehouse_operations.vitri.goi_y import goi_y_o
-from erpnext.warehouse_operations.vitri.o_tem import kiem_o_tem
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
+from erpnext.warehouse_operations.vitri.o_tem import kiem_o_tem
 from erpnext.warehouse_operations.vitri.so import ton_o
 from erpnext.warehouse_operations.vitri.so_lo import kem_so_lo_hien_thi
 
@@ -119,9 +119,7 @@ def hang_chua_xep(kho: str) -> list[dict]:
 				# văng ra NGOÀI khối `except`, làm sập đúng thứ khối này sinh ra
 				# để chặn. Xem lý lẽ đầy đủ ở `nhat_ky_loi.py`.
 				frappe.log_error(
-					title=cat_tieu_de(
-						f"vi_tri_kho: hang_chua_xep goi_y_o loi ({d.vat_tu}/{d.so_lo})"
-					)
+					title=cat_tieu_de(f"vi_tri_kho: hang_chua_xep goi_y_o loi ({d.vat_tu}/{d.so_lo})")
 				)
 				# Mục 5 (review tổng): câu cũ KHẲNG ĐỊNH đây là "lỗi dữ liệu vị
 				# trí" — sai, vì `except Exception` ở trên bắt MỌI ngoại lệ,
@@ -316,9 +314,7 @@ def _mo_ta_lo(kho: str, vat_tu: str, so_lo: str | None) -> dict:
 		den_o, ly_do, tem_hong = goi_y_o(vat_tu, kho, so_lo)
 	except Exception:
 		# Cùng lẽ Ruling N ở `hang_chua_xep`: gợi ý hỏng không được chặn việc xếp.
-		frappe.log_error(
-			title=cat_tieu_de(f"vi_tri_kho: quet_de_xep goi_y_o loi ({vat_tu}/{so_lo})")
-		)
+		frappe.log_error(title=cat_tieu_de(f"vi_tri_kho: quet_de_xep goi_y_o loi ({vat_tu}/{so_lo})"))
 		den_o, ly_do, tem_hong = None, _("không gợi ý được — xem Error Log"), False
 
 	return {

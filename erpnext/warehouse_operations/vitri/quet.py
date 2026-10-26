@@ -1,7 +1,7 @@
 """Tra cứu ngược: quét một mã bất kỳ, trả lại TOÀN BỘ thông tin đã khai cho lô đó.
 
 CHIỀU NGƯỢC của Task 7/9 (`nhap_lo.du_lieu_tem`, `nhap_lo.dat_o_in_tem`): ở đó,
-thủ kho GÕ số lô của NCC rồi hệ IN nhãn 50×30 — mã vạch trên nhãn MÃ HOÁ chính
+thủ kho GÕ số lô của NCC rồi hệ IN nhãn 50x30 — mã vạch trên nhãn MÃ HOÁ chính
 số lô đó. Ở đây, thủ kho QUÉT LẠI đúng mã vạch trên nhãn đã dán (hoặc quét mã
 vật tư, hoặc quét mã kho) và hệ phải trả lại đúng những gì đã khai — yêu cầu
 trực tiếp của chủ đầu tư: "quét mã thì ra toàn bộ thông tin đã nhập".

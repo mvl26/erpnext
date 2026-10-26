@@ -1,7 +1,7 @@
 """Chọn danh sách ô để in tem cho một nhánh của cây vị trí.
 
-File này CHỈ quyết định **in những ô nào**. Việc vẽ tem (khổ 45×25mm hoặc
-50×30mm, mã vạch Code 128, cửa sổ in) nằm ở `public/js/warehouse_operations/tem_vi_tri.js`.
+File này CHỈ quyết định **in những ô nào**. Việc vẽ tem (khổ 45x25mm hoặc
+50x30mm, mã vạch Code 128, cửa sổ in) nằm ở `public/js/warehouse_operations/tem_vi_tri.js`.
 
 Vì sao tách đôi: phần chọn ô là chỗ hỏng đắt và im lặng. In THIẾU thì thấy
 ngay — kệ trống tem. In THỪA thì ra một xấp tem của nhánh khác, dán lên kệ,

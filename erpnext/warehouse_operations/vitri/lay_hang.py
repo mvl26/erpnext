@@ -175,7 +175,7 @@ COT_VI_TRI_LAY = "custom_vi_tri_lay"
 
 
 def _chuoi_vi_tri(cap) -> str:
-	"""[(ô, số lượng), ...] → "1A0101-0101 ×5; 1A0101-0102 ×3".
+	"""[(ô, số lượng), ...] → "1A0101-0101 x5; 1A0101-0102 x3" (chuỗi thật dùng dấu nhân U+00D7).
 
 	Gộp theo ô, giữ thứ tự ô xuất hiện lần đầu (thứ tự quét / thứ tự FEFO trừ).
 	Hiện `ma_in_nhan` — đúng chữ in trên tem ô ngoài kệ, thứ người đọc phiếu sẽ đi
@@ -209,9 +209,9 @@ def dien_cot_vi_tri_tu_phan_bo(doc) -> None:
 	lại ở từng hàm ghi. Bảng trống (chưa quét, hoặc bản amend vừa được dọn) thì
 	cột trống.
 	"""
-	if not doc.meta.get_field(TEN_BANG_PHAN_BO) or not frappe.get_meta(
-		"Delivery Note Item"
-	).has_field(COT_VI_TRI_LAY):
+	if not doc.meta.get_field(TEN_BANG_PHAN_BO) or not frappe.get_meta("Delivery Note Item").has_field(
+		COT_VI_TRI_LAY
+	):
 		return
 	theo_dong: dict[str, list] = {}
 	for p in doc.get(TEN_BANG_PHAN_BO) or []:
@@ -418,9 +418,7 @@ def kiem_phan_bo_khi_luu(doc, method=None):
 		if flt(p.so_luong) <= 0:
 			frappe.throw(_("Phân bổ vị trí dòng {0}: số lượng phải lớn hơn 0.").format(p.idx))
 
-		thong_tin = frappe.db.get_value(
-			"Storage Location", p.o, ["kho", "is_group"], as_dict=True
-		)
+		thong_tin = frappe.db.get_value("Storage Location", p.o, ["kho", "is_group"], as_dict=True)
 		if not thong_tin:
 			frappe.throw(_("Phân bổ vị trí dòng {0}: ô {1} không tồn tại.").format(p.idx, p.o))
 		if thong_tin.kho != dh.warehouse:
@@ -694,9 +692,7 @@ def danh_sach_phieu_giao(kho: str | None = None) -> dict:
 		# nếu không kiểm ở đây, lộ khách hàng/số lượng/số lô của kho đó dù
 		# kho chưa từng bật quản lý vị trí (không có ý nghĩa nghiệp vụ để
 		# thủ kho "lấy theo vị trí" ở một kho không quản lý vị trí).
-		frappe.throw(
-			_("Kho {0} chưa bật quản lý vị trí — không dùng được cho trang lấy hàng.").format(kho)
-		)
+		frappe.throw(_("Kho {0} chưa bật quản lý vị trí — không dùng được cho trang lấy hàng.").format(kho))
 	if not kho:
 		kho = kho_ds[0] if len(kho_ds) == 1 else None
 
@@ -1421,10 +1417,9 @@ def _luu_hoac_bao_xung_dot(doc):
 		doc.save()
 	except frappe.TimestampMismatchError:
 		frappe.throw(
-			_(
-				"Phiếu giao {0} vừa được người khác sửa. Màn hình sẽ nạp lại — quét lại lượt vừa "
-				"rồi."
-			).format(doc.name)
+			_("Phiếu giao {0} vừa được người khác sửa. Màn hình sẽ nạp lại — quét lại lượt vừa rồi.").format(
+				doc.name
+			)
 		)
 
 
@@ -1760,9 +1755,9 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 
 	if da <= _SAI_SO:
 		frappe.throw(
-			_(
-				"Dòng {0} ({1}) chưa lấy được gì của lô {2} — dùng 'Đổi lô' thay vì tách dòng."
-			).format(d.idx, d.item_code, d.batch_no or "—")
+			_("Dòng {0} ({1}) chưa lấy được gì của lô {2} — dùng 'Đổi lô' thay vì tách dòng.").format(
+				d.idx, d.item_code, d.batch_no or "—"
+			)
 		)
 	if con_lai <= _SAI_SO:
 		frappe.throw(
@@ -1775,9 +1770,7 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 		frappe.throw(_("Lô {0} không tồn tại.").format(so_lo_moi))
 	chu = frappe.db.get_value("Batch", so_lo_moi, "item")
 	if chu != d.item_code:
-		frappe.throw(
-			_("Lô {0} là lô của mặt hàng {1}, không phải {2}.").format(so_lo_moi, chu, d.item_code)
-		)
+		frappe.throw(_("Lô {0} là lô của mặt hàng {1}, không phải {2}.").format(so_lo_moi, chu, d.item_code))
 	_chan_lo_duoi_han_khach(doc, d, so_lo_moi)
 
 	moi = {
@@ -1828,7 +1821,7 @@ def tach_dong_theo_lo(phieu: str, dong_hang: str, so_lo_moi: str) -> dict:
 	# CẢ hai dòng sau tách — tổng trọng lượng phiếu gần gấp đôi, in sai lên vận
 	# đơn. Tính tay theo đúng công thức client, không suy đoán: không có
 	# `weight_per_unit` thì 0.
-	# `da`/`con_lai` đã là đơn vị tồn — trọng lượng = đơn vị tồn × `weight_per_unit`.
+	# `da`/`con_lai` đã là đơn vị tồn — trọng lượng = đơn vị tồn x `weight_per_unit`.
 	wpu = flt(d.weight_per_unit)
 	d.total_weight = flt(wpu * da) if wpu else 0.0
 	moi["total_weight"] = flt(wpu * con_lai) if wpu else 0.0
@@ -1923,9 +1916,7 @@ def bo_chot_thieu(phieu: str, dong_hang: str) -> dict:
 	khoa = _khoa_chot_thieu(phieu)
 	danh_dau = _doc_chot_thieu(phieu)
 	if dong_hang not in danh_dau:
-		frappe.throw(
-			_("Dòng {0} chưa được chốt thiếu — không có gì để gỡ.").format(dong_hang)
-		)
+		frappe.throw(_("Dòng {0} chưa được chốt thiếu — không có gì để gỡ.").format(dong_hang))
 	danh_dau.pop(dong_hang)
 	if danh_dau:
 		frappe.cache().set_value(khoa, danh_dau, expires_in_sec=_TTL_CHOT_THIEU)
@@ -2063,10 +2054,9 @@ def hoan_tat(phieu: str) -> dict:
 		# cộng đôi dữ liệu), chỉ đổi CÂU CHỮ cho thủ kho đọc hiểu được.
 		frappe.db.rollback(save_point=diem)
 		frappe.throw(
-			_(
-				"Phiếu giao {0} vừa được người khác sửa. Màn hình sẽ nạp lại — quét lại lượt vừa "
-				"rồi."
-			).format(phieu)
+			_("Phiếu giao {0} vừa được người khác sửa. Màn hình sẽ nạp lại — quét lại lượt vừa rồi.").format(
+				phieu
+			)
 		)
 	except Exception:
 		frappe.db.rollback(save_point=diem)
@@ -2143,7 +2133,5 @@ def tien_do_lay_hang(phieu: str) -> dict:
 		# Tem kiện (`tem_kien.py`): chưa in đủ thì không duyệt được phiếu.
 		"so_kien_da_in": kien_da_in,
 		"tong_kien": tong_kien,
-		"lay_duoc": bool(
-			doc.docstatus == 0 and dong_quet and VAI_TRO_DUOC_LAY & set(frappe.get_roles())
-		),
+		"lay_duoc": bool(doc.docstatus == 0 and dong_quet and VAI_TRO_DUOC_LAY & set(frappe.get_roles())),
 	}

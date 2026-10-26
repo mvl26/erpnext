@@ -148,7 +148,7 @@ def validate_opening_balances(company, as_of=None):
 	the 131 / 331 / 15x opening control totals.
 
 	With ``as_of`` (mid-year cutover, e.g. ``"2026-06-30"``) two more gates apply:
-	the opening TB is balance-sheet-only — no account numbered loại 5–9, the H1
+	the opening TB is balance-sheet-only — no account numbered loại 5-9, the H1
 	result belongs in equity (4212) — and every opening entry is posted exactly on
 	``as_of``. Core already blocks report_type="Profit and Loss" accounts in opening
 	entries; the number-prefix gate additionally catches P&L-numbered accounts that
@@ -166,7 +166,9 @@ def validate_opening_balances(company, as_of=None):
 	total_dr = sum(flt(r.debit) for r in rows)
 	total_cr = sum(flt(r.credit) for r in rows)
 	non_tt99 = sorted({r.account for r in rows if not numbers[r.account]})
-	orphan = sorted({r.account for r in rows if numbers[r.account].startswith(("131", "331")) and not r.party})
+	orphan = sorted(
+		{r.account for r in rows if numbers[r.account].startswith(("131", "331")) and not r.party}
+	)
 
 	def _net(prefixes):
 		return sum(flt(r.debit) - flt(r.credit) for r in rows if numbers[r.account].startswith(prefixes))

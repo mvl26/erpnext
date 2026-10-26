@@ -302,7 +302,7 @@ class TestManHinhBatBuocCoMat(FrappeTestCase):
 		khai_bao = None
 		nhan = None
 		dem = 0
-		for l in list(ws.links) + [None]:
+		for l in [*ws.links, None]:
 			if l is None or l.type == "Card Break":
 				if nhan is not None and dem != khai_bao:
 					lech.append(f"{nhan}: khai {khai_bao}, đếm được {dem}")
@@ -422,6 +422,7 @@ class TestTrangQuetMa(FrappeTestCase):
 				"erpnext", "warehouse_operations", "page", self.THU_MUC, f"{self.THU_MUC}.{duoi}"
 			)
 			self.assertTrue(os.path.exists(duong_dan), f"thiếu file {duong_dan}")
+
 
 class TestTrangXepHangPda(TestTrangQuetMa):
 	"""Trang xếp hàng trên PDA — chủ đầu tư 17/09/2026 "giao diện xếp hàng cũng là

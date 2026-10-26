@@ -110,8 +110,8 @@ def kiem_o_tem(vat_tu: str, so_lo: str | None, kho: str | None = None) -> dict:
 		"kiem": True,
 		"chua_co_o": False,
 		"loi": _(
-			"Ô trên tem lô {0} không dùng được nữa: {1}. Trưởng kho mở lô, bấm \"Đổi ô trên "
-			"tem\" rồi in lại tem."
+			'Ô trên tem lô {0} không dùng được nữa: {1}. Trưởng kho mở lô, bấm "Đổi ô trên '
+			'tem" rồi in lại tem.'
 		).format(so_lo, ly_do)
 		if ly_do
 		else None,
