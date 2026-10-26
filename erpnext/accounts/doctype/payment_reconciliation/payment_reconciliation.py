@@ -823,6 +823,8 @@ def reconcile_dr_cr_note(dr_cr_notes, company, active_dimensions=None):
 		jv.remark = None
 		jv.flags.skip_remarks_creation = True
 		jv.is_system_generated = True
+		# Miyano RBAC: JE hệ thống, không qua WF-JE — xem erpnext/access/workflow_guard.py
+		jv.flags.ignore_permissions = True
 		jv.submit()
 
 		if inv.difference_amount != 0:
