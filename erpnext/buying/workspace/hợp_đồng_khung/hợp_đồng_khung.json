@@ -1,0 +1,159 @@
+{
+ "charts": [],
+ "content": "[{\"id\": \"eb08ad1cda\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Hợp đồng khung (hợp đồng nguyên tắc) với nhà cung cấp</b></span>\", \"col\": 12}}, {\"id\": \"7ef701c193\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Hợp đồng khung chờ Nộp\", \"col\": 6}}, {\"id\": \"ad2f5af84a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Hợp đồng khung đã Nộp\", \"col\": 6}}, {\"id\": \"1626358f15\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Mẫu điều khoản\", \"col\": 6}}, {\"id\": \"b2213a2d78\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Giá theo hợp đồng khung\", \"col\": 6}}, {\"id\": \"40f225ca43\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"abb7ea68f4\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Chức năng và báo cáo</b></span>\", \"col\": 12}}, {\"id\": \"fd92fdf7d7\", \"type\": \"card\", \"data\": {\"card_name\": \"Hợp đồng khung\", \"col\": 4}}, {\"id\": \"498efb1f4b\", \"type\": \"card\", \"data\": {\"card_name\": \"Đặt hàng\", \"col\": 4}}, {\"id\": \"f44c926d7f\", \"type\": \"card\", \"data\": {\"card_name\": \"Cài đặt\", \"col\": 4}}]",
+ "creation": "2026-10-26 09:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "file",
+ "idx": 0,
+ "indicator_color": "",
+ "is_hidden": 0,
+ "label": "Hợp đồng khung",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Hợp đồng khung",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Hợp đồng khung (Đơn khung)",
+   "link_count": 0,
+   "link_to": "Blanket Order",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Mẫu điều khoản",
+   "link_count": 0,
+   "link_to": "Terms and Conditions",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Giá mặt hàng (giá theo hợp đồng)",
+   "link_count": 0,
+   "link_to": "Item Price",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Đặt hàng",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Đơn mua hàng",
+   "link_count": 0,
+   "link_to": "Purchase Order",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Nhà cung cấp",
+   "link_count": 0,
+   "link_to": "Supplier",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cài đặt",
+   "link_count": 1,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cài đặt tiếp nhận hóa đơn NCC (trường bắt buộc của hợp đồng)",
+   "link_count": 0,
+   "link_to": "Supplier Invoice Intake Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-26 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Buying",
+ "name": "Hợp đồng khung",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "Buying",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 23.4,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "format": "{} nháp",
+   "label": "Hợp đồng khung chờ Nộp",
+   "link_to": "Blanket Order",
+   "stats_filter": "{\"blanket_order_type\": [\"=\", \"Purchasing\"], \"docstatus\": [\"=\", 0]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "format": "{} hợp đồng",
+   "label": "Hợp đồng khung đã Nộp",
+   "link_to": "Blanket Order",
+   "stats_filter": "{\"blanket_order_type\": [\"=\", \"Purchasing\"], \"docstatus\": [\"=\", 1]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Mẫu điều khoản",
+   "link_to": "Terms and Conditions",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "format": "{} giá",
+   "label": "Giá theo hợp đồng khung",
+   "link_to": "Item Price",
+   "stats_filter": "{\"hop_dong_khung\": [\"is\", \"set\"]}",
+   "type": "DocType"
+  }
+ ],
+ "title": "Hợp đồng khung"
+}

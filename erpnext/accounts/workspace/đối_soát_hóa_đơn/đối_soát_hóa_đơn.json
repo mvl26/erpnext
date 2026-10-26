@@ -1,0 +1,188 @@
+{
+ "charts": [],
+ "content": "[{\"id\": \"9ffc60b34b\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Đối soát Phiếu nhập mua ↔ Hóa đơn mua và đề nghị thanh toán</b></span>\", \"col\": 12}}, {\"id\": \"e80993709f\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Hóa đơn mua đang lệch\", \"col\": 6}}, {\"id\": \"5857fd67b5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Hóa đơn chưa đối soát\", \"col\": 6}}, {\"id\": \"8e07bc29ce\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đề nghị thanh toán nháp\", \"col\": 6}}, {\"id\": \"7ce8e6d4a9\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Nhật ký đối soát\", \"col\": 6}}, {\"id\": \"6a04c3b0fe\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"e8816deddd\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Chức năng và báo cáo</b></span>\", \"col\": 12}}, {\"id\": \"803405dfdb\", \"type\": \"card\", \"data\": {\"card_name\": \"Chứng từ\", \"col\": 4}}, {\"id\": \"15cb9bbe07\", \"type\": \"card\", \"data\": {\"card_name\": \"Theo dõi\", \"col\": 4}}, {\"id\": \"e0e11c36e1\", \"type\": \"card\", \"data\": {\"card_name\": \"Cài đặt\", \"col\": 4}}]",
+ "creation": "2026-10-26 09:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "expenses",
+ "idx": 0,
+ "indicator_color": "",
+ "is_hidden": 0,
+ "label": "Đối soát hóa đơn",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Chứng từ",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Hóa đơn mua",
+   "link_count": 0,
+   "link_to": "Purchase Invoice",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Phiếu nhập mua",
+   "link_count": 0,
+   "link_to": "Purchase Receipt",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Yêu cầu thanh toán",
+   "link_count": 0,
+   "link_to": "Payment Request",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Phiếu tiếp nhận hóa đơn NCC",
+   "link_count": 0,
+   "link_to": "Supplier Invoice Intake",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Theo dõi",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Nhật ký đối soát",
+   "link_count": 0,
+   "link_to": "Purchase Invoice PR Reconciliation Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Nhật ký gửi thông báo",
+   "link_count": 0,
+   "link_to": "Supply Notification Dispatch Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cài đặt",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Thiết lập mua hàng (đối soát)",
+   "link_count": 0,
+   "link_to": "Buying Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Nhà cung cấp (áp đối soát)",
+   "link_count": 0,
+   "link_to": "Supplier",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-26 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Accounts",
+ "name": "Đối soát hóa đơn",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "Accounting",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [
+  {
+   "role": "Accounts User"
+  },
+  {
+   "role": "Accounts Manager"
+  }
+ ],
+ "sequence_id": 19.2,
+ "shortcuts": [
+  {
+   "color": "Red",
+   "doc_view": "List",
+   "format": "{} lệch",
+   "label": "Hóa đơn mua đang lệch",
+   "link_to": "Purchase Invoice",
+   "stats_filter": "{\"trang_thai_doi_soat_pr\": [\"=\", \"Lệch\"], \"docstatus\": [\"=\", 0]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "format": "{} chưa đối soát",
+   "label": "Hóa đơn chưa đối soát",
+   "link_to": "Purchase Invoice",
+   "stats_filter": "{\"trang_thai_doi_soat_pr\": [\"=\", \"Chưa đối soát\"], \"docstatus\": [\"=\", 0]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "format": "{} nháp",
+   "label": "Đề nghị thanh toán nháp",
+   "link_to": "Payment Request",
+   "stats_filter": "{\"payment_request_type\": [\"=\", \"Outward\"], \"docstatus\": [\"=\", 0]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Nhật ký đối soát",
+   "link_to": "Purchase Invoice PR Reconciliation Log",
+   "type": "DocType"
+  }
+ ],
+ "title": "Đối soát hóa đơn"
+}

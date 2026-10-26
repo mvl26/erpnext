@@ -1,0 +1,161 @@
+{
+ "charts": [],
+ "content": "[{\"id\": \"93f239ae25\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Tiếp nhận hóa đơn nhà cung cấp và đối soát Phiếu nhập ↔ Hóa đơn</b></span>\", \"col\": 12}}, {\"id\": \"c78c2ca70e\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Phiếu tiếp nhận chờ xử lý\", \"col\": 6}}, {\"id\": \"f95680443c\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Phiếu tiếp nhận lệch PR-PI\", \"col\": 6}}, {\"id\": \"30fec670b5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Ánh xạ tên chờ duyệt\", \"col\": 6}}, {\"id\": \"b67ca68b40\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Phiếu tiếp nhận hóa đơn NCC\", \"col\": 6}}, {\"id\": \"a068d3842c\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"12533d14f1\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Chức năng và báo cáo</b></span>\", \"col\": 12}}, {\"id\": \"6ecd6f11dc\", \"type\": \"card\", \"data\": {\"card_name\": \"Tiếp nhận hóa đơn NCC\", \"col\": 4}}, {\"id\": \"3e0d2a895b\", \"type\": \"card\", \"data\": {\"card_name\": \"Đối soát Phiếu nhập ↔ Hóa đơn\", \"col\": 4}}]",
+ "creation": "2026-10-26 09:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "clipboard",
+ "idx": 0,
+ "indicator_color": "",
+ "is_hidden": 0,
+ "label": "Hóa đơn NCC",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Tiếp nhận hóa đơn NCC",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Phiếu tiếp nhận hóa đơn NCC",
+   "link_count": 0,
+   "link_to": "Supplier Invoice Intake",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Bảng ánh xạ tên hàng NCC",
+   "link_count": 0,
+   "link_to": "Supplier Item Alias",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cài đặt tiếp nhận hóa đơn NCC",
+   "link_count": 0,
+   "link_to": "Supplier Invoice Intake Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Đối soát Phiếu nhập ↔ Hóa đơn",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Phiếu nhập mua",
+   "link_count": 0,
+   "link_to": "Purchase Receipt",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Hóa đơn mua",
+   "link_count": 0,
+   "link_to": "Purchase Invoice",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Nhật ký đối soát",
+   "link_count": 0,
+   "link_to": "Purchase Invoice PR Reconciliation Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Thiết lập mua hàng (đối soát)",
+   "link_count": 0,
+   "link_to": "Buying Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-26 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Buying",
+ "name": "Hóa đơn NCC",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "Buying",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 23.6,
+ "shortcuts": [
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "format": "{} chờ xử lý",
+   "label": "Phiếu tiếp nhận chờ xử lý",
+   "link_to": "Supplier Invoice Intake",
+   "stats_filter": "{\"trang_thai\": [\"=\", \"Chờ xử lý thủ công\"]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Red",
+   "doc_view": "List",
+   "format": "{} lệch",
+   "label": "Phiếu tiếp nhận lệch PR-PI",
+   "link_to": "Supplier Invoice Intake",
+   "stats_filter": "{\"trang_thai\": [\"=\", \"Lệch PR-PI\"]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "format": "{} chờ duyệt",
+   "label": "Ánh xạ tên chờ duyệt",
+   "link_to": "Supplier Item Alias",
+   "stats_filter": "{\"trang_thai\": [\"=\", \"Chờ duyệt\"]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Phiếu tiếp nhận hóa đơn NCC",
+   "link_to": "Supplier Invoice Intake",
+   "type": "DocType"
+  }
+ ],
+ "title": "Hóa đơn NCC"
+}

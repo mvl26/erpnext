@@ -1,0 +1,221 @@
+{
+ "charts": [],
+ "content": "[{\"id\": \"b8d9db539d\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Kiểm giá bán theo hệ số khách hàng và báo trước đổi giá</b></span>\", \"col\": 12}}, {\"id\": \"8e6c1a68bf\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đối soát giá mua – giá bán\", \"col\": 4}}, {\"id\": \"2b832e0d7d\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đối chiếu bảng giá – giá mua\", \"col\": 4}}, {\"id\": \"cb0257a146\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đổi giá báo gấp\", \"col\": 4}}, {\"id\": \"af628cb287\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Giá chờ gửi thông báo\", \"col\": 4}}, {\"id\": \"251137807a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Giá chờ khách xác nhận\", \"col\": 4}}, {\"id\": \"dbb2b786a2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đơn bán hàng\", \"col\": 4}}, {\"id\": \"6176f8fc7a\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"1737cb6bf2\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Chức năng và báo cáo</b></span>\", \"col\": 12}}, {\"id\": \"951076a8d5\", \"type\": \"card\", \"data\": {\"card_name\": \"Báo cáo kiểm giá\", \"col\": 4}}, {\"id\": \"8bbd092154\", \"type\": \"card\", \"data\": {\"card_name\": \"Khai báo giá\", \"col\": 4}}, {\"id\": \"b7ae226f25\", \"type\": \"card\", \"data\": {\"card_name\": \"Chứng từ\", \"col\": 4}}]",
+ "creation": "2026-10-26 09:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "tag",
+ "idx": 0,
+ "indicator_color": "",
+ "is_hidden": 0,
+ "label": "Kiểm giá bán",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Báo cáo kiểm giá",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Đối soát giá mua – giá bán (theo đơn)",
+   "link_count": 0,
+   "link_to": "Doi Soat Gia Mua Gia Ban",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Sales Order",
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Đối chiếu bảng giá bán – giá mua",
+   "link_count": 0,
+   "link_to": "Doi Chieu Gia Ban Gia Mua",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Item Price",
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Thông báo đổi giá báo gấp",
+   "link_count": 0,
+   "link_to": "Thong Bao Doi Gia Bao Gap",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Item Price",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Khai báo giá",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Khách hàng (hệ số giá bán)",
+   "link_count": 0,
+   "link_to": "Customer",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Bảng giá (báo trước khi đổi giá)",
+   "link_count": 0,
+   "link_to": "Price List",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Giá mặt hàng (giá chờ gửi)",
+   "link_count": 0,
+   "link_to": "Item Price",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Thiết lập bán hàng (kiểm giá bán)",
+   "link_count": 0,
+   "link_to": "Selling Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Chứng từ",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Đơn bán hàng",
+   "link_count": 0,
+   "link_to": "Sales Order",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Báo giá nhà cung cấp (báo giá đợt)",
+   "link_count": 0,
+   "link_to": "Supplier Quotation",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Hợp đồng khung (giá HĐ nguyên tắc)",
+   "link_count": 0,
+   "link_to": "Blanket Order",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-26 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Selling",
+ "name": "Kiểm giá bán",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "Bán hàng",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 24.5,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Đối soát giá mua – giá bán",
+   "link_to": "Doi Soat Gia Mua Gia Ban",
+   "report_ref_doctype": "Sales Order",
+   "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Đối chiếu bảng giá – giá mua",
+   "link_to": "Doi Chieu Gia Ban Gia Mua",
+   "report_ref_doctype": "Item Price",
+   "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Đổi giá báo gấp",
+   "link_to": "Thong Bao Doi Gia Bao Gap",
+   "report_ref_doctype": "Item Price",
+   "type": "Report"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "format": "{} giá",
+   "label": "Giá chờ gửi thông báo",
+   "link_to": "Item Price",
+   "stats_filter": "{\"trang_thai_thong_bao\": [\"=\", \"Chờ gửi\"]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "List",
+   "format": "{} giá",
+   "label": "Giá chờ khách xác nhận",
+   "link_to": "Item Price",
+   "stats_filter": "{\"trang_thai_thong_bao\": [\"=\", \"Đã gửi\"]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Đơn bán hàng",
+   "link_to": "Sales Order",
+   "type": "DocType"
+  }
+ ],
+ "title": "Kiểm giá bán"
+}
