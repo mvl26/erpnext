@@ -249,6 +249,7 @@ def phieu_xep_dang_lam(kho: str | None = None) -> dict:
 		if len(kho_ds) == 1:
 			kho = kho_ds[0]
 		else:
+			# H6: đã `_kiem_tra_quyen()` ở trên; chỉ đọc phiếu nháp của chính người gọi (owner).
 			gan_nhat = frappe.get_all(
 				DOCTYPE_PHIEU,
 				filters={"docstatus": 0, "owner": frappe.session.user},
@@ -458,6 +459,7 @@ def xoa_dong_xep(phieu: str, dong: str) -> dict | None:
 
 	con_lai = [d for d in doc.items if d.name != dong]
 	if not con_lai:
+		# H6: đã `_kiem_tra_quyen()` và chỉ phiếu nháp của chính người gọi (xem docstring).
 		frappe.delete_doc(DOCTYPE_PHIEU, doc.name, ignore_permissions=True)
 		return None
 	doc.set("items", con_lai)

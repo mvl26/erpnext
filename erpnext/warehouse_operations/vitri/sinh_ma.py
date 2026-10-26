@@ -101,10 +101,13 @@ def sinh(kho, khu, so_day, so_khoang_moi_day, so_tang_moi_khoang, so_o_moi_tang)
 	nhom = sorted({m[:i] for m in ma for i in (2, 4, 6, 8)}, key=len)
 	for n in nhom:
 		if not frappe.db.exists("Storage Location", n):
+			# H6: ghi bỏ qua phân quyền có chủ đích — vai trò Stock Manager đã được kiểm ở đầu hàm,
+			# còn Stock User chỉ được đọc `Storage Location`.
 			frappe.get_doc({"doctype": "Storage Location", "ma_o": n, "kho": kho}).insert(
 				ignore_permissions=True
 			)
 
+	# H6: như trên — ghi bỏ qua phân quyền sau khi đã kiểm vai trò quản lý kho.
 	for i, m in enumerate(ma, start=1):
 		frappe.get_doc(
 			{

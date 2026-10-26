@@ -69,6 +69,7 @@ def _vi_tri_co_dinh(vat_tu: str) -> str | None:
 
 
 def _dong_gan(vat_tu: str) -> list:
+	# H6: miễn kiểm quyền — chỉ gọi từ `tra_cuu` sau `_kiem_tra_quyen()` (vai trò kho).
 	return frappe.get_all(
 		"Item Location Preference Row",
 		filters={"parent": vat_tu, "parenttype": "Item Location Preference"},

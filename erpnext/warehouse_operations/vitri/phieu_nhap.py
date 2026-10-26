@@ -105,6 +105,7 @@ def chan_doan_phieu_nhap(phieu_nhap: str) -> dict:
 		"phieu_nhap_lo_nhap": frappe.db.get_value(
 			"Batch Entry", {"phieu_nhap": phieu_nhap, "docstatus": 0}, "name"
 		),
+		# H6: đã `has_permission("Purchase Receipt", "read")` ở trên; chỉ liệt kê phiếu nhập lô của chính phiếu này.
 		"phieu_nhap_lo": frappe.get_all(
 			"Batch Entry", {"phieu_nhap": phieu_nhap, "docstatus": 1}, pluck="name"
 		),

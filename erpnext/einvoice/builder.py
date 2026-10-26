@@ -90,6 +90,7 @@ def create_from_sales_invoice(sales_invoice):
 	fei.fast_key = _unused_key(fast_key_for(source.name))
 	_copy_from_source(fei, source, settings)
 
+	# H6: đã kiểm quyền đọc hóa đơn bán ở trên (lý do ghi bỏ qua phân quyền: xem chú thích đó).
 	fei.flags.ignore_permissions = True
 	fei.insert()
 
@@ -126,6 +127,8 @@ def resync_from_source(fei):
 	"""
 	settings = check_enabled()
 	doc = frappe.get_doc(FEI, fei)
+	# H6: bản ghi lưu bằng ignore_permissions bên dưới, nên quyền ghi phải kiểm ở đây.
+	doc.check_permission("write")
 
 	if doc.status not in RESYNC_STATUSES:
 		frappe.throw(
@@ -269,6 +272,7 @@ def link_sales_invoice(fei, sales_invoice):
 	doc.sales_invoice = source.name
 	doc.flags.allow_sales_invoice_link = True
 	doc.flags.ignore_status_lock = True
+	# H6: đã `check_permission("write")` trên chứng từ HĐĐT và kiểm đọc hóa đơn bán ở trên.
 	doc.flags.ignore_permissions = True
 	doc.save()
 

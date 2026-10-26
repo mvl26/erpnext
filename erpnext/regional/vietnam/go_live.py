@@ -153,6 +153,8 @@ def validate_opening_balances(company, as_of=None):
 	entries; the number-prefix gate additionally catches P&L-numbered accounts that
 	were misclassified as Balance Sheet. Without ``as_of`` behavior is unchanged.
 	"""
+	# H6: get_all không kiểm quyền — chỉ người đọc được sổ cái mới xem được số dư đầu kỳ.
+	frappe.has_permission("GL Entry", "read", throw=True)
 	rows = frappe.get_all(
 		"GL Entry",
 		filters={"company": company, "is_opening": "Yes", "is_cancelled": 0},
