@@ -19,6 +19,7 @@ from frappe import _
 from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
 from frappe.utils import add_to_date, cint, get_url_to_form, now_datetime
 
+from erpnext.access.permissions.sync import is_enabled
 from erpnext.supply_notification import constants, content, context, registry, resolver
 from erpnext.supply_notification.doctype.supply_notification_settings.supply_notification_settings import (
 	get_settings,
@@ -416,7 +417,8 @@ def resend(log: str) -> str:
 	"""Nút *Gửi lại* trên dòng nhật ký lỗi (AC-15)."""
 	row = frappe.get_doc(LOG_DOCTYPE, log)
 	row.check_permission("read")
-	frappe.only_for((constants.ADMIN_ROLE, "System Manager"))
+	# R-10: sau go-live chỉ ADMIN_ROLE; trước đó (cờ RBAC tắt) System Manager còn được.
+	frappe.only_for((constants.ADMIN_ROLE,) if is_enabled() else (constants.ADMIN_ROLE, "System Manager"))
 
 	point = frappe.get_doc(POINT_DOCTYPE, row.point)
 	doc = frappe.get_doc(row.reference_doctype, row.reference_name)

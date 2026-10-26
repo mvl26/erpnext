@@ -12,11 +12,13 @@ và mọi lần quét sau đó đều trỏ sai chỗ mà không có gì báo l�
 import frappe
 from frappe import _
 
+from erpnext.warehouse_operations.vitri import vai_tro as vt
+
 # Cùng nguồn với DocPerm đọc của `Storage Location`: thủ kho (`Stock User`)
 # PHẢI in lại được tem khi tem rách, bẩn, bong — đó là việc hằng ngày, không
 # phải thiết lập. Khác với `bat_kho.py` (sinh ô, bật kho) cố ý chỉ mở cho
 # quản lý, vì những thao tác đó GHI dữ liệu; in tem không ghi gì.
-VAI_TRO_DUOC_IN_TEM = {"System Manager", "Stock Manager", "Stock User"}
+VAI_TRO_DUOC_IN_TEM = {"Stock Manager", "Stock User"}
 
 # Trần số tem một lần in. Bấm nhầm vào nốt gốc mà không có trần thì cả cuộn
 # tem chạy ra máy in trước khi kịp dừng.
@@ -30,7 +32,7 @@ def _kiem_tra_quyen():
 	toàn bộ cách bố trí kho, nên đăng nhập hợp lệ không phải điều kiện đủ —
 	`Website User` (khách hàng cổng) không có vai trò nào ở đây nên bị chặn.
 	"""
-	if not VAI_TRO_DUOC_IN_TEM & set(frappe.get_roles()):
+	if not vt.co_quyen(VAI_TRO_DUOC_IN_TEM):
 		frappe.throw(_("Bạn không có quyền in tem vị trí."), frappe.PermissionError)
 
 

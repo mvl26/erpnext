@@ -394,7 +394,8 @@ class TestTrangQuetMa(FrappeTestCase):
 		"""Khớp `quet.VAI_TRO_DUOC_TRA_CUU` — trang mở được mà máy chủ chặn thì
 		thủ kho thấy một trang quét cứ báo lỗi quyền mỗi lần bóp cò."""
 		vai_tro = set(frappe.get_all("Has Role", {"parent": self.TRANG, "parenttype": "Page"}, pluck="role"))
-		self.assertEqual(vai_tro, self._vai_tro_may_chu())
+		# Trang còn `System Manager` đến bước cutover go-live (runbook); máy chủ thì bộ sau go-live.
+		self.assertEqual(vai_tro, self._vai_tro_may_chu() | {"System Manager"})
 
 	def test_co_loi_tat_ve_ra_va_nam_trong_the_hang_ngay(self):
 		ws = frappe.get_doc("Workspace", TEN_WORKSPACE)

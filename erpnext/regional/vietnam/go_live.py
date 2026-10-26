@@ -13,7 +13,6 @@ from frappe.custom.doctype.property_setter.property_setter import make_property_
 from frappe.utils import flt, getdate, nowdate
 
 from erpnext.regional.vietnam.constants import CHART_NAME, PL_ACCOUNT_PREFIXES, VN_NAMING_SERIES
-from erpnext.regional.vietnam.role_profiles import VN_ROLE_PROFILES
 from erpnext.regional.vietnam.setup import _acct
 
 # TT99 inventory account prefixes (hàng tồn kho: nguyên vật liệu … hàng gửi bán).
@@ -285,8 +284,10 @@ def _check_has_warehouse(company):
 
 
 def _check_role_profiles(company):
-	missing = [name for name in VN_ROLE_PROFILES if not frappe.db.exists("Role Profile", name)]
-	return _check("role_profiles", not missing, "; ".join(missing) or "đủ nhóm quyền VN")
+	from erpnext.access.permissions.matrix import load_matrix
+
+	missing = [name for name in load_matrix().role_profiles if not frappe.db.exists("Role Profile", name)]
+	return _check("role_profiles", not missing, "; ".join(missing) or "đủ nhóm quyền RP-* của ma trận")
 
 
 def _check_no_numberless_accounts(company):

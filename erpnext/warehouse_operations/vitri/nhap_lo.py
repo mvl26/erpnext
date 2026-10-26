@@ -30,6 +30,7 @@ import frappe
 from frappe import _
 from frappe.utils import getdate
 
+from erpnext.warehouse_operations.vitri import vai_tro as vt
 from erpnext.warehouse_operations.vitri.goi_y import goi_y_o
 from erpnext.warehouse_operations.vitri.ma_vi_tri import dinh_dang_nhan
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
@@ -37,7 +38,7 @@ from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
 # Cùng bộ vai trò với `xep.VAI_TRO_DUOC_XEP` / `tem.VAI_TRO_DUOC_IN_TEM`: nạp
 # dòng hàng và in nhãn đều là việc HẰNG NGÀY của thủ kho, không phải thao tác
 # thiết lập chỉ dành cho quản lý (khác `bat_kho.py`).
-VAI_TRO_DUOC_DUNG = {"System Manager", "Stock Manager", "Stock User"}
+VAI_TRO_DUOC_DUNG = {"Stock Manager", "Stock User"}
 
 # F8 khi CHƯA có ô nào để in — không đoán (mặt hàng chưa gán, hoặc không suy
 # được kho), và KHÔNG chặn in: một nhãn thiếu ô vẫn dán lên hàng được, còn
@@ -53,7 +54,7 @@ def _kiem_tra_quyen():
 	lệ không phải điều kiện đủ cho cả ba. `Website User` (khách hàng cổng
 	`miyano_portal`) không có vai trò nào trong tập này nên bị chặn.
 	"""
-	if not VAI_TRO_DUOC_DUNG & set(frappe.get_roles()):
+	if not vt.co_quyen(VAI_TRO_DUOC_DUNG):
 		frappe.throw(_("Bạn không có quyền dùng chức năng nhập lô / in nhãn."), frappe.PermissionError)
 
 

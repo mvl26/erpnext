@@ -34,6 +34,7 @@ import frappe
 from frappe import _
 
 from erpnext.stock.utils import scan_barcode
+from erpnext.warehouse_operations.vitri import vai_tro as vt
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
 from erpnext.warehouse_operations.vitri.so_lo import tim_lo
 
@@ -42,7 +43,7 @@ from erpnext.warehouse_operations.vitri.so_lo import tim_lo
 # đó, để không cột chặt các module vốn độc lập vào nhau vì một hằng số ba phần
 # tử). `tra_cuu` lộ tồn kho theo Ô của BẤT KỲ lô nào quét trúng, không phải
 # thao tác thiết lập chỉ dành cho quản lý (khác `bat_kho.py`).
-VAI_TRO_DUOC_TRA_CUU = {"System Manager", "Stock Manager", "Stock User"}
+VAI_TRO_DUOC_TRA_CUU = {"Stock Manager", "Stock User", "MVL Kho PDA"}
 
 
 def _kiem_tra_quyen():
@@ -52,7 +53,7 @@ def _kiem_tra_quyen():
 	hợp lệ không phải điều kiện đủ. `Website User` (khách hàng cổng
 	`miyano_portal`) không có vai trò nào ở đây nên bị chặn.
 	"""
-	if not VAI_TRO_DUOC_TRA_CUU & set(frappe.get_roles()):
+	if not vt.co_quyen(VAI_TRO_DUOC_TRA_CUU):
 		frappe.throw(_("Bạn không có quyền tra cứu theo mã vạch."), frappe.PermissionError)
 
 

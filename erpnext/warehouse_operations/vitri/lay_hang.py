@@ -14,6 +14,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, formatdate, getdate, now, now_datetime, nowdate, time_diff_in_seconds
 
+from erpnext.warehouse_operations.vitri import vai_tro as vt
 from erpnext.warehouse_operations.vitri.fefo import chon_o_xuat
 from erpnext.warehouse_operations.vitri.kho import kho_co_quan_ly_vi_tri
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
@@ -37,7 +38,7 @@ CHUNG_TU_CO_PHAN_BO = ("Delivery Note",)
 
 # Cùng bộ vai trò với `xep.py`/`quet.py` — thủ kho phải tự làm được, đây là việc
 # hằng ngày.
-VAI_TRO_DUOC_LAY = {"System Manager", "Stock Manager", "Stock User"}
+VAI_TRO_DUOC_LAY = {"Stock Manager", "Stock User", "MVL Kho PDA"}
 
 # VÒNG SỬA 1/5 (Critical, review điều phối model mạnh): TTL cờ "chốt thiếu"
 # hạ từ 24h xuống MỘT CA LÀM VIỆC (8 giờ). Cờ là Ý ĐỊNH của một lượt làm việc
@@ -550,7 +551,7 @@ def _chan_khong_tron(d, qty_moi: float) -> None:
 
 def _kiem_tra_quyen():
 	"""`@frappe.whitelist()` một mình chỉ chặn khách vãng lai — xem `xep.py`."""
-	if not VAI_TRO_DUOC_LAY & set(frappe.get_roles()):
+	if not vt.co_quyen(VAI_TRO_DUOC_LAY):
 		frappe.throw(_("Bạn không có quyền lấy hàng theo vị trí."), frappe.PermissionError)
 
 
@@ -2133,5 +2134,5 @@ def tien_do_lay_hang(phieu: str) -> dict:
 		# Tem kiện (`tem_kien.py`): chưa in đủ thì không duyệt được phiếu.
 		"so_kien_da_in": kien_da_in,
 		"tong_kien": tong_kien,
-		"lay_duoc": bool(doc.docstatus == 0 and dong_quet and VAI_TRO_DUOC_LAY & set(frappe.get_roles())),
+		"lay_duoc": bool(doc.docstatus == 0 and dong_quet and vt.co_quyen(VAI_TRO_DUOC_LAY)),
 	}

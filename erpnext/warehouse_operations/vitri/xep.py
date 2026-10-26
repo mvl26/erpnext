@@ -10,6 +10,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, nowdate
 
+from erpnext.warehouse_operations.vitri import vai_tro as vt
 from erpnext.warehouse_operations.vitri.goi_y import goi_y_o
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
 from erpnext.warehouse_operations.vitri.o_tem import kiem_o_tem
@@ -19,7 +20,7 @@ from erpnext.warehouse_operations.vitri.so_lo import kem_so_lo_hien_thi
 # Giống `tem.py`: thủ kho phải tự làm được, đây là việc hằng ngày chứ không
 # phải thao tác thiết lập. Khác `bat_kho.py` (sinh ô, bật kho) vốn chỉ mở
 # cho quản lý.
-VAI_TRO_DUOC_XEP = {"System Manager", "Stock Manager", "Stock User"}
+VAI_TRO_DUOC_XEP = {"Stock Manager", "Stock User", "MVL Kho PDA"}
 
 
 def _kiem_tra_quyen():
@@ -29,7 +30,7 @@ def _kiem_tra_quyen():
 	hợp lệ không phải điều kiện đủ. `Website User` (khách hàng cổng) không có
 	vai trò nào ở đây nên bị chặn.
 	"""
-	if not VAI_TRO_DUOC_XEP & set(frappe.get_roles()):
+	if not vt.co_quyen(VAI_TRO_DUOC_XEP):
 		frappe.throw(_("Bạn không có quyền xem hàng chưa xếp vị trí."), frappe.PermissionError)
 
 
