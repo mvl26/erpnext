@@ -74,7 +74,8 @@ def get_data(filters):
 	if filters.get("price_list"):
 		conditions.append("ip.price_list = %(price_list)s")
 		values["price_list"] = filters.price_list
-	if cint(filters.get("chi_bao_gap", 1)):
+	# Bỏ tích trên giao diện thì Frappe không gửi bộ lọc này; mặc định tích nằm ở file .js.
+	if cint(filters.get("chi_bao_gap")):
 		conditions.append("ip.bao_gap = 1")
 	if cint(filters.get("chua_xac_nhan")):
 		conditions.append("ip.ngay_xac_nhan is null")

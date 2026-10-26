@@ -35,4 +35,4 @@
 ## Không làm được?
 
 - Không sửa được hệ số trên Khách hàng hoặc thông tin chấp thuận đã điền: chỉ Giám đốc được sửa.
-- Báo cáo theo dõi: **Doi Soat Gia Mua Gia Ban** (theo từng đơn; lọc "Chỉ dòng chờ khách chấp thuận" để xem đơn còn thiếu văn bản).
+- Báo cáo theo dõi: **Doi Soat Gia Mua Gia Ban** (theo từng đơn; lọc "Chỉ dòng chờ khách chấp thuận" để xem đơn còn thiếu văn bản). Báo cáo chỉ mở được với Giám đốc (Sales Manager) và Kế toán trưởng (Accounts Manager): nhân viên bán hàng nhờ Giám đốc xem.

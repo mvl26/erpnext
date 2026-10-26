@@ -7,7 +7,18 @@ frappe.ui.form.on("Purchase Invoice", {
 		if (!trang_thai) return;
 
 		const mau = { Khớp: "green", Lệch: "red", "Ngoại lệ đã duyệt": "orange" }[trang_thai] || "gray";
+		// Nhãn ở dashboard chỉ thấy trong thẻ Liên kết: trạng thái khớp / ngoại lệ hiện thêm ở đầu form.
 		frm.dashboard.add_indicator(__("Đối soát Phiếu nhập: {0}", [__(trang_thai)]), mau);
+		if (trang_thai === "Khớp") {
+			frm.set_intro(__("Đối soát Phiếu nhập: Khớp."), "green");
+		} else if (trang_thai === "Ngoại lệ đã duyệt") {
+			frm.set_intro(
+				__("Đối soát Phiếu nhập: Ngoại lệ đã duyệt ({0}).", [
+					frappe.utils.escape_html(frm.doc.ly_do_ngoai_le || ""),
+				]),
+				"orange"
+			);
+		}
 		frm.add_custom_button(
 			__("Nhật ký đối soát"),
 			() =>

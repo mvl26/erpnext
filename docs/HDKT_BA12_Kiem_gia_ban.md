@@ -50,11 +50,11 @@ Dữ liệu demo:
 | A01 | Mở SO ① → dòng VT-01 → mục Kiểm giá bán | NCC dự kiến DEMO-Vietmed; giá mua **123.457**, nguồn **HĐ nguyên tắc**, chứng từ = dòng giá của DEMO Mua - Vietmed; hệ số 1,01; số HĐ HĐNT-HIMEDIC-2026; giá đề xuất **124.692**; trạng thái **Khớp** (ô màu xanh lá) | ☐ |
 | A02 | Mở Supplier Quotation nháp DEMO-Vietmed → **Submit**. Mở lại SO ① → Lưu | VT-01: giá mua **125.000**, nguồn **Báo giá đợt** (số báo giá, ngày), giá đề xuất **126.250**, trạng thái **Thấp hơn** (ô màu đỏ), chênh −1.558 | ☐ |
 | A03 | SO ①, dòng VT-01: đổi **NCC dự kiến** = DEMO-Hùng Minh → Lưu | Giá mua **118.000** (HĐ nguyên tắc Hùng Minh), đề xuất **119.180**, trạng thái **Cao hơn** | ☐ |
-| A04 | Mở SO ② → Lưu | Cảnh báo cam: VT-01 giá mua 123.457 (HĐ nguyên tắc …), hệ số 1,01, giá đúng 124.692, **chênh +308**. Submit (không lý do) → **bị chặn** "Nhập Lý do lệch giá" | ☐ |
+| A04 | Mở SO ② → Lưu | Cảnh báo cam: VT-01 giá mua 123.457 (HĐ nguyên tắc …), hệ số 1,01, giá đúng 124.692, **chênh +308**. Submit (không lý do) → **bị chặn** "Nhập Lý do lệch giá". Lưu ý: báo giá 125.000 Submit ở A02 vẫn còn hiệu lực thì SO ② cũng lấy giá đó (Báo giá đợt, giá đúng 126.250, chênh −1.250). Muốn thấy đúng số trên: làm A04 trước A02, hoặc chạy lại 0.2 (script dừng báo giá cũ) | ☐ |
 | A05 | SO ② (hoặc ①) dòng VT-01 có **Đề xuất khác bảng giá** (bảng giá 120.000) và **Chờ khách chấp thuận giá** → điền Lý do lệch giá, Submit | Bị chặn: "… Ghi đủ thông tin khách chấp thuận (R05): Dòng 1 – DEMO-VT-01: thiếu Số văn bản…, Người đại diện KH…, Ngày chấp thuận". Điền thiếu 1 trong 3 ô → vẫn bị chặn, báo đúng ô thiếu | ☐ |
 | A06 | Làm lại từ 0.2. SO ① dòng VT-01: điền Số văn bản `VB-01/2026`, Người đại diện `Ông A`, Ngày chấp thuận hôm nay → Lưu → **Submit** | Submit được. Ô **Thông báo giá mới** có link Communication: gửi `himedic.demo@example.com`, tiêu đề "Thông báo giá mới - Đơn hàng …", bảng: VT-01, giá cũ **120.000**, giá mới **124.692**, số văn bản VB-01/2026. Email nằm trên timeline SO | ☐ |
 | A07 | Mở SO ④ (DEMO-Khách lẻ) → Lưu → Submit | Không cảnh báo; mục Kiểm giá bán trống; Submit được không cần gì | ☐ |
-| A08 | Mở báo cáo **Doi Soat Gia Mua Gia Ban** (Từ ngày–Đến ngày quanh hôm nay) | Có dòng của SO đã Submit ở A06: SO, mặt hàng, NCC, nguồn giá, giá mua, hệ số, số HĐ, giá đề xuất, giá bán, chênh lệch, giá bảng giá, trạng thái, lý do, số văn bản, người đại diện, ngày chấp thuận, **Chấp thuận** (Đủ / Chờ chấp thuận), **Người nhập chấp thuận**, **Thời điểm nhập**. Lọc Khách hàng / NCC / Mặt hàng hoạt động; "Gồm SO nháp" hiện thêm SO nháp; "Chỉ dòng lệch / khác bảng giá" ẩn dòng khớp; "Chỉ dòng chờ khách chấp thuận" chỉ hiện dòng còn chờ | ☐ |
+| A08 | `demo.giamdoc` mở báo cáo **Doi Soat Gia Mua Gia Ban** (Từ ngày–Đến ngày quanh hôm nay). Báo cáo chỉ mở được với Sales Manager, Accounts Manager, System Manager: `demo.nhanvien` mở thì báo "Bạn không có quyền truy cập vào Báo cáo" | Có dòng của SO đã Submit ở A06: SO, mặt hàng, NCC, nguồn giá, giá mua, hệ số, số HĐ, giá đề xuất, giá bán, chênh lệch, giá bảng giá, trạng thái, lý do, số văn bản, người đại diện, ngày chấp thuận, **Chấp thuận** (Đủ / Chờ chấp thuận), **Người nhập chấp thuận**, **Thời điểm nhập**. Lọc Khách hàng / NCC / Mặt hàng hoạt động; "Gồm SO nháp" hiện thêm SO nháp; "Chỉ dòng lệch / khác bảng giá" ẩn dòng khớp; "Chỉ dòng chờ khách chấp thuận" chỉ hiện dòng còn chờ | ☐ |
 
 ## B. Hệ số khách hàng (R01, R07) và quyền
 
@@ -168,6 +168,21 @@ Site test `erpnext.localhost`: **đã điền** 3 tài khoản này ngày 23/10/
 4. Làm lại mục 11.1.
 
 Site test `erpnext.localhost`: **đã cài HRMS** (15.50.3) ngày 23/10/2026.
+
+### 11.3. Lưu Hóa đơn bán báo thiếu "Tài khoản thu nhập"
+
+**Thông báo:** "Thiếu trường: các trường bắt buộc cần thiết trong bảng Các mặt hàng, dãy 1 — Tài khoản thu nhập" khi lập Hóa đơn bán từ SO (bước F9).
+
+**Nguyên nhân:** Công ty chưa khai tài khoản doanh thu và giá vốn mặc định, mặt hàng cũng không có tài khoản riêng.
+
+**Cách xử lý** (kế toán trưởng hoặc IT): mở **Công ty Miyano**, điền rồi Lưu:
+
+| Trường | Tài khoản cần chọn |
+|---|---|
+| Default Income Account | 511 - Doanh thu bán hàng và cung cấp dịch vụ - MVL |
+| Default Expense Account | 632 - Giá vốn hàng bán - MVL |
+
+Site test `erpnext.localhost`: **đã điền** 2 tài khoản này ngày 25/10/2026.
 
 ## Test tự động
 

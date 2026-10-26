@@ -12,7 +12,7 @@ Quy tắc để đối chiếu khi test:
 
 - Chỉ áp cho hóa đơn mua của NCC trong phạm vi (thử: NCC có tích **Áp đối soát Phiếu nhập ↔ Hóa đơn**, demo là `DEMO-Vietmed`), có dòng lấy từ Phiếu nhập mua. Hóa đơn trả hàng, hóa đơn tự nhập kho, hóa đơn dịch vụ không có Phiếu nhập: không đối soát.
 - So **0 đồng** với phần Phiếu nhập đã nhận mà chưa lập hóa đơn, theo ĐVT kho và giá trước thuế: số lượng, đơn giá, thuế suất, thành tiền từng dòng; rồi tổng tiền hàng, tổng thuế, tổng thanh toán (chỉ so tổng khi mọi dòng đã khớp).
-- Trạng thái đối soát (mục **Đối soát với Phiếu nhập mua**, dưới bảng mặt hàng; nhãn màu ở đầu form): **Khớp** xanh lá, **Lệch** đỏ, **Ngoại lệ đã duyệt** cam, **Chưa đối soát** xám.
+- Trạng thái đối soát (mục **Đối soát với Phiếu nhập mua**, dưới bảng mặt hàng; dòng thông báo màu ở đầu form; nhãn màu ở thẻ **Liên kết**): **Khớp** xanh lá, **Lệch** đỏ, **Ngoại lệ đã duyệt** cam, **Chưa đối soát** xám.
 - Lệch thì **không Nộp được**. Kế toán trưởng / Ban Điều hành có thể **Duyệt ngoại lệ** (bắt buộc lý do). Sửa hóa đơn làm chênh lệch đổi thì phê duyệt mất hiệu lực. Hóa đơn **cao hơn** giá trị Phiếu nhập thì không duyệt ngoại lệ được.
 - Mỗi lần kết quả đối soát đổi, mỗi lần duyệt ngoại lệ, khi Nộp hóa đơn và khi Phiếu nhập liên quan bị hủy đều ghi vào **Nhật ký đối soát** (menu **Đối soát Phiếu nhập → Nhật ký đối soát** trên hóa đơn). Không ai sửa hay xóa được nhật ký.
 - Nộp hóa đơn Khớp / có ngoại lệ → hệ thống tạo **Yêu cầu thanh toán (ĐNTT) nháp**, đính kèm file hóa đơn, giao việc cho người duyệt. Tổng ĐNTT chưa hủy của một hóa đơn (kể cả bản nháp) không được vượt số tiền hóa đơn.
@@ -43,7 +43,7 @@ Cách lập hóa đơn trong các bước dưới: mở Phiếu nhập → **T�
 
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
-| B1 | `demo.ketoan` lập hóa đơn từ Phiếu nhập **DEMO-D3-A** (10 DEMO-VT-01 × 100.000, VAT 10%), không sửa gì → Lưu | Tổng 1.100.000. Mục Đối soát: **Khớp**, có giờ đối soát; không có Bảng chênh lệch. Đầu form: nhãn xanh "Đối soát Phiếu nhập: Khớp" | ☐ |
+| B1 | `demo.ketoan` lập hóa đơn từ Phiếu nhập **DEMO-D3-A** (10 DEMO-VT-01 × 100.000, VAT 10%), không sửa gì → Lưu | Tổng 1.100.000. Mục Đối soát: **Khớp**, có giờ đối soát; không có Bảng chênh lệch. Đầu form: dòng xanh "Đối soát Phiếu nhập: Khớp." (thẻ Liên kết: nhãn xanh "Đối soát Phiếu nhập: Khớp") | ☐ |
 | B2 | Đính kèm một file PDF bất kỳ vào hóa đơn | Đính kèm được | ☐ |
 | B3 | **Nộp** | Nộp được. Thông báo xanh "Đã tạo đề nghị thanh toán nháp ACC-PRQ-…" | ☐ |
 | B4 | Mở Yêu cầu thanh toán vừa tạo | **Nháp**; Loại yêu cầu thanh toán Outward; Đối tác DEMO-Vietmed; Số tiền **1.100.000**; tiêu đề "Thanh toán hóa đơn HD-A của DEMO-Vietmed"; nội dung có "Đối soát Phiếu nhập: Khớp"; có file PDF đính kèm; **Giao cho** demo.ketoantruong | ☐ |
@@ -63,7 +63,7 @@ Cách lập hóa đơn trong các bước dưới: mở Phiếu nhập → **T�
 | C4 | Ở `sites` chạy:<br>`../env/bin/python ../apps/erpnext/scripts/demo_doi_soat_pr_pi.py --site erpnext.localhost --nhac-lech <số hóa đơn C1>` | In "Lệch từ ngày lùi về 3 ngày trước", "Đã nhắc Kế toán trưởng 1 hóa đơn" (hoặc nhiều hơn nếu còn hóa đơn lệch khác) | ☐ |
 | C5 | `demo.ketoantruong` mở chuông | Thông báo "1 hóa đơn mua lệch Phiếu nhập quá 3 ngày"; nội dung là bảng: số hóa đơn (link), NCC, số HĐ NCC, giá trị, lệch từ (3 ngày), trạng thái, nhánh xử lý "Chưa chọn", người lập | ☐ |
 | C6 | `demo.ketoantruong` mở hóa đơn C1 → **Đối soát Phiếu nhập → Duyệt ngoại lệ** → để trống lý do → Duyệt | Không duyệt được (ô lý do bắt buộc) | ☐ |
-| C7 | Nhập lý do "NCC giao thiếu 1, đã thỏa thuận" → **Duyệt** | Trạng thái **Ngoại lệ đã duyệt** (nhãn cam). Hiện Lý do ngoại lệ, Người duyệt ngoại lệ = demo.ketoantruong, Thời điểm duyệt. Lệch từ ngày bị xóa. Bảng chênh lệch vẫn giữ | ☐ |
+| C7 | Nhập lý do "NCC giao thiếu 1, đã thỏa thuận" → **Duyệt** | Trạng thái **Ngoại lệ đã duyệt**; đầu form dòng cam "Đối soát Phiếu nhập: Ngoại lệ đã duyệt (NCC giao thiếu 1, đã thỏa thuận)." Hiện Lý do ngoại lệ, Người duyệt ngoại lệ = demo.ketoantruong, Thời điểm duyệt. Lệch từ ngày bị xóa. Bảng chênh lệch vẫn giữ | ☐ |
 | C8 | `demo.ketoan` sửa Số lượng **8** → Lưu | Thông báo cam "Chênh lệch đã thay đổi sau khi demo.ketoantruong@example.com duyệt ngoại lệ, nên phê duyệt cũ không còn hiệu lực." Trạng thái về **Lệch**; ô duyệt trống; mức lệch −2. Nhật ký gửi thông báo có thêm **NTF-17** (chuyển sang Lệch), Sent | ☐ |
 | C9 | Sửa lại **9** → Lưu | Vẫn **Lệch** (phê duyệt cũ không tự quay lại) | ☐ |
 | C10 | `demo.ketoantruong` Duyệt ngoại lệ lại. `demo.ketoan` **Nộp** | Nộp được. ĐNTT nháp **990.000**, nội dung "Đối soát Phiếu nhập: Ngoại lệ đã duyệt" | ☐ |
@@ -126,7 +126,7 @@ Phiếu nhập **DEMO-D3-I**: 10 DEMO-VT-01 × 100.000, VAT 10%, cước vận c
 |---|---|---|---|
 | I1 | Lập hóa đơn từ **DEMO-D3-J** (NCC DEMO-Hùng Minh, không tích Áp đối soát), sửa Số lượng **9** → Lưu → Nộp | **Không** có mục Đối soát với Phiếu nhập mua; Nộp được; **không** tạo ĐNTT | ☐ |
 | I2 | Mở Đơn mua hàng kịch bản K (dịch vụ DEMO-DV-VC 200.000, không có Phiếu nhập) → Tạo → Hóa đơn mua → Lưu → Nộp | Không có mục đối soát; Nộp được (hàng không quản lý kho không cần Phiếu nhập); không tạo ĐNTT | ☐ |
-| I3 | Lập hóa đơn từ **DEMO-D3-L** (10 DEMO-VT-05 theo Cái), đổi ĐVT dòng thành **Hộp**, hệ số 10, Số lượng 1 → Lưu | ERPNext chặn ngay khi lưu: "Incorrect value in row 1:UOM must be equal to 'Cái'" (ĐVT phải trùng Phiếu nhập; không tới bước đối soát) | ☐ |
+| I3 | Lập hóa đơn từ **DEMO-D3-L** (10 DEMO-VT-05 theo Cái), đổi ĐVT dòng thành **Hộp**, hệ số 10, Số lượng 1 → Lưu | ERPNext chặn ngay khi lưu: "Giá trị không chính xác trong hàng 1:UOM phải bằng 'Cái'" (ĐVT phải trùng Phiếu nhập; không tới bước đối soát) | ☐ |
 
 ## J. Tắt công tắc
 

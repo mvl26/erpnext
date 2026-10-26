@@ -106,22 +106,31 @@ def _lam_phan_phu(ham, *args):
 
 
 def _dinh_kem_hoa_don(doc, dntt):
-	"""Gắn file hóa đơn gốc: bản ghi File mới trỏ cùng tệp, không chép nội dung."""
-	for f in frappe.get_all(
+	"""Gắn file hóa đơn gốc vào ĐNTT, trỏ cùng tệp trên đĩa.
+
+	Truyền nội dung dạng bytes thay vì chỉ `file_url`: Frappe đọc lại tệp theo `file_url` và giải mã
+	thành chuỗi khi mọi byte là UTF-8 (PDF chỉ có ký tự ASCII), rồi bước kiểm PDF lỗi TypeError. Cùng
+	nội dung thì Frappe nhận ra tệp trùng (content hash) nên dùng lại tệp cũ, không ghi bản sao.
+	"""
+	for name in frappe.get_all(
 		"File",
 		filters={"attached_to_doctype": doc.doctype, "attached_to_name": doc.name, "is_folder": 0},
-		fields=["file_url", "file_name", "is_private"],
+		pluck="name",
 	):
-		frappe.get_doc(
-			{
-				"doctype": "File",
-				"file_url": f.file_url,
-				"file_name": f.file_name,
-				"is_private": f.is_private,
-				"attached_to_doctype": dntt.doctype,
-				"attached_to_name": dntt.name,
-			}
-		).insert(ignore_permissions=True)
+		f = frappe.get_doc("File", name)
+		moi = {
+			"doctype": "File",
+			"file_name": f.file_name,
+			"is_private": f.is_private,
+			"attached_to_doctype": dntt.doctype,
+			"attached_to_name": dntt.name,
+		}
+		if f.is_remote_file:
+			moi["file_url"] = f.file_url
+		else:
+			with open(f.get_full_path(), "rb") as tep:
+				moi["content"] = tep.read()
+		frappe.get_doc(moi).insert(ignore_permissions=True)
 
 
 def nguoi_duyet_dntt(c=None):

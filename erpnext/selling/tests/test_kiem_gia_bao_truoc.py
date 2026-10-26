@@ -550,12 +550,14 @@ class TestBaoCaoBaoGap(BaoTruocCase):
 			}
 		).insert(ignore_permissions=True).submit()
 
-		rows = self.rows()
+		rows = self.rows(chi_bao_gap=1)
 
 		self.assertIn(gap.name, rows)
 		self.assertNotIn(du.name, rows)  # đủ 7 ngày: chỉ hiện khi bỏ lọc báo gấp
 		self.assertEqual((rows[gap.name].thieu, rows[gap.name].so_don), (4, 1))
 		self.assertIn(du.name, self.rows(chi_bao_gap=0))
+		# Bỏ tích trên giao diện: Frappe không gửi bộ lọc Check bằng 0.
+		self.assertIn(du.name, self.rows())
 
 	def test_confirmed_rows_can_be_hidden(self):
 		gap = self.gia(self.cho, self.item_a, 105000, add_days(self.d, 3))

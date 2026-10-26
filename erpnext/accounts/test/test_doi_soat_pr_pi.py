@@ -505,6 +505,41 @@ class TestDoiSoatPRPI(DoiSoatCase):
 		self.assertEqual(frappe.db.get_value("Purchase Invoice", pi.name, "docstatus"), 0)
 		self.assertFalse(self.dntt(pi))
 
+	def test_dntt_dinh_kem_file_pdf_cua_hoa_don(self):
+		# PDF chỉ có ký tự ASCII: Frappe đọc lại thành chuỗi nếu chỉ chép file_url (lỗi khi kiểm PDF).
+		vat = [
+			b"<< /Type /Catalog /Pages 2 0 R >>",
+			b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+			b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] >>",
+		]
+		pdf, vi_tri = b"%PDF-1.4\n", []
+		for i, v in enumerate(vat, 1):
+			vi_tri.append(len(pdf))
+			pdf += b"%d 0 obj %s endobj\n" % (i, v)
+		xref = len(pdf)
+		pdf += b"xref\n0 %d\n0000000000 65535 f \n" % (len(vat) + 1)
+		pdf += b"".join(b"%010d 00000 n \n" % v for v in vi_tri)
+		pdf += b"trailer << /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(vat) + 1, xref)
+		pi = self.pi(self.pr(self.po([(self.item(), 10)])))
+		goc = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": f"hd-{self.sfx}.pdf",
+				"content": pdf,
+				"is_private": 1,
+				"attached_to_doctype": "Purchase Invoice",
+				"attached_to_name": pi.name,
+			}
+		).insert(ignore_permissions=True)
+		pi.reload()
+		pi.submit()
+		tep = frappe.get_all(
+			"File",
+			filters={"attached_to_doctype": "Payment Request", "attached_to_name": self.dntt(pi)[0].name},
+			pluck="file_url",
+		)
+		self.assertEqual(tep, [goc.file_url], "trỏ cùng tệp, không ghi bản sao")
+
 	def test_huy_hoa_don_xoa_dntt_nhap(self):
 		pi = self.pi(self.pr(self.po([(self.item(), 10)])))
 		pi.submit()

@@ -119,4 +119,5 @@ cd ~/frappe-bench/sites
 - **Bỏ mục J** (Submit báo giá NCC tự tạo nháp giá Himedic): BA12 D09 — bảng giá khách hàng cập nhật thủ công; báo giá NCC nay chỉ là nguồn "Báo giá đợt" để tính giá đề xuất (D07), không ghi vào bảng giá nào.
 - Dòng "Đang trong thời hạn báo giá" không cần lý do và **không** bị đòi 3 thông tin chấp thuận R05 — **chỉ khi bán đúng giá bảng giá hiện hành** (Q7, PO chốt 22/10/2026). Bán giá mới sớm hoặc một giá khác là lệch bình thường (K5, K6).
 - T10 (25/10/2026): chặn chồng khoảng ngày ngay khi lưu giá chờ (H10–H12), không đợi tới lúc gửi; I16 chỉ còn kiểm bằng test tự động.
+- 25/10/2026, test lại trên giao diện: M2 trước đây sai (bỏ tích "Chỉ dòng báo gấp" vẫn chỉ hiện dòng báo gấp, vì giao diện không gửi bộ lọc đã bỏ tích). Đã sửa báo cáo.
 - Trường trên Price List / Item Price là Custom Field (BA12 "không sửa core"); vị trí và nhãn trên form không đổi.
