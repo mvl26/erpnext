@@ -15,6 +15,7 @@ class DocTypeInfo:
 	is_submittable: bool
 	issingle: bool
 	high_permlevel_fields: frozenset[str] = frozenset()
+	custom: bool = False  # made in the desk on this site (``tabDocType.custom``), not shipped by an app
 
 
 @dataclass
@@ -26,7 +27,7 @@ class SiteInfo:
 	def from_db(cls) -> "SiteInfo":
 		rows = frappe.db.sql(
 			"""
-			SELECT dt.name, dt.module, m.app_name, dt.issingle, dt.is_submittable
+			SELECT dt.name, dt.module, m.app_name, dt.issingle, dt.is_submittable, dt.custom
 			FROM `tabDocType` dt
 			JOIN `tabModule Def` m ON m.name = dt.module
 			WHERE m.app_name IN %(apps)s AND dt.istable = 0
@@ -46,6 +47,7 @@ class SiteInfo:
 				high_permlevel_fields=frozenset(
 					df.fieldname for df in meta.get_high_permlevel_fields() if getattr(df, "fieldname", None)
 				),
+				custom=bool(row.custom),
 			)
 		report_rows = frappe.db.sql(
 			"""

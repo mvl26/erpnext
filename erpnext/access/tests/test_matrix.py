@@ -74,4 +74,5 @@ class TestSiteInfo(FrappeTestCase):
 		s = SiteInfo.from_db()
 		self.assertTrue(s.doctypes["Purchase Order"].is_submittable)
 		self.assertNotIn("Asset Repair", s.doctypes)
+		self.assertFalse(s.doctypes["Purchase Order"].custom)
 		self.assertTrue(s.reports)

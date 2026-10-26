@@ -259,6 +259,7 @@ bench --site miyano migrate 2>&1 | tee /tmp/rbac_migrate_$(date +%Y%m%d_%H%M).lo
 - Employee thiếu `user_id`, `leave_approver`, `expense_approver`; nhân viên chưa có người duyệt ca; Department chưa có approver; người duyệt chưa có profile chứa TBP; `approver_coo` của Business Trip không có AP.
 - User nội bộ chưa có Role Profile (sẽ hết ở bước 6); user có AssetCore Super Admin ngoài IT-QT; bản ghi Authorization Rule.
 - Report đang khóa; trường perm level > 0 chưa khai báo; profile ghép lệch; User chưa có phạm vi trong user_scope; nhân viên chưa có `reports_to` (đúng 1 gốc là hợp lệ).
+- `DocType tạo tay trên site (custom), ngoài ma trận`: DocType tạo bằng Desk trên site đó. Sync không đụng tới quyền của nó (giữ DocPerm đang có). Mở DocType đó và thêm role `MVL *`/role chuẩn cho người cần dùng, vì sau cutover user chỉ còn role của `RP-*`. Report của ma trận không có trên site cũng chỉ là cảnh báo (`R-REPORT`, bỏ qua).
 - Cảnh báo page: page của frappe (ví dụ `team-updates`) có role chuẩn ngoài ma trận: ghi nhận, chấp nhận (frappe hợp role chuẩn với Custom Role của page).
 
 Xử lý dữ liệu thiếu trên Employee/Department rồi chạy lại `bench --site miyano execute erpnext.access.permissions.sync.run` cho tới khi Audit chỉ còn các mục chấp nhận được. Chạy lại phải idempotent.
