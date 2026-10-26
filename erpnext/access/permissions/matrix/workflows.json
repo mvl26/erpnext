@@ -1,0 +1,1245 @@
+{
+	"workflows": {
+		"WF-PO": {
+			"doctypes": [
+				"Purchase Order"
+			],
+			"creators": [
+				"PU"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "PU"
+				},
+				{
+					"state": "Chờ TP",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Chờ BGĐ",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã duyệt",
+					"doc_status": 1,
+					"allow_edit": "PM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "PU"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"PU"
+					],
+					"condition": "doc.base_grand_total <= {H1}"
+				},
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ TP",
+					"roles": [
+						"PU"
+					],
+					"condition": "doc.base_grand_total > {H1}"
+				},
+				{
+					"from": "Chờ TP",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"PM"
+					],
+					"condition": "doc.base_grand_total <= {H2}"
+				},
+				{
+					"from": "Chờ TP",
+					"action": "Duyệt",
+					"to": "Chờ BGĐ",
+					"roles": [
+						"PM"
+					],
+					"condition": "doc.base_grand_total > {H2}"
+				},
+				{
+					"from": "Chờ BGĐ",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"AP"
+					]
+				},
+				{
+					"from": "Chờ TP",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"PM"
+					]
+				},
+				{
+					"from": "Chờ BGĐ",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AP"
+					]
+				}
+			]
+		},
+		"WF-SO": {
+			"doctypes": [
+				"Sales Order"
+			],
+			"creators": [
+				"SU"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "SU"
+				},
+				{
+					"state": "Chờ KD-TP",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã duyệt",
+					"doc_status": 1,
+					"allow_edit": "SM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "SU"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"SU"
+					],
+					"condition": "doc.mvl_dung_gia_hd == 1"
+				},
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ KD-TP",
+					"roles": [
+						"SU"
+					],
+					"condition": "doc.mvl_dung_gia_hd != 1"
+				},
+				{
+					"from": "Chờ KD-TP",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"SM"
+					]
+				},
+				{
+					"from": "Chờ KD-TP",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"SM"
+					]
+				}
+			]
+		},
+		"WF-SI": {
+			"doctypes": [
+				"Sales Invoice"
+			],
+			"creators": [
+				"AU"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "AU"
+				},
+				{
+					"state": "Chờ KTT",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã ghi sổ",
+					"doc_status": 1,
+					"allow_edit": "AM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "AU"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Ghi sổ",
+					"to": "Đã ghi sổ",
+					"roles": [
+						"AU"
+					],
+					"condition": "doc.is_return == 0"
+				},
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ KTT",
+					"roles": [
+						"AU"
+					],
+					"condition": "doc.is_return == 1"
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Duyệt",
+					"to": "Đã ghi sổ",
+					"roles": [
+						"AM"
+					]
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AM"
+					]
+				}
+			]
+		},
+		"WF-PI": {
+			"doctypes": [
+				"Purchase Invoice"
+			],
+			"creators": [
+				"AU"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "AU"
+				},
+				{
+					"state": "Chờ KTT",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã ghi sổ",
+					"doc_status": 1,
+					"allow_edit": "AM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "AU"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Ghi sổ",
+					"to": "Đã ghi sổ",
+					"roles": [
+						"AU"
+					],
+					"condition": "doc.is_return == 0"
+				},
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ KTT",
+					"roles": [
+						"AU"
+					],
+					"condition": "doc.is_return == 1"
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Duyệt",
+					"to": "Đã ghi sổ",
+					"roles": [
+						"AM"
+					]
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AM"
+					]
+				}
+			]
+		},
+		"WF-PE": {
+			"doctypes": [
+				"Payment Entry"
+			],
+			"creators": [
+				"AU"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "AU"
+				},
+				{
+					"state": "Chờ KTT",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Chờ BGĐ",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã ghi sổ",
+					"doc_status": 1,
+					"allow_edit": "AM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "AU"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Ghi sổ",
+					"to": "Đã ghi sổ",
+					"roles": [
+						"AU"
+					],
+					"condition": "doc.payment_type == \"Receive\" or doc.base_paid_amount <= {H3}"
+				},
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ KTT",
+					"roles": [
+						"AU"
+					],
+					"condition": "doc.payment_type != \"Receive\" and doc.base_paid_amount > {H3}"
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Duyệt",
+					"to": "Chờ BGĐ",
+					"roles": [
+						"AM"
+					]
+				},
+				{
+					"from": "Chờ BGĐ",
+					"action": "Duyệt",
+					"to": "Đã ghi sổ",
+					"roles": [
+						"AP"
+					]
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AM"
+					]
+				},
+				{
+					"from": "Chờ BGĐ",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AP"
+					]
+				}
+			]
+		},
+		"WF-JE": {
+			"doctypes": [
+				"Journal Entry"
+			],
+			"creators": [
+				"AU"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "AU"
+				},
+				{
+					"state": "Chờ KTT",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã ghi sổ",
+					"doc_status": 1,
+					"allow_edit": "AM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "AU"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ KTT",
+					"roles": [
+						"AU"
+					]
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Duyệt",
+					"to": "Đã ghi sổ",
+					"roles": [
+						"AM"
+					]
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AM"
+					]
+				}
+			]
+		},
+		"WF-SE": {
+			"doctypes": [
+				"Stock Entry"
+			],
+			"creators": [
+				"STU",
+				"PDA"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "STU"
+				},
+				{
+					"state": "Chờ trưởng kho",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã ghi sổ",
+					"doc_status": 1,
+					"allow_edit": "STM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "STU"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Ghi sổ",
+					"to": "Đã ghi sổ",
+					"roles": [
+						"STU",
+						"PDA"
+					],
+					"condition": "doc.stock_entry_type == \"Material Transfer\""
+				},
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ trưởng kho",
+					"roles": [
+						"STU",
+						"PDA"
+					],
+					"condition": "doc.stock_entry_type != \"Material Transfer\""
+				},
+				{
+					"from": "Chờ trưởng kho",
+					"action": "Duyệt",
+					"to": "Đã ghi sổ",
+					"roles": [
+						"STM"
+					]
+				},
+				{
+					"from": "Chờ trưởng kho",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"STM"
+					]
+				}
+			]
+		},
+		"WF-SR": {
+			"doctypes": [
+				"Stock Reconciliation"
+			],
+			"creators": [
+				"STU",
+				"PDA"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "STU"
+				},
+				{
+					"state": "Chờ trưởng kho",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Chờ KTT",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã ghi sổ",
+					"doc_status": 1,
+					"allow_edit": "STM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "STU"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ trưởng kho",
+					"roles": [
+						"STU",
+						"PDA"
+					]
+				},
+				{
+					"from": "Chờ trưởng kho",
+					"action": "Duyệt",
+					"to": "Đã ghi sổ",
+					"roles": [
+						"STM"
+					],
+					"condition": "doc.difference_amount == 0"
+				},
+				{
+					"from": "Chờ trưởng kho",
+					"action": "Duyệt",
+					"to": "Chờ KTT",
+					"roles": [
+						"STM"
+					],
+					"condition": "doc.difference_amount != 0"
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Duyệt",
+					"to": "Đã ghi sổ",
+					"roles": [
+						"AM"
+					]
+				},
+				{
+					"from": "Chờ trưởng kho",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"STM"
+					]
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AM"
+					]
+				}
+			]
+		},
+		"WF-BA": {
+			"doctypes": [
+				"Bank Account"
+			],
+			"creators": [
+				"AU"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "AU"
+				},
+				{
+					"state": "Chờ KTT",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã duyệt",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "AU"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ KTT",
+					"roles": [
+						"AU"
+					]
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"AM"
+					]
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AM"
+					]
+				},
+				{
+					"from": "Đã duyệt",
+					"action": "Sửa",
+					"to": "Nháp",
+					"roles": [
+						"AU",
+						"AM"
+					]
+				}
+			]
+		},
+		"WF-LA": {
+			"doctypes": [
+				"Leave Application",
+				"Shift Request"
+			],
+			"creators": [
+				"EMP",
+				"HU"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "EMP"
+				},
+				{
+					"state": "Chờ TBP",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Chờ HCNS",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã duyệt",
+					"doc_status": 1,
+					"allow_edit": "HM",
+					"update_field": "status",
+					"update_value": "Approved"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 1,
+					"allow_edit": "HM",
+					"update_field": "status",
+					"update_value": "Rejected"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ TBP",
+					"roles": [
+						"EMP"
+					]
+				},
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ TBP",
+					"roles": [
+						"HU"
+					],
+					"except_doctypes": [
+						"Shift Request"
+					]
+				},
+				{
+					"from": "Chờ TBP",
+					"action": "Duyệt",
+					"to": "Chờ HCNS",
+					"roles": [
+						"DH"
+					],
+					"condition": "doc.leave_approver == frappe.session.user",
+					"per_doctype_condition": {
+						"Shift Request": "doc.approver == frappe.session.user"
+					}
+				},
+				{
+					"from": "Chờ TBP",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"DH"
+					],
+					"condition": "doc.leave_approver == frappe.session.user",
+					"per_doctype_condition": {
+						"Shift Request": "doc.approver == frappe.session.user"
+					}
+				},
+				{
+					"from": "Chờ HCNS",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"HM"
+					]
+				},
+				{
+					"from": "Chờ HCNS",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"HM"
+					]
+				}
+			]
+		},
+		"WF-AR": {
+			"doctypes": [
+				"Attendance Request",
+				"Compensatory Leave Request"
+			],
+			"creators": [
+				"EMP"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "EMP"
+				},
+				{
+					"state": "Chờ TBP",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Chờ HCNS",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã duyệt",
+					"doc_status": 1,
+					"allow_edit": "HM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "EMP"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ TBP",
+					"roles": [
+						"EMP"
+					]
+				},
+				{
+					"from": "Chờ TBP",
+					"action": "Duyệt",
+					"to": "Chờ HCNS",
+					"roles": [
+						"DH"
+					],
+					"per_doctype_condition": {
+						"Attendance Request": "doc.custom_approver == frappe.session.user",
+						"Compensatory Leave Request": "frappe.db.get_value(\"Employee\", doc.employee, \"leave_approver\") == frappe.session.user"
+					}
+				},
+				{
+					"from": "Chờ TBP",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"DH"
+					],
+					"per_doctype_condition": {
+						"Attendance Request": "doc.custom_approver == frappe.session.user",
+						"Compensatory Leave Request": "frappe.db.get_value(\"Employee\", doc.employee, \"leave_approver\") == frappe.session.user"
+					}
+				},
+				{
+					"from": "Chờ HCNS",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"HM"
+					]
+				},
+				{
+					"from": "Chờ HCNS",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"HM"
+					]
+				}
+			]
+		},
+		"WF-EC": {
+			"doctypes": [
+				"Expense Claim",
+				"Employee Advance"
+			],
+			"creators": [
+				"EMP"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "EMP"
+				},
+				{
+					"state": "Chờ TBP",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Chờ KTT",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Chờ BGĐ",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã duyệt",
+					"doc_status": 1,
+					"allow_edit": "AM",
+					"update_field": "approval_status",
+					"update_value": "Approved",
+					"update_doctypes": [
+						"Expense Claim"
+					]
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "EMP"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ TBP",
+					"roles": [
+						"EMP"
+					]
+				},
+				{
+					"from": "Chờ TBP",
+					"action": "Duyệt",
+					"to": "Chờ KTT",
+					"roles": [
+						"DH"
+					],
+					"per_doctype_condition": {
+						"Expense Claim": "doc.expense_approver == frappe.session.user",
+						"Employee Advance": "frappe.db.get_value(\"Employee\", doc.employee, \"expense_approver\") == frappe.session.user"
+					}
+				},
+				{
+					"from": "Chờ TBP",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"DH"
+					],
+					"per_doctype_condition": {
+						"Expense Claim": "doc.expense_approver == frappe.session.user",
+						"Employee Advance": "frappe.db.get_value(\"Employee\", doc.employee, \"expense_approver\") == frappe.session.user"
+					}
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"AM"
+					],
+					"per_doctype_condition": {
+						"Expense Claim": "doc.grand_total <= {H3}",
+						"Employee Advance": "doc.advance_amount <= {H3}"
+					}
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Duyệt",
+					"to": "Chờ BGĐ",
+					"roles": [
+						"AM"
+					],
+					"per_doctype_condition": {
+						"Expense Claim": "doc.grand_total > {H3}",
+						"Employee Advance": "doc.advance_amount > {H3}"
+					}
+				},
+				{
+					"from": "Chờ BGĐ",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"AP"
+					]
+				},
+				{
+					"from": "Chờ KTT",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AM"
+					]
+				},
+				{
+					"from": "Chờ BGĐ",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AP"
+					]
+				}
+			]
+		},
+		"WF-PAY": {
+			"doctypes": [
+				"Payroll Entry"
+			],
+			"creators": [
+				"HM"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "HM"
+				},
+				{
+					"state": "Chờ BGĐ",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã duyệt",
+					"doc_status": 1,
+					"allow_edit": "HM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "HM"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ BGĐ",
+					"roles": [
+						"HM"
+					]
+				},
+				{
+					"from": "Chờ BGĐ",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"AP"
+					]
+				},
+				{
+					"from": "Chờ BGĐ",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AP"
+					]
+				}
+			]
+		},
+		"WF-HR": {
+			"doctypes": [
+				"Salary Structure Assignment",
+				"Employee Promotion",
+				"Employee Transfer",
+				"Job Offer"
+			],
+			"creators": [
+				"HM"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "HM"
+				},
+				{
+					"state": "Chờ BGĐ",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "Đã duyệt",
+					"doc_status": 1,
+					"allow_edit": "HM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "HM"
+				},
+				{
+					"state": "Đã hủy",
+					"doc_status": 2,
+					"allow_edit": "LK"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ BGĐ",
+					"roles": [
+						"HM"
+					]
+				},
+				{
+					"from": "Chờ BGĐ",
+					"action": "Duyệt",
+					"to": "Đã duyệt",
+					"roles": [
+						"AP"
+					]
+				},
+				{
+					"from": "Chờ BGĐ",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AP"
+					]
+				}
+			]
+		},
+		"WF-BT": {
+			"doctypes": [
+				"Business Trip"
+			],
+			"creators": [
+				"HU"
+			],
+			"states": [
+				{
+					"state": "Nháp",
+					"doc_status": 0,
+					"allow_edit": "HU"
+				},
+				{
+					"state": "Chờ COO duyệt",
+					"doc_status": 0,
+					"allow_edit": "LK"
+				},
+				{
+					"state": "COO đã duyệt",
+					"doc_status": 1,
+					"allow_edit": "HM"
+				},
+				{
+					"state": "Đã ra QĐ",
+					"doc_status": 1,
+					"allow_edit": "HM"
+				},
+				{
+					"state": "Hoàn tất",
+					"doc_status": 1,
+					"allow_edit": "HM"
+				},
+				{
+					"state": "Từ chối",
+					"doc_status": 0,
+					"allow_edit": "HU"
+				}
+			],
+			"transitions": [
+				{
+					"from": "Nháp",
+					"action": "Gửi duyệt",
+					"to": "Chờ COO duyệt",
+					"roles": [
+						"HU"
+					]
+				},
+				{
+					"from": "Chờ COO duyệt",
+					"action": "Duyệt",
+					"to": "COO đã duyệt",
+					"roles": [
+						"AP"
+					],
+					"condition": "doc.approver_coo == frappe.session.user"
+				},
+				{
+					"from": "Chờ COO duyệt",
+					"action": "Từ chối",
+					"to": "Từ chối",
+					"roles": [
+						"AP"
+					],
+					"condition": "doc.approver_coo == frappe.session.user"
+				},
+				{
+					"from": "COO đã duyệt",
+					"action": "Ra QĐ",
+					"to": "Đã ra QĐ",
+					"roles": [
+						"HM"
+					]
+				},
+				{
+					"from": "Đã ra QĐ",
+					"action": "Hoàn tất",
+					"to": "Hoàn tất",
+					"roles": [
+						"HM"
+					]
+				}
+			]
+		}
+	}
+}

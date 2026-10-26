@@ -1,0 +1,1275 @@
+{
+	"doctypes": {
+		"Employee": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRW W1 OI",
+				"AU": "R",
+				"AM": "R R1"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"ctc",
+						"salary_currency",
+						"salary_mode",
+						"bank_name",
+						"bank_ac_no",
+						"iban"
+					],
+					"read": [
+						"AM"
+					],
+					"write": [
+						"HM"
+					]
+				}
+			}
+		},
+		"Department": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Designation": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Branch": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Employee Grade": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Employment Type": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Employee Group": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Employee Onboarding": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			}
+		},
+		"Employee Separation": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			}
+		},
+		"Employee Onboarding Template": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Employee Separation Template": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Employee Promotion": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWSXA W1"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			},
+			"workflow": "WF-HR",
+			"permlevel": {
+				"1": {
+					"fields": [
+						"revised_ctc",
+						"current_ctc"
+					],
+					"read": [],
+					"write": [
+						"HM"
+					]
+				}
+			}
+		},
+		"Employee Transfer": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			},
+			"workflow": "WF-HR"
+		},
+		"Exit Interview": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "RW",
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "e"
+			}
+		},
+		"Full and Final Statement": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWSXA W1",
+				"AM": "R R1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"total_payable_amount",
+						"total_receivable_amount",
+						"total_asset_recovery_cost",
+						"payables",
+						"receivables"
+					],
+					"read": [
+						"AM"
+					],
+					"write": [
+						"HM"
+					]
+				}
+			}
+		},
+		"Employee Grievance": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "o"
+			}
+		},
+		"Grievance Type": {
+			"state": "ref_master",
+			"perms": {
+				"HM": "CRWD"
+			}
+		},
+		"Employee Referral": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRWS R1",
+				"HU": "RW W1",
+				"HM": "CRWSXA W1"
+			},
+			"scope": {
+				"EMP": "o"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"status"
+					],
+					"read": [
+						"EMP"
+					],
+					"write": [
+						"HU",
+						"HM"
+					]
+				}
+			}
+		},
+		"Business Trip": {
+			"state": "matrix",
+			"perms": {
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"DH": "d"
+			},
+			"workflow": "WF-BT"
+		},
+		"Purpose of Travel": {
+			"state": "ref_master",
+			"perms": {
+				"HM": "CRW"
+			}
+		},
+		"Employee Checkin": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CR R1",
+				"DH": "R R1",
+				"HU": "CRW W1",
+				"HM": "CRW W1"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"time"
+					],
+					"read": [
+						"EMP",
+						"DH"
+					],
+					"write": [
+						"HU",
+						"HM"
+					]
+				}
+			}
+		},
+		"Employee Health Insurance": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Interest": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Identification Document Type": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Skill": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Employee Skill Map": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWD"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			}
+		},
+		"Attendance": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRWS",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			}
+		},
+		"Attendance Code": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Attendance Correction Log": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CR",
+				"HM": "CR"
+			}
+		},
+		"Monthly Attendance Sheet": {
+			"state": "matrix",
+			"perms": {
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"DH": "d"
+			}
+		},
+		"Attendance Request": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"DH": "RW",
+				"HU": "R",
+				"HM": "RWSXA"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			},
+			"workflow": "WF-AR"
+		},
+		"Shift Type": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Shift Location": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Shift Assignment": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRWS",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			}
+		},
+		"Shift Schedule": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			}
+		},
+		"Shift Schedule Assignment": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWD"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			}
+		},
+		"Shift Request": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"DH": "RWS",
+				"HU": "R",
+				"HM": "RWSXA"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			},
+			"workflow": "WF-LA"
+		},
+		"Holiday List": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Leave Type": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Leave Period": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Leave Block List": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Leave Policy": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			}
+		},
+		"Leave Policy Assignment": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"HU": "CRWS",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "e"
+			}
+		},
+		"Leave Allocation": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			}
+		},
+		"Leave Application": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW R1",
+				"DH": "RWS W1",
+				"HU": "CRW R1",
+				"HM": "RWSXAP W1"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			},
+			"workflow": "WF-LA",
+			"permlevel": {
+				"1": {
+					"fields": [
+						"status"
+					],
+					"read": [
+						"EMP",
+						"HU"
+					],
+					"write": [
+						"DH",
+						"HM"
+					]
+				}
+			}
+		},
+		"Compensatory Leave Request": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"DH": "RW",
+				"HU": "R",
+				"HM": "RWSXA"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			},
+			"workflow": "WF-AR"
+		},
+		"Leave Encashment": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "e"
+			}
+		},
+		"Leave Ledger Entry": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "R",
+				"HM": "R"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			}
+		},
+		"Shift Assignment Tool": {
+			"state": "matrix",
+			"perms": {
+				"HU": "RW",
+				"HM": "RW"
+			}
+		},
+		"Employee Attendance Tool": {
+			"state": "matrix",
+			"perms": {
+				"HU": "RW",
+				"HM": "RW"
+			}
+		},
+		"Upload Attendance": {
+			"state": "matrix",
+			"perms": {
+				"HU": "RW",
+				"HM": "RW"
+			}
+		},
+		"Leave Control Panel": {
+			"state": "matrix",
+			"perms": {
+				"HU": "RW",
+				"HM": "RW"
+			}
+		},
+		"Work Calendar Settings": {
+			"state": "matrix",
+			"perms": {
+				"HU": "R",
+				"HM": "RW"
+			}
+		},
+		"Expense Claim": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW R1",
+				"DH": "RW R1",
+				"AU": "R R1",
+				"AM": "RWSXA W1",
+				"HM": "R R1",
+				"AP": "W1"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			},
+			"workflow": "WF-EC",
+			"permlevel": {
+				"1": {
+					"fields": [
+						"approval_status"
+					],
+					"read": [
+						"EMP",
+						"DH",
+						"AU",
+						"HM"
+					],
+					"write": [
+						"AM",
+						"AP"
+					]
+				}
+			}
+		},
+		"Employee Advance": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"DH": "RW",
+				"AU": "R",
+				"AM": "RWSXA"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			},
+			"workflow": "WF-EC"
+		},
+		"Expense Invoice": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"AU": "RW",
+				"AM": "CRW",
+				"HM": "R"
+			},
+			"scope": {
+				"EMP": "o"
+			}
+		},
+		"Expense Claim Type": {
+			"state": "ref_master",
+			"perms": {
+				"AU": "R",
+				"AM": "CRW",
+				"HM": "CRW"
+			}
+		},
+		"Job Requisition": {
+			"state": "matrix",
+			"perms": {
+				"DH": "CRW",
+				"HU": "R",
+				"HM": "CRWD",
+				"AP": "RW"
+			},
+			"scope": {
+				"DH": "d"
+			}
+		},
+		"Staffing Plan": {
+			"state": "matrix",
+			"perms": {
+				"DH": "R",
+				"HU": "R",
+				"HM": "CRWSXA",
+				"AP": "R"
+			},
+			"scope": {
+				"DH": "d"
+			}
+		},
+		"Job Opening": {
+			"state": "matrix",
+			"perms": {
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Job Applicant": {
+			"state": "matrix",
+			"perms": {
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWD"
+			},
+			"scope": {
+				"DH": "g"
+			}
+		},
+		"Job Applicant Source": {
+			"state": "ref_master",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Interview": {
+			"state": "matrix",
+			"perms": {
+				"DH": "R",
+				"HU": "CRWS",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"DH": "g"
+			}
+		},
+		"Interview Round": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Interview Type": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Interview Feedback": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRWS",
+				"DH": "CRWS",
+				"HU": "R",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "o",
+				"DH": "o"
+			}
+		},
+		"Job Offer": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			},
+			"workflow": "WF-HR"
+		},
+		"Appointment Letter": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Job Offer Term Template": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Offer Term": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Appointment Letter Template": {
+			"state": "matrix",
+			"perms": {
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Training Program": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWD"
+			},
+			"scope": {
+				"EMP": "g"
+			}
+		},
+		"Training Event": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "R",
+				"HU": "CRWS",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "g"
+			}
+		},
+		"Training Result": {
+			"state": "matrix",
+			"perms": {
+				"DH": "R",
+				"HU": "CRWS",
+				"HM": "CRWSXA"
+			}
+		},
+		"Training Feedback": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRWS",
+				"HU": "R",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "o"
+			}
+		},
+		"Appraisal Cycle": {
+			"state": "matrix",
+			"perms": {
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Appraisal Template": {
+			"state": "matrix",
+			"perms": {
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"KRA": {
+			"state": "matrix",
+			"perms": {
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Employee Feedback Criteria": {
+			"state": "matrix",
+			"perms": {
+				"DH": "R",
+				"HU": "CRW",
+				"HM": "CRWD"
+			}
+		},
+		"Appraisal": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "RW",
+				"DH": "RW",
+				"HU": "CRW",
+				"HM": "CRWSXA"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			}
+		},
+		"Employee Performance Feedback": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R",
+				"DH": "CRWS",
+				"HU": "R",
+				"HM": "CRWSXA",
+				"PJM": "CRWS"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d",
+				"PJM": "o"
+			}
+		},
+		"Goal": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"DH": "CRW",
+				"HU": "R",
+				"HM": "CRWD"
+			},
+			"scope": {
+				"EMP": "e",
+				"DH": "d"
+			}
+		},
+		"Salary Component": {
+			"state": "matrix",
+			"perms": {
+				"HM": "CRW W1",
+				"AM": "R R1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"amount",
+						"max_benefit_amount"
+					],
+					"read": [
+						"AM"
+					],
+					"write": [
+						"HM"
+					]
+				}
+			}
+		},
+		"Salary Structure": {
+			"state": "matrix",
+			"perms": {
+				"HM": "CRWSXA W1",
+				"AM": "R R1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"hour_rate",
+						"leave_encashment_amount_per_day",
+						"max_benefits",
+						"earnings",
+						"deductions",
+						"total_earning",
+						"total_deduction",
+						"net_pay"
+					],
+					"read": [
+						"AM"
+					],
+					"write": [
+						"HM"
+					]
+				}
+			}
+		},
+		"Salary Structure Assignment": {
+			"state": "matrix",
+			"perms": {
+				"HM": "CRWSXA W1",
+				"AM": "R R1"
+			},
+			"workflow": "WF-HR",
+			"permlevel": {
+				"1": {
+					"fields": [
+						"base",
+						"variable",
+						"tax_deducted_till_date",
+						"taxable_earnings_till_date"
+					],
+					"read": [
+						"AM"
+					],
+					"write": [
+						"HM"
+					]
+				}
+			}
+		},
+		"Bulk Salary Structure Assignment": {
+			"state": "matrix",
+			"perms": {
+				"HM": "RW"
+			}
+		},
+		"Additional Salary": {
+			"state": "matrix",
+			"perms": {
+				"HM": "CRWSXA W1",
+				"AM": "R R1",
+				"AP": "R R1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"amount"
+					],
+					"read": [
+						"AM",
+						"AP"
+					],
+					"write": [
+						"HM"
+					]
+				}
+			}
+		},
+		"Employee Incentive": {
+			"state": "matrix",
+			"perms": {
+				"HM": "CRWSXA W1",
+				"AM": "R R1",
+				"AP": "R R1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"incentive_amount"
+					],
+					"read": [
+						"AM",
+						"AP"
+					],
+					"write": [
+						"HM"
+					]
+				}
+			}
+		},
+		"Retention Bonus": {
+			"state": "matrix",
+			"perms": {
+				"HM": "CRWSXA W1",
+				"AM": "R R1",
+				"AP": "R R1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"bonus_amount"
+					],
+					"read": [
+						"AM",
+						"AP"
+					],
+					"write": [
+						"HM"
+					]
+				}
+			}
+		},
+		"Gratuity": {
+			"state": "matrix",
+			"perms": {
+				"HM": "CRWSXA W1",
+				"AM": "R R1",
+				"AP": "R R1"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"amount",
+						"paid_amount"
+					],
+					"read": [
+						"AM",
+						"AP"
+					],
+					"write": [
+						"HM"
+					]
+				}
+			}
+		},
+		"Gratuity Rule": {
+			"state": "matrix",
+			"perms": {
+				"HM": "CRW",
+				"AM": "R"
+			}
+		},
+		"Employee Other Income": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"HM": "CRWSXA",
+				"AM": "R"
+			},
+			"scope": {
+				"EMP": "e"
+			}
+		},
+		"Salary Withholding": {
+			"state": "matrix",
+			"perms": {
+				"HM": "CRWSXA",
+				"AM": "R"
+			}
+		},
+		"Income Tax Slab": {
+			"state": "matrix",
+			"perms": {
+				"HM": "CRWSXA",
+				"AM": "R"
+			}
+		},
+		"Payroll Period": {
+			"state": "ref_master",
+			"perms": {
+				"HM": "CRW",
+				"AM": "R"
+			}
+		},
+		"Employee Tax Exemption Category": {
+			"state": "ref_master",
+			"perms": {
+				"HM": "CRW",
+				"AM": "R"
+			}
+		},
+		"Employee Tax Exemption Sub Category": {
+			"state": "ref_master",
+			"perms": {
+				"HM": "CRW",
+				"AM": "R"
+			}
+		},
+		"Payroll Entry": {
+			"state": "matrix",
+			"perms": {
+				"HM": "CRWSXA",
+				"AM": "R",
+				"AU": "RW"
+			},
+			"workflow": "WF-PAY"
+		},
+		"Salary Slip": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "R R1",
+				"HM": "CRWSXAPE W1",
+				"AM": "R R1",
+				"AP": "R R1"
+			},
+			"scope": {
+				"EMP": "e"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"hour_rate",
+						"earnings",
+						"deductions",
+						"gross_pay",
+						"net_pay",
+						"rounded_total",
+						"total_deduction",
+						"base_hour_rate",
+						"base_gross_pay",
+						"base_total_deduction",
+						"base_net_pay",
+						"base_rounded_total",
+						"year_to_date",
+						"month_to_date",
+						"base_year_to_date",
+						"base_month_to_date",
+						"gross_year_to_date",
+						"base_gross_year_to_date",
+						"ctc",
+						"income_from_other_sources",
+						"total_earnings",
+						"non_taxable_earnings",
+						"deductions_before_tax_calculation",
+						"tax_exemption_declaration",
+						"standard_tax_exemption_amount",
+						"annual_taxable_amount",
+						"income_tax_deducted_till_date",
+						"future_income_tax_deductions",
+						"current_month_income_tax",
+						"total_income_tax"
+					],
+					"read": [
+						"EMP",
+						"AM",
+						"AP"
+					],
+					"write": [
+						"HM"
+					]
+				}
+			}
+		},
+		"Employee Tax Exemption Declaration": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"HU": "RWS",
+				"HM": "CRWSXA",
+				"AM": "R"
+			},
+			"scope": {
+				"EMP": "e"
+			}
+		},
+		"Employee Tax Exemption Proof Submission": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"HU": "RWS",
+				"HM": "CRWSXA",
+				"AM": "R"
+			},
+			"scope": {
+				"EMP": "e"
+			}
+		},
+		"Employee Benefit Application": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"HM": "CRWSXA",
+				"AM": "R"
+			},
+			"scope": {
+				"EMP": "e"
+			}
+		},
+		"Employee Benefit Claim": {
+			"state": "matrix",
+			"perms": {
+				"EMP": "CRW",
+				"HM": "CRWSXA",
+				"AM": "R"
+			},
+			"scope": {
+				"EMP": "e"
+			}
+		},
+		"Payroll Settings": {
+			"state": "matrix",
+			"perms": {
+				"HM": "RW",
+				"AM": "R"
+			}
+		},
+		"MVL Payroll Settings": {
+			"state": "matrix",
+			"perms": {
+				"HM": "RW",
+				"AM": "R"
+			}
+		},
+		"HR Settings": {
+			"state": "matrix",
+			"perms": {
+				"HM": "RW"
+			}
+		},
+		"PWA Notification": {
+			"state": "keep_standard"
+		},
+		"Travel Request": {
+			"state": "g1_only"
+		},
+		"Daily Work Summary": {
+			"state": "g1_only"
+		},
+		"Daily Work Summary Group": {
+			"state": "g1_only"
+		},
+		"Vehicle Log": {
+			"state": "g1_only"
+		},
+		"Vehicle Service Item": {
+			"state": "g1_only"
+		}
+	}
+}

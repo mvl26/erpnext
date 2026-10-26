@@ -1,0 +1,396 @@
+{
+	"roles": {
+		"PU": {
+			"names": [
+				"Purchase User"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"PM": {
+			"names": [
+				"Purchase Manager",
+				"Purchase Master Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"IM": {
+			"names": [
+				"Item Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"IC": {
+			"names": [
+				"MVL Item Creator"
+			],
+			"desk_access": 1,
+			"is_new": true
+		},
+		"SU": {
+			"names": [
+				"Sales User"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"SM": {
+			"names": [
+				"Sales Manager",
+				"Sales Master Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"MK": {
+			"names": [
+				"MVL Marketing"
+			],
+			"desk_access": 1,
+			"is_new": true
+		},
+		"NL": {
+			"names": [
+				"Newsletter Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"STU": {
+			"names": [
+				"Stock User"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"STM": {
+			"names": [
+				"Stock Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"QM": {
+			"names": [
+				"Quality Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"PDA": {
+			"names": [
+				"MVL Kho PDA"
+			],
+			"desk_access": 1,
+			"is_new": true
+		},
+		"AU": {
+			"names": [
+				"Accounts User"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"AM": {
+			"names": [
+				"Accounts Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"EI": {
+			"names": [
+				"Kế toán HĐĐT"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"EIC": {
+			"names": [
+				"Kế toán trưởng HĐĐT"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"AO": {
+			"names": [
+				"MVL Asset Operator"
+			],
+			"desk_access": 1,
+			"is_new": true
+		},
+		"HU": {
+			"names": [
+				"HR User"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"HM": {
+			"names": [
+				"HR Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"DH": {
+			"names": [
+				"MVL Department Head"
+			],
+			"desk_access": 1,
+			"is_new": true
+		},
+		"LA": {
+			"names": [
+				"Leave Approver"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"EA": {
+			"names": [
+				"Expense Approver"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"EMP": {
+			"names": [
+				"Employee"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"PJU": {
+			"names": [
+				"Projects User"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"PJM": {
+			"names": [
+				"Projects Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"ST": {
+			"names": [
+				"Support Team"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"VW": {
+			"names": [
+				"MVL Viewer"
+			],
+			"desk_access": 1,
+			"is_new": true
+		},
+		"AP": {
+			"names": [
+				"MVL Approver"
+			],
+			"desk_access": 1,
+			"is_new": true
+		},
+		"LK": {
+			"names": [
+				"MVL Khóa sửa"
+			],
+			"desk_access": 0,
+			"is_new": true
+		},
+		"PRU": {
+			"names": [
+				"Prepared Report User"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"SNA": {
+			"names": [
+				"Quản trị thông báo"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"SYS": {
+			"names": [
+				"System Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"WM": {
+			"names": [
+				"Website Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"WSM": {
+			"names": [
+				"Workspace Manager"
+			],
+			"desk_access": 1,
+			"is_new": false
+		},
+		"DEV": {
+			"names": [
+				"MVL IT Dev"
+			],
+			"desk_access": 1,
+			"is_new": true
+		},
+		"CUS": {
+			"names": [
+				"Customer"
+			],
+			"desk_access": 0,
+			"is_new": false
+		},
+		"SUP": {
+			"names": [
+				"Supplier"
+			],
+			"desk_access": 0,
+			"is_new": false
+		}
+	},
+	"packs": {
+		"BASE": [
+			"EMP",
+			"PJU"
+		],
+		"TBP": [
+			"DH",
+			"LA",
+			"EA"
+		]
+	},
+	"role_profiles": {
+		"RP-BGD-GDVH": [
+			"BASE",
+			"TBP",
+			"SYS",
+			"PM",
+			"IM",
+			"SM",
+			"STM",
+			"QM",
+			"AM",
+			"HM",
+			"PJM",
+			"AP",
+			"PRU"
+		],
+		"RP-BGD-GD": [
+			"BASE",
+			"TBP",
+			"VW",
+			"AP",
+			"PRU"
+		],
+		"RP-MH-NV": [
+			"BASE",
+			"PU",
+			"IC"
+		],
+		"RP-MH-TP": [
+			"BASE",
+			"TBP",
+			"PU",
+			"PM",
+			"IM"
+		],
+		"RP-KD-NV": [
+			"BASE",
+			"SU",
+			"ST"
+		],
+		"RP-KD-TP": [
+			"BASE",
+			"TBP",
+			"SU",
+			"SM",
+			"ST"
+		],
+		"RP-MKT-NV": [
+			"BASE",
+			"MK",
+			"NL"
+		],
+		"RP-KHO-TK": [
+			"BASE",
+			"STU"
+		],
+		"RP-KHO-PDA": [
+			"PDA"
+		],
+		"RP-KHO-TP": [
+			"BASE",
+			"TBP",
+			"STU",
+			"STM",
+			"QM"
+		],
+		"RP-KT-NV": [
+			"BASE",
+			"AU",
+			"EI"
+		],
+		"RP-KT-KTT": [
+			"BASE",
+			"TBP",
+			"AU",
+			"AM",
+			"EI",
+			"EIC",
+			"PRU"
+		],
+		"RP-NS-NV": [
+			"BASE",
+			"HU",
+			"ST"
+		],
+		"RP-NS-TP": [
+			"BASE",
+			"TBP",
+			"HU",
+			"HM",
+			"AO"
+		],
+		"RP-IT-QT": [
+			"BASE",
+			"SYS",
+			"WM",
+			"WSM",
+			"ST",
+			"AO",
+			"SNA"
+		],
+		"RP-IT-DEV": [
+			"BASE",
+			"DEV"
+		],
+		"RP-DA-PM": [
+			"BASE",
+			"PJM"
+		],
+		"RP-NV": [
+			"BASE"
+		],
+		"RP-NG-KH": [
+			"CUS"
+		],
+		"RP-NG-NCC": [
+			"SUP"
+		]
+	},
+	"combined_profiles": []
+}

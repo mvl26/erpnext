@@ -106,6 +106,8 @@ after_migrate = [
 	# tự phục hồi đó. `erpnext.warehouse_operations.tests.test_app_khoi_dong` khoá việc
 	# này còn trong danh sách.
 	"erpnext.warehouse_operations.vitri.cay.dam_bao_cay_da_dung",
+	# PHẢI Ở CUỐI: đồng bộ phân quyền RBAC (cờ `mvl_rbac_enabled`, tắt thì không làm gì).
+	"erpnext.access.permissions.sync.after_migrate",
 ]
 
 boot_session = "erpnext.startup.boot.boot_session"

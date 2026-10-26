@@ -1,0 +1,1416 @@
+{
+	"reports": {
+		"Salary Register": [
+			"HM",
+			"AM",
+			"VW"
+		],
+		"MVL Salary Register": [
+			"HM",
+			"AM",
+			"VW"
+		],
+		"Income Tax Deductions": [
+			"HM",
+			"AM",
+			"VW"
+		],
+		"Income Tax Computation": [
+			"HM",
+			"AM",
+			"VW"
+		],
+		"Salary Payments Based On Payment Mode": [
+			"HM",
+			"AM",
+			"VW"
+		],
+		"Salary Payments via ECS": [
+			"HM",
+			"AM",
+			"VW"
+		],
+		"Provident Fund Deductions": [
+			"HM",
+			"AM",
+			"VW"
+		],
+		"Professional Tax Deductions": [
+			"HM",
+			"AM",
+			"VW"
+		],
+		"Bank Remittance": [
+			"HM",
+			"AM",
+			"VW"
+		],
+		"Quyet Toan TNCN": [
+			"AM",
+			"VW"
+		],
+		"Stock Balance": [
+			"AM",
+			"VW",
+			"PRU"
+		],
+		"Stock Ledger": [
+			"AM",
+			"VW"
+		],
+		"Stock and Account Value Comparison": [
+			"AM",
+			"VW"
+		],
+		"Warehouse wise Item Balance Age and Value": [
+			"AM",
+			"VW"
+		],
+		"Warehouse Wise Stock Balance": [
+			"AM",
+			"VW"
+		],
+		"Item Prices": [
+			"AM",
+			"VW"
+		],
+		"Supplier-Wise Sales Analytics": [
+			"AM",
+			"VW"
+		],
+		"Incorrect Stock Value Report": [
+			"AM",
+			"VW"
+		],
+		"Incorrect Serial No Valuation": [
+			"AM",
+			"VW"
+		],
+		"Incorrect Balance Qty After Transaction": [
+			"AM",
+			"VW"
+		],
+		"FIFO Queue vs Qty After Transaction Comparison": [
+			"AM",
+			"VW"
+		],
+		"Stock Ledger Invariant Check": [
+			"AM",
+			"VW"
+		],
+		"Stock Ledger Variance": [
+			"AM",
+			"VW"
+		],
+		"Stock Ageing": [
+			"AM",
+			"VW"
+		],
+		"Item Price Stock": [
+			"AM",
+			"VW",
+			"SM",
+			"PM"
+		],
+		"Stock Analytics": [
+			"AM",
+			"VW"
+		],
+		"Gross Profit": [
+			"AM",
+			"VW"
+		],
+		"COGS By Item Group": [
+			"AM",
+			"VW"
+		],
+		"Gross and Net Profit Report": [
+			"AM",
+			"VW"
+		],
+		"Profitability Analysis": [
+			"AM",
+			"VW"
+		],
+		"Stock Projected Qty": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Itemwise Recommended Reorder Level": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Stock Qty vs Serial No Count": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Item Variant Details": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Batch-Wise Balance History": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Batch Item Expiry Status": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Available Batch Report": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Available Serial No": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Serial No Ledger": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Product Bundle Balance": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Item Balance (Simple)": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Item Shortage Report": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Serial No Status": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Serial No Warranty Expiry": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Serial No Service Contract Expiry": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Serial and Batch Summary": [
+			"STU",
+			"STM",
+			"AM",
+			"VW"
+		],
+		"Incorrect Serial and Batch Bundle": [
+			"STU",
+			"STM",
+			"AM",
+			"VW"
+		],
+		"Total Stock Summary": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Requested Items To Be Transferred": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Reserved Stock": [
+			"STU",
+			"STM",
+			"SU",
+			"VW"
+		],
+		"Available Stock for Packing Items": [
+			"STU",
+			"STM",
+			"SU",
+			"SM",
+			"VW"
+		],
+		"Ton Kho Theo Vi Tri": [
+			"STU",
+			"STM",
+			"VW"
+		],
+		"Doi Soat Ton Vi Tri": [
+			"STU",
+			"STM",
+			"VW"
+		],
+		"Hang Chua Xep Vi Tri": [
+			"STU",
+			"STM",
+			"VW"
+		],
+		"Hang Nam Sai Vi Tri": [
+			"STU",
+			"STM",
+			"VW"
+		],
+		"General Ledger": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Trial Balance": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Trial Balance (Simple)": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Trial Balance for Party": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Balance Sheet": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Profit and Loss Statement": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Cash Flow": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Bang Can Doi So Phat Sinh": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Bao Cao Tinh Hinh Tai Chinh B01": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Bao Cao KQHDKD B02": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Bao Cao Luu Chuyen Tien Te B03": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Thuyet Minh BCTC B09": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"So Cai": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"So Nhat Ky Chung": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"So Chi Tiet Tai Khoan": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"So Chi Tiet Cong No": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"So Chi Tiet Nguyen Te": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"So Quy Tien Mat": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"So Tien Gui Ngan Hang": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"To Khai Thue GTGT 01": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Quyet Toan TNDN": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Voucher-wise Balance": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Dimension-wise Accounts Balance Report": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Deferred Revenue and Expense": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"General and Payment Ledger Comparison": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Invalid Ledger Entries": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Consolidated Financial Statement": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Financial Ratios": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Payment Ledger": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Bank Clearance Summary": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Bank Reconciliation Statement": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Payment Period Based On Invoice Date": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Cheques and Deposits Incorrectly cleared": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Account Balance": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Budget Variance Report": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Doi Chieu Tong Cong No": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Tinh Trang Doi Chieu Cong No": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Accounts Receivable": [
+			"AU",
+			"AM",
+			"VW",
+			"SU",
+			"SM"
+		],
+		"Accounts Receivable Summary": [
+			"AU",
+			"AM",
+			"VW",
+			"SU",
+			"SM"
+		],
+		"Customer Ledger Summary": [
+			"AU",
+			"AM",
+			"VW",
+			"SU",
+			"SM"
+		],
+		"Sales Payment Summary": [
+			"AU",
+			"AM",
+			"VW",
+			"SU",
+			"SM"
+		],
+		"Customer Credit Balance": [
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Accounts Payable": [
+			"AU",
+			"AM",
+			"VW",
+			"PU",
+			"PM"
+		],
+		"Accounts Payable Summary": [
+			"AU",
+			"AM",
+			"VW",
+			"PU",
+			"PM"
+		],
+		"Supplier Ledger Summary": [
+			"AU",
+			"AM",
+			"VW",
+			"PU",
+			"PM"
+		],
+		"Sales Register": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Item-wise Sales Register": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Sales Invoice Trends": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Delivered Items To Be Billed": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Inactive Sales Items": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Customers Without Any Sales Transactions": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Sales Analytics": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Sales Order Analysis": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Sales Order Trends": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Item-wise Sales History": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Payment Terms Status for Sales Order": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Inactive Customers": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Exponential Smoothing Forecasting": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Sales Person-wise Transaction Summary": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Sales Person Target Variance Based On Item Group": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Territory Target Variance Based On Item Group": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Pending SO Items For Purchase Request": [
+			"SU",
+			"SM",
+			"PU"
+		],
+		"Sales Partner Commission Summary": [
+			"SM",
+			"AM",
+			"VW"
+		],
+		"Sales Partner Target Variance based on Item Group": [
+			"SM",
+			"AM",
+			"VW"
+		],
+		"Sales Partner Transaction Summary": [
+			"SM",
+			"AM",
+			"VW"
+		],
+		"Sales Person Commission Summary": [
+			"SM",
+			"AM",
+			"VW"
+		],
+		"Sales Partners Commission": [
+			"SM",
+			"AM",
+			"VW"
+		],
+		"Quotation Trends": [
+			"SU",
+			"SM",
+			"VW"
+		],
+		"Lost Quotations": [
+			"SU",
+			"SM",
+			"VW"
+		],
+		"Delivery Note Trends": [
+			"SU",
+			"SM",
+			"STU",
+			"STM",
+			"VW"
+		],
+		"Delayed Item Report": [
+			"SU",
+			"SM",
+			"STU",
+			"STM",
+			"VW"
+		],
+		"Delayed Order Report": [
+			"SU",
+			"SM",
+			"STU",
+			"STM",
+			"VW"
+		],
+		"Customer Acquisition and Loyalty": [
+			"SU",
+			"SM",
+			"AM",
+			"VW"
+		],
+		"Customer-wise Item Price": [
+			"SU",
+			"SM",
+			"AM",
+			"VW"
+		],
+		"Item-wise Price List Rate": [
+			"SU",
+			"SM",
+			"PU",
+			"PM",
+			"AU",
+			"AM"
+		],
+		"Lead Details": [
+			"SU",
+			"SM",
+			"MK",
+			"VW"
+		],
+		"Lead Owner Efficiency": [
+			"SU",
+			"SM",
+			"MK",
+			"VW"
+		],
+		"Campaign Efficiency": [
+			"SU",
+			"SM",
+			"MK",
+			"VW"
+		],
+		"Prospects Engaged But Not Converted": [
+			"SU",
+			"SM",
+			"MK",
+			"VW"
+		],
+		"First Response Time for Opportunity": [
+			"SU",
+			"SM",
+			"MK",
+			"VW"
+		],
+		"Lost Opportunity": [
+			"SU",
+			"SM",
+			"MK",
+			"VW"
+		],
+		"Opportunity Summary by Sales Stage": [
+			"SU",
+			"SM",
+			"MK",
+			"VW"
+		],
+		"Sales Pipeline Analytics": [
+			"SU",
+			"SM",
+			"MK",
+			"VW"
+		],
+		"Territory-wise Sales": [
+			"SU",
+			"SM",
+			"MK",
+			"VW"
+		],
+		"Address And Contacts": [
+			"SU",
+			"SM",
+			"PU",
+			"PM"
+		],
+		"Addresses And Contacts": [
+			"SU",
+			"SM",
+			"PU",
+			"PM"
+		],
+		"Dia Chi Giao Hang Thieu Nguoi Nhan": [
+			"SU",
+			"SM",
+			"PU",
+			"PM"
+		],
+		"Doi Tac Thieu Email Lien He": [
+			"PU",
+			"PM",
+			"SU"
+		],
+		"Purchase Analytics": [
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Purchase Order Analysis": [
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Purchase Order Trends": [
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Item-wise Purchase History": [
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Procurement Tracker": [
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Purchase Register": [
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Item-wise Purchase Register": [
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Purchase Invoice Trends": [
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Billed Items To Be Received": [
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Received Items To Be Billed": [
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Purchase Receipt Trends": [
+			"PU",
+			"PM",
+			"STU",
+			"STM",
+			"VW"
+		],
+		"Supplier Quotation Comparison": [
+			"PU",
+			"PM",
+			"VW"
+		],
+		"Material Requests for which Supplier Quotations are not created": [
+			"PU",
+			"PM",
+			"STU",
+			"STM",
+			"VW"
+		],
+		"Requested Items to Order and Receive": [
+			"PU",
+			"PM",
+			"STU",
+			"STM",
+			"VW"
+		],
+		"Items To Be Requested": [
+			"PU",
+			"PM",
+			"STU",
+			"STM",
+			"VW"
+		],
+		"Vat Tu Chua Co NCC Mac Dinh": [
+			"PU",
+			"PM",
+			"IM"
+		],
+		"Tinh Trang Ho So TBYT": [
+			"IC",
+			"IM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"STM",
+			"VW"
+		],
+		"Fixed Asset Register": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Asset Depreciation Ledger": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Asset Depreciations and Balances": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Asset Activity": [
+			"AU",
+			"AM",
+			"AO",
+			"VW"
+		],
+		"Asset Maintenance": [
+			"AU",
+			"AM",
+			"AO"
+		],
+		"Unpaid Expense Claim": [
+			"AU",
+			"AM",
+			"HM",
+			"VW"
+		],
+		"Employee Advance Summary": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Monthly Attendance Sheet": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Monthly Attendance Report": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Shift Attendance": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Employee Working Hours": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Employees working on a holiday": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Employee Leave Balance": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Employee Leave Balance Summary": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Employee Analytics": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Employee Information": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Employee Birthday": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Leave Ledger": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Employee Exits": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Appraisal Overview": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Recruitment Analytics": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Project Summary": [
+			"PJM",
+			"AM",
+			"VW"
+		],
+		"Project wise Stock Tracking": [
+			"PJM",
+			"AM",
+			"VW"
+		],
+		"Delayed Tasks Summary": [
+			"PJM"
+		],
+		"Today task": [
+			"PJM"
+		],
+		"Daily Timesheet Summary": [
+			"PJM",
+			"AM",
+			"VW"
+		],
+		"Employee Hours Utilization Based On Timesheet": [
+			"PJM",
+			"AM",
+			"VW"
+		],
+		"Employee Billing Summary": [
+			"PJM",
+			"AM",
+			"VW"
+		],
+		"Project Billing Summary": [
+			"PJM",
+			"AM",
+			"VW"
+		],
+		"Project Profitability": [
+			"PJM",
+			"AM",
+			"VW"
+		],
+		"Issue Analytics": [
+			"ST",
+			"VW"
+		],
+		"Issue Summary": [
+			"ST",
+			"VW"
+		],
+		"First Response Time for Issues": [
+			"ST",
+			"VW"
+		],
+		"Support Hour Distribution": [
+			"ST",
+			"VW"
+		],
+		"Quality Inspection Summary": [
+			"QM",
+			"STM",
+			"VW"
+		],
+		"Review": [
+			"QM",
+			"VW"
+		],
+		"Doi Soat Hoa Don Dien Tu": [
+			"EI",
+			"EIC",
+			"VW"
+		],
+		"Permitted Documents For User": [
+			"SYS"
+		],
+		"Document Share Report": [
+			"SYS"
+		],
+		"Database Storage Usage By Tables": [
+			"SYS"
+		],
+		"Transaction Log Report": [
+			"SYS"
+		],
+		"Audit System Hooks": [
+			"SYS"
+		],
+		"Prepared Report Analytics": [
+			"SYS"
+		],
+		"Calculated Discount Mismatch": [
+			"SYS"
+		],
+		"Website Analytics": [
+			"WM",
+			"SYS"
+		],
+		"ToDo": [
+			"EMP"
+		]
+	},
+	"pages": {
+		"lay-hang-pda": [
+			"STU",
+			"STM",
+			"PDA"
+		],
+		"xep-hang-pda": [
+			"STU",
+			"STM",
+			"PDA"
+		],
+		"quet-ma-tra-cuu": [
+			"STU",
+			"STM",
+			"PDA"
+		],
+		"dat-o-hang-loat": [
+			"STU",
+			"STM"
+		],
+		"attendance-review": [
+			"HU",
+			"HM"
+		],
+		"organizational-chart": [
+			"HU",
+			"HM"
+		],
+		"team-updates": [
+			"LK"
+		],
+		"huong_dan_thong_bao": [
+			"EMP"
+		],
+		"thong_bao_cua_toi": [
+			"EMP"
+		]
+	},
+	"workspaces": {
+		"Home": [
+			"EMP"
+		],
+		"Tools": [
+			"EMP"
+		],
+		"Accounting": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Financial Reports": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Payables": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Receivables": [
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Doi Chieu Cong No": [
+			"AU",
+			"AM"
+		],
+		"Buying": [
+			"PU",
+			"PM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Selling": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Bán hàng": [
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Stock": [
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"SU",
+			"SM",
+			"AU",
+			"AM",
+			"VW"
+		],
+		"Quản lý kho": [
+			"STU",
+			"STM",
+			"PDA"
+		],
+		"Assets": [
+			"AU",
+			"AM",
+			"AO",
+			"VW"
+		],
+		"CRM": [
+			"SU",
+			"SM",
+			"MK",
+			"VW"
+		],
+		"Projects": [
+			"PJU",
+			"PJM"
+		],
+		"Quality": [
+			"QM",
+			"STU",
+			"STM",
+			"PU",
+			"PM",
+			"VW"
+		],
+		"Support": [
+			"ST",
+			"EMP"
+		],
+		"HR": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Employee Lifecycle": [
+			"HU",
+			"HM",
+			"VW"
+		],
+		"Recruitment": [
+			"HU",
+			"HM",
+			"VW",
+			"DH"
+		],
+		"Shift & Attendance": [
+			"EMP",
+			"HU",
+			"HM",
+			"DH",
+			"VW"
+		],
+		"Leaves": [
+			"EMP",
+			"HU",
+			"HM",
+			"DH",
+			"VW"
+		],
+		"Performance": [
+			"EMP",
+			"HU",
+			"HM",
+			"DH",
+			"VW"
+		],
+		"Expense Claims": [
+			"EMP",
+			"HU",
+			"HM",
+			"DH",
+			"VW"
+		],
+		"Tax & Benefits": [
+			"EMP",
+			"HU",
+			"HM",
+			"DH",
+			"VW"
+		],
+		"Payroll": [
+			"HM",
+			"AM",
+			"VW"
+		],
+		"Salary Payout": [
+			"HM",
+			"AM",
+			"VW"
+		],
+		"Thong Bao": [
+			"SNA"
+		],
+		"Website": [
+			"WM",
+			"MK"
+		],
+		"Integrations": [
+			"SYS"
+		],
+		"Manufacturing": [
+			"SYS"
+		],
+		"Build": [
+			"SYS"
+		],
+		"Users": [
+			"SYS"
+		],
+		"Welcome Workspace": [
+			"SYS"
+		]
+	}
+}

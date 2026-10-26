@@ -1,0 +1,1057 @@
+{
+	"doctypes": {
+		"Supplier": {
+			"state": "matrix",
+			"perms": {
+				"PU": "CRW",
+				"PM": "CRW O I H R2",
+				"STU": "R",
+				"STM": "R",
+				"AU": "R W2",
+				"AM": "R W2",
+				"IC": "R",
+				"SU": "R",
+				"SUP": "R"
+			},
+			"scope": {
+				"SUP": "s"
+			},
+			"permlevel": {
+				"2": {
+					"fields": [
+						"accounts",
+						"tax_category",
+						"tax_withholding_category"
+					],
+					"read": [
+						"AU",
+						"AM",
+						"PM"
+					],
+					"write": [
+						"AU",
+						"AM"
+					]
+				}
+			}
+		},
+		"Supplier Group": {
+			"state": "ref_master",
+			"perms": {
+				"PM": "CRWD"
+			}
+		},
+		"Request for Quotation": {
+			"state": "matrix",
+			"perms": {
+				"PU": "CRWS PE",
+				"PM": "CRWSXA PE O",
+				"AU": "R",
+				"AM": "R"
+			}
+		},
+		"Supplier Quotation": {
+			"state": "matrix",
+			"perms": {
+				"PU": "CRWS PE",
+				"PM": "CRWSXA PE O W1",
+				"AU": "R",
+				"AM": "R",
+				"SUP": "CRW"
+			},
+			"scope": {
+				"SUP": "s"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"ignore_pricing_rule"
+					],
+					"read": [],
+					"write": [
+						"PM"
+					]
+				}
+			}
+		},
+		"Material Request": {
+			"state": "matrix",
+			"perms": {
+				"PU": "CRWS PE",
+				"PM": "CRWSXA PE",
+				"STU": "CRWS",
+				"STM": "CRWSXA",
+				"AU": "R",
+				"AM": "R",
+				"SU": "CRWS",
+				"SM": "CRWSXA"
+			},
+			"scope": {
+				"STU": "w"
+			}
+		},
+		"Purchase Order": {
+			"state": "matrix",
+			"perms": {
+				"PU": "CRW PE S",
+				"PM": "CRW PE O H W1 SXA",
+				"STU": "R",
+				"STM": "R",
+				"AU": "R",
+				"AM": "R",
+				"SU": "R",
+				"SUP": "R"
+			},
+			"scope": {
+				"SUP": "s"
+			},
+			"workflow": "WF-PO",
+			"permlevel": {
+				"1": {
+					"fields": [
+						"ignore_pricing_rule"
+					],
+					"read": [],
+					"write": [
+						"PM"
+					]
+				}
+			}
+		},
+		"Purchase Receipt": {
+			"state": "matrix",
+			"perms": {
+				"PU": "R",
+				"PM": "R",
+				"STU": "CRWS PE",
+				"STM": "CRWSXA PE",
+				"AU": "R",
+				"AM": "R",
+				"PDA": "R"
+			},
+			"scope": {
+				"STU": "w",
+				"PDA": "w"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"ignore_pricing_rule"
+					],
+					"read": [],
+					"write": []
+				}
+			}
+		},
+		"Purchase Invoice": {
+			"state": "matrix",
+			"perms": {
+				"PU": "R",
+				"PM": "R",
+				"AU": "CRWS PE",
+				"AM": "CRWSXA PE O",
+				"SUP": "R"
+			},
+			"scope": {
+				"SUP": "s"
+			},
+			"workflow": "WF-PI",
+			"permlevel": {
+				"1": {
+					"fields": [
+						"ignore_pricing_rule"
+					],
+					"read": [],
+					"write": []
+				}
+			}
+		},
+		"Purchase Taxes and Charges Template": {
+			"state": "matrix",
+			"perms": {
+				"PU": "R",
+				"PM": "R",
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Blanket Order": {
+			"state": "matrix",
+			"perms": {
+				"PU": "R",
+				"PM": "CRWSXA",
+				"AU": "R",
+				"AM": "R",
+				"SU": "R",
+				"SM": "CRWSXA"
+			}
+		},
+		"Supplier Scorecard": {
+			"state": "matrix",
+			"perms": {
+				"PU": "R",
+				"PM": "CRW"
+			}
+		},
+		"Supplier Scorecard Criteria": {
+			"state": "matrix",
+			"perms": {
+				"PU": "R",
+				"PM": "CRW"
+			}
+		},
+		"Supplier Scorecard Standing": {
+			"state": "matrix",
+			"perms": {
+				"PU": "R",
+				"PM": "CRW"
+			}
+		},
+		"Supplier Scorecard Variable": {
+			"state": "matrix",
+			"perms": {
+				"PU": "R",
+				"PM": "CRW"
+			}
+		},
+		"Supplier Scorecard Period": {
+			"state": "matrix",
+			"perms": {
+				"PU": "R",
+				"PM": "CRWSXA"
+			}
+		},
+		"Customer": {
+			"state": "matrix",
+			"perms": {
+				"SU": "CRW",
+				"SM": "CRW O I H R1 R2",
+				"STU": "R",
+				"STM": "R",
+				"AU": "R R1 W2",
+				"AM": "R W1 W2",
+				"PU": "R",
+				"CUS": "R"
+			},
+			"scope": {
+				"CUS": "c"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"credit_limits"
+					],
+					"read": [
+						"SM",
+						"AU",
+						"AM"
+					],
+					"write": [
+						"AM"
+					]
+				},
+				"2": {
+					"fields": [
+						"accounts",
+						"tax_category",
+						"tax_withholding_category"
+					],
+					"read": [
+						"AU",
+						"AM",
+						"SM"
+					],
+					"write": [
+						"AU",
+						"AM"
+					]
+				}
+			}
+		},
+		"Customer Group": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD"
+			}
+		},
+		"Territory": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD"
+			}
+		},
+		"Sales Person": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD"
+			}
+		},
+		"Sales Partner": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD"
+			}
+		},
+		"Sales Partner Type": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRWD"
+			}
+		},
+		"Quotation": {
+			"state": "matrix",
+			"perms": {
+				"SU": "CRWS PE",
+				"SM": "CRWSXA PE O H W1",
+				"AU": "R",
+				"AM": "R"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"ignore_pricing_rule"
+					],
+					"read": [],
+					"write": [
+						"SM"
+					]
+				}
+			}
+		},
+		"Sales Order": {
+			"state": "matrix",
+			"perms": {
+				"SU": "CRW PE S",
+				"SM": "CRWSXA PE O H W1",
+				"STU": "R",
+				"STM": "R",
+				"AU": "R",
+				"AM": "R",
+				"PU": "R",
+				"CUS": "R"
+			},
+			"scope": {
+				"CUS": "c"
+			},
+			"workflow": "WF-SO",
+			"permlevel": {
+				"1": {
+					"fields": [
+						"ignore_pricing_rule"
+					],
+					"read": [],
+					"write": [
+						"SM"
+					]
+				}
+			}
+		},
+		"Delivery Note": {
+			"state": "matrix",
+			"perms": {
+				"SU": "R P",
+				"SM": "R P",
+				"STU": "CRWS PE",
+				"STM": "CRWSXA PE",
+				"AU": "R",
+				"AM": "R",
+				"PDA": "RWS",
+				"CUS": "R"
+			},
+			"scope": {
+				"STU": "w",
+				"PDA": "w",
+				"CUS": "c"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"ignore_pricing_rule"
+					],
+					"read": [],
+					"write": []
+				}
+			}
+		},
+		"Sales Invoice": {
+			"state": "matrix",
+			"perms": {
+				"SU": "R",
+				"SM": "R",
+				"AU": "CRWS PE",
+				"AM": "CRWSXA PE O",
+				"CUS": "R"
+			},
+			"scope": {
+				"CUS": "c"
+			},
+			"workflow": "WF-SI"
+		},
+		"Price List": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "CRW",
+				"PM": "CRW"
+			}
+		},
+		"Item Price": {
+			"state": "matrix",
+			"perms": {
+				"SU": "R",
+				"SM": "CRWD O I",
+				"AU": "R",
+				"AM": "R",
+				"PU": "CRW",
+				"PM": "CRWD O I"
+			},
+			"scope": {
+				"SU": "pl",
+				"PU": "pl"
+			}
+		},
+		"Pricing Rule": {
+			"state": "matrix",
+			"perms": {
+				"SU": "R",
+				"SM": "CRWD",
+				"AU": "R",
+				"AM": "R",
+				"PU": "R",
+				"PM": "CRWD"
+			}
+		},
+		"Promotional Scheme": {
+			"state": "matrix",
+			"perms": {
+				"SU": "R",
+				"SM": "CRWD",
+				"AU": "R",
+				"AM": "R",
+				"PU": "R",
+				"PM": "CRWD"
+			}
+		},
+		"Product Bundle": {
+			"state": "matrix",
+			"perms": {
+				"SU": "R",
+				"SM": "CRW",
+				"STU": "R",
+				"STM": "R",
+				"AU": "R",
+				"AM": "R"
+			}
+		},
+		"Party Specific Item": {
+			"state": "matrix",
+			"perms": {
+				"SU": "R",
+				"SM": "CRWD"
+			}
+		},
+		"Sales Taxes and Charges Template": {
+			"state": "matrix",
+			"perms": {
+				"SU": "R",
+				"SM": "R",
+				"AU": "R",
+				"AM": "CRW"
+			}
+		},
+		"Terms and Conditions": {
+			"state": "matrix",
+			"perms": {
+				"SU": "R",
+				"SM": "CRW",
+				"AU": "R",
+				"AM": "CRW",
+				"PU": "R",
+				"PM": "CRW"
+			}
+		},
+		"Installation Note": {
+			"state": "matrix",
+			"perms": {
+				"SU": "CRWS",
+				"SM": "CRWSXA",
+				"STU": "R",
+				"STM": "R"
+			}
+		},
+		"Item": {
+			"state": "matrix",
+			"perms": {
+				"STU": "R",
+				"STM": "R",
+				"PDA": "R",
+				"PU": "R",
+				"PM": "R",
+				"IC": "CRW",
+				"IM": "CRW O I",
+				"SU": "R",
+				"SM": "R",
+				"AU": "R R2",
+				"AM": "R W1 W2"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"valuation_rate"
+					],
+					"read": [
+						"AM"
+					],
+					"write": [
+						"AM"
+					]
+				},
+				"2": {
+					"fields": [
+						"Item Default.expense_account",
+						"Item Default.income_account",
+						"Item Default.buying_cost_center",
+						"Item Default.selling_cost_center"
+					],
+					"read": [
+						"AU",
+						"AM"
+					],
+					"write": [
+						"AM"
+					]
+				}
+			}
+		},
+		"Item Group": {
+			"state": "ref_master",
+			"perms": {
+				"IM": "CRWD"
+			},
+			"pda": true
+		},
+		"Brand": {
+			"state": "ref_master",
+			"perms": {
+				"IM": "CRWD"
+			},
+			"pda": true
+		},
+		"UOM": {
+			"state": "ref_master",
+			"perms": {
+				"IM": "CRWD"
+			},
+			"pda": true
+		},
+		"UOM Category": {
+			"state": "ref_master",
+			"perms": {
+				"IM": "CRWD"
+			},
+			"pda": true
+		},
+		"UOM Conversion Factor": {
+			"state": "ref_master",
+			"perms": {
+				"IM": "CRWD"
+			},
+			"pda": true
+		},
+		"Item Attribute": {
+			"state": "ref_master",
+			"perms": {
+				"IM": "CRWD"
+			},
+			"pda": true
+		},
+		"Warehouse Type": {
+			"state": "ref_master",
+			"perms": {
+				"IM": "CRWD"
+			},
+			"pda": true
+		},
+		"Manufacturer": {
+			"state": "ref_master",
+			"perms": {
+				"IM": "CRWD"
+			}
+		},
+		"Customs Tariff Number": {
+			"state": "ref_master",
+			"perms": {
+				"IM": "CRWD"
+			}
+		},
+		"Item Manufacturer": {
+			"state": "matrix",
+			"perms": {
+				"STU": "R",
+				"STM": "R",
+				"PU": "R",
+				"PM": "R",
+				"IC": "CRW",
+				"IM": "CRWD",
+				"SU": "R",
+				"SM": "R"
+			}
+		},
+		"Item Alternative": {
+			"state": "matrix",
+			"perms": {
+				"STU": "R",
+				"STM": "R",
+				"PU": "R",
+				"PM": "R",
+				"IC": "CRW",
+				"IM": "CRWD",
+				"SU": "R",
+				"SM": "R"
+			}
+		},
+		"Warehouse": {
+			"state": "ref_master",
+			"perms": {
+				"STM": "CRW",
+				"AU": "R R2",
+				"AM": "R W2"
+			},
+			"permlevel": {
+				"2": {
+					"fields": [
+						"account"
+					],
+					"read": [
+						"AU",
+						"AM"
+					],
+					"write": [
+						"AM"
+					]
+				}
+			},
+			"pda": true
+		},
+		"Stock Entry": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRW PE S",
+				"STM": "CRWSXA PE",
+				"PDA": "CRW S",
+				"PU": "R",
+				"PM": "R",
+				"AU": "R",
+				"AM": "R"
+			},
+			"scope": {
+				"STU": "w",
+				"PDA": "o w"
+			},
+			"workflow": "WF-SE"
+		},
+		"Stock Entry Type": {
+			"state": "ref_master",
+			"perms": {
+				"STM": "CRW"
+			},
+			"pda": true
+		},
+		"Stock Reconciliation": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRW",
+				"STM": "CRWSXA PE",
+				"PDA": "CRW",
+				"AU": "R",
+				"AM": "RW SXA"
+			},
+			"scope": {
+				"STU": "w",
+				"PDA": "o w"
+			},
+			"workflow": "WF-SR"
+		},
+		"Batch": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRW",
+				"STM": "CRW",
+				"PDA": "CRW",
+				"PU": "R",
+				"PM": "R",
+				"IC": "R",
+				"IM": "R",
+				"SU": "R",
+				"SM": "R",
+				"AU": "R",
+				"AM": "R"
+			}
+		},
+		"Serial No": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRW",
+				"STM": "CRW",
+				"PDA": "CRW",
+				"PU": "R",
+				"PM": "R",
+				"IC": "R",
+				"IM": "R",
+				"SU": "R",
+				"SM": "R",
+				"AU": "R",
+				"AM": "R"
+			}
+		},
+		"Serial and Batch Bundle": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRWS",
+				"STM": "CRWSX",
+				"PDA": "CRWS",
+				"PU": "R",
+				"PM": "R",
+				"IC": "R",
+				"IM": "R",
+				"SU": "R",
+				"SM": "R",
+				"AU": "R",
+				"AM": "R"
+			}
+		},
+		"Quick Stock Balance": {
+			"state": "matrix",
+			"perms": {
+				"AM": "RW"
+			}
+		},
+		"Pick List": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRWS P",
+				"STM": "CRWSXA",
+				"SU": "R",
+				"SM": "R"
+			},
+			"scope": {
+				"STU": "w"
+			}
+		},
+		"Packing Slip": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRWS P",
+				"STM": "CRWSXA",
+				"SU": "R",
+				"SM": "R"
+			}
+		},
+		"Delivery Trip": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRWS P",
+				"STM": "CRWSXA",
+				"SU": "R",
+				"SM": "R"
+			}
+		},
+		"Driver": {
+			"state": "ref_master",
+			"perms": {
+				"STM": "CRW"
+			}
+		},
+		"Vehicle": {
+			"state": "ref_master",
+			"perms": {
+				"STM": "CRW"
+			}
+		},
+		"Shipment": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRWS",
+				"STM": "CRWSXA",
+				"SU": "R",
+				"SM": "R"
+			}
+		},
+		"Shipment Parcel Template": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRW",
+				"STM": "CRWD",
+				"SU": "R",
+				"SM": "R"
+			}
+		},
+		"Quality Inspection": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRWS",
+				"STM": "CRWSXA",
+				"QM": "CRWSXA",
+				"PU": "R",
+				"PM": "R",
+				"IC": "R",
+				"IM": "R",
+				"SU": "R",
+				"SM": "R"
+			}
+		},
+		"Quality Inspection Template": {
+			"state": "matrix",
+			"perms": {
+				"STM": "CRW",
+				"QM": "CRW"
+			}
+		},
+		"Quality Inspection Parameter": {
+			"state": "ref_master",
+			"perms": {
+				"STM": "CRW",
+				"QM": "CRW"
+			}
+		},
+		"Quality Inspection Parameter Group": {
+			"state": "ref_master",
+			"perms": {
+				"STM": "CRW",
+				"QM": "CRW"
+			}
+		},
+		"Stock Reservation Entry": {
+			"state": "matrix",
+			"perms": {
+				"STU": "R",
+				"STM": "CRWSXA",
+				"SU": "R",
+				"SM": "R"
+			}
+		},
+		"Putaway Rule": {
+			"state": "matrix",
+			"perms": {
+				"STU": "R",
+				"STM": "CRWD",
+				"PDA": "R"
+			}
+		},
+		"Landed Cost Voucher": {
+			"state": "matrix",
+			"perms": {
+				"STM": "R",
+				"AU": "CRW",
+				"AM": "CRWSXA"
+			}
+		},
+		"Repost Item Valuation": {
+			"state": "matrix",
+			"perms": {
+				"STM": "R",
+				"AM": "CRWSXA"
+			}
+		},
+		"Closing Stock Balance": {
+			"state": "matrix",
+			"perms": {
+				"AM": "CRWSXA"
+			}
+		},
+		"Stock Ledger Entry": {
+			"state": "matrix",
+			"perms": {
+				"STU": "R",
+				"STM": "R",
+				"PU": "R",
+				"PM": "R",
+				"IC": "R",
+				"IM": "R",
+				"SU": "R",
+				"SM": "R",
+				"AU": "R",
+				"AM": "R R1"
+			},
+			"scope": {
+				"STU": "w"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"incoming_rate",
+						"outgoing_rate",
+						"valuation_rate",
+						"stock_value",
+						"stock_value_difference"
+					],
+					"read": [
+						"AM"
+					],
+					"write": []
+				}
+			}
+		},
+		"Bin": {
+			"state": "matrix",
+			"perms": {
+				"STU": "R",
+				"STM": "R",
+				"PU": "R",
+				"PM": "R",
+				"IC": "R",
+				"IM": "R",
+				"SU": "R",
+				"SM": "R",
+				"AU": "R",
+				"AM": "R R1"
+			},
+			"scope": {
+				"STU": "w"
+			},
+			"permlevel": {
+				"1": {
+					"fields": [
+						"valuation_rate",
+						"stock_value"
+					],
+					"read": [
+						"AM"
+					],
+					"write": []
+				}
+			}
+		},
+		"Inventory Dimension": {
+			"state": "matrix",
+			"perms": {
+				"STM": "R"
+			}
+		},
+		"Storage Location": {
+			"state": "matrix",
+			"perms": {
+				"STU": "R",
+				"STM": "CRWD",
+				"PDA": "R"
+			}
+		},
+		"Warehouse Location Setup": {
+			"state": "matrix",
+			"perms": {
+				"STM": "CRW"
+			}
+		},
+		"Location Generator": {
+			"state": "matrix",
+			"perms": {
+				"STM": "CRW"
+			}
+		},
+		"Item Location Preference": {
+			"state": "matrix",
+			"perms": {
+				"STU": "R",
+				"STM": "CRWD"
+			}
+		},
+		"Batch Entry": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRWS",
+				"STM": "CRWSXA",
+				"PDA": "CRW"
+			},
+			"scope": {
+				"STU": "w",
+				"PDA": "o w"
+			}
+		},
+		"Location Transfer": {
+			"state": "matrix",
+			"perms": {
+				"STU": "CRWS",
+				"STM": "CRWSXA",
+				"PDA": "CRWS"
+			},
+			"scope": {
+				"STU": "w",
+				"PDA": "o w"
+			}
+		},
+		"Location Balance": {
+			"state": "matrix",
+			"perms": {
+				"STU": "R",
+				"STM": "R",
+				"PDA": "R"
+			},
+			"scope": {
+				"STU": "w",
+				"PDA": "w"
+			}
+		},
+		"Location Ledger Entry": {
+			"state": "matrix",
+			"perms": {
+				"STU": "R",
+				"STM": "R",
+				"PDA": "R"
+			},
+			"scope": {
+				"STU": "w",
+				"PDA": "w"
+			}
+		},
+		"TBYT Document Type": {
+			"state": "ref_master",
+			"perms": {
+				"IM": "CRW"
+			}
+		},
+		"TBYT Marketing Authorization": {
+			"state": "matrix",
+			"perms": {
+				"IC": "CRW",
+				"IM": "CRW",
+				"PU": "R",
+				"PM": "R",
+				"SU": "R",
+				"SM": "R",
+				"STM": "R",
+				"QM": "R"
+			}
+		},
+		"TBYT Regulatory Document": {
+			"state": "matrix",
+			"perms": {
+				"IC": "CRW",
+				"IM": "CRW",
+				"PU": "R",
+				"PM": "R",
+				"SU": "R",
+				"SM": "R",
+				"STM": "R",
+				"QM": "R"
+			}
+		},
+		"Stock Settings": {
+			"state": "ref_master",
+			"perms": {
+				"AM": "RW"
+			},
+			"pda": true
+		},
+		"Buying Settings": {
+			"state": "ref_master",
+			"perms": {
+				"PM": "RW"
+			}
+		},
+		"Selling Settings": {
+			"state": "ref_master",
+			"perms": {
+				"SM": "RW"
+			}
+		}
+	}
+}
