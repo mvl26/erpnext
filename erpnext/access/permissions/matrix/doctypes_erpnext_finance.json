@@ -498,6 +498,9 @@
 				"AM": "CRWSXA"
 			}
 		},
+		"Asset Repair": {
+			"state": "keep_standard"
+		},
 		"Asset Activity": {
 			"state": "matrix",
 			"perms": {
