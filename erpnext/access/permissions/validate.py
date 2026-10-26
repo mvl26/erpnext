@@ -94,7 +94,14 @@ class _Checker:
 
 	def check_coverage(self):
 		for name, info in self.site.doctypes.items():
-			if info.app in APPS and name not in self.m.doctypes:
+			if info.app not in APPS or name in self.m.doctypes:
+				continue
+			if info.custom:
+				# made in the desk on this site — no matrix file can know it; its own DocPerm rows still apply
+				self.warn(
+					name, "9.3.1", "DocType tạo tay trên site (custom), ngoài ma trận — giữ quyền đang có"
+				)
+			else:
 				self.err(name, "9.3.1", "DocType trên site chưa có trong ma trận")
 		for name in self.m.doctypes:
 			info = self.site.doctypes.get(name)
@@ -199,7 +206,7 @@ class _Checker:
 		m = self.m
 		self.check_codes(report, codes, "reports")
 		if report not in self.site.reports:
-			self.err(report, "R-REPORT", "report có trong ma trận nhưng không có trên site")
+			self.warn(report, "R-REPORT", "report có trong ma trận nhưng không có trên site, bỏ qua")
 			return
 		ref = self.site.reports[report]
 		if not ref or not isinstance(codes, list | tuple):

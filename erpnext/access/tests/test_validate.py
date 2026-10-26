@@ -69,6 +69,14 @@ class TestValidate(FrappeTestCase):
 		self.assertTrue(has(p.errors, "Note", "9.3.1"))
 		self.assertFalse(has(p.errors, "ToDo"))
 
+	def test_custom_doctype_outside_matrix_is_warning(self):
+		m = matrix_with({"ToDo": DocTypeEntry(state="keep_standard")})
+		custom = dt("Intranet Post")
+		custom.custom = True
+		p = validate(m, site_with(dt("ToDo"), custom))
+		self.assertTrue(has(p.warnings, "Intranet Post", "custom"))
+		self.assertEqual(p.errors, [])
+
 	def test_matrix_doctype_missing_on_site_is_warning(self):
 		m = matrix_with({"Ghost": DocTypeEntry(state="g1_only")})
 		p = validate(m, site_with())
@@ -161,13 +169,13 @@ class TestValidate(FrappeTestCase):
 		self.assertTrue(has(p.errors, "Supplier Report", "R3", "STU"))
 		self.assertFalse(has(p.errors, "Supplier Report", "PM"))
 
-	def test_report_not_on_site_is_error_and_unknown_ref_is_warning(self):
+	def test_report_not_on_site_and_unknown_ref_are_warnings(self):
 		entries = {"Supplier": DocTypeEntry(state="matrix", perms={"PM": "R"})}
 		m = matrix_with(entries, reports={"Gone": ["PM"], "Other": ["PM"], "NoRef": ["PM"]})
 		p = validate(m, site_with(dt("Supplier"), reports={"Other": "Elsewhere", "NoRef": ""}))
-		self.assertTrue(has(p.errors, "Gone"))
+		self.assertTrue(has(p.warnings, "Gone", "R-REPORT"))
 		self.assertTrue(has(p.warnings, "Other", "R3"))
-		self.assertFalse(has(p.errors, "Other") or has(p.errors, "NoRef"))
+		self.assertEqual(p.errors, [])
 
 	def test_workflow_state_field_must_be_workflow_state(self):
 		p = self.check_wf(wf(workflow_state_field="status"))
