@@ -135,6 +135,11 @@ def _truong_dong(insert_after, cho_so):
 		),
 	]
 	if cho_so:
+		# Đơn bán hàng: kết quả kiểm và NCC dự kiến nằm ở bảng Kiểm giá bán dưới lưới mặt hàng
+		# (sales_order.js), không hiện trong chi tiết dòng nữa (BA). Chỉ ẩn: dữ liệu vẫn lưu, báo
+		# cáo và kiểm khi Submit vẫn dùng.
+		for f in fields:
+			f["hidden"] = 1
 		fields += [
 			{
 				"fieldname": "chap_thuan_gia_section",

@@ -116,7 +116,7 @@ erpnext.kiem_gia.ve_bang_kiem_gia = function (frm) {
 			</table>
 		</div>`);
 	dong.forEach((d) => erpnext.kiem_gia.o_chon_ncc(frm, d, field.$wrapper.find(`[data-ncc="${d.name}"]`)));
-	// Mở dòng để nhập thông tin khách chấp thuận và xem đủ chi tiết.
+	// Mở dòng để nhập thông tin khách chấp thuận.
 	field.$wrapper.find("[data-dong]").on("click", (ev) => {
 		ev.preventDefault();
 		frm.fields_dict.items.grid.grid_rows_by_docname[$(ev.currentTarget).attr("data-dong")]?.toggle_view(
@@ -128,7 +128,8 @@ erpnext.kiem_gia.ve_bang_kiem_gia = function (frm) {
 // Ô chọn NCC dự kiến ngay trong bảng: gợi ý NCC đang có giá cho mặt hàng kèm giá mua
 // (gia_goc.ncc_co_gia). Chọn xong ghi vào dòng; tinh_lai.js tính lại và vẽ lại bảng.
 erpnext.kiem_gia.o_chon_ncc = function (frm, d, $td) {
-	const df = frappe.meta.get_docfield(d.doctype, "ncc_du_kien", frm.doc.name);
+	// Trường bị ẩn trong chi tiết dòng; quyền sửa xét như khi trường hiện.
+	const df = { ...frappe.meta.get_docfield(d.doctype, "ncc_du_kien", frm.doc.name), hidden: 0 };
 	if (frappe.perm.get_field_display_status(df, d, frm.perm) !== "Write") {
 		$td.text(d.ncc_du_kien || "");
 		return;

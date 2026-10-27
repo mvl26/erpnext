@@ -5,7 +5,7 @@
 ## Khi lập Sales Order
 
 1. Chọn khách, thêm mặt hàng, bấm **Lưu**.
-2. Hệ thống tự tính cho từng dòng. Kết quả của mọi dòng hiện ở bảng **Kiểm giá bán** ngay dưới bảng mặt hàng: NCC dự kiến, giá mua, giá bán (đơn giá trên đơn), giá bán đề xuất, trạng thái giá, chênh lệch. Bấm tên mặt hàng trong bảng để mở dòng xem đủ chi tiết (mục **Kiểm giá bán** của dòng):
+2. Hệ thống tự tính cho từng dòng. Kết quả của mọi dòng hiện ở bảng **Kiểm giá bán** ngay dưới bảng mặt hàng: NCC dự kiến, giá mua, giá bán (đơn giá trên đơn), giá bán đề xuất, trạng thái giá, chênh lệch. Chi tiết dòng (bút chì) không còn mục Kiểm giá bán; bấm tên mặt hàng trong bảng chỉ để mở dòng nhập thông tin khách chấp thuận:
    - **NCC dự kiến**: mặc định là NCC mặc định của mặt hàng. Định mua của NCC khác thì chọn ngay ở cột **NCC dự kiến** trong bảng (không cần mở dòng): danh sách đưa lên trước NCC đang có giá cho mặt hàng, kèm giá mua; chọn xong giá mua và giá bán đề xuất tính lại ngay, rồi Lưu. Đổi mặt hàng của dòng thì NCC dự kiến tự về NCC mặc định của mặt hàng mới.
    - **Giá mua** và **nguồn**: báo giá đợt của NCC còn hiệu lực; không có thì giá hợp đồng nguyên tắc — dòng giá mua có ô **Nhà cung cấp** đúng là NCC đó (hệ thống nhận theo ô Nhà cung cấp, không theo tên bảng giá).
    - **Giá bán đề xuất** = giá mua × hệ số, làm tròn 4 chữ số thập phân. **Chênh lệch** = giá bán − giá bán đề xuất.
