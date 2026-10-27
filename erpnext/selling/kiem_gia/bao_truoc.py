@@ -19,6 +19,7 @@ from frappe import _
 from frappe.utils import cint, flt, getdate, nowdate
 
 from erpnext.selling.kiem_gia.cau_hinh import co_quyen_sua_ty_le_lai
+from erpnext.selling.kiem_gia.gia_goc import he_so_quy_doi
 
 CHO_GUI = "Chờ gửi"
 DA_GUI = "Đã gửi"
@@ -369,16 +370,27 @@ def gui_thong_bao_doi_gia(price_list):
 
 
 def _gia_hien_hanh(price_list, d):
-	"""Giá đang áp ngay trước ngày hiệu lực của dòng mới (để email ghi giá cũ -> giá mới)."""
-	r = frappe.db.sql(
-		"""select price_list_rate from `tabItem Price`
-		where price_list = %s and item_code = %s and uom = %s and ifnull(customer, '') = %s
-			and ifnull(valid_from, '2000-01-01') < %s
-			and (valid_upto is null or valid_upto >= %s)
-		order by valid_from desc limit 1""",
-		(price_list, d.item_code, d.uom, d.customer or "", d.valid_from, d.valid_from),
+	"""Giá đang áp ngay trước ngày hiệu lực của dòng mới (để email ghi giá cũ -> giá mới), theo
+	ĐVT của dòng mới: giá hiện hành khai theo ĐVT khác thì quy đổi qua hệ số của mặt hàng.
+	Mặt hàng chưa có trong bảng giá: None."""
+	rows = frappe.db.sql(
+		"""select ip.uom, ip.price_list_rate, it.stock_uom
+		from `tabItem Price` ip join `tabItem` it on it.name = ip.item_code
+		where ip.price_list = %s and ip.item_code = %s and ifnull(ip.customer, '') = %s
+			and ifnull(ip.valid_from, '2000-01-01') < %s
+			and (ip.valid_upto is null or ip.valid_upto >= %s)
+		order by ip.uom = %s desc, ip.valid_from desc""",
+		(price_list, d.item_code, d.customer or "", d.valid_from, d.valid_from, d.uom),
+		as_dict=True,
 	)
-	return r[0][0] if r else None
+	if not rows:
+		return None
+	r = rows[0]
+	if r.uom == d.uom:
+		return r.price_list_rate
+	he_so = he_so_quy_doi([d.item_code], {r.uom, d.uom})
+	cu, moi = (1 if u == r.stock_uom else he_so.get((d.item_code, u)) for u in (r.uom, d.uom))
+	return flt(r.price_list_rate) / cu * moi if cu and moi else None
 
 
 def _noi_dung_email(price_list, dong, so_ngay_quy_dinh):
@@ -387,7 +399,7 @@ def _noi_dung_email(price_list, dong, so_ngay_quy_dinh):
 		f"<td>{frappe.utils.escape_html(d.item_code)}</td>"
 		f"<td>{frappe.utils.escape_html(d.item_name or '')}</td>"
 		f"<td>{frappe.utils.escape_html(d.uom)}</td>"
-		f"<td style='text-align:right'>{frappe.format(d.gia_cu, 'Currency') if d.gia_cu is not None else '-'}</td>"
+		f"<td style='text-align:right'>{frappe.format(d.gia_cu, 'Currency') if d.gia_cu is not None else _('Chưa có (mặt hàng mới)')}</td>"
 		f"<td style='text-align:right'><b>{frappe.format(d.price_list_rate, 'Currency')}</b></td>"
 		f"<td>{frappe.format(d.valid_from, 'Date')}</td>"
 		"</tr>"

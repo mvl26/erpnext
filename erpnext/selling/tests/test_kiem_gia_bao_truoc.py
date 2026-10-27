@@ -287,6 +287,32 @@ class TestGuiThongBao(BaoTruocCase):
 		self.assertIn("101.000", comm.content.replace(",", "."))
 		self.assertEqual(r["so_dong"], 2)
 
+	def test_an_item_new_to_the_list_says_so_instead_of_a_current_price(self):
+		self.gia(self.cho, self.item(50000), 50500, add_days(self.d, 7))
+
+		comm = frappe.get_doc("Communication", self.gui()["thong_bao"])
+		self.assertIn("Chưa có (mặt hàng mới)", comm.content)
+
+	def test_current_price_in_another_uom_is_converted(self):
+		item = self.item(100000, hop=10)
+		cu = frappe.get_doc(
+			{
+				"doctype": "Item Price",
+				"price_list": self.ban,
+				"item_code": item,
+				"uom": "_KG Cái",
+				"price_list_rate": 101000,
+				"valid_from": add_days(self.d, -30),
+				"currency": self.currency,
+			}
+		)
+		cu.flags.tu_thong_bao_doi_gia = True  # giá cũ có sẵn trên bảng giá chính
+		cu.insert(ignore_permissions=True)
+		self.gia(self.cho, item, 1050000, add_days(self.d, 7), uom="_KG Hộp")
+
+		comm = frappe.get_doc("Communication", self.gui()["thong_bao"])
+		self.assertIn("1.010.000", comm.content.replace(",", "."))
+
 	def test_t1_short_notice_warns_and_flags_but_does_not_block(self):
 		moi = self.gia(self.cho, self.item_a, 105000, add_days(self.d, 3))
 		frappe.clear_messages()

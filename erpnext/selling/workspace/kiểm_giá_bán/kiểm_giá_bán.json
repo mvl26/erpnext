@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\": \"b8d9db539d\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Kiểm giá bán theo hệ số khách hàng và báo trước đổi giá</b></span>\", \"col\": 12}}, {\"id\": \"8e6c1a68bf\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đối soát giá mua – giá bán\", \"col\": 4}}, {\"id\": \"2b832e0d7d\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đối chiếu bảng giá – giá mua\", \"col\": 4}}, {\"id\": \"cb0257a146\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đổi giá báo gấp\", \"col\": 4}}, {\"id\": \"af628cb287\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Giá chờ gửi thông báo\", \"col\": 4}}, {\"id\": \"251137807a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Giá chờ khách xác nhận\", \"col\": 4}}, {\"id\": \"dbb2b786a2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đơn bán hàng\", \"col\": 4}}, {\"id\": \"6176f8fc7a\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"1737cb6bf2\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Chức năng và báo cáo</b></span>\", \"col\": 12}}, {\"id\": \"951076a8d5\", \"type\": \"card\", \"data\": {\"card_name\": \"Báo cáo kiểm giá\", \"col\": 4}}, {\"id\": \"8bbd092154\", \"type\": \"card\", \"data\": {\"card_name\": \"Khai báo giá\", \"col\": 4}}, {\"id\": \"b7ae226f25\", \"type\": \"card\", \"data\": {\"card_name\": \"Chứng từ\", \"col\": 4}}]",
+ "content": "[{\"id\": \"feb6907698\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Kiểm giá bán theo hệ số khách hàng</b></span>\", \"col\": 12}}, {\"id\": \"8f7d25944e\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đối soát giá mua – giá bán\", \"col\": 4}}, {\"id\": \"4cacc1cfa5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đối chiếu bảng giá – giá mua\", \"col\": 4}}, {\"id\": \"ea8ce680af\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đơn bán hàng\", \"col\": 4}}, {\"id\": \"ad012c5e8f\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"a13bc4bf1a\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Báo trước khi đổi giá</b></span>\", \"col\": 12}}, {\"id\": \"cf34e3002a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bảng giá\", \"col\": 4}}, {\"id\": \"45f7e3519c\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Giá chờ gửi thông báo\", \"col\": 4}}, {\"id\": \"77aea7de39\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Giá chờ khách xác nhận\", \"col\": 4}}, {\"id\": \"eb22cd14b1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Trao đổi – email đã gửi\", \"col\": 4}}, {\"id\": \"28bd9489bd\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Đổi giá báo gấp\", \"col\": 4}}, {\"id\": \"28476b571b\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"4ef77b57ad\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Chức năng và báo cáo</b></span>\", \"col\": 12}}, {\"id\": \"d510500c2c\", \"type\": \"card\", \"data\": {\"card_name\": \"Kiểm giá theo hệ số\", \"col\": 4}}, {\"id\": \"f556cde1a1\", \"type\": \"card\", \"data\": {\"card_name\": \"Báo trước khi đổi giá\", \"col\": 4}}, {\"id\": \"20b79118e7\", \"type\": \"card\", \"data\": {\"card_name\": \"Chứng từ\", \"col\": 4}}]",
  "creation": "2026-10-26 09:00:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
@@ -16,8 +16,8 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Báo cáo kiểm giá",
-   "link_count": 3,
+   "label": "Kiểm giá theo hệ số",
+   "link_count": 4,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -49,27 +49,6 @@
   {
    "dependencies": "",
    "hidden": 0,
-   "is_query_report": 1,
-   "label": "Thông báo đổi giá báo gấp",
-   "link_count": 0,
-   "link_to": "Thong Bao Doi Gia Bao Gap",
-   "link_type": "Report",
-   "onboard": 0,
-   "report_ref_doctype": "Item Price",
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Khai báo giá",
-   "link_count": 4,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
    "is_query_report": 0,
    "label": "Khách hàng (hệ số giá bán)",
    "link_count": 0,
@@ -77,6 +56,26 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Thiết lập bán hàng (kiểm giá bán)",
+   "link_count": 0,
+   "link_to": "Selling Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Báo trước khi đổi giá",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
   },
   {
    "dependencies": "",
@@ -103,10 +102,22 @@
   {
    "dependencies": "",
    "hidden": 0,
-   "is_query_report": 0,
-   "label": "Thiết lập bán hàng (kiểm giá bán)",
+   "is_query_report": 1,
+   "label": "Thông báo đổi giá báo gấp",
    "link_count": 0,
-   "link_to": "Selling Settings",
+   "link_to": "Thong Bao Doi Gia Bao Gap",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Item Price",
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Trao đổi (email thông báo đổi giá)",
+   "link_count": 0,
+   "link_to": "Communication",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -154,7 +165,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-26 09:00:00.000000",
+ "modified": "2026-10-27 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Kiểm giá bán",
@@ -185,11 +196,19 @@
   },
   {
    "color": "Grey",
-   "doc_view": "",
-   "label": "Đổi giá báo gấp",
-   "link_to": "Thong Bao Doi Gia Bao Gap",
-   "report_ref_doctype": "Item Price",
-   "type": "Report"
+   "doc_view": "List",
+   "label": "Đơn bán hàng",
+   "link_to": "Sales Order",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "format": "{} bảng giá báo trước",
+   "label": "Bảng giá",
+   "link_to": "Price List",
+   "stats_filter": "{\"bao_truoc_khi_doi_gia\": [\"=\", 1]}",
+   "type": "DocType"
   },
   {
    "color": "Orange",
@@ -212,9 +231,19 @@
   {
    "color": "Grey",
    "doc_view": "List",
-   "label": "Đơn bán hàng",
-   "link_to": "Sales Order",
+   "format": "{} email",
+   "label": "Trao đổi – email đã gửi",
+   "link_to": "Communication",
+   "stats_filter": "{\"reference_doctype\": [\"=\", \"Price List\"]}",
    "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Đổi giá báo gấp",
+   "link_to": "Thong Bao Doi Gia Bao Gap",
+   "report_ref_doctype": "Item Price",
+   "type": "Report"
   }
  ],
  "title": "Kiểm giá bán"

@@ -19,7 +19,7 @@ Quy tắc để đối chiếu khi test:
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
 | 0.1 | Bench đang chạy. Ở `sites` chạy:<br>`../env/bin/python ../apps/erpnext/scripts/demo_gia_ban_doi_soat.py --site erpnext.localhost` | Chạy xong không lỗi, in ra 4 SO demo | ☐ |
-| 0.2 | Mở Price List **DEMO Bảng giá Himedic** | Mục "Báo trước khi đổi giá": đã tích, 7 ngày, Bảng giá chờ = DEMO Bảng giá Himedic - Chờ báo, email himedic.demo@example.com | ☐ |
+| 0.2 | Menu **Bán hàng → Kiểm giá bán**, phần "Báo trước khi đổi giá" → bấm nút **Bảng giá** → mở **DEMO Bảng giá Himedic** | Nút Bảng giá ghi "1 bảng giá báo trước"; danh sách chỉ có các bảng giá có báo trước. Mục "Báo trước khi đổi giá": đã tích, 7 ngày, Bảng giá chờ = DEMO Bảng giá Himedic - Chờ báo, email himedic.demo@example.com | ☐ |
 | 0.3 | Bấm **Giá chờ gửi** | Danh sách Item Price của bảng giá chờ: 1 dòng DEMO-VT-02 52.000, áp từ D+5, trạng thái Chờ gửi | ☐ |
 
 Giá trên DEMO Bảng giá Himedic: VT-01 120.000, VT-02 50.500, VT-05 10.100 (theo Cái).
@@ -66,8 +66,9 @@ Gặp lỗi thiếu tài khoản kho khi Nộp chứng từ kho, hoặc lỗi m�
 | I3 | `demo.giamdoc` mở DEMO Bảng giá Himedic → **Gửi thông báo đổi giá** → Xác nhận | Bị chặn: "Sửa ngày hiệu lực (không được trước hôm nay) cho: DEMO-VT-05 …". **Không** dòng nào bị chuyển (VT-02 vẫn ở bảng chờ) (D2-4) | ☐ |
 | I4 | Sửa Valid From của nháp VT-05 = **D+7** → Lưu. Gửi lại | Gửi được. Cảnh báo cam "Báo gấp (dưới 7 ngày)": DEMO-VT-02 áp từ D+5, **báo trước 5 ngày, thiếu 2 ngày** (T1). VT-05 không nằm trong danh sách báo gấp | ☐ |
 | I5 | Mở dòng VT-02 52.000 (giờ ở **DEMO Bảng giá Himedic**) → mục Thông báo đổi giá | Trạng thái **Đã gửi**, Ngày gửi = hôm nay, Số ngày báo trước = 5, **Báo gấp** tích, Email thông báo có link, Người gửi = demo.giamdoc | ☐ |
-| I6 | Bấm link Email thông báo (Communication) | Tiêu đề "Thông báo thay đổi giá - DEMO Bảng giá Himedic"; người nhận himedic.demo@example.com; bảng: mã hàng, giá hiện tại (VT-02: 50.500; VT-05: 10.100), giá mới, ngày áp dụng | ☐ |
+| I6 | Bấm link Email thông báo (Communication) | Tiêu đề "Thông báo thay đổi giá - DEMO Bảng giá Himedic"; người nhận himedic.demo@example.com; bảng: mã hàng, giá hiện tại (VT-02: 50.500; VT-05: 10.100), giá mới, ngày áp dụng. Mặt hàng chưa có trên bảng giá của khách: cột giá hiện tại ghi **Chưa có (mặt hàng mới)**; giá hiện tại khai theo ĐVT khác giá mới (Cái ↔ Hộp) thì được quy đổi | ☐ |
 | I7 | Mở DEMO Bảng giá Himedic → timeline cuối form | Thấy email vừa gửi | ☐ |
+| I7b | Trên DEMO Bảng giá Himedic bấm nút **Trao đổi**; rồi Menu **Bán hàng → Kiểm giá bán** → nút **Trao đổi – email đã gửi** | Administrator / System Manager: mở danh sách Trao đổi (Communication) đã lọc — nút trên form chỉ email của bảng giá đó, nút ở menu mọi email thông báo đổi giá. Người khác (Giám đốc, nhân viên): nút trên form cuộn tới phần Hoạt động có email; danh sách Trao đổi trống vì Frappe chỉ cho System Manager / Super Email User xem danh sách email | ☐ |
 | I8 | Dòng giá cũ VT-02 50.500 | **Vẫn còn**, không đổi (T1b) | ☐ |
 | I9 | Bảng chờ sau khi gửi | Trống | ☐ |
 | I10 | Sửa giá dòng VT-02 52.000 vừa gửi | Bị chặn (giá đã báo không sửa được) | ☐ |
