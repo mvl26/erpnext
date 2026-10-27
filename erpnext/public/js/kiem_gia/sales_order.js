@@ -59,7 +59,7 @@ erpnext.kiem_gia.ve_bang_kiem_gia = function (frm) {
 	const tom_tat =
 		lech || chua_co
 			? `<span style="color: var(--red-600); font-weight: 600">${[
-					lech && __("{0} dòng lệch giá đề xuất", [lech]),
+					lech && __("{0} dòng lệch giá bán đề xuất", [lech]),
 					chua_co && __("{0} dòng chưa có giá mua", [chua_co]),
 			  ]
 					.filter(Boolean)
@@ -67,9 +67,9 @@ erpnext.kiem_gia.ve_bang_kiem_gia = function (frm) {
 			: `<span style="color: var(--green-600); font-weight: 600">${__("Khớp giá cả đơn")}</span>`;
 	const ghi_chu =
 		frm.doc.docstatus === 0
-			? __("giá chưa VAT, theo ĐVT của dòng; đổi NCC dự kiến hoặc đơn giá thì tính lại ngay")
+			? __("giá chưa VAT, theo ĐVT của dòng; chọn NCC dự kiến hoặc đổi đơn giá thì tính lại ngay")
 			: __(
-					"giá chưa VAT, theo ĐVT của dòng; kết quả lúc lập đơn, đổi NCC dự kiến thì tính lại dòng đó"
+					"giá chưa VAT, theo ĐVT của dòng; kết quả lúc lập đơn, đổi NCC dự kiến thì tính lại dòng đó (bấm Cập nhật để lưu)"
 			  );
 
 	const hang = dong
@@ -82,18 +82,18 @@ erpnext.kiem_gia.ve_bang_kiem_gia = function (frm) {
 			return `<tr>
 				<td>
 					<a href="#" data-dong="${e(d.name)}">${e(d.item_name || d.item_code)}</a>
-					<div class="text-muted small">${e(d.item_code)} · ${
-				d.ncc_du_kien ? e(d.ncc_du_kien) : __("chưa có NCC")
-			}</div>
+					<div class="text-muted small">${e(d.item_code)}</div>
 				</td>
+				<td data-ncc="${e(d.name)}"></td>
 				<td>${e(d.uom || "")}</td>
 				<td class="text-right">${frappe.format(d.qty, { fieldtype: "Float" }, { inline: true })}</td>
-				<td class="text-right">${co_gia ? tien(d.gia_mua) : ""}</td>
-				<td class="text-right">${co_gia ? tien(d.gia_de_xuat) : ""}</td>
+				<td class="text-right text-nowrap">${co_gia ? tien(d.gia_mua) : ""}</td>
+				<td class="text-right text-nowrap">${tien(d.net_rate)}</td>
+				<td class="text-right text-nowrap">${co_gia ? tien(d.gia_de_xuat) : ""}</td>
 				<td><span class="indicator-pill ${mau}" title="${e(d.ghi_chu_gia || "")}">${e(
 				__(d.trang_thai_gia)
 			)}</span></td>
-				<td class="text-right">${co_gia ? chenh : ""}</td>
+				<td class="text-right text-nowrap">${co_gia ? chenh : ""}</td>
 			</tr>`;
 		})
 		.join("");
@@ -104,22 +104,56 @@ erpnext.kiem_gia.ve_bang_kiem_gia = function (frm) {
 			<div class="mb-2">${tom_tat} <span class="text-muted">· ${ghi_chu}</span></div>
 			<table class="table table-bordered" style="margin-bottom: 0">
 				<thead><tr>
-					<th>${__("Mặt hàng")}</th>
+					<th style="min-width: 160px">${__("Mặt hàng")}</th>
+					<th style="min-width: 190px">${__("NCC dự kiến")}</th>
 					<th>${__("ĐVT")}</th>
 					<th class="text-right">${__("SL yêu cầu")}</th>
 					<th class="text-right">${__("Giá mua")}</th>
-					<th class="text-right">${__("Giá đề xuất")}</th>
+					<th class="text-right" title="${__("Đơn giá trên đơn, sau chiết khấu, chưa VAT")}">${__("Giá bán")}</th>
+					<th class="text-right" title="${__("Giá mua x hệ số của khách")}">${__("Giá bán đề xuất")}</th>
 					<th>${__("Trạng thái giá")}</th>
-					<th class="text-right">${__("Chênh lệch")}</th>
+					<th class="text-right" title="${__("Giá bán - giá bán đề xuất")}">${__("Chênh lệch")}</th>
 				</tr></thead>
 				<tbody>${hang}</tbody>
 			</table>
 		</div>`);
-	// Mở dòng để đổi NCC dự kiến hoặc nhập thông tin khách chấp thuận.
+	dong.forEach((d) => erpnext.kiem_gia.o_chon_ncc(frm, d, field.$wrapper.find(`[data-ncc="${d.name}"]`)));
+	// Mở dòng để nhập thông tin khách chấp thuận và xem đủ chi tiết.
 	field.$wrapper.find("[data-dong]").on("click", (ev) => {
 		ev.preventDefault();
 		frm.fields_dict.items.grid.grid_rows_by_docname[$(ev.currentTarget).attr("data-dong")]?.toggle_view(
 			true
 		);
 	});
+};
+
+// Ô chọn NCC dự kiến ngay trong bảng: gợi ý NCC đang có giá cho mặt hàng kèm giá mua
+// (gia_goc.ncc_co_gia). Chọn xong ghi vào dòng; tinh_lai.js tính lại và vẽ lại bảng.
+erpnext.kiem_gia.o_chon_ncc = function (frm, d, $td) {
+	const df = frappe.meta.get_docfield(d.doctype, "ncc_du_kien", frm.doc.name);
+	if (frappe.perm.get_field_display_status(df, d, frm.perm) !== "Write") {
+		$td.text(d.ncc_du_kien || "");
+		return;
+	}
+	const o = frappe.ui.form.make_control({
+		parent: $td,
+		df: {
+			fieldtype: "Link",
+			options: "Supplier",
+			fieldname: "ncc_du_kien",
+			placeholder: __("NCC mặc định của mặt hàng"),
+			get_query: () => ({
+				query: "erpnext.selling.kiem_gia.gia_goc.ncc_co_gia",
+				filters: { item_code: d.item_code, ngay: frm.doc.transaction_date, company: frm.doc.company },
+			}),
+			change: () => {
+				const v = o.get_value() || null;
+				if (v !== (d.ncc_du_kien || null))
+					frappe.model.set_value(d.doctype, d.name, "ncc_du_kien", v);
+			},
+		},
+		only_input: true,
+		render_input: true,
+	});
+	o.set_input(d.ncc_du_kien || "");
 };

@@ -14,6 +14,7 @@ from erpnext.selling.kiem_gia.gia_goc import (
 	KHOP,
 	THAP_HON,
 	lam_tron_dong,
+	ncc_co_gia,
 	ncc_cua_bang_gia,
 	so_sanh,
 	tim_gia_mua,
@@ -172,6 +173,38 @@ class TestNccCuaBangGia(KiemChungTuCase):
 		self.gia_hd(self.item(None), 100000, ncc=self.supplier())
 
 		self.assertIsNone(ncc_cua_bang_gia(self.mua))
+
+
+class TestGoiYNcc(KiemChungTuCase):
+	"""Ô chọn NCC dự kiến trong bảng Kiểm giá bán: NCC có giá lên trước, kèm giá mua."""
+
+	def goi_y(self, item, txt=""):
+		return ncc_co_gia(
+			"Supplier", txt, "name", 0, 20, {"item_code": item, "ngay": self.d, "company": self.company}
+		)
+
+	def test_suppliers_with_a_price_come_first_cheapest_first(self):
+		item = self.item(123457)
+		re = self.supplier()
+		self.gia_hd(item, 110000, ncc=re)
+		chua_gia = self.supplier()
+		doc = frappe.get_doc("Item", item)
+		doc.append("supplier_items", {"supplier": chua_gia})
+		doc.save(ignore_permissions=True)
+
+		kq = self.goi_y(item)
+
+		self.assertEqual([r[0] for r in kq[:3]], [re, self.ncc, chua_gia])
+		self.assertIn("110.000", kq[0][1].replace(",", "."))
+		self.assertIn(HD_NGUYEN_TAC, kq[0][1])
+		self.assertEqual(kq[2][1], "chưa có giá")
+
+	def test_typing_narrows_the_list_and_finds_other_suppliers(self):
+		item = self.item(123457)
+		khac = self.supplier()
+
+		self.assertEqual([r[0] for r in self.goi_y(item, self.ncc)], [self.ncc])
+		self.assertEqual(self.goi_y(item, khac), [[khac, "chưa có giá"]])
 
 
 class TestLamTron(FrappeTestCase):

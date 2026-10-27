@@ -26,7 +26,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate
+from frappe.utils import flt, fmt_money, getdate
 
 from erpnext.stock.doctype.item_supplier.item_supplier import get_default_suppliers
 
@@ -251,6 +251,77 @@ def _gia_hd_nguyen_tac(cap, ngay, company):
 			),
 		)
 	return kq
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def ncc_co_gia(doctype, txt, searchfield, start, page_len, filters):
+	"""Gợi ý cho ô NCC dự kiến trong bảng Kiểm giá bán (sales_order.js). Lên trước: NCC đang có
+	giá cho mặt hàng tại ngày đơn (báo giá đợt hoặc HĐ nguyên tắc), giá thấp trước, kèm giá mua
+	theo ĐVT kho và nguồn; rồi NCC của mặt hàng chưa có giá; rồi NCC khác khớp chữ gõ."""
+	if frappe.get_cached_value("User", frappe.session.user, "user_type") != "System User" or not (
+		frappe.has_permission("Supplier", "read") or frappe.has_permission("Supplier", "select")
+	):
+		raise frappe.PermissionError
+	filters = frappe._dict(filters or {})
+	item, ngay, company = filters.item_code, getdate(filters.ngay), _company(filters.company)
+	if not item:
+		return []
+	ung_vien = {
+		s
+		for (s,) in frappe.db.sql(
+			"""select sq.supplier from `tabSupplier Quotation` sq
+			join `tabSupplier Quotation Item` sqi on sqi.parent = sq.name
+			where sq.docstatus = 1 and sq.status != 'Stopped' and sq.company = %(company)s
+				and sqi.item_code = %(item)s and sq.transaction_date <= %(ngay)s
+				and (sq.valid_till is null or sq.valid_till >= %(ngay)s)
+			union
+			select ip.supplier from `tabItem Price` ip join `tabPrice List` pl on pl.name = ip.price_list
+			where ip.item_code = %(item)s and ip.buying = 1 and ifnull(ip.supplier, '') != ''
+				and pl.enabled = 1 and ifnull(ip.valid_from, '2000-01-01') <= %(ngay)s
+				and (ip.valid_upto is null or ip.valid_upto >= %(ngay)s)""",
+			{"company": company, "item": item, "ngay": ngay},
+		)
+	}
+	ung_vien.update(
+		frappe.get_all("Item Supplier", filters={"parenttype": "Item", "parent": item}, pluck="supplier")
+	)
+	go = (txt or "").strip().lower()
+	ten = dict(
+		frappe.get_all(
+			"Supplier",
+			filters={"name": ("in", list(ung_vien) or [""]), "disabled": 0},
+			fields=["name", "supplier_name"],
+			as_list=True,
+		)
+	)
+	ung_vien = [s for s in ten if go in s.lower() or go in (ten[s] or "").lower()]
+	gia = tim_gia_mua_nhieu([(item, s) for s in ung_vien], ngay, company)
+	dvt = frappe.get_cached_value("Item", item, "stock_uom")
+	tien_te = _company_currency(company)
+
+	def mo_ta(s):
+		r = gia[(item, s)]
+		if r.gia_kho is None:
+			return _("chưa có giá")
+		return f"{fmt_money(r.gia_kho, currency=tien_te)} /{dvt} · {_(r.nguon)}"
+
+	co_gia = sorted(
+		(s for s in ung_vien if gia[(item, s)].gia_kho is not None), key=lambda s: gia[(item, s)].gia_kho
+	)
+	kq = [[s, mo_ta(s)] for s in co_gia + sorted(set(ung_vien) - set(co_gia))]
+	kq += [
+		[s, _("chưa có giá")]
+		for s in frappe.get_all(
+			"Supplier",
+			filters={"disabled": 0, "name": ("not in", list(ten) or [""])},
+			or_filters={"name": ("like", f"%{go}%"), "supplier_name": ("like", f"%{go}%")},
+			pluck="name",
+			order_by="name",
+			limit=start + page_len,
+		)
+	]
+	return kq[start : start + page_len]
 
 
 def ncc_cua_bang_gia(price_list):
