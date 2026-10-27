@@ -159,6 +159,7 @@ Frappe chỉ chạy một workflow đang bật cho mỗi DocType.
 | Tài chính | Account Balance | Bank Account | AU, AM, VW |
 | Tài chính | Budget Variance Report | Cost Center | AU, AM, VW |
 | Tài chính | Doi Chieu Tong Cong No, Tinh Trang Doi Chieu Cong No | Debt Reconciliation Statement | AU, AM, VW |
+| Tài chính | Doi Chieu Mua Vao Ban Ra | Sales Invoice | AU, AM, VW |
 | Công nợ phải thu | Accounts Receivable, Accounts Receivable Summary, Customer Ledger Summary, Sales Payment Summary | Sales Invoice | AU, AM, VW, SU, SM |
 | Công nợ phải thu | Customer Credit Balance | Customer | SM, AU, AM, VW |
 | Công nợ phải trả | Accounts Payable, Accounts Payable Summary, Supplier Ledger Summary | Purchase Invoice | AU, AM, VW, PU, PM |
