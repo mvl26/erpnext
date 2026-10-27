@@ -198,6 +198,7 @@ function dcmb_tom_tat(kq) {
 	return `<div class="dcmb-tom-tat">
 		${the("Doanh thu có đầu vào khớp", dcmb_o(tt.doanh_thu_co_dau_vao, "tien"))}
 		${the("Doanh thu thiếu đầu vào", dcmb_o(tt.doanh_thu_thieu_dau_vao, "tien"), tt.doanh_thu_thieu_dau_vao > 0)}
+		${the("Ghép theo mã hàng (thiếu liên kết)", `${tt.so_dong_theo_ma || 0} dòng · ${dcmb_o(tt.doanh_thu_theo_ma, "tien")}`, tt.so_dong_theo_ma > 0)}
 		${the("Tỷ lệ giá bình quân (đã ghép)", tong.ty_le_gia == null ? "—" : dcmb_o(tong.ty_le_gia, "ty_le"))}
 		${the("Chênh lệch (đã ghép)", dcmb_o(tong.chenh_lech_tien, "tien"))}
 		${the("Số HĐ bán / mua", `${tt.so_hd_ban || 0} / ${tt.so_hd_mua || 0}`)}

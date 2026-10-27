@@ -238,3 +238,139 @@ class TestNhomVaTong(unittest.TestCase):
 		t = tong_hop([danh_gia(_dong(pi=None))])
 		self.assertIsNone(t["ty_le_gia"])
 		self.assertEqual(t["chenh_lech_tien"], 0)
+
+
+def _ban_ma(sl, gia, ngay, so_detail=None, trong_ky=True, ten="SI-1", ma="VITD"):
+	return {
+		**_ban(sl, sl * gia, so_detail=so_detail, trong_ky=trong_ky, ten=ten),
+		"item_code": ma,
+		"net_rate": gia,
+		"posting_date": ngay,
+	}
+
+
+def _mua_ma(sl, gia, ngay, ten="PI-9", ma="VITD"):
+	return {
+		**_mua(sl, sl * gia, ten=ten),
+		"item_code": ma,
+		"net_rate": gia,
+		"posting_date": ngay,
+		"parent": ten,
+	}
+
+
+class TestGhepTheoMa(unittest.TestCase):
+	def test_ghep_du_phong_khi_khong_co_so(self):
+		kq = ghep([_ban_ma(2, 11711190, "2026-10-10")], {}, [_mua_ma(2, 11595238, "2026-10-05")])
+		self.assertEqual(len(kq), 1)
+		self.assertTrue(kq[0]["theo_ma"])
+		self.assertEqual(kq[0]["mua"]["thanh_tien"], 2 * 11595238)
+
+	def test_khac_ma_khong_ghep(self):
+		kq = ghep([_ban_ma(2, 1010, "2026-10-10")], {}, [_mua_ma(2, 1000, "2026-10-05", ma="KHAC")])
+		self.assertIsNone(kq[0]["mua"])
+
+	def test_chuoi_uu_tien_truoc_du_phong(self):
+		# Dòng bán sau có chuỗi tới PI-C; dòng bán trước không có SO. PI-C không được đem
+		# cho dòng trước, dù nó xếp trước theo thời gian.
+		ban = [
+			_ban_ma(5, 1010, "2026-10-01", ten="SI-1"),
+			_ban_ma(5, 1010, "2026-10-02", so_detail="SOI-1", ten="SI-2"),
+		]
+		kq = ghep(ban, {"SOI-1": [_mua(5, 5000, ten="PI-C")]}, [_mua_ma(5, 1000, "2026-09-30", ten="PI-D")])
+		self.assertEqual(
+			[(m["ban"]["hoa_don"], m["mua"]["hoa_don"]) for m in kq], [("SI-1", "PI-D"), ("SI-2", "PI-C")]
+		)
+		self.assertTrue(kq[0]["theo_ma"])
+		self.assertNotIn("theo_ma", kq[1])
+
+	def test_ban_ky_truoc_da_tieu_pi_du_phong(self):
+		ban = [_ban_ma(3, 1010, "2026-09-20", trong_ky=False, ten="SI-T9"), _ban_ma(3, 1010, "2026-10-05")]
+		kq = ghep(ban, {}, [_mua_ma(4, 1000, "2026-09-01")])
+		self.assertEqual(len(kq), 2)
+		self.assertEqual((kq[0]["ban"]["sl"], kq[0]["mua"]["sl"]), (1, 1))
+		self.assertIsNone(kq[1]["mua"])
+		self.assertEqual(kq[1]["ban"]["sl"], 2)
+
+	def test_uu_tien_ty_le_hop_dong(self):
+		du_phong = [_mua_ma(2, 900, "2026-10-09", ten="PI-RE"), _mua_ma(2, 1000, "2026-09-01", ten="PI-DUNG")]
+		kq = ghep([_ban_ma(2, 1010, "2026-10-10")], {}, du_phong)
+		self.assertEqual(kq[0]["mua"]["hoa_don"], "PI-DUNG")
+
+	def test_cung_ty_le_uu_tien_pi_gan_nhat_truoc_hd_ban(self):
+		du_phong = [
+			_mua_ma(2, 1000, "2026-10-20", ten="PI-SAU"),
+			_mua_ma(2, 1000, "2026-08-01", ten="PI-XA"),
+			_mua_ma(2, 1000, "2026-10-08", ten="PI-GAN"),
+		]
+		kq = ghep([_ban_ma(2, 1010, "2026-10-10")], {}, du_phong)
+		self.assertEqual(kq[0]["mua"]["hoa_don"], "PI-GAN")
+
+	def test_lech_gia_van_ghep(self):
+		kq = ghep([_ban_ma(1, 1500, "2026-10-10")], {}, [_mua_ma(1, 1000, "2026-10-01")])
+		self.assertEqual(kq[0]["mua"]["hoa_don"], "PI-9")
+
+	def test_tra_hang_khong_ghep_du_phong(self):
+		ban = {**_ban_ma(-1, 1010, "2026-10-10"), "is_return": 1}
+		kq = ghep([ban], {}, [_mua_ma(1, 1000, "2026-10-01")])
+		self.assertIsNone(kq[0]["mua"])
+
+	def test_tong_dem_dong_theo_ma(self):
+		t = tong_hop([{**danh_gia(_dong(sl=10)), "theo_ma": 1}, danh_gia(_dong(gia_ban=50000, pi=None))])
+		self.assertEqual(t["tom_tat"]["so_dong_theo_ma"], 1)
+		self.assertEqual(t["tom_tat"]["doanh_thu_theo_ma"], 1010000)
+
+
+class TestGhepTheoMaQuyDoi(unittest.TestCase):
+	def test_ghep_khac_dvt_theo_don_vi_kho(self):
+		# NCC xuất 1 hộp = 30 test; bán 30 test.
+		ban = {**_ban_ma(30, 27068, "2026-09-15"), "conversion_factor": 1}
+		mua = {**_mua_ma(1, 804000, "2026-08-28"), "conversion_factor": 30}
+		kq = ghep([ban], {}, [mua])
+		self.assertEqual(len(kq), 1)
+		self.assertEqual((kq[0]["ban"]["sl"], kq[0]["mua"]["sl"]), (30, 1))
+		self.assertEqual(kq[0]["mua"]["thanh_tien"], 804000)
+
+	def test_tach_mot_phan_hop(self):
+		ban = {**_ban_ma(15, 27068, "2026-09-15"), "conversion_factor": 1}
+		mua = {**_mua_ma(1, 804000, "2026-08-28"), "conversion_factor": 30}
+		kq = ghep([ban], {}, [mua])
+		self.assertEqual((kq[0]["ban"]["sl"], kq[0]["mua"]["sl"]), (15, 0.5))
+		self.assertEqual(kq[0]["mua"]["thanh_tien"], 402000)
+
+	def test_ty_le_ngoai_khoang_khong_ghep(self):
+		# 5 hộp ghi hệ số 1 nhưng giá theo 10 đĩa: sai ĐVT, không ghép.
+		kq = ghep([_ban_ma(5, 17776, "2026-09-15")], {}, [_mua_ma(5, 176000, "2026-08-04")])
+		self.assertIsNone(kq[0]["mua"])
+
+	def test_pi_truoc_ngay_ban_uu_tien_hon_gia_khop(self):
+		du_phong = [
+			_mua_ma(4, 1500000, "2026-08-05", ten="PI-T8"),
+			_mua_ma(4, 1428571, "2026-10-06", ten="PI-T10"),
+		]
+		kq = ghep([_ban_ma(4, 1442857, "2026-09-22")], {}, du_phong)
+		self.assertEqual(kq[0]["mua"]["hoa_don"], "PI-T8")
+
+	def test_hang_0_dong_khong_lech_gia(self):
+		r = danh_gia(_dong(gia_ban=0, gia_mua=0))
+		self.assertEqual(r["trang_thai"], KHOP)
+		self.assertIn("Hàng 0 đồng", r["_ghi_chu"])
+
+	def test_khac_dvt_cung_don_vi_kho_so_theo_don_vi_kho(self):
+		r = {
+			**_dong(gia_ban=27068 * 30, gia_mua=804000, sl=30),
+			"don_gia_ban": 27068,
+			"dvt_ban": "Test",
+			"dvt_mua": "hộp",
+			"_he_so_ban": 1,
+			"_he_so_mua": 30,
+			"_dvt_kho_ban": "Test",
+			"_dvt_kho_mua": "Test",
+		}
+		danh_gia(r)
+		self.assertEqual(r["trang_thai"], KHOP)
+		self.assertIn("Quy đổi 1 hộp = 30 Test", r["_ghi_chu"])
+
+	def test_khac_don_vi_kho_van_lech_dvt(self):
+		r = {**_dong(), "dvt_ban": "Test", "dvt_mua": "hộp", "_dvt_kho_ban": "Test", "_dvt_kho_mua": "hộp"}
+		self.assertIn(LECH_DVT, danh_gia(r)["trang_thai"])

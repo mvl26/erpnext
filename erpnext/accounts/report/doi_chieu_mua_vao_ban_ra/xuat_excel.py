@@ -228,6 +228,8 @@ def _tom_tat(ws, dong, tong, chu, chu_tong):
 	cac_dong = [
 		("Doanh thu có đầu vào khớp", tt.get("doanh_thu_co_dau_vao"), _TIEN_AM_DO),
 		("Doanh thu thiếu đầu vào", tt.get("doanh_thu_thieu_dau_vao"), _TIEN_AM_DO),
+		("Doanh thu ghép theo mã hàng (thiếu liên kết)", tt.get("doanh_thu_theo_ma"), _TIEN_AM_DO),
+		("Số dòng ghép theo mã hàng", tt.get("so_dong_theo_ma"), None),
 		("Chênh lệch thành tiền (dòng đã ghép)", tong.get("chenh_lech_tien"), _TIEN_AM_DO),
 		("Tỷ lệ giá bình quân (dòng đã ghép)", ty_le, "0.000000"),
 		("Số HĐ bán / mua", f"{tt.get('so_hd_ban', 0)} / {tt.get('so_hd_mua', 0)}", None),

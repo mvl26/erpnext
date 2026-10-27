@@ -25,8 +25,11 @@ trước"). Chạy lại không nhân bản: thấy HĐ NCC `00011069` của DEK
 | L  | Hàng không chịu thuế (DEKA, 0%)                    | Thuế suất 0%, tiền thuế 0                   |
 | M  | Bán giá x 1,02 thay vì 1,01 (DEKA)                 | Trạng thái "Lệch giá"                       |
 | N  | Bán thuế 10%, NCC xuất 8% (ĐẠI XUÂN)               | Trạng thái "Lệch thuế suất"                 |
+| O  | PO lập tay, không từ SO (VietMed)                  | Khớp, ghi chú "Ghép theo mã hàng"           |
+| P  | HĐ bán lập từ phiếu giao, không qua SO (AN HƯNG)   | Khớp, ghi chú "HĐ bán không qua SO"         |
+| Q  | Có PO từ SO nhưng PI lập theo PO lập tay (HÙNG MINH)| Khớp, ghi chú "Ghép theo mã hàng"          |
 
-`tao()` gọi thêm `bo_sung()`: ca M, N và số HĐĐT đã phát hành cho mọi hoá đơn bán
+`tao()` gọi thêm `bo_sung()`: ca M, N, O, P, Q và số HĐĐT đã phát hành cho mọi hoá đơn bán
 trừ ca G (để thấy cảnh báo "Chưa có số HĐĐT"). `bo_sung()` chạy riêng được, cũng
 không nhân bản.
 """
@@ -186,6 +189,30 @@ def bo_sung():
 		_pi(_po(so_n, ncc["ĐẠI XUÂN"], 8), "00001215", "2026-10-17")
 		_si(so_n, "2026-10-22")
 		print("Đã thêm ca M (lệch giá), N (lệch thuế suất).")
+	if not frappe.db.exists("Purchase Invoice", {"bill_no": "00002301", "docstatus": 1}):
+		for ma, ten, dvt in (
+			("DCMB-VITD", "Hóa chất xét nghiệm Vitamin D total", "Hộp"),
+			("DCMB-M53", "M-53 Lyse (500ml/chai)", "Chai"),
+			("DCMB-HI004", "Ống lấy máu chân không Heparin", "Hộp"),
+		):
+			HANG[ma] = (ten, dvt)
+			_hang(ma, ten, dvt)
+
+		# O — PO lập tay: dòng PO không có liên kết về dòng SO
+		so_o = _so([("DCMB-VITD", 2, 11595238)], 5)
+		_pi(_po_tay(ncc["VietMed"], [("DCMB-VITD", 2, 11595238)], 5), "00002301", "2026-10-06")
+		_si(so_o, "2026-10-09")
+
+		# P — HĐ bán không qua SO
+		_pi(_po_tay(ncc["AN HƯNG"], [("DCMB-M53", 3, 1250000)], 5), "00002302", "2026-10-07")
+		_si_thang([("DCMB-M53", 3, 1250000)], "2026-10-10", 5)
+
+		# Q — PO lập từ SO chưa có PI; PI lại lập theo một PO lập tay khác
+		so_q = _so([("DCMB-HI004", 10, 185000)], 5)
+		_po(so_q, ncc["HÙNG MINH"], 5)
+		_pi(_po_tay(ncc["HÙNG MINH"], [("DCMB-HI004", 10, 185000)], 5), "00002303", "2026-10-05")
+		_si(so_q, "2026-10-11")
+		print("Đã thêm ca O, P, Q (thiếu liên kết SO → PO → PI).")
 	_so_hddt()
 
 
@@ -329,6 +356,36 @@ def _po(so, supplier, vat):
 		it.rate = gia[it.sales_order_item]
 		it.schedule_date = "2026-10-31"
 	return _luu(po)
+
+
+def _po_tay(supplier, dong, vat):
+	"""PO lập tay `dong = [(mã, SL, giá mua)]`, không từ SO."""
+	return _luu(
+		frappe.get_doc(
+			{
+				"doctype": "Purchase Order",
+				"company": COMPANY,
+				"supplier": supplier,
+				"transaction_date": NGAY_SO,
+				"schedule_date": "2026-10-31",
+				"currency": "VND",
+				"conversion_rate": 1,
+				"items": [
+					{
+						"item_code": ma,
+						"qty": sl,
+						"rate": gia,
+						"uom": HANG[ma][1],
+						"conversion_factor": 1,
+						"warehouse": WAREHOUSE,
+						"schedule_date": "2026-10-31",
+					}
+					for ma, sl, gia in dong
+				],
+				"taxes": _thue(vat, mua=True),
+			}
+		)
+	)
 
 
 def _pi(po, bill_no, ngay, sl=None):
