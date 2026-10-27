@@ -18,7 +18,7 @@ from erpnext.selling.kiem_gia.gia_goc import (
 	KHOP,
 	THAP_HON,
 )
-from erpnext.selling.kiem_gia.kiem_chung_tu import BO_QUA
+from erpnext.selling.kiem_gia.kiem_chung_tu import BO_QUA, tinh_lai
 from erpnext.stock.tests.test_item_code_rule import use_naming_mode
 
 
@@ -276,6 +276,41 @@ class TestKiemGiaSalesOrder(KiemChungTuCase):
 
 		self.assertEqual((d.gia_mua, d.gia_de_xuat), (200000, 202000))
 		self.assertEqual(d.trang_thai_gia, THAP_HON)
+
+	def test_a03_the_form_shows_the_new_supplier_price_before_saving(self):
+		item = self.item(123457)
+		ncc2 = self.supplier()
+		self.gia_hd(item, 200000, ncc=ncc2)
+		so = self.so([self.row(item, 124692)])
+		dang_sua = so.as_dict()
+		dang_sua["items"][0]["ncc_du_kien"] = ncc2
+		kq = tinh_lai(frappe.as_json(dang_sua))[so.items[0].name]
+
+		self.assertEqual((kq["gia_mua"], kq["gia_de_xuat"], kq["trang_thai_gia"]), (200000, 202000, THAP_HON))
+		# Chưa lưu: DB vẫn giữ kết quả theo NCC cũ.
+		self.assertEqual(frappe.db.get_value("Sales Order Item", so.items[0].name, "gia_mua"), 123457)
+
+	def test_an_unsaved_order_is_checked_with_the_default_supplier(self):
+		item = self.item(123457)
+		dong = self.row(
+			item, 124692, doctype="Sales Order Item", name="new-sales-order-item-1", conversion_factor=1
+		)
+		dong["net_rate"] = 124692
+		kq = tinh_lai(
+			{
+				"doctype": "Sales Order",
+				"name": "new-sales-order-1",
+				"__islocal": 1,
+				"company": self.company,
+				"customer": self.khach,
+				"transaction_date": self.d,
+				"currency": self.currency,
+				"conversion_rate": 1,
+				"items": [dong],
+			}
+		)["new-sales-order-item-1"]
+
+		self.assertEqual((kq["ncc_du_kien"], kq["gia_mua"], kq["trang_thai_gia"]), (self.ncc, 123457, KHOP))
 
 	def test_a04_r04_mismatch_is_flagged_with_the_difference(self):
 		item = self.item(123457)
@@ -567,9 +602,54 @@ class TestKiemGiaQuotation(KiemChungTuCase):
 		self.assertFalse(d.trang_thai_gia)
 
 
+class TestDoiNccSauSubmit(KiemChungTuCase):
+	"""SO đã Submit vẫn đổi được NCC dự kiến: dòng kiểm lại theo NCC mới, lệch thì cần lý do;
+	giá bán đã chốt với khách không đổi nên không bắt khách chấp thuận lại."""
+
+	def setUp(self):
+		super().setUp()
+		self.item_a = self.item(123457, gia_ban=124692)
+		self.ncc2 = self.supplier()
+		self.gia_hd(self.item_a, 200000, ncc=self.ncc2)
+		self.so_a = self.so([self.row(self.item_a, 124692)])
+		self.so_a.submit()
+
+	def doi_ncc(self, ncc, **fields):
+		so = frappe.get_doc("Sales Order", self.so_a.name)
+		so.items[0].ncc_du_kien = ncc
+		so.update(fields)
+		so.save()
+		return so.items[0]
+
+	def test_the_row_is_checked_against_the_new_supplier(self):
+		d = self.doi_ncc(self.ncc2, ly_do_lech_gia="NCC cũ hết hàng")
+
+		self.assertEqual((d.gia_mua, d.gia_de_xuat, d.trang_thai_gia), (200000, 202000, THAP_HON))
+		self.assertEqual(frappe.db.get_value("Sales Order Item", d.name, "gia_mua"), 200000)
+		self.assertIn(self.ncc, d.ghi_chu_gia)
+
+	def test_a_mismatch_still_needs_a_reason(self):
+		self.assertRaisesRegex(frappe.ValidationError, "Lý do lệch giá", self.doi_ncc, self.ncc2)
+
+	def test_the_customer_is_not_asked_to_approve_again(self):
+		d = self.doi_ncc(self.ncc2, ly_do_lech_gia="NCC cũ hết hàng")
+
+		self.assertEqual((d.gia_bang_gia, d.khac_bang_gia, d.cho_chap_thuan), (124692, 0, 0))
+
+	def test_the_form_previews_only_the_changed_row(self):
+		dang_sua = self.so_a.as_dict()
+		dang_sua["items"][0]["ncc_du_kien"] = self.ncc2
+		kq = tinh_lai(frappe.as_json(dang_sua))[self.so_a.items[0].name]
+		self.assertEqual((kq["gia_mua"], kq["trang_thai_gia"], kq["khac_bang_gia"]), (200000, THAP_HON, 0))
+
+		# Đổi lại NCC cũ: về đúng kết quả đã lưu.
+		dang_sua["items"][0]["ncc_du_kien"] = self.ncc
+		kq = tinh_lai(frappe.as_json(dang_sua))[self.so_a.items[0].name]
+		self.assertEqual((kq["gia_mua"], kq["trang_thai_gia"]), (123457, KHOP))
+
+
 class TestNguoiDungCong(KiemChungTuCase):
-	def test_portal_user_does_not_see_the_price_warning(self):
-		item = self.item(123457)
+	def nguoi_cong(self):
 		user = frappe.get_doc(
 			{
 				"doctype": "User",
@@ -580,10 +660,21 @@ class TestNguoiDungCong(KiemChungTuCase):
 			}
 		).insert(ignore_permissions=True)
 		self.addCleanup(frappe.set_user, "Administrator")
+		return user.name
+
+	def test_portal_user_does_not_see_the_price_warning(self):
+		item = self.item(123457)
+		user = self.nguoi_cong()
 		frappe.clear_messages()
-		frappe.set_user(user.name)
+		frappe.set_user(user)
 		d = self.so([self.row(item, 125000)]).items[0]
 		frappe.set_user("Administrator")
 
 		self.assertEqual(d.trang_thai_gia, CAO_HON)
 		self.assertNotIn("Kiểm giá bán", self.canh_bao())
+
+	def test_portal_user_cannot_recheck_prices_from_the_form(self):
+		so = self.so([self.row(self.item(123457), 125000)])
+		frappe.set_user(self.nguoi_cong())
+
+		self.assertRaises(frappe.PermissionError, tinh_lai, so.as_json())

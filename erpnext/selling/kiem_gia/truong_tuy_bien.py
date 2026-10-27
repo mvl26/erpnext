@@ -34,10 +34,13 @@ def _truong_dong(insert_after, cho_so):
 			"fieldtype": "Link",
 			"options": "Supplier",
 			"label": "NCC dự kiến",
-			"description": "Để trống thì lấy NCC mặc định của mặt hàng. Đổi NCC thì giá mua tính lại khi lưu.",
+			"description": "Để trống thì lấy NCC mặc định của mặt hàng. Đổi NCC thì giá mua tính lại ngay."
+			+ (" Đơn đã Submit vẫn đổi được: bấm Cập nhật để lưu." if cho_so else ""),
 			"insert_after": "kiem_gia_ban_section",
 			"no_copy": 1,
 			"print_hide": 1,
+			# Sau Submit: kiểm lại dòng theo NCC mới (`kiem_chung_tu._kiem_doi_ncc`).
+			"allow_on_submit": 1 if cho_so else 0,
 		},
 		_ro(
 			fieldname="trang_thai_gia",
@@ -283,11 +286,21 @@ CUSTOM_FIELDS = {
 	"Quotation Item": _truong_dong("page_break", cho_so=False),
 	"Sales Order Item": _truong_dong("project", cho_so=True),
 	"Sales Order": [
+		# Bảng kết quả kiểm của mọi dòng ngay dưới lưới mặt hàng (sales_order.js vẽ), không phải
+		# mở từng dòng.
 		{
+			"fieldname": "bang_kiem_gia",
+			"fieldtype": "HTML",
+			"label": "Bảng kiểm giá bán",
+			"insert_after": "items",
+			"print_hide": 1,
+		},
+		{
+			# Không nhãn: tiêu đề "Kiểm giá bán" đã nằm trên bảng ngay trên.
 			"fieldname": "kiem_gia_ban_section",
 			"fieldtype": "Section Break",
-			"label": "Kiểm giá bán",
-			"insert_after": "items",
+			"label": "",
+			"insert_after": "bang_kiem_gia",
 			"depends_on": "eval:(doc.items || []).some(d => d.trang_thai_gia && !['Khớp','Bỏ qua','Đang trong thời hạn báo giá'].includes(d.trang_thai_gia)) || doc.ly_do_lech_gia || doc.thong_bao_gia_moi",
 		},
 		{

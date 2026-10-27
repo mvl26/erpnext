@@ -253,6 +253,40 @@ def _gia_hd_nguyen_tac(cap, ngay, company):
 	return kq
 
 
+def ncc_cua_bang_gia(price_list):
+	"""NCC duy nhất nhận bảng giá mua `price_list` làm bảng giá mặc định (Supplier → Default Price
+	List). Bảng giá dùng chung cho nhiều NCC (hợp đồng khung) hoặc chưa NCC nào nhận: None."""
+	if not price_list or not frappe.get_cached_value("Price List", price_list, "buying"):
+		return None
+	ncc = frappe.get_all(
+		"Supplier", filters={"default_price_list": price_list, "disabled": 0}, pluck="name", limit=2
+	)
+	return ncc[0] if len(ncc) == 1 else None
+
+
+@frappe.whitelist()
+def lay_ncc_cua_bang_gia(price_list):
+	"""Form Giá mặt hàng: chọn bảng giá mua thì tự điền NCC (`item_price.js`)."""
+	frappe.has_permission("Item Price", "read", throw=True)
+	return ncc_cua_bang_gia(price_list)
+
+
+def kiem_ncc_item_price(doc, method=None):
+	"""`validate` của Item Price: giá trong bảng giá mua riêng của một NCC phải ghi đúng NCC đó.
+
+	Giá HĐ nguyên tắc được nhận theo ô Nhà cung cấp, không theo tên bảng giá: ghi nhầm NCC
+	thì NCC của bảng giá không có giá, còn NCC bị ghi nhầm có thêm một giá (cùng ngày hiệu lực
+	thì thành "Chưa có giá mua")."""
+	chu = ncc_cua_bang_gia(doc.price_list)
+	if chu and doc.supplier and doc.supplier != chu:
+		frappe.throw(
+			_(
+				"Bảng giá {0} là bảng giá mua của NCC {1} (Nhà cung cấp → Bảng giá mặc định), nhưng dòng giá này ghi NCC {2}. Sửa ô Nhà cung cấp thành {1}, hoặc nhập giá vào bảng giá mua của {2}."
+			).format(frappe.bold(doc.price_list), frappe.bold(chu), frappe.bold(doc.supplier)),
+			title=_("Nhà cung cấp của giá mua"),
+		)
+
+
 def _ket_qua(trang_thai, **fields):
 	return frappe._dict(
 		{

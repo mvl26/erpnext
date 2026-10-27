@@ -61,13 +61,22 @@ doctype_js = {
 	# Kiểm giá bán theo hệ số khách hàng (BA12) và báo trước khi đổi giá (YC4): BA12 yêu
 	# cầu không sửa core, nên nút và quyền trên form nằm ở đây thay vì trong
 	# `<doctype>.js` chuẩn. Mất dòng này: form vẫn lưu được, server vẫn kiểm, chỉ mất nút
-	# và trạng thái chỉ đọc. trang_thai_gia.js (màu ô Trạng thái giá) dùng chung cho hai form
-	# có dòng kiểm giá.
+	# và trạng thái chỉ đọc. trang_thai_gia.js (màu ô Trạng thái giá) và tinh_lai.js (kiểm lại
+	# ngay khi sửa dòng, chưa cần lưu) dùng chung cho hai form có dòng kiểm giá.
 	"Customer": "public/js/kiem_gia/customer.js",
 	"Selling Settings": "public/js/kiem_gia/selling_settings.js",
-	"Quotation": ["public/js/kiem_gia/trang_thai_gia.js", "public/js/kiem_gia/quotation.js"],
-	"Sales Order": ["public/js/kiem_gia/trang_thai_gia.js", "public/js/kiem_gia/sales_order.js"],
+	"Quotation": [
+		"public/js/kiem_gia/trang_thai_gia.js",
+		"public/js/kiem_gia/tinh_lai.js",
+		"public/js/kiem_gia/quotation.js",
+	],
+	"Sales Order": [
+		"public/js/kiem_gia/trang_thai_gia.js",
+		"public/js/kiem_gia/tinh_lai.js",
+		"public/js/kiem_gia/sales_order.js",
+	],
 	"Price List": "public/js/kiem_gia/price_list.js",
+	"Item Price": "public/js/kiem_gia/item_price.js",
 	# Đợt 4: ô Bảng giá mua của hợp đồng khung chỉ chọn bảng giá mua.
 	"Blanket Order": "public/js/tiep_nhan_hoa_don/blanket_order.js",
 	# Đối soát Phiếu nhập ↔ Hóa đơn mua (YC5), cùng nguyên tắc không sửa core với BA12. Mất
@@ -629,7 +638,10 @@ doc_events = {
 	"Selling Settings": {"validate": "erpnext.selling.kiem_gia.cau_hinh.kiem_selling_settings"},
 	"Price List": {"validate": "erpnext.selling.kiem_gia.bao_truoc.kiem_price_list"},
 	"Item Price": {
-		"validate": "erpnext.selling.kiem_gia.bao_truoc.kiem_item_price",
+		"validate": [
+			"erpnext.selling.kiem_gia.bao_truoc.kiem_item_price",
+			"erpnext.selling.kiem_gia.gia_goc.kiem_ncc_item_price",
+		],
 		"on_trash": "erpnext.selling.kiem_gia.bao_truoc.chan_xoa_item_price",
 	},
 }

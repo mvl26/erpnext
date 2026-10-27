@@ -14,6 +14,7 @@ from erpnext.selling.kiem_gia.gia_goc import (
 	KHOP,
 	THAP_HON,
 	lam_tron_dong,
+	ncc_cua_bang_gia,
 	so_sanh,
 	tim_gia_mua,
 	tinh_gia_de_xuat,
@@ -148,6 +149,29 @@ class TestTimGiaMua(KiemChungTuCase):
 	def test_no_supplier(self):
 		kq = tim_gia_mua(self.item(None, ncc=""), None, self.d, self.company)
 		self.assertEqual(kq.trang_thai, CHUA_CO_GIA_MUA)
+
+
+class TestNccCuaBangGia(KiemChungTuCase):
+	"""Giá trong bảng giá mua riêng của một NCC (Nhà cung cấp → Bảng giá mặc định) phải ghi đúng
+	NCC đó: giá HĐ nguyên tắc được nhận theo ô Nhà cung cấp, không theo tên bảng giá."""
+
+	def setUp(self):
+		super().setUp()
+		frappe.db.set_value("Supplier", self.ncc, "default_price_list", self.mua)
+
+	def test_the_price_list_owner_is_found(self):
+		self.assertEqual(ncc_cua_bang_gia(self.mua), self.ncc)
+		self.assertIsNone(ncc_cua_bang_gia(self.ban))
+
+	def test_a_price_for_another_supplier_is_refused(self):
+		item = self.item(None)
+		self.assertRaises(frappe.ValidationError, self.gia_hd, item, 100000, ncc=self.supplier())
+
+	def test_a_price_list_shared_by_several_suppliers_is_not_checked(self):
+		frappe.db.set_value("Supplier", self.supplier(), "default_price_list", self.mua)
+		self.gia_hd(self.item(None), 100000, ncc=self.supplier())
+
+		self.assertIsNone(ncc_cua_bang_gia(self.mua))
 
 
 class TestLamTron(FrappeTestCase):

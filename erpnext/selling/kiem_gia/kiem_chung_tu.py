@@ -65,6 +65,8 @@ TRUONG_DONG = (
 	"khac_bang_gia",
 	"ghi_chu_gia",
 )
+# Phía khách của dòng: giữ nguyên khi chỉ đổi NCC dự kiến sau Submit (giá bán không đổi).
+BEN_KHACH = ("gia_bang_gia", "ngoai_bang_gia", "khac_bang_gia")
 
 
 # --- doc_events ----------------------------------------------------------------
@@ -114,14 +116,15 @@ def kiem_truoc_submit(doc, method=None):
 
 
 def kiem_sau_submit(doc, method=None):
-	"""`before_update_after_submit` của Sales Order: "Update Items" thêm dòng hoặc đổi giá, và
-	nhập / sửa thông tin khách chấp thuận trên SO đã Submit (Q1, Q10).
+	"""`before_update_after_submit` của Sales Order: "Update Items" thêm dòng hoặc đổi giá, đổi
+	NCC dự kiến của dòng, và nhập / sửa thông tin khách chấp thuận trên SO đã Submit (Q1, Q10).
 
 	Update Items lưu từng dòng bị đổi (`insert`/`save`) xuống DB trước khi lưu SO. Lúc này
 	Frappe đã gán `modified` mới cho mọi dòng trên đối tượng đang lưu, nhưng trong DB chỉ dòng
-	vừa bị đụng có `modified` mới hơn lần lưu trước của SO. Chỉ kiểm lại các dòng đó; dòng khác
-	giữ nguyên kết quả lúc lập (D05). Dòng lệch giá đề xuất vẫn cần lý do; dòng khác bảng giá
-	KH không bị chặn mà chuyển sang chờ khách chấp thuận (Q10).
+	vừa bị đụng có `modified` mới hơn lần lưu trước của SO. Chỉ kiểm lại các dòng đó và các dòng
+	vừa đổi NCC dự kiến (`_kiem_doi_ncc`); dòng khác giữ nguyên kết quả lúc lập (D05). Dòng lệch
+	giá đề xuất vẫn cần lý do; dòng Update Items khác bảng giá KH không bị chặn mà chuyển sang
+	chờ khách chấp thuận (Q10).
 	"""
 	if not cau_hinh().bat:
 		return
@@ -144,14 +147,77 @@ def kiem_sau_submit(doc, method=None):
 	]
 	if dong:
 		kiem_dong(doc, dong)
+	doi_ncc = _kiem_doi_ncc(doc, truoc, tru={d.name for d in dong})
 	ghi_chap_thuan(doc, truoc, kiem_lai={d.name for d in dong}, sau_submit=True)
-	if not dong:
+	kiem = dong + doi_ncc
+	if not kiem:
 		return
-	_canh_bao(doc, dong, sau_submit=True)
-	lech = [d for d in dong_lech(doc) if d in dong]
+	_canh_bao(doc, kiem, sau_submit=True)
+	lech = [d for d in dong_lech(doc) if d in kiem]
 	if lech:
 		_chan_khach_cong()
-		_doi_ly_do(doc, lech, _("Nhập Lý do lệch giá trên đơn (bấm Cập nhật) rồi chạy lại Update Items."))
+		_doi_ly_do(
+			doc,
+			lech,
+			_("Nhập Lý do lệch giá trên đơn (bấm Cập nhật) rồi chạy lại Update Items.")
+			if dong
+			else _("Nhập Lý do lệch giá trên đơn rồi bấm Cập nhật."),
+		)
+
+
+def _kiem_doi_ncc(doc, truoc, tru=()):
+	"""Dòng SO đã Submit vừa đổi NCC dự kiến: kiểm lại giá mua, giá đề xuất, trạng thái theo NCC
+	mới. Giá bán đã chốt với khách không đổi nên phía khách (`BEN_KHACH`) giữ như cũ: không đưa
+	dòng về chờ khách chấp thuận. Ghi chú giữ NCC cũ để hậu kiểm. Trả các dòng đã kiểm lại."""
+	cu = {d.name: d for d in truoc.get("items")}
+	dong = [
+		d
+		for d in doc.get("items")
+		if d.item_code
+		and d.name in cu
+		and d.name not in tru
+		and (d.get("ncc_du_kien") or "") != (cu[d.name].get("ncc_du_kien") or "")
+	]
+	if not dong:
+		return []
+	kiem_dong(doc, dong)
+	for d in dong:
+		c = cu[d.name]
+		for f in BEN_KHACH:
+			d.set(f, c.get(f))
+		if d.trang_thai_gia:
+			d.ghi_chu_gia = (d.ghi_chu_gia or "") + _("; đổi NCC dự kiến sau Submit, trước là {0}").format(
+				c.get("ncc_du_kien") or _("(trống)")
+			)
+	return dong
+
+
+@frappe.whitelist()
+def tinh_lai(doc):
+	"""Kiểm lại các dòng của chứng từ đang sửa trên form, chưa lưu (`tinh_lai.js`): đổi NCC dự
+	kiến, mặt hàng hay đơn giá là thấy ngay giá mua và giá đề xuất mới, không còn thấy giá của
+	NCC cũ tới lúc lưu. Không ghi gì xuống DB; lưu vẫn kiểm lại như cũ.
+
+	Nháp: kiểm mọi dòng. SO đã Submit: chỉ dòng vừa đổi NCC dự kiến, như khi bấm Cập nhật
+	(`_kiem_doi_ncc`); dòng khác trả kết quả đã lưu (đổi NCC rồi đổi lại thì về như cũ).
+	Trả {tên dòng: {trường: giá trị}}. `net_rate` của dòng do form tính sẵn."""
+	doc = frappe.get_doc(frappe.parse_json(doc))
+	sau_submit = doc.doctype == "Sales Order" and doc.docstatus == 1
+	if doc.doctype not in CHUNG_TU or not (doc.docstatus == 0 or sau_submit) or not cau_hinh().bat:
+		return {}
+	if not nguoi_dung_noi_bo():
+		frappe.throw(_("Không có quyền xem kết quả kiểm giá."), frappe.PermissionError)
+	doc.check_permission("create" if doc.is_new() else "write")
+	if sau_submit:
+		da_luu = frappe.get_doc(doc.doctype, doc.name)
+		doi = {d.name for d in _kiem_doi_ncc(doc, da_luu)}
+		dong = [d for d in doc.get("items") if d.name in doi]
+		dong += [d for d in da_luu.get("items") if d.name not in doi]
+	else:
+		dong = [d for d in doc.get("items") if d.item_code]
+		if dong:
+			kiem_dong(doc, dong)
+	return {d.name: {f: d.get(f) for f in ("ncc_du_kien", *TRUONG_DONG)} for d in dong if d.item_code}
 
 
 # --- Tính trên dòng ------------------------------------------------------------

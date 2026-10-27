@@ -10,7 +10,7 @@
 Quy tắc để đối chiếu khi test:
 
 - **Giá đề xuất = giá mua × hệ số**, **làm tròn đến đồng** (R03), so với giá bán **chưa VAT, sau chiết khấu đơn**.
-- **Giá mua** (D07) của **NCC dự kiến** trên dòng (D08; trống thì NCC mặc định của mặt hàng): (1) **Báo giá đợt** = Supplier Quotation đã Submit còn hiệu lực, mới nhất; (2) không có thì **HĐ nguyên tắc** = giá trong bảng giá "Mua - <NCC>" (dòng có Supplier) hiệu lực tại ngày SO.
+- **Giá mua** (D07) của **NCC dự kiến** trên dòng (D08; trống thì NCC mặc định của mặt hàng): (1) **Báo giá đợt** = Supplier Quotation đã Submit còn hiệu lực, mới nhất; (2) không có thì **HĐ nguyên tắc** = dòng Giá mặt hàng (Item Price) mua có ô **Nhà cung cấp** = NCC đó (nhận theo ô Nhà cung cấp, không theo tên bảng giá), hiệu lực tại ngày SO, "Có hiệu lực từ" mới nhất; nhiều dòng cùng ngày mà giá khác nhau → Chưa có giá mua. Bảng giá mua riêng của một NCC (Nhà cung cấp → Bảng giá mặc định): chọn bảng giá trên Giá mặt hàng thì tự điền NCC đó, ghi NCC khác thì không lưu được.
 - **Hệ số** (R01) trên Khách hàng: bảng "Hệ số theo khách hàng" (hệ số, số hợp đồng, hiệu lực từ–đến). Khách không có hệ số → **không kiểm, không cảnh báo** (R07).
 - Lệch → cảnh báo, vẫn lưu được (D03). **Submit**: còn dòng lệch hoặc chưa có giá mua → bắt buộc **Lý do lệch giá** (R04, R08); dòng **khác bảng giá KH** → bắt buộc **số văn bản, người đại diện KH, ngày chấp thuận** trên dòng đó (R05). Không còn bước duyệt.
 - **Bảng giá KH** = bảng giá mặc định của khách (Customer → Default Price List; trống thì của nhóm khách), **không** phải bảng giá chọn trên đơn. "Khác bảng giá" = giá đề xuất khác giá trong bảng giá đó, **hoặc mặt hàng chưa có trong bảng giá đó** (Q2).
@@ -47,13 +47,13 @@ Dữ liệu demo:
 
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
-| A01 | Mở SO ① → dòng VT-01 → mục Kiểm giá bán | NCC dự kiến DEMO-Vietmed; giá mua **123.457**, nguồn **HĐ nguyên tắc**, chứng từ = dòng giá của DEMO Mua - Vietmed; hệ số 1,01; số HĐ HĐNT-HIMEDIC-2026; giá đề xuất **124.692**; trạng thái **Khớp** (ô màu xanh lá) | ☐ |
+| A01 | Mở SO ① → bảng **Kiểm giá bán** ngay dưới bảng mặt hàng → bấm tên VT-01 trong bảng (mở dòng, mục Kiểm giá bán) | Bảng có mọi dòng: mặt hàng (dưới tên: mã · NCC), ĐVT, SL yêu cầu, giá mua, giá đề xuất, trạng thái giá, chênh lệch; tóm tắt "Khớp giá cả đơn" hoặc số dòng lệch. Dòng VT-01: NCC dự kiến DEMO-Vietmed; giá mua **123.457**, nguồn **HĐ nguyên tắc**, chứng từ = dòng giá của DEMO Mua - Vietmed; hệ số 1,01; số HĐ HĐNT-HIMEDIC-2026; giá đề xuất **124.692**; trạng thái **Khớp** (ô màu xanh lá) | ☐ |
 | A02 | Mở Supplier Quotation nháp DEMO-Vietmed → **Submit**. Mở lại SO ① → Lưu | VT-01: giá mua **125.000**, nguồn **Báo giá đợt** (số báo giá, ngày), giá đề xuất **126.250**, trạng thái **Thấp hơn** (ô màu đỏ), chênh −1.558 | ☐ |
-| A03 | SO ①, dòng VT-01: đổi **NCC dự kiến** = DEMO-Hùng Minh → Lưu | Giá mua **118.000** (HĐ nguyên tắc Hùng Minh), đề xuất **119.180**, trạng thái **Cao hơn** | ☐ |
+| A03 | SO ①, dòng VT-01: đổi **NCC dự kiến** = DEMO-Hùng Minh, chưa Lưu → xem bảng Kiểm giá bán → Lưu | Ngay khi đổi (chưa Lưu), bảng và dòng đã hiện giá mua **118.000** (HĐ nguyên tắc Hùng Minh), đề xuất **119.180**, trạng thái **Cao hơn**, chênh **+5.512**. Lưu: giữ đúng các số đó | ☐ |
 | A04 | Mở SO ② → Lưu | Cảnh báo cam: VT-01 giá mua 123.457 (HĐ nguyên tắc …), hệ số 1,01, giá đúng 124.692, **chênh +308**. Submit (không lý do) → **bị chặn** "Nhập Lý do lệch giá". Lưu ý: báo giá 125.000 Submit ở A02 vẫn còn hiệu lực thì SO ② cũng lấy giá đó (Báo giá đợt, giá đúng 126.250, chênh −1.250). Muốn thấy đúng số trên: làm A04 trước A02, hoặc chạy lại 0.2 (script dừng báo giá cũ) | ☐ |
 | A05 | SO ② (hoặc ①) dòng VT-01 có **Đề xuất khác bảng giá** (bảng giá 120.000) và **Chờ khách chấp thuận giá** → điền Lý do lệch giá, Submit | Bị chặn: "… Ghi đủ thông tin khách chấp thuận (R05): Dòng 1 – DEMO-VT-01: thiếu Số văn bản…, Người đại diện KH…, Ngày chấp thuận". Điền thiếu 1 trong 3 ô → vẫn bị chặn, báo đúng ô thiếu | ☐ |
 | A06 | Làm lại từ 0.2. SO ① dòng VT-01: điền Số văn bản `VB-01/2026`, Người đại diện `Ông A`, Ngày chấp thuận hôm nay → Lưu → **Submit** | Submit được. Ô **Thông báo giá mới** có link Communication: gửi `himedic.demo@example.com`, tiêu đề "Thông báo giá mới - Đơn hàng …", bảng: VT-01, giá cũ **120.000**, giá mới **124.692**, số văn bản VB-01/2026. Email nằm trên timeline SO | ☐ |
-| A07 | Mở SO ④ (DEMO-Khách lẻ) → Lưu → Submit | Không cảnh báo; mục Kiểm giá bán trống; Submit được không cần gì | ☐ |
+| A07 | Mở SO ④ (DEMO-Khách lẻ) → Lưu → Submit | Không cảnh báo; không có bảng Kiểm giá bán, mục Kiểm giá bán của dòng trống; Submit được không cần gì | ☐ |
 | A08 | `demo.nhanvien` (hoặc `demo.giamdoc`) mở báo cáo **Doi Soat Gia Mua Gia Ban** (Từ ngày–Đến ngày quanh hôm nay). Mở được với Sales User, Sales Manager, Accounts Manager, System Manager | Có dòng của SO đã Submit ở A06: SO, mặt hàng, NCC, nguồn giá, giá mua, hệ số, số HĐ, giá đề xuất, giá bán, chênh lệch, giá bảng giá, trạng thái, lý do, số văn bản, người đại diện, ngày chấp thuận, **Chấp thuận** (Đủ / Chờ chấp thuận), **Người nhập chấp thuận**, **Thời điểm nhập**. Lọc Khách hàng / NCC / Mặt hàng hoạt động; "Gồm SO nháp" hiện thêm SO nháp; "Chỉ dòng lệch / khác bảng giá" ẩn dòng khớp; "Chỉ dòng chờ khách chấp thuận" chỉ hiện dòng còn chờ | ☐ |
 
 ## B. Hệ số khách hàng (R01, R07) và quyền
@@ -79,7 +79,9 @@ Dữ liệu demo:
 | C5 | Supplier Quotation có chiết khấu đơn 10% (giá 130.000) → Submit | Giá mua = 117.000 (sau chiết khấu) | ☐ |
 | C6 | Mặt hàng chưa có NCC mặc định, dòng SO không chọn NCC dự kiến | Chưa có giá mua, ghi chú nêu thiếu NCC | ☐ |
 | C7 | Dòng SO hàng tặng / mặt hàng không quản lý kho / khách nội bộ | Trạng thái **Bỏ qua** | ☐ |
-| C8 | SO ① bấm nút **Áp giá đề xuất** (hiện khi có dòng Thấp hơn/Cao hơn) | Đơn giá các dòng lệch = giá đề xuất; Lưu → Khớp (D06) | ☐ |
+| C8 | SO ① bấm nút **Áp giá đề xuất** (hiện khi có dòng Thấp hơn/Cao hơn) | Đơn giá các dòng lệch = giá đề xuất; bảng Kiểm giá bán chuyển **Khớp** ngay; Lưu → Khớp (D06) | ☐ |
+| C9 | SO nháp, dòng VT-01 đang NCC dự kiến DEMO-Hùng Minh: đổi mặt hàng của dòng sang VT-05 | NCC dự kiến tự bỏ, lấy NCC mặc định của VT-05 (DEMO-Vietmed); giá mua và giá đề xuất tính lại ngay, chưa cần Lưu | ☐ |
+| C10 | Giá mặt hàng (Item Price) mới: chọn bảng giá **DEMO Mua - Vietmed** → xem ô Nhà cung cấp; đổi ô thành DEMO-Hùng Minh → Lưu | Chọn bảng giá thì ô Nhà cung cấp tự thành **DEMO-Vietmed**. Lưu với DEMO-Hùng Minh → bị chặn "Bảng giá DEMO Mua - Vietmed là bảng giá mua của NCC DEMO-Vietmed…". Bảng giá dùng chung nhiều NCC (DEMO Mua - Hợp đồng khung) không bị chặn | ☐ |
 
 ## D. Sau khi Submit
 
@@ -90,6 +92,7 @@ Dữ liệu demo:
 | D3 | Update Items chỉ đổi số lượng một dòng khớp của SO cũ có dòng lệch khác | Được; dòng không ai đụng giữ nguyên kết quả cũ (D05) | ☐ |
 | D4 | Thêm giá HĐ nguyên tắc mới cho VT-01 (130.000, từ hôm nay) | SO đã Submit **không đổi** giá mua; báo cáo A08 cột **Giá mua hiện tại** 130.000, **Giá mua đổi** +6.543 (D05) | ☐ |
 | D5 | Tạo PO từ SO ① với giá VT-01 cao hơn giá mua đã dùng ở SO | Cảnh báo "Giá mua cao hơn giá mua đã dùng để chốt giá bán", vẫn lưu được | ☐ |
+| D6 | SO đã Submit, dòng VT-01 (khớp, NCC DEMO-Vietmed): đổi **NCC dự kiến** = DEMO-Hùng Minh | Bảng Kiểm giá bán tính lại **ngay dòng đó** (giá mua 118.000, đề xuất 119.180, Cao hơn); các dòng khác giữ nguyên. Bấm **Cập nhật** không có Lý do lệch giá → bị chặn "Nhập Lý do lệch giá trên đơn rồi bấm Cập nhật". Điền lý do → Cập nhật được; ghi chú kiểm giá có "đổi NCC dự kiến sau Submit, trước là DEMO-Vietmed"; **Khác bảng giá / Chờ khách chấp thuận giữ như cũ** (giá bán không đổi). Báo cáo A08 hiện NCC mới | ☐ |
 
 ## F. Các điểm PO chốt ngày 22/10/2026 (Q1, Q2, Q7, Q10)
 
