@@ -52,8 +52,9 @@ erpnext.kiem_gia.ve_bang_kiem_gia = function (frm) {
 	}
 
 	const e = frappe.utils.escape_html;
-	const tien = (v) => format_currency(v, frm.doc.currency);
-	const dem = (ds) => dong.filter((d) => ds.includes(d.trang_thai_gia)).length;
+	const tien = (v) => format_currency(v, frm.doc.currency, 4);
+	const hien_thi = (d) => erpnext.kiem_gia.trang_thai_hien_thi(d.trang_thai_gia, d);
+	const dem = (ds) => dong.filter((d) => ds.includes(hien_thi(d))).length;
 	const lech = dem(["Thấp hơn", "Cao hơn"]);
 	const chua_co = dem(["Chưa có giá mua"]);
 	const tom_tat =
@@ -74,11 +75,12 @@ erpnext.kiem_gia.ve_bang_kiem_gia = function (frm) {
 
 	const hang = dong
 		.map((d) => {
-			const mau = erpnext.kiem_gia.MAU_TRANG_THAI_GIA[d.trang_thai_gia] || "gray";
+			const tt = hien_thi(d);
+			const mau = erpnext.kiem_gia.MAU_TRANG_THAI_GIA[tt] || "gray";
 			// Chưa có giá mua / Bỏ qua: không có giá để so (đã lưu thì ô tiền trống thành 0).
 			const co_gia = !["Chưa có giá mua", "Bỏ qua"].includes(d.trang_thai_gia);
 			const cl = flt(d.chenh_lech_gia);
-			const chenh = (cl > 0 ? "+" : cl < 0 ? "-" : "") + format_number(Math.abs(cl), null, 0);
+			const chenh = cl ? (cl > 0 ? "+" : "-") + format_number(Math.abs(cl), null, 4) : "0";
 			return `<tr>
 				<td>
 					<a href="#" data-dong="${e(d.name)}">${e(d.item_name || d.item_code)}</a>
@@ -86,14 +88,11 @@ erpnext.kiem_gia.ve_bang_kiem_gia = function (frm) {
 				</td>
 				<td data-ncc="${e(d.name)}"></td>
 				<td>${e(d.uom || "")}</td>
-				<td class="text-right">${frappe.format(d.qty, { fieldtype: "Float" }, { inline: true })}</td>
 				<td class="text-right text-nowrap">${co_gia ? tien(d.gia_mua) : ""}</td>
 				<td class="text-right text-nowrap">${tien(d.net_rate)}</td>
 				<td class="text-right text-nowrap">${co_gia ? tien(d.gia_de_xuat) : ""}</td>
-				<td><span class="indicator-pill ${mau}" title="${e(d.ghi_chu_gia || "")}">${e(
-				__(d.trang_thai_gia)
-			)}</span></td>
 				<td class="text-right text-nowrap">${co_gia ? chenh : ""}</td>
+				<td><span class="indicator-pill ${mau}" title="${e(d.ghi_chu_gia || "")}">${e(__(tt))}</span></td>
 			</tr>`;
 		})
 		.join("");
@@ -107,12 +106,11 @@ erpnext.kiem_gia.ve_bang_kiem_gia = function (frm) {
 					<th style="min-width: 160px">${__("Mặt hàng")}</th>
 					<th style="min-width: 190px">${__("NCC dự kiến")}</th>
 					<th>${__("ĐVT")}</th>
-					<th class="text-right">${__("SL yêu cầu")}</th>
 					<th class="text-right">${__("Giá mua")}</th>
 					<th class="text-right" title="${__("Đơn giá trên đơn, sau chiết khấu, chưa VAT")}">${__("Giá bán")}</th>
 					<th class="text-right" title="${__("Giá mua x hệ số của khách")}">${__("Giá bán đề xuất")}</th>
-					<th>${__("Trạng thái giá")}</th>
 					<th class="text-right" title="${__("Giá bán - giá bán đề xuất")}">${__("Chênh lệch")}</th>
+					<th>${__("Trạng thái giá")}</th>
 				</tr></thead>
 				<tbody>${hang}</tbody>
 			</table>

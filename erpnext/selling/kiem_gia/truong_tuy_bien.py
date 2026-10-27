@@ -52,6 +52,7 @@ def _truong_dong(insert_after, cho_so):
 		),
 		_ro(
 			fieldname="gia_mua",
+			precision="4",
 			fieldtype="Currency",
 			options="currency",
 			label="Giá mua",
@@ -88,22 +89,25 @@ def _truong_dong(insert_after, cho_so):
 		),
 		_ro(
 			fieldname="gia_de_xuat",
+			precision="4",
 			fieldtype="Currency",
 			options="currency",
 			label="Giá đề xuất",
-			description="Giá mua x hệ số của khách, làm tròn đến đồng.",
+			description="Giá mua x hệ số của khách, làm tròn 4 chữ số thập phân.",
 			insert_after="so_hop_dong_he_so",
 		),
 		_ro(
 			fieldname="chenh_lech_gia",
+			precision="4",
 			fieldtype="Currency",
 			options="currency",
 			label="Chênh lệch",
-			description="Giá bán (làm tròn đến đồng) - giá đề xuất.",
+			description="Giá bán - giá đề xuất, cùng làm tròn 4 chữ số thập phân.",
 			insert_after="gia_de_xuat",
 		),
 		_ro(
 			fieldname="gia_bang_gia",
+			precision="4",
 			fieldtype="Currency",
 			options="currency",
 			label="Giá bảng giá KH",
@@ -207,6 +211,7 @@ def _truong_dong(insert_after, cho_so):
 			# dòng đổi giá (D05: dòng không ai đụng giữ nguyên kết quả lúc lập).
 			_ro(
 				fieldname="gia_da_kiem",
+				precision="4",
 				fieldtype="Currency",
 				options="currency",
 				label="Giá bán lúc kiểm",

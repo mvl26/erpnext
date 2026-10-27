@@ -60,7 +60,7 @@ class TestDoiSoatTheoSO(KiemChungTuCase):
 				"he_so": 1.01,
 				"gia_ban": 125000,
 				"gia_bang_gia": 120000,
-				"chenh_lech": 308,
+				"chenh_lech": 308.43,
 				"ly_do": "Giá khuyến mãi",
 				"so_van_ban": "VB-09/2026",
 			},

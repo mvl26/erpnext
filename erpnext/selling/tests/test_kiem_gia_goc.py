@@ -13,7 +13,7 @@ from erpnext.selling.kiem_gia.gia_goc import (
 	HD_NGUYEN_TAC,
 	KHOP,
 	THAP_HON,
-	lam_tron_dong,
+	lam_tron_gia,
 	ncc_co_gia,
 	ncc_cua_bang_gia,
 	so_sanh,
@@ -209,19 +209,19 @@ class TestGoiYNcc(KiemChungTuCase):
 
 class TestLamTron(FrappeTestCase):
 	def test_r03_example(self):
-		self.assertEqual(tinh_gia_de_xuat(123457, 1.01), 124692)
+		self.assertEqual(tinh_gia_de_xuat(123457, 1.01), 124691.57)
 		self.assertEqual(tinh_gia_de_xuat(125000, 1.01), 126250)
 
-	def test_half_a_dong_rounds_up(self):
-		self.assertEqual(lam_tron_dong(124691.5), 124692)
-		self.assertEqual(lam_tron_dong(124692.5), 124693)
-		self.assertEqual(lam_tron_dong(124691.49), 124691)
+	def test_four_decimals_half_rounds_up(self):
+		self.assertEqual(lam_tron_gia(1.23455), 1.2346)
+		self.assertEqual(lam_tron_gia(1.23454), 1.2345)
+		self.assertEqual(lam_tron_gia(8128095.23814), 8128095.2381)
 
 	def test_applies_to_every_currency(self):
-		self.assertEqual(tinh_gia_de_xuat(99.5, 1.01), 100)
+		self.assertEqual(tinh_gia_de_xuat(99.5, 1.01), 100.495)
 
 	def test_compare(self):
-		self.assertEqual(so_sanh(124692, 124692), (0, KHOP))
-		self.assertEqual(so_sanh(124692.49, 124692), (0, KHOP))
-		self.assertEqual(so_sanh(125000, 124692), (308, CAO_HON))
-		self.assertEqual(so_sanh(124691, 124692), (-1, THAP_HON))
+		self.assertEqual(so_sanh(124691.57, 124691.57), (0, KHOP))
+		self.assertEqual(so_sanh(124691.57004, 124691.57), (0, KHOP))
+		self.assertEqual(so_sanh(125000, 124691.57), (308.43, CAO_HON))
+		self.assertEqual(so_sanh(124691.5699, 124691.57), (-0.0001, THAP_HON))

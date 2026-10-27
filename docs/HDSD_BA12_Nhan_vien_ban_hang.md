@@ -8,7 +8,7 @@
 2. Hệ thống tự tính cho từng dòng. Kết quả của mọi dòng hiện ở bảng **Kiểm giá bán** ngay dưới bảng mặt hàng: NCC dự kiến, giá mua, giá bán (đơn giá trên đơn), giá bán đề xuất, trạng thái giá, chênh lệch. Bấm tên mặt hàng trong bảng để mở dòng xem đủ chi tiết (mục **Kiểm giá bán** của dòng):
    - **NCC dự kiến**: mặc định là NCC mặc định của mặt hàng. Định mua của NCC khác thì chọn ngay ở cột **NCC dự kiến** trong bảng (không cần mở dòng): danh sách đưa lên trước NCC đang có giá cho mặt hàng, kèm giá mua; chọn xong giá mua và giá bán đề xuất tính lại ngay, rồi Lưu. Đổi mặt hàng của dòng thì NCC dự kiến tự về NCC mặc định của mặt hàng mới.
    - **Giá mua** và **nguồn**: báo giá đợt của NCC còn hiệu lực; không có thì giá hợp đồng nguyên tắc — dòng giá mua có ô **Nhà cung cấp** đúng là NCC đó (hệ thống nhận theo ô Nhà cung cấp, không theo tên bảng giá).
-   - **Giá bán đề xuất** = giá mua × hệ số, làm tròn đến đồng. **Chênh lệch** = giá bán − giá bán đề xuất.
+   - **Giá bán đề xuất** = giá mua × hệ số, làm tròn 4 chữ số thập phân. **Chênh lệch** = giá bán − giá bán đề xuất.
    - **Giá bảng giá KH**: lấy từ **bảng giá mặc định của khách** (trên Khách hàng), không theo ô Bảng giá trên đơn — đổi bảng giá trên đơn không làm mất yêu cầu chấp thuận.
 3. Nếu giá trên dòng khác giá đề xuất → cảnh báo màu cam (vẫn lưu được). Muốn dùng đúng giá đề xuất: bấm nút **Áp giá đề xuất** rồi Lưu.
 

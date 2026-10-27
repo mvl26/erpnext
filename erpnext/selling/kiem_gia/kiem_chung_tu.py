@@ -37,9 +37,10 @@ from erpnext.selling.kiem_gia.gia_goc import (
 	CAO_HON,
 	CHUA_CO_GIA_MUA,
 	KHOP,
+	SO_LE,
 	THAP_HON,
 	he_so_quy_doi,
-	lam_tron_dong,
+	lam_tron_gia,
 	ncc_mac_dinh,
 	so_sanh,
 	tim_gia_mua_nhieu,
@@ -290,10 +291,10 @@ def _kiem_mot_dong(d, hs, mua, gia_bang_gia, ty_gia):
 			**chung,
 		)
 	cf = flt(d.conversion_factor) or 1
-	gia_mua_dong = flt(flt(mua.gia_kho) * cf / ty_gia, d.precision("rate"))
+	gia_mua_dong = flt(flt(mua.gia_kho) * cf / ty_gia, SO_LE)
 	gia_de_xuat = tinh_gia_de_xuat(flt(mua.gia_kho) * cf / ty_gia, hs.he_so)
 	chenh_lech, trang_thai = so_sanh(d.net_rate, gia_de_xuat)
-	khac_bang_gia = ngoai_bang_gia or lam_tron_dong(gia_bang_gia) != gia_de_xuat
+	khac_bang_gia = ngoai_bang_gia or lam_tron_gia(gia_bang_gia) != gia_de_xuat
 	_dat(
 		d,
 		trang_thai_gia=trang_thai,
@@ -357,7 +358,7 @@ def gia_bang_gia_nhieu(doc, dong, pl):
 	if not quy_doi:
 		return {}
 	return {
-		d.name: flt(theo_hang[d.item_code] * (flt(d.conversion_factor) or 1) * quy_doi, d.precision("rate"))
+		d.name: flt(theo_hang[d.item_code] * (flt(d.conversion_factor) or 1) * quy_doi, SO_LE)
 		for d in dong
 		if d.item_code in theo_hang
 	}
@@ -430,7 +431,7 @@ def _danh_dau_dang_cho(doc, dong, pl):
 			frappe.format(r.valid_from, "Date"),
 			_("chờ gửi thông báo") if r.price_list == cho else _("đã báo"),
 		)
-		if cint(d.get("ngoai_bang_gia")) or lam_tron_dong(d.net_rate) != lam_tron_dong(d.gia_bang_gia):
+		if cint(d.get("ngoai_bang_gia")) or lam_tron_gia(d.net_rate) != lam_tron_gia(d.gia_bang_gia):
 			d.ghi_chu_gia = (d.ghi_chu_gia or "") + _(
 				"; có {0} nhưng giá bán khác giá bảng giá hiện hành nên vẫn tính là lệch"
 			).format(gia_moi)
@@ -500,9 +501,9 @@ def _canh_bao(doc, dong, sau_submit=False):
 
 
 def _so_co_dau(so):
-	"""Số tiền có dấu theo định dạng số của hệ thống: "-6.250", không phải "-6,250" (dấu phẩy là
-	phần thập phân với người dùng Việt)."""
-	return ("+" if so > 0 else "-" if so < 0 else "") + fmt_money(abs(so), precision=0)
+	"""Số tiền có dấu theo định dạng số của hệ thống, `SO_LE` chữ số thập phân: "-6.249,5700",
+	không phải "-6,249.57" (dấu phẩy là phần thập phân với người dùng Việt)."""
+	return ("+" if so > 0 else "-" if so < 0 else "") + fmt_money(abs(so), precision=SO_LE)
 
 
 def _khac_bang_gia(d, pl):

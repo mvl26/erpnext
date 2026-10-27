@@ -86,7 +86,7 @@ class TestLyDo(SubmitCase):
 		self.assertRaisesRegex(frappe.ValidationError, "Lý do lệch giá", self.submit_as_staff, so)
 
 	def test_a04_with_a_reason_staff_submits_without_any_approval(self):
-		item = self.item(123457, gia_ban=124692)
+		item = self.item(123457, gia_ban=124691.57)
 		so = self.so([self.row(item, 125000)], ly_do_lech_gia="Khách mua số lượng lớn")
 		self.submit_as_staff(so)
 		self.assertEqual(frappe.db.get_value("Sales Order", so.name, "docstatus"), 1)
@@ -105,7 +105,7 @@ class TestLyDo(SubmitCase):
 		self.submit_as_staff(so)
 
 	def test_matching_order_needs_nothing(self):
-		self.submit_as_staff(self.so([self.row(self.item(123457, gia_ban=124692), 124692)]))
+		self.submit_as_staff(self.so([self.row(self.item(123457, gia_ban=124691.57), 124691.57)]))
 
 	def test_customer_without_coefficient_needs_nothing(self):
 		self.submit_as_staff(self.so([self.row(self.item(123457), 1)], customer=self.customer()))
@@ -120,7 +120,7 @@ class TestChapThuan(SubmitCase):
 	def so_khac_bang_gia(self):
 		item = self.item(123457)
 		self.gia_ban(item, 120000)
-		return self.so([self.row(item, 124692)])
+		return self.so([self.row(item, 124691.57)])
 
 	def test_a05_missing_any_of_the_three_details_is_blocked(self):
 		so = self.so_khac_bang_gia()
@@ -159,7 +159,7 @@ class TestChapThuan(SubmitCase):
 		self.assertRaisesRegex(frappe.ValidationError, "Lý do lệch giá", self.submit_as_staff, so)
 
 	def test_q2_item_missing_from_the_customer_list_needs_the_details(self):
-		so = self.so([self.row(self.item(123457), 124692)])
+		so = self.so([self.row(self.item(123457), 124691.57)])
 		self.assertRaisesRegex(frappe.ValidationError, "chấp thuận", self.submit_as_staff, so)
 		so.reload()
 		self.chap_thuan(so.items[0])
@@ -177,7 +177,7 @@ class TestNguoiNhapChapThuan(SubmitCase):
 		frappe.db.set_single_value("Selling Settings", "vai_tro_sua_ty_le_lai", GIAM_DOC)
 		self.giam_doc = self.nguoi("gd", "Sales User", GIAM_DOC)
 		item = self.item(123457, gia_ban=120000)
-		self.so_a = self.so([self.row(item, 124692)])
+		self.so_a = self.so([self.row(item, 124691.57)])
 
 	def nhap(self, user, **values):
 		so = frappe.get_doc("Sales Order", self.so_a.name)
@@ -253,8 +253,8 @@ class TestCongKhachHang(SubmitCase):
 
 class TestUpdateItems(SubmitCase):
 	def test_new_mismatched_row_needs_a_reason(self):
-		item = self.item(123457, gia_ban=124692)
-		so = self.so([self.row(item, 124692)])
+		item = self.item(123457, gia_ban=124691.57)
+		so = self.so([self.row(item, 124691.57)])
 		self.submit_as_staff(so)
 		d = so.items[0]
 		rows = [
@@ -275,8 +275,8 @@ class TestUpdateItems(SubmitCase):
 		self.assertEqual(so.items[1].trang_thai_gia, "Thấp hơn")
 
 	def test_changing_a_rate_is_checked_again(self):
-		item = self.item(123457, gia_ban=124692)
-		so = self.so([self.row(item, 124692)])
+		item = self.item(123457, gia_ban=124691.57)
+		so = self.so([self.row(item, 124691.57)])
 		self.submit_as_staff(so)
 		d = so.items[0]
 		rows = [{"docname": d.name, "item_code": d.item_code, "qty": 1, "rate": 130000, "uom": d.uom}]
@@ -316,9 +316,9 @@ class TestChoChapThuan(SubmitCase):
 
 	def setUp(self):
 		super().setUp()
-		item = self.item(123457, gia_ban=124692)
+		item = self.item(123457, gia_ban=124691.57)
 		self.moi = self.item(100000, gia_ban=90000)  # đề xuất 101.000 khác bảng giá 90.000
-		self.so_a = self.so([self.row(item, 124692)], contact_email=EMAIL)
+		self.so_a = self.so([self.row(item, 124691.57)], contact_email=EMAIL)
 		self.submit_as_staff(self.so_a)
 		d = self.so_a.items[0]
 		frappe.clear_messages()

@@ -246,14 +246,14 @@ class KiemChungTuCase(FrappeTestCase):
 class TestKiemGiaSalesOrder(KiemChungTuCase):
 	def test_a01_principle_contract_price(self):
 		item = self.item(123457)
-		d = self.so([self.row(item, 124692)]).items[0]
+		d = self.so([self.row(item, 124691.57)]).items[0]
 
 		self.assertEqual(d.trang_thai_gia, KHOP)
 		self.assertEqual(d.gia_mua, 123457)
 		self.assertEqual(d.nguon_gia_mua, HD_NGUYEN_TAC)
 		self.assertEqual(d.he_so_gia_ban, 1.01)
 		self.assertEqual(d.so_hop_dong_he_so, "HĐ-KG-01")
-		self.assertEqual(d.gia_de_xuat, 124692)
+		self.assertEqual(d.gia_de_xuat, 124691.57)
 		self.assertEqual(d.ncc_du_kien, self.ncc)
 
 	def test_a02_batch_quotation_wins_over_the_contract(self):
@@ -269,7 +269,7 @@ class TestKiemGiaSalesOrder(KiemChungTuCase):
 		item = self.item(123457)
 		ncc2 = self.supplier()
 		self.gia_hd(item, 200000, ncc=ncc2)
-		so = self.so([self.row(item, 124692)])
+		so = self.so([self.row(item, 124691.57)])
 		so.items[0].ncc_du_kien = ncc2
 		so.save()
 		d = so.items[0]
@@ -281,7 +281,7 @@ class TestKiemGiaSalesOrder(KiemChungTuCase):
 		item = self.item(123457)
 		ncc2 = self.supplier()
 		self.gia_hd(item, 200000, ncc=ncc2)
-		so = self.so([self.row(item, 124692)])
+		so = self.so([self.row(item, 124691.57)])
 		dang_sua = so.as_dict()
 		dang_sua["items"][0]["ncc_du_kien"] = ncc2
 		kq = tinh_lai(frappe.as_json(dang_sua))[so.items[0].name]
@@ -293,9 +293,9 @@ class TestKiemGiaSalesOrder(KiemChungTuCase):
 	def test_an_unsaved_order_is_checked_with_the_default_supplier(self):
 		item = self.item(123457)
 		dong = self.row(
-			item, 124692, doctype="Sales Order Item", name="new-sales-order-item-1", conversion_factor=1
+			item, 124691.57, doctype="Sales Order Item", name="new-sales-order-item-1", conversion_factor=1
 		)
-		dong["net_rate"] = 124692
+		dong["net_rate"] = 124691.57
 		kq = tinh_lai(
 			{
 				"doctype": "Sales Order",
@@ -317,9 +317,9 @@ class TestKiemGiaSalesOrder(KiemChungTuCase):
 		cao = self.so([self.row(item, 125000)]).items[0]
 		thap = self.so([self.row(item, 124000)]).items[0]
 
-		self.assertEqual((cao.trang_thai_gia, cao.chenh_lech_gia), (CAO_HON, 308))
-		self.assertEqual((thap.trang_thai_gia, thap.chenh_lech_gia), (THAP_HON, -692))
-		self.assertIn("124.692", self.canh_bao().replace(",", "."))
+		self.assertEqual((cao.trang_thai_gia, cao.chenh_lech_gia), (CAO_HON, 308.43))
+		self.assertEqual((thap.trang_thai_gia, thap.chenh_lech_gia), (THAP_HON, -691.57))
+		self.assertIn("124.691", self.canh_bao().replace(",", "."))
 
 	def test_the_warning_writes_numbers_in_the_system_number_format(self):
 		# Với định dạng số Việt, "-6,250" đọc thành âm sáu phẩy hai lăm.
@@ -334,12 +334,12 @@ class TestKiemGiaSalesOrder(KiemChungTuCase):
 			self.so([self.row(item, 118442)])
 
 		self.assertIn("hệ số 1,01", self.canh_bao())
-		self.assertIn("chênh -6.250", self.canh_bao())
+		self.assertIn("chênh -6.249,57", self.canh_bao())
 
-	def test_d04_no_tolerance_after_rounding_to_the_dong(self):
+	def test_d04_no_tolerance_after_rounding_to_four_decimals(self):
 		item = self.item(123457)
-		self.assertEqual(self.so([self.row(item, 124692.4)]).items[0].trang_thai_gia, KHOP)
-		self.assertEqual(self.so([self.row(item, 124693)]).items[0].chenh_lech_gia, 1)
+		self.assertEqual(self.so([self.row(item, 124691.57)]).items[0].trang_thai_gia, KHOP)
+		self.assertEqual(self.so([self.row(item, 124691.58)]).items[0].chenh_lech_gia, 0.01)
 
 	def test_a07_r07_customer_without_a_coefficient_is_not_checked(self):
 		item = self.item(100000)
@@ -381,8 +381,8 @@ class TestKiemGiaSalesOrder(KiemChungTuCase):
 			{
 				"trang_thai_gia": CAO_HON,
 				"gia_mua": 123457,
-				"gia_de_xuat": 124692,
-				"chenh_lech_gia": 308,
+				"gia_de_xuat": 124691.57,
+				"chenh_lech_gia": 308.43,
 				"he_so_gia_ban": 1.01,
 				"nguon_gia_mua": HD_NGUYEN_TAC,
 			},
@@ -473,18 +473,18 @@ class TestKhacBangGia(KiemChungTuCase):
 	def test_a05_proposal_differs_from_the_price_list(self):
 		item = self.item(123457)
 		self.gia_ban(item, 120000)
-		d = self.so([self.row(item, 124692)]).items[0]
+		d = self.so([self.row(item, 124691.57)]).items[0]
 
 		self.assertEqual((d.gia_bang_gia, d.khac_bang_gia), (120000, 1))
 		self.assertIn("Submit cần số văn bản", self.canh_bao())
 
 	def test_same_as_the_price_list(self):
 		item = self.item(123457)
-		self.gia_ban(item, 124692)
-		self.assertEqual(self.so([self.row(item, 124692)]).items[0].khac_bang_gia, 0)
+		self.gia_ban(item, 124691.57)
+		self.assertEqual(self.so([self.row(item, 124691.57)]).items[0].khac_bang_gia, 0)
 
 	def test_q2_item_missing_from_the_customer_list_is_a_difference(self):
-		d = self.so([self.row(self.item(123457), 124692)]).items[0]
+		d = self.so([self.row(self.item(123457), 124691.57)]).items[0]
 
 		self.assertEqual((d.gia_bang_gia, d.ngoai_bang_gia, d.khac_bang_gia), (None, 1, 1))
 		self.assertIn("chưa có trong bảng giá KH", self.canh_bao())
@@ -500,25 +500,25 @@ class TestKhacBangGia(KiemChungTuCase):
 	def test_q2_choosing_another_list_on_the_order_does_not_dodge_r05(self):
 		item = self.item(123457, gia_ban=120000)
 		khac = self.price_list("Bán khác", buying=0)
-		self.gia_ban(item, 124692, price_list=khac)
+		self.gia_ban(item, 124691.57, price_list=khac)
 
-		d = self.so([self.row(item, 124692)], selling_price_list=khac).items[0]
+		d = self.so([self.row(item, 124691.57)], selling_price_list=khac).items[0]
 
 		self.assertEqual((d.gia_bang_gia, d.khac_bang_gia), (120000, 1))
 
 	def test_q2_customer_group_list_when_the_customer_has_none(self):
-		item = self.item(123457, gia_ban=124692)
+		item = self.item(123457, gia_ban=124691.57)
 		khach = self.customer(he_so=1.01, default_price_list=None, customer_group=self.nhom(self.ban))
 
-		d = self.so([self.row(item, 124692)], customer=khach).items[0]
+		d = self.so([self.row(item, 124691.57)], customer=khach).items[0]
 
-		self.assertEqual((d.gia_bang_gia, d.khac_bang_gia), (124692, 0))
+		self.assertEqual((d.gia_bang_gia, d.khac_bang_gia), (124691.57, 0))
 
 	def test_q2_customer_without_any_price_list(self):
-		item = self.item(123457, gia_ban=124692)
+		item = self.item(123457, gia_ban=124691.57)
 		khach = self.customer(he_so=1.01, default_price_list=None, customer_group=self.nhom(None))
 
-		d = self.so([self.row(item, 124692)], customer=khach).items[0]
+		d = self.so([self.row(item, 124691.57)], customer=khach).items[0]
 
 		self.assertEqual((d.ngoai_bang_gia, d.khac_bang_gia), (1, 1))
 		self.assertIn("chưa có bảng giá mặc định", self.canh_bao())
@@ -592,7 +592,7 @@ class TestKiemGiaQuotation(KiemChungTuCase):
 	def test_quotation_rows_are_checked(self):
 		item = self.item(123457)
 		d = self.quotation([self.row(item, 125000)]).items[0]
-		self.assertEqual((d.trang_thai_gia, d.gia_de_xuat), (CAO_HON, 124692))
+		self.assertEqual((d.trang_thai_gia, d.gia_de_xuat), (CAO_HON, 124691.57))
 
 	def test_a_lead_has_no_coefficient(self):
 		lead = frappe.get_doc({"doctype": "Lead", "first_name": f"_KG {self.sfx}"}).insert(
@@ -608,10 +608,10 @@ class TestDoiNccSauSubmit(KiemChungTuCase):
 
 	def setUp(self):
 		super().setUp()
-		self.item_a = self.item(123457, gia_ban=124692)
+		self.item_a = self.item(123457, gia_ban=124691.57)
 		self.ncc2 = self.supplier()
 		self.gia_hd(self.item_a, 200000, ncc=self.ncc2)
-		self.so_a = self.so([self.row(self.item_a, 124692)])
+		self.so_a = self.so([self.row(self.item_a, 124691.57)])
 		self.so_a.submit()
 
 	def doi_ncc(self, ncc, **fields):
@@ -634,7 +634,7 @@ class TestDoiNccSauSubmit(KiemChungTuCase):
 	def test_the_customer_is_not_asked_to_approve_again(self):
 		d = self.doi_ncc(self.ncc2, ly_do_lech_gia="NCC cũ hết hàng")
 
-		self.assertEqual((d.gia_bang_gia, d.khac_bang_gia, d.cho_chap_thuan), (124692, 0, 0))
+		self.assertEqual((d.gia_bang_gia, d.khac_bang_gia, d.cho_chap_thuan), (124691.57, 0, 0))
 
 	def test_the_form_previews_only_the_changed_row(self):
 		dang_sua = self.so_a.as_dict()

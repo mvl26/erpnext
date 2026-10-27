@@ -12,11 +12,20 @@ erpnext.kiem_gia.MAU_TRANG_THAI_GIA = {
 	"Bỏ qua": "gray",
 };
 
+// "Đang trong thời hạn báo giá" không hiện trên chứng từ (BA): hiện theo chênh lệch như dòng
+// thường. Giá trị lưu và quy tắc miễn lý do / chấp thuận giữ nguyên (kiem_chung_tu.py).
+erpnext.kiem_gia.trang_thai_hien_thi = function (value, d) {
+	if (value !== "Đang trong thời hạn báo giá") return value;
+	const cl = flt(d && d.chenh_lech_gia);
+	return cl < 0 ? "Thấp hơn" : cl > 0 ? "Cao hơn" : "Khớp";
+};
+
 erpnext.kiem_gia.to_mau_trang_thai_gia = function (cdt) {
 	const df = (frappe.meta.docfield_map[cdt] || {}).trang_thai_gia;
 	if (!df) return;
-	df.formatter = (value) => {
+	df.formatter = (value, _df, _options, doc) => {
 		if (!value) return "";
+		value = erpnext.kiem_gia.trang_thai_hien_thi(value, doc);
 		const color = erpnext.kiem_gia.MAU_TRANG_THAI_GIA[value] || "gray";
 		return `<span class="indicator-pill ${color}">${frappe.utils.escape_html(__(value))}</span>`;
 	};

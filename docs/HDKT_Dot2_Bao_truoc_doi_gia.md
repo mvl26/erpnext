@@ -48,10 +48,12 @@ Gặp lỗi thiếu tài khoản kho khi Nộp chứng từ kho, hoặc lỗi m�
 
 **Làm trước mục I** (khi nháp VT-02 52.000 còn ở bảng chờ).
 
+Theo BA: trên Đơn bán hàng (bảng Kiểm giá bán và ô Trạng thái giá của dòng) trạng thái này **không hiện ra** — dòng hiện Khớp / Thấp hơn / Cao hơn theo chênh lệch như dòng thường. Hệ thống vẫn ghi nhận bên trong (báo cáo Doi Soat Gia Mua Gia Ban còn thấy), và quy tắc miễn lý do / miễn chấp thuận giữ nguyên.
+
 | # | Bước | Kết quả mong đợi | ☐ |
 |---|---|---|---|
 | K1 | Thêm giá HĐ nguyên tắc mới cho VT-02: Item Price bảng **DEMO Mua - Hùng Minh**, Supplier DEMO-Hùng Minh, 51.485, Valid From hôm nay → Lưu | Lưu được | ☐ |
-| K2 | Tạo SO nháp DEMO-Himedic chỉ có VT-02 giá 50.500 → Lưu | Dòng VT-02: giá đề xuất 52.000 (51.485 × 1,01), trạng thái **Đang trong thời hạn báo giá**, chênh −1.500, ghi chú "…; giá mới 52000 từ … (chờ gửi thông báo)"; **Đề xuất khác bảng giá** không tích. Không có trong cảnh báo lệch (T9) | ☐ |
+| K2 | Tạo SO nháp DEMO-Himedic chỉ có VT-02 giá 50.500 → Lưu | Dòng VT-02: giá đề xuất 52.000 (51.485 × 1,01), trạng thái hiển thị **Thấp hơn** (bên trong là Đang trong thời hạn báo giá — xem ở báo cáo Doi Soat Gia Mua Gia Ban), chênh −1.500, ghi chú "…; giá mới 52000 từ … (chờ gửi thông báo)"; **Đề xuất khác bảng giá** không tích. Không có trong cảnh báo lệch (T9) | ☐ |
 | K3 | `demo.nhanvien` Submit SO K2 | Submit được — không cần lý do, không cần 3 thông tin chấp thuận (giá mới đang trong luồng báo trước) | ☐ |
 | K4 | SO nháp thứ hai của DEMO-Himedic (VT-01 125.000) | VT-01 vẫn **Cao hơn** — không có giá mới chờ báo nên vẫn là lệch | ☐ |
 | K5 | SO nháp DEMO-Himedic VT-02 giá **52.000** (bán giá mới trước ngày áp) → Lưu | **Không** phải "Đang trong thời hạn báo giá": trạng thái Khớp, **Đề xuất khác bảng giá** có tích → Submit cần 3 thông tin chấp thuận (Q7, PO 22/10) | ☐ |
@@ -78,7 +80,7 @@ Gặp lỗi thiếu tài khoản kho khi Nộp chứng từ kho, hoặc lỗi m�
 | I14 | Gửi khi bảng chờ trống | Báo "Bảng giá chờ … không có giá nào để gửi" | ☐ |
 | I15 | Xóa email nhận trên bảng giá (Giám đốc) rồi gửi | Báo "chưa có Email nhận thông báo đổi giá". Điền lại email | ☐ |
 | I16 | (Chỉ test tự động) Bảng chờ còn dòng chồng ngày lập từ trước khi có kiểm T10 → Gửi | Báo "Giá chờ chồng khoảng ngày với giá khác…"; không dòng nào bị chuyển. Trên giao diện không tạo được dòng như vậy nữa (H10 chặn ngay khi lưu): `test_t10_an_overlap_left_in_the_pending_list_blocks_sending` | ☐ |
-| I17 | Tạo lại SO nháp như K2 → Lưu | Vẫn "Đang trong thời hạn báo giá", ghi chú "(đã báo)" | ☐ |
+| I17 | Tạo lại SO nháp như K2 → Lưu | Trên SO hiển thị Thấp hơn; báo cáo Doi Soat Gia Mua Gia Ban vẫn là "Đang trong thời hạn báo giá", ghi chú "(đã báo)" | ☐ |
 
 ## L. Nhắc việc
 

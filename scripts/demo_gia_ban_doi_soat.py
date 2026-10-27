@@ -13,10 +13,10 @@ Chạy từ thư mục `sites` của bench:
 - Chỉ tạo chứng từ NHÁP; người xem tự Submit để thấy cảnh báo, chặn và email giá mới.
 
 Kịch bản (nghiệm thu BA12):
-  A01  DEMO-VT-01: giá HĐ nguyên tắc 123.457 (DEMO Mua - Vietmed), Himedic 1,01 -> đề xuất 124.692
+  A01  DEMO-VT-01: giá HĐ nguyên tắc 123.457 (DEMO Mua - Vietmed), Himedic 1,01 -> đề xuất 124.691,57
   A02  Supplier Quotation nháp DEMO-Vietmed 125.000 cho DEMO-VT-01: Submit -> đề xuất 126.250
   A03  DEMO-VT-01 cũng có giá HĐ của DEMO-Hùng Minh 118.000: đổi NCC dự kiến trên dòng SO
-  A04  SO Himedic thứ hai bán DEMO-VT-01 giá 125.000 (lệch +308) -> Submit cần lý do
+  A04  SO Himedic thứ hai bán DEMO-VT-01 giá 125.000 (lệch +308,43) -> Submit cần lý do
   A05  "DEMO Bảng giá Himedic" có DEMO-VT-01 = 120.000 khác đề xuất -> Submit cần 3 thông tin
   A06  SO Himedic có email người đặt đơn himedic.demo@example.com -> Submit gửi thông báo giá mới
   A07  DEMO-Khách lẻ không có hệ số -> không kiểm
@@ -194,7 +194,7 @@ def tao_demo():
 		(MUA_HUNG_MINH, "DEMO-VT-01", 118000, -60, "DEMO-Hùng Minh"),  # A03
 		(MUA_HUNG_MINH, "DEMO-VT-02", 50000, -60, "DEMO-Hùng Minh"),
 		(MUA_VIETMED, "DEMO-VT-05", 10000, -60, "DEMO-Vietmed"),
-		(HIMEDIC, "DEMO-VT-01", 120000, -60, None),  # A05: khác đề xuất 124.692
+		(HIMEDIC, "DEMO-VT-01", 120000, -60, None),  # A05: khác đề xuất 124.691,57
 		(HIMEDIC, "DEMO-VT-02", 50500, -60, None),
 		(HIMEDIC, "DEMO-VT-05", 10100, -60, None),
 		(HIMEDIC, "DEMO-VT-03", 30000, -60, None),  # R08: có trong bảng giá, chỉ thiếu giá mua
@@ -232,7 +232,7 @@ def tao_demo():
 		"DEMO-Himedic",
 		d,
 		[
-			("DEMO-VT-01", 10, "Cái", 124692),
+			("DEMO-VT-01", 10, "Cái", 124691.57),
 			("DEMO-VT-02", 20, "Cái", 50500),
 			("DEMO-VT-05", 2, "Hộp", 101000),
 		],

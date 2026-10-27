@@ -17,9 +17,9 @@ Quy ước:
   chiết khấu đơn); bảng giá mua được nhập chưa VAT (P8).
 - Giá mua quy về ĐVT kho, tiền tệ công ty; khi so với dòng bán thì nhân hệ số quy đổi của
   dòng và đổi sang tiền tệ chứng từ.
-- Giá đề xuất = giá mua x hệ số, **làm tròn đến đồng** (R03), nửa đồng làm tròn lên,
-  áp cho mọi đơn vị tiền. Không có dung sai (D04): giá bán làm tròn đến đồng khác giá đề
-  xuất là lệch.
+- Giá đề xuất = giá mua x hệ số, **làm tròn 4 chữ số thập phân** (`SO_LE`, theo BA: như
+  production đang hiển thị đơn giá), nửa lên, áp cho mọi đơn vị tiền. Không có dung sai (D04):
+  giá bán làm tròn 4 chữ số khác giá đề xuất là lệch.
 """
 
 from decimal import ROUND_HALF_UP, Decimal
@@ -37,6 +37,9 @@ CHUA_CO_GIA_MUA = "Chưa có giá mua"
 # Nguồn giá mua (D07)
 BAO_GIA_DOT = "Báo giá đợt"
 HD_NGUYEN_TAC = "HĐ nguyên tắc"
+
+# Số chữ số thập phân khi làm tròn giá đề xuất và so giá (BA: như production).
+SO_LE = 4
 
 # Trạng thái so sánh
 KHOP = "Khớp"
@@ -88,19 +91,19 @@ def tim_gia_mua_nhieu(cap, ngay, company=None):
 	return kq
 
 
-def lam_tron_dong(so):
-	"""Làm tròn đến đồng, nửa đồng làm tròn lên (R03: 124.691,57 -> 124.692)."""
-	return float(Decimal(str(flt(so, 6))).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+def lam_tron_gia(so):
+	"""Làm tròn `SO_LE` chữ số thập phân, nửa lên (124.691,57 -> 124.691,57; 1,23455 -> 1,2346)."""
+	return float(Decimal(str(flt(so, 9))).quantize(Decimal(1).scaleb(-SO_LE), rounding=ROUND_HALF_UP))
 
 
 def tinh_gia_de_xuat(gia_mua_dong, he_so):
-	"""R03: giá mua (ĐVT và tiền tệ của dòng) x hệ số, làm tròn đến đồng."""
-	return lam_tron_dong(flt(gia_mua_dong) * flt(he_so))
+	"""R03: giá mua (ĐVT và tiền tệ của dòng) x hệ số, làm tròn `SO_LE` chữ số thập phân."""
+	return lam_tron_gia(flt(gia_mua_dong) * flt(he_so))
 
 
 def so_sanh(gia_ban, gia_de_xuat):
-	"""(chênh lệch, trạng thái). Chênh = giá bán làm tròn đến đồng - giá đề xuất (D04)."""
-	chenh_lech = lam_tron_dong(gia_ban) - lam_tron_dong(gia_de_xuat)
+	"""(chênh lệch, trạng thái). Chênh = giá bán - giá đề xuất, cùng làm tròn `SO_LE` chữ số (D04)."""
+	chenh_lech = flt(lam_tron_gia(gia_ban) - lam_tron_gia(gia_de_xuat), SO_LE)
 	if chenh_lech == 0:
 		return 0.0, KHOP
 	return chenh_lech, THAP_HON if chenh_lech < 0 else CAO_HON
