@@ -374,3 +374,61 @@ class TestGhepTheoMaQuyDoi(unittest.TestCase):
 	def test_khac_don_vi_kho_van_lech_dvt(self):
 		r = {**_dong(), "dvt_ban": "Test", "dvt_mua": "hộp", "_dvt_kho_ban": "Test", "_dvt_kho_mua": "hộp"}
 		self.assertIn(LECH_DVT, danh_gia(r)["trang_thai"])
+
+
+def _ban_so(sl, gia, ngay, so="SO-1", ten="SI-1", ma="VITD"):
+	return {**_ban_ma(sl, gia, ngay, so_detail="SOI-1", ten=ten, ma=ma), "sales_order": so}
+
+
+def _mua_cap(sl, gia, ngay, so="SO-1", ten="PI-9", ma="VITD"):
+	return {**_mua_ma(sl, gia, ngay, ten=ten, ma=ma), "so_cua_po": (so,)}
+
+
+class TestGhepTrongCapSoPo(unittest.TestCase):
+	def test_ghep_trong_cap_khong_gan_theo_ma(self):
+		kq = ghep([_ban_so(2, 1010, "2026-10-10")], {}, [_mua_cap(2, 1000, "2026-10-05")])
+		self.assertEqual(kq[0]["tang"], 2)
+		self.assertNotIn("theo_ma", kq[0])
+
+	def test_cap_uu_tien_hon_theo_ma(self):
+		# PI-MA đúng giá, ngày gần hơn, nhưng không cùng đơn bán; PI-CAP của PO lập từ SO-1.
+		du_phong = [
+			_mua_ma(2, 1000, "2026-10-09", ten="PI-MA"),
+			_mua_cap(2, 1000, "2026-09-01", ten="PI-CAP"),
+		]
+		kq = ghep([_ban_so(2, 1010, "2026-10-10")], {}, du_phong)
+		self.assertEqual(kq[0]["mua"]["hoa_don"], "PI-CAP")
+
+	def test_cap_khac_so_roi_xuong_theo_ma(self):
+		kq = ghep([_ban_so(2, 1010, "2026-10-10")], {}, [_mua_cap(2, 1000, "2026-10-05", so="SO-2")])
+		self.assertEqual((kq[0]["tang"], kq[0]["theo_ma"]), (3, True))
+
+	def test_cung_ma_chon_theo_so_luong_roi_gia(self):
+		du_phong = [
+			_mua_cap(5, 1000, "2026-10-01", ten="PI-5"),
+			_mua_cap(3, 950, "2026-10-02", ten="PI-3-LECH"),
+			_mua_cap(3, 1000, "2026-10-03", ten="PI-3"),
+		]
+		kq = ghep([_ban_so(3, 1010, "2026-10-10")], {}, du_phong)
+		self.assertEqual([m["mua"]["hoa_don"] for m in kq], ["PI-3"])
+
+	def test_cap_khong_chan_theo_ty_le_gia(self):
+		# Có chứng từ nối: ghép rồi để danh_gia báo lệch, thay vì báo thiếu đầu vào.
+		kq = ghep([_ban_so(5, 17776, "2026-09-15")], {}, [_mua_cap(5, 176000, "2026-08-04")])
+		self.assertEqual(kq[0]["tang"], 2)
+
+	def test_cap_khong_gianh_pi_cua_dong_sau_qua_chuoi(self):
+		# Lượt chuỗi chạy hết trước: PI-C để dành cho SI-2, SI-1 lấy PI-D theo cặp.
+		ban = [
+			_ban_so(2, 1010, "2026-10-01", ten="SI-1"),
+			{**_ban_so(2, 1010, "2026-10-02", ten="SI-2"), "so_detail": "SOI-2"},
+		]
+		kq = ghep(ban, {"SOI-2": [_mua(2, 2000, ten="PI-C")]}, [_mua_cap(2, 1000, "2026-09-30", ten="PI-D")])
+		self.assertEqual(
+			[(m["ban"]["hoa_don"], m["mua"]["hoa_don"]) for m in kq], [("SI-1", "PI-D"), ("SI-2", "PI-C")]
+		)
+
+	def test_tong_dem_rieng_cap_va_theo_ma(self):
+		t = tong_hop([{**danh_gia(_dong(sl=10)), "theo_cap": 1}, {**danh_gia(_dong()), "theo_ma": 1}])
+		self.assertEqual((t["tom_tat"]["so_dong_theo_cap"], t["tom_tat"]["so_dong_theo_ma"]), (1, 1))
+		self.assertEqual(t["tom_tat"]["doanh_thu_theo_cap"], 1010000)

@@ -176,3 +176,27 @@ Anh đã chốt cách xử lý: ghép dự phòng theo mã hàng, trạng thái 
   - Ghi chú "Ghép theo mã hàng – thiếu liên kết SO→PO", hoặc "– HĐ bán không qua SO".
   - Ô tóm tắt và Excel có thêm số dòng và doanh thu ghép theo mã.
 - **Rủi ro đã biết:** nếu cùng mã hàng mua cho nhiều khách mà PO không gắn SO, PI có thể bị ghép cho dòng bán đến trước, không đúng khách. Ghi chú trên dòng là dấu hiệu để kiểm tra lại.
+
+## 11. Đợt 4 (27/10/2026): ba tầng ghép, tách "trong cặp SO→PO" khỏi "theo mã hàng"
+
+Anh đề xuất: cảnh báo "thiếu liên kết" chỉ dành cho dòng thật sự không có chứng từ nối; dòng mà PO vẫn lập từ đúng đơn bán thì nhãn nhẹ hơn.
+
+- **Tầng ① chuỗi** (`so_detail` → PO `sales_order_item` → PI `po_detail`): giữ nguyên.
+- **Tầng ② trong cặp SO→PO:** lấy dòng PI trong pool dự phòng (cùng quy tắc pool ở §10), cùng `item_code`, mà **PO của nó có ít nhất một dòng** lập từ đơn bán của dòng bán. Xét cả PO chứ không xét riêng dòng PO, vì trên prod dòng hàng hay được thêm tay vào PO lập từ SO. Ví dụ PO-00078 có 3 dòng từ SAL-ORD-00052 và 6 dòng thêm tay. Các dòng thêm tay không mang `sales_order`, nên nếu xét theo dòng thì tầng ② ra 0 dòng.
+  - Ưu tiên: cùng số lượng (theo đơn vị kho) với phần còn thiếu của dòng bán, rồi tỷ lệ giá gần `ty_le_hd` nhất, rồi ngày như tầng ③.
+  - **Không chặn theo khoảng tỷ lệ giá:** đã có chứng từ nối, nên ghép rồi để trạng thái báo Lệch giá hoặc Lệch ĐVT, thay vì báo thiếu đầu vào.
+  - Ghi chú: "Ghép trong cặp SO→PO (SO → PO)". Cột ẩn `theo_cap=1`, không gắn `theo_ma`.
+- **Tầng ③ theo mã hàng toàn kỳ:** như §10, giữ khoảng tỷ lệ 0,5–2. Chỉ tầng này mang ghi chú "thiếu liên kết SO→PO" và được đếm vào "Ghép theo mã hàng (thiếu liên kết)".
+- Mỗi tầng chạy hết mọi dòng bán rồi mới sang tầng sau. Dòng SI kỳ trước hoặc của khách khác (`trong_ky=False`) có thêm `sales_order`, nên cũng tiêu tầng ② theo đúng thứ tự thời gian.
+- Ô tóm tắt và Excel thêm "Ghép trong cặp SO→PO" (số dòng, doanh thu), không tô cảnh báo.
+- **Giới hạn:**
+  - SO bị huỷ rồi sửa (amend) thì SI trỏ `SO-x-1` còn PO trỏ SO cũ, nên không thành cặp và rơi xuống tầng ③. Chưa xử lý `amended_from`.
+  - SINV-00030 vẫn ở tầng ③: PI-00054 lập từ PO-00071 lập tay, không gắn SO nào.
+- **Chạy thử trên dữ liệu prod (27/10), tháng 10 Himedic:**
+  - Ghép giống hệt code đang chạy, từng dòng: 72 dòng, 68 Khớp, 4 Thiếu (vẫn SINV-00028, PI-00022 sai hệ số quy đổi). Chỉ nhãn đổi.
+  - 25 dòng ghép theo mã tách thành 10 dòng tầng ② (SINV-00043, -00035-1, -00047, -00050) và 15 dòng tầng ③.
+  - Phân loại 15 dòng tầng ③:
+    - 10 dòng có PO lập tay hoàn toàn: PO-00060, -00059, -00071, -00082.
+    - 4 dòng HĐ bán không qua SO, mà lập từ phiếu giao: SINV-00029, -00046.
+    - 1 dòng PI không qua PO.
+  - Hướng mở rộng chưa làm: lấy SO của dòng bán qua phiếu giao (`against_sales_order`).

@@ -131,7 +131,7 @@ def get_data(filters):
 	if not si_trong_ky:
 		return []
 
-	dong_ban = _dong_hoa_don("Sales Invoice", si_trong_ky, tk_vat, ["so_detail"])
+	dong_ban = _dong_hoa_don("Sales Invoice", si_trong_ky, tk_vat, ["so_detail", "sales_order"])
 	for d in dong_ban:
 		d["trong_ky"] = True
 	so_details = sorted({d.so_detail for d in dong_ban if d.so_detail and not d.is_return})
@@ -312,6 +312,7 @@ def _cot_ban_tieu(sii, si):
 		sii.idx,
 		sii.item_code,
 		sii.so_detail,
+		sii.sales_order,
 		sii.qty,
 		sii.conversion_factor,
 		sii.net_rate,
@@ -330,7 +331,11 @@ def _dong_mua_du_phong(company, ma_hang, tk_vat):
 	"""Dòng PI cùng mã hàng không thuộc chuỗi nào: không qua PO, dòng PO không lập từ SO,
 	hoặc lập từ một dòng SO chưa xuất HĐ bán nào (SO lập trùng, HĐ bán lại xuất từ SO
 	khác). Dòng SO đã có HĐ bán — bất kể ngày nào, để mở lại kỳ cũ vẫn ra như trước —
-	thì PI của nó thuộc chuỗi của dòng SO đó."""
+	thì PI của nó thuộc chuỗi của dòng SO đó.
+
+	Mỗi dòng mang `so_cua_po`: các đơn bán mà PO của nó có ít nhất một dòng lập từ, để
+	ghép trong cặp SO→PO. Xét cả PO chứ không chỉ dòng PO: trên prod, dòng hàng thường
+	được thêm tay vào PO lập từ SO, nên chính dòng đó không mang `sales_order`."""
 	if not ma_hang:
 		return []
 	pi = frappe.qb.DocType("Purchase Invoice")
@@ -342,7 +347,7 @@ def _dong_mua_du_phong(company, ma_hang, tk_vat):
 		.on(pi.name == pii.parent)
 		.left_join(poi)
 		.on(poi.name == pii.po_detail)
-		.select(pii.name, pii.parent, poi.sales_order_item)
+		.select(pii.name, pii.parent, pii.purchase_order, poi.parent.as_("po"), poi.sales_order_item)
 		.where(
 			(pi.docstatus == 1)
 			& (pi.is_return == 0)
@@ -353,15 +358,36 @@ def _dong_mua_du_phong(company, ma_hang, tk_vat):
 	)
 	so_items = sorted({d.sales_order_item for d in dong if d.sales_order_item})
 	da_ban = _dong_so_da_ban(so_items)
-	ten = {d.name: d.parent for d in dong if not d.sales_order_item or d.sales_order_item not in da_ban}
+	ten = {d.name: d for d in dong if not d.sales_order_item or d.sales_order_item not in da_ban}
 	if not ten:
 		return []
 	dong = [
-		d for d in _dong_hoa_don("Purchase Invoice", sorted(set(ten.values())), tk_vat, []) if d.name in ten
+		d
+		for d in _dong_hoa_don(
+			"Purchase Invoice", sorted({d.parent for d in ten.values()}), tk_vat, ["purchase_order"]
+		)
+		if d.name in ten
 	]
+	so_cua_po = _so_cua_po({ten[d.name].po or ten[d.name].purchase_order for d in dong} - {None})
 	for d in dong:
 		d.sl = flt(d.qty)
+		d.so_cua_po = so_cua_po.get(ten[d.name].po or ten[d.name].purchase_order, ())
 	return dong
+
+
+def _so_cua_po(po):
+	"""{PO: (các đơn bán mà PO có dòng lập từ)} cho các PO `po`."""
+	if not po:
+		return {}
+	kq = {}
+	for d in frappe.get_all(
+		"Purchase Order Item",
+		filters={"docstatus": 1, "parent": ("in", sorted(po))},
+		fields=["parent", "sales_order"],
+	):
+		if d.sales_order:
+			kq.setdefault(d.parent, set()).add(d.sales_order)
+	return {k: tuple(sorted(v)) for k, v in kq.items()}
 
 
 def _dong_so_da_ban(so_items):
@@ -451,7 +477,10 @@ def _dong_bao_cao(m, so_hd_ban):
 		goc = b.get("return_against")
 		r["tra_cho"] = goc
 		ghi_chu.append(f"Trả lại HĐ {_so_hd(so_hd_ban, goc) or goc}" if goc else "Hàng trả lại")
-	if m.get("theo_ma"):
+	if m.get("tang") == 2:
+		r["theo_cap"] = 1
+		ghi_chu.append(f"Ghép trong cặp SO→PO ({b['sales_order']} → {p.get('purchase_order') or '?'})")
+	elif m.get("theo_ma"):
 		r["theo_ma"] = 1
 		ghi_chu.append(
 			"Ghép theo mã hàng – thiếu liên kết SO→PO"

@@ -47,7 +47,7 @@ def _doi_tac(doctype):
 	return frappe.get_doc({"doctype": doctype, **doc}).insert(ignore_permissions=True).name
 
 
-def _so(customer, qty, rate, ngay, item=None):
+def _so(customer, qty, rate, ngay, item=None, ma_them=()):
 	return _luu(
 		frappe.get_doc(
 			{
@@ -60,7 +60,7 @@ def _so(customer, qty, rate, ngay, item=None):
 				"conversion_rate": 1,
 				"items": [
 					{
-						"item_code": item or ensure_item(),
+						"item_code": ma,
 						"qty": qty,
 						"rate": rate,
 						"uom": ensure_uom(),
@@ -68,6 +68,7 @@ def _so(customer, qty, rate, ngay, item=None):
 						"warehouse": WAREHOUSE,
 						"delivery_date": ngay,
 					}
+					for ma in (item or ensure_item(), *ma_them)
 				],
 				"taxes": _vat(),
 			}
@@ -75,8 +76,21 @@ def _so(customer, qty, rate, ngay, item=None):
 	)
 
 
-def _po(so, supplier, rate, ngay, item=None):
+def _po(so, supplier, rate, ngay, item=None, bo_dong_so=False, them_tay=()):
+	"""PO lập từ SO; `bo_dong_so` xoá `sales_order_item` (dòng PO bị sửa), giữ `sales_order`;
+	`them_tay` thêm dòng hàng tay (không `sales_order`) vào cùng PO."""
 	po = make_purchase_order(so.name, [{"item_code": item or ensure_item()}])
+	for ma, qty in them_tay:
+		po.append(
+			"items",
+			{
+				"item_code": ma,
+				"qty": qty,
+				"uom": ensure_uom(),
+				"conversion_factor": 1,
+				"warehouse": WAREHOUSE,
+			},
+		)
 	po.supplier = supplier
 	po.transaction_date = ngay
 	po.schedule_date = ngay
@@ -86,6 +100,8 @@ def _po(so, supplier, rate, ngay, item=None):
 	for it in po.items:
 		it.rate = rate
 		it.schedule_date = ngay
+		if bo_dong_so:
+			it.sales_order_item = None
 	return _luu(po)
 
 
@@ -271,6 +287,36 @@ class TestDoiChieuMuaVaoBanRa(FrappeTestCase):
 		self.assertEqual(len(dong), 1)
 		self.assertEqual((dong[0]["trang_thai"], dong[0]["so_hd_mua"]), ("Khớp", "00022004"))
 		self.assertIn("Ghép theo mã hàng – thiếu liên kết SO→PO", dong[0]["ghi_chu"])
+
+	def test_ghep_trong_cap_so_po_khi_dong_po_mat_lien_ket(self):
+		ma = self._ma()
+		so = _so(self.customer, 10, 101000, self.hom_nay, ma)
+		po = _po(so, self.supplier, 100000, self.hom_nay, ma, bo_dong_so=True)
+		self.assertEqual((po.items[0].sales_order, po.items[0].sales_order_item), (so.name, None))
+		_pi(po, 10, "00022006", self.hom_nay)
+		_si_tu_so(so, self.hom_nay)
+		dong, tong = _du_lieu(customer=self.customer)
+		self.assertEqual(len(dong), 1)
+		r = dong[0]
+		self.assertEqual((r["trang_thai"], r["so_hd_mua"], r.get("theo_cap")), ("Khớp", "00022006", 1))
+		self.assertIsNone(r.get("theo_ma"))
+		self.assertIn(f"Ghép trong cặp SO→PO ({so.name} → {po.name})", r["ghi_chu"])
+		self.assertNotIn("thiếu liên kết", r["ghi_chu"])
+		self.assertEqual((tong["tom_tat"]["so_dong_theo_cap"], tong["tom_tat"]["so_dong_theo_ma"]), (1, 0))
+
+	def test_ghep_trong_cap_khi_dong_po_them_tay(self):
+		# Mẫu prod (PO-00078): PO lập từ SO cho mã A, mã B thêm tay vào cùng PO.
+		ma_a, ma_b = self._ma(), self._ma()
+		so = _so(self.customer, 10, 101000, self.hom_nay, ma_a, ma_them=(ma_b,))
+		po = _po(so, self.supplier, 100000, self.hom_nay, ma_a, them_tay=((ma_b, 10),))
+		self.assertEqual([it.sales_order for it in po.items], [so.name, None])
+		_pi(po, 10, "00022007", self.hom_nay)
+		_si_tu_so(so, self.hom_nay)
+		dong, tong = _du_lieu(customer=self.customer)
+		self.assertEqual([r["trang_thai"] for r in dong], ["Khớp", "Khớp"])
+		self.assertEqual([r.get("theo_cap") for r in dong], [None, 1])
+		self.assertIn(f"Ghép trong cặp SO→PO ({so.name} → {po.name})", dong[1]["ghi_chu"])
+		self.assertEqual((tong["tom_tat"]["so_dong_theo_cap"], tong["tom_tat"]["so_dong_theo_ma"]), (1, 0))
 
 	def test_pi_du_phong_khong_ghep_lai_o_ky_sau(self):
 		thang_truoc = add_months(get_first_day(self.hom_nay), -1)

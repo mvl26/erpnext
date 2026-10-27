@@ -58,17 +58,23 @@ def _cat(con, sl):
 
 
 def ghep(ban, mua, du_phong=(), ty_le=None):
-	"""Ghép dòng bán với dòng PI, tiêu dần số lượng. Trả `[{"ban", "mua" | None, "theo_ma"?}]`.
+	"""Ghép dòng bán với dòng PI, tiêu dần số lượng. Trả `[{"ban", "mua" | None, "tang"?}]`.
 
-	Lượt 1 theo chuỗi: dòng PI cùng `so_detail` (`mua`), theo thứ tự. Lượt 2 lấy phần SL
-	còn thiếu ghép với `du_phong` (dòng PI không thuộc chuỗi nào) cùng `item_code`; mảnh
-	lượt 2 có `theo_ma=True`. Lượt 1 chạy hết mọi dòng bán trước, kẻo dòng ghép theo mã
-	giành mất PI mà một dòng bán sau với tới được qua chuỗi.
+	Ba lượt, mỗi lượt chạy hết mọi dòng bán rồi mới tới lượt sau, kẻo một dòng ghép lỏng
+	giành mất PI mà một dòng bán sau với tới được bằng liên kết chặt hơn:
 
-	Lượt 2 tính SL theo đơn vị kho (`conversion_factor`), vì NCC có thể xuất theo hộp
-	còn bán theo test; mỗi bên cắt theo ĐVT trên hoá đơn của mình. Dòng PI có tỷ lệ giá
-	(theo đơn vị kho) ngoài `KHOANG_TY_LE_DU_PHONG` lần `ty_le` không được ghép: không
-	có chứng từ nào nối hai bên, chênh gấp chục lần là sai ĐVT chứ không phải lệch giá.
+	1. Theo chuỗi: dòng PI cùng `so_detail` (`mua`), theo thứ tự.
+	2. Trong cặp SO→PO (`tang=2`): dòng `du_phong` cùng `item_code` mà PO của nó có dòng
+	   lập từ đơn bán của dòng bán (`sales_order` thuộc `so_cua_po`) — dòng hàng thêm tay
+	   hoặc sửa trong PO lập từ SO, hoặc SO có hai dòng cùng mã. Có chứng từ nối nên không chặn theo
+	   tỷ lệ giá; lệch thì `danh_gia` gắn cờ. Ưu tiên dòng cùng số lượng, rồi giá, rồi ngày.
+	3. Theo mã hàng (`tang=3`, `theo_ma=True`): phần còn thiếu ghép với dòng `du_phong`
+	   bất kỳ cùng `item_code`. Dòng PI có tỷ lệ giá (theo đơn vị kho) ngoài
+	   `KHOANG_TY_LE_DU_PHONG` lần `ty_le` không được ghép: không có chứng từ nào nối hai
+	   bên, chênh gấp chục lần là sai ĐVT chứ không phải lệch giá.
+
+	Lượt 2 và 3 tính SL theo đơn vị kho (`conversion_factor`), vì NCC có thể xuất theo hộp
+	còn bán theo test; mỗi bên cắt theo ĐVT trên hoá đơn của mình.
 
 	`ban` đã sắp theo thời gian; dòng `trong_ky=False` (hoá đơn bán kỳ trước, hoặc của
 	khách khác cùng mã hàng) chỉ tiêu số lượng PI chứ không xuất ra.
@@ -92,19 +98,13 @@ def ghep(ban, mua, du_phong=(), ty_le=None):
 	for p in du_phong:
 		kho.setdefault(p.get("item_code"), []).append(_con_lai(p))
 	for b, con, manh in viec:
-		if con["sl"] <= _EPS or b.get("is_return") or not b.get("item_code"):
-			continue
-		hs_ban = _he_so(b)
-		ung_vien = [p for p in kho.get(b["item_code"], ()) if _hop_ty_le(b, p["goc"], ty_le)]
-		for p in sorted(ung_vien, key=lambda p: _uu_tien(b, p["goc"], ty_le)):
-			if con["sl"] <= _EPS:
-				break
-			if p["sl"] > _EPS:
-				hs_mua = _he_so(p["goc"])
-				sl_kho = min(con["sl"] * hs_ban, p["sl"] * hs_mua)
-				manh.append(
-					{"ban": _cat(con, sl_kho / hs_ban), "mua": _cat(p, sl_kho / hs_mua), "theo_ma": True}
-				)
+		so = b.get("sales_order")
+		if so:
+			ung_vien = [p for p in kho.get(b.get("item_code"), ()) if so in (p["goc"].get("so_cua_po") or ())]
+			_tieu(b, con, manh, ung_vien, lambda p: _uu_tien_cap(b, con, p, ty_le), {"tang": 2})
+	for b, con, manh in viec:
+		ung_vien = [p for p in kho.get(b.get("item_code"), ()) if _hop_ty_le(b, p["goc"], ty_le)]
+		_tieu(b, con, manh, ung_vien, lambda p: _uu_tien(b, p["goc"], ty_le), {"tang": 3, "theo_ma": True})
 
 	kq = []
 	for b, con, manh in viec:
@@ -113,6 +113,20 @@ def ghep(ban, mua, du_phong=(), ty_le=None):
 		if b.get("trong_ky", True):
 			kq.extend(manh)
 	return kq
+
+
+def _tieu(b, con, manh, ung_vien, khoa, nhan):
+	"""Lượt 2/3: lấy phần SL còn thiếu của dòng bán từ `ung_vien`, theo thứ tự `khoa`."""
+	if con["sl"] <= _EPS or b.get("is_return") or not b.get("item_code"):
+		return
+	hs_ban = _he_so(b)
+	for p in sorted(ung_vien, key=khoa):
+		if con["sl"] <= _EPS:
+			break
+		if p["sl"] > _EPS:
+			hs_mua = _he_so(p["goc"])
+			sl_kho = min(con["sl"] * hs_ban, p["sl"] * hs_mua)
+			manh.append({"ban": _cat(con, sl_kho / hs_ban), "mua": _cat(p, sl_kho / hs_mua), **nhan})
 
 
 def _he_so(d):
@@ -160,6 +174,14 @@ def _uu_tien(b, p, ty_le):
 	else:
 		sau, cach = False, 0
 	return (sau, lech, cach, ngay_mua or getdate("1900-01-01"), p.get("parent") or "", p.get("idx") or 0)
+
+
+def _uu_tien_cap(b, con, p, ty_le):
+	"""Khoá xếp dòng PI trong cặp SO→PO: cùng số lượng (đơn vị kho) với phần còn thiếu của
+	dòng bán trước, rồi tỷ lệ giá gần `ty_le` nhất, rồi ngày như `_uu_tien`."""
+	lech_sl = abs(con["sl"] * _he_so(b) - p["sl"] * _he_so(p["goc"])) > _EPS
+	sau, lech, *con_lai = _uu_tien(b, p["goc"], ty_le)
+	return (lech_sl, lech, sau, *con_lai)
 
 
 # Hợp đồng Himedic: giá bán = giá mua x 1,01. Lệch quá dung sai thì gắn cờ.
@@ -272,6 +294,7 @@ def tong_hop(data):
 				dem[nhan] += 1
 	thieu = [r for r in data if r.get("trang_thai") == THIEU_DAU_VAO]
 	theo_ma = [r for r in data if r.get("theo_ma")]
+	theo_cap = [r for r in data if r.get("theo_cap")]
 	tong["tom_tat"] = {
 		"so_dong": len(data),
 		"so_hd_ban": len({r["sales_invoice"] for r in data if r.get("sales_invoice")}),
@@ -282,5 +305,7 @@ def tong_hop(data):
 		"doanh_thu_thieu_dau_vao": flt(sum(flt(r.get("thanh_tien_ban")) for r in thieu), 0),
 		"so_dong_theo_ma": len(theo_ma),
 		"doanh_thu_theo_ma": flt(sum(flt(r.get("thanh_tien_ban")) for r in theo_ma), 0),
+		"so_dong_theo_cap": len(theo_cap),
+		"doanh_thu_theo_cap": flt(sum(flt(r.get("thanh_tien_ban")) for r in theo_cap), 0),
 	}
 	return tong
