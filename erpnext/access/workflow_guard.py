@@ -49,13 +49,19 @@ def _matrix():
 	return load_matrix()
 
 
+def workflows_on() -> bool:
+	"""Whether the matrix builds approval workflows at all (``rules.workflows_enabled``)."""
+	from erpnext.access.permissions.workflows import workflows_enabled
+
+	return workflows_enabled(_matrix())
+
+
 @lru_cache(maxsize=1)
 def _managed_names() -> frozenset:
-	from erpnext.access.permissions.workflows import workflow_name
+	"""Names of the RBAC-built workflows; none while ``workflows_on()`` is off, so every guard here passes."""
+	from erpnext.access.permissions.workflows import built_workflows
 
-	return frozenset(
-		workflow_name(code, doctype) for code, wf in _matrix().workflows.items() for doctype in wf["doctypes"]
-	)
+	return frozenset(built_workflows(_matrix())) if workflows_on() else frozenset()
 
 
 def _active_workflow(doctype: str):

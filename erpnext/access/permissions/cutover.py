@@ -2,8 +2,8 @@
 
     bench --site <site> execute erpnext.access.permissions.cutover.run --kwargs "{'dry_run': 0}"
 
-Order: legacy workflows → ``workflow_state`` remap of existing documents → retire legacy roles, User Type and
-Role Profiles. Run it after every user has an ``RP-*`` Role Profile (Bước 6.2): an old profile still held by a
+Order: legacy workflows → ``workflow_state`` remap of existing documents (only while the matrix's
+``workflows_enabled`` is on) → retire legacy roles, User Type and Role Profiles. Run it after every user has an ``RP-*`` Role Profile (Bước 6.2): an old profile still held by a
 user is kept. Each step returns human-readable lines; ``dry_run=1`` performs no write at all.
 
 Writes are plain SQL / ``set_value`` — never ``doc.save`` — so no guard, email or workflow fires during cutover.
@@ -33,10 +33,13 @@ ESS_USER_TYPE = "Employee Self Service"
 
 def run(dry_run: int = 1, approved_bank_accounts: list[str] | None = None) -> list[str]:
 	"""Run every cutover step; returns what was done (or, with ``dry_run``, what would be done)."""
+	from erpnext.access.permissions.workflows import workflows_enabled
+
 	dry = bool(cint(dry_run))
+	remap = workflows_enabled(load_matrix())  # no RBAC workflow → no state to move old documents to
 	lines = [
 		*retire_workflows(dry),
-		*remap_workflow_states(dry, approved_bank_accounts),
+		*(remap_workflow_states(dry, approved_bank_accounts) if remap else []),
 		*retire_legacy(dry),
 	]
 	if not dry and lines:

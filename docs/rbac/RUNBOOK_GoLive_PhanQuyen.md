@@ -476,7 +476,8 @@ Nếu cần phục hồi các thứ này, dùng bản `bench backup` ở bước
 
 | Nhóm | Xóa | Điều kiện |
 |---|---|---|
-| Workflow test | `SO Test Workflow` (test core `test_sales_order`, đang active trên Sales Order) | không chứng từ nào mang trạng thái của nó |
+| Workflow chết | `SO Test Workflow` (test core `test_sales_order`) | không còn liên kết; chứng từ giữ nguyên `workflow_state` và docstatus |
+| Workflow RBAC (khi `workflows_enabled: false`) | mọi workflow sync dựng từ `workflows.json` (`WF-PO Purchase Order`, `WF-SO Sales Order`…); `Cong Tac Approval` chỉ khi sync đã sửa nó (có điều kiện G11), hrms tự dựng lại bản gốc ngay trong lần migrate đó. Cột `workflow_state` trong list view được ẩn lại | không còn liên kết; chứng từ đang "Chờ …" thành nháp thường, ai có quyền Submit trên DocType thì submit được |
 | Role của app không cài / test | role của `mvl_accounting`, `antmed_crm`, `normcore`/`norm_himedic`, `Test Approver`, `Test Junior Approver`, `Analytics` (danh sách `DEAD_ROLES`) | không còn liên kết nào ngoài user; user đang giữ thì bị gỡ (role không cấp quyền gì) |
 | Tên do RBAC sở hữu | role `MVL *` và profile `RP-*` (kể cả profile ghép) mà matrix không còn liệt kê | không user nào giữ |
 | Profile cũ | `Inventory`, `Manufacturing`, `Accounts`, `Sales`, `Purchase`, `HR`, các profile phòng ban VN cũ | không user nào giữ |

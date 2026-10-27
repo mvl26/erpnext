@@ -52,7 +52,7 @@ def _write_steps(m, site) -> dict:
 	summary["warnings"] += ui_roles.sync_page_roles(m)
 	summary["warnings"] += ui_roles.sync_workspace_roles(m)
 	workflows = _optional("workflows")  # Task 16 adds the module; no-op until then
-	if workflows:
+	if workflows and workflows.workflows_enabled(m):
 		workflows.sync_workflows(m)
 	summary["audit"] += settings.sync_settings(m)
 	counters["two_factor_roles"] = settings.sync_two_factor_roles(m)

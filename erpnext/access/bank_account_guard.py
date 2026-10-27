@@ -6,13 +6,15 @@ classic payment fraud) must sit in the approved state.
 R-GATE: ``validate`` returns at once while ``mvl_rbac_enabled`` is off. Administrator and ``ignore_permissions``
 saves (system-made entries) skip the check. A site whose Bank Account table has no ``workflow_state`` column yet
 is skipped too: the RBAC sync creates that column (``ensure_schema``) before the flag can matter, and failing
-closed without it would block every payment on a site that never ran the sync.
+closed without it would block every payment on a site that never ran the sync. With the matrix's
+``workflows_enabled`` off there is no WF-BA to approve through, so the check is off as well.
 """
 
 import frappe
 from frappe import _
 
 from erpnext.access.permissions.sync import is_enabled
+from erpnext.access.workflow_guard import workflows_on
 
 APPROVED = "Đã duyệt"
 FIELDS = ("bank_account", "party_bank_account")
@@ -24,7 +26,7 @@ def _has_state_column() -> bool:
 
 def validate(doc, method=None) -> None:
 	"""``validate`` hook of Payment Entry: throw naming every Bank Account that is not approved."""
-	if not is_enabled():
+	if not is_enabled() or not workflows_on():  # no WF-BA, so no Bank Account can reach "Đã duyệt"
 		return
 	if frappe.session.user == "Administrator" or doc.flags.ignore_permissions:
 		return

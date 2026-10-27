@@ -162,7 +162,57 @@ class TestRoleCleanup(CleanupCase):
 
 	def test_missing_dead_workflow_is_ignored(self):
 		with patch.object(cleanup, "DEAD_WORKFLOWS", (f"ZZT no such workflow {self.tag}",)):
-			self.assertEqual(cleanup._workflows(dry=False), [])
+			self.assertEqual(cleanup._workflows(dry=False, m=self.with_workflows(True)), [])
+
+	def with_workflows(self, on):
+		from erpnext.access.permissions.matrix import load_matrix
+
+		m = small_matrix(workflows=load_matrix().workflows)
+		m.rules = {**m.rules, "workflows_enabled": on}
+		return m
+
+	def test_rbac_workflows_retire_only_when_switched_off(self):
+		self.assertEqual(cleanup.retired_rbac_workflows(self.with_workflows(True)), [])
+		names = cleanup.retired_rbac_workflows(self.with_workflows(False))
+		self.assertIn("WF-PO Purchase Order", names)
+		self.assertIn("WF-LA Shift Request", names)
+		self.assertNotIn("Cong Tac Approval", names)  # hrms' own version: no G11 condition
+
+	def test_cong_tac_approval_rewritten_by_the_sync_is_retired(self):
+		if not frappe.db.exists("Workflow", "Cong Tac Approval"):
+			self.skipTest("hrms workflow Cong Tac Approval is absent on this site")
+		frappe.get_doc(
+			{
+				"doctype": "Workflow Transition",
+				"parent": "Cong Tac Approval",
+				"parenttype": "Workflow",
+				"parentfield": "transitions",
+				"state": "Chờ COO duyệt",
+				"action": "Duyệt",
+				"next_state": "COO đã duyệt",
+				"allowed": "COO",
+				"condition": cleanup.G11_MARKER,
+			}
+		).db_insert()
+		self.assertIn("Cong Tac Approval", cleanup.retired_rbac_workflows(self.with_workflows(False)))
+
+	def test_deleted_workflow_leaves_cache_and_list_column_clean(self):
+		doctype = frappe.db.get_value("Workflow", {}, "document_type")
+		if not doctype:
+			self.skipTest("no Workflow on this site")
+		name = frappe.db.get_value("Workflow", {"document_type": doctype}, "name")
+		with (
+			patch.object(cleanup, "DEAD_WORKFLOWS", (name,)),
+			patch.object(cleanup, "_delete", return_value=f"done: xóa Workflow '{name}'") as delete,
+			patch.object(cleanup, "_hide_state_column") as hide,
+			patch.object(frappe.cache, "hdel") as hdel,
+			patch.object(frappe.db, "exists", return_value=False),
+		):
+			lines = cleanup._workflows(dry=False, m=self.with_workflows(True))
+		self.assertEqual(lines, [f"done: xóa Workflow '{name}'"])
+		delete.assert_called_once_with(False, "Workflow", name)
+		hdel.assert_called_once_with("workflow", doctype)
+		hide.assert_called_once_with(doctype)
 
 	def test_real_dead_lists_never_name_a_matrix_role_or_profile(self):
 		from erpnext.access.permissions.matrix import load_matrix

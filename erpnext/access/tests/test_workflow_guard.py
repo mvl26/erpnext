@@ -170,9 +170,17 @@ class TestWorkflowGuard(FrappeTestCase):
 			self.assertEqual(cancelled.workflow_state, "Đã duyệt")
 			self.assertEqual(markers(doc), [])
 
+	def test_workflows_off_manages_nothing(self):
+		workflow_guard.reload_rules()
+		self.addCleanup(workflow_guard.reload_rules)
+		with patch.object(workflow_guard, "workflows_on", return_value=False):
+			self.assertEqual(workflow_guard._managed_names(), frozenset())
+
 	def test_managed_workflows_are_found(self):
 		workflow_guard.reload_rules()
-		managed = workflow_guard._managed_names()
+		self.addCleanup(workflow_guard.reload_rules)
+		with patch.object(workflow_guard, "workflows_on", return_value=True):
+			managed = workflow_guard._managed_names()
 		self.assertIn("WF-PO Purchase Order", managed)
 		self.assertIn("Cong Tac Approval", managed)  # WF-BT keeps hrms' name
 		self.assertNotIn("SO Test Workflow", managed)

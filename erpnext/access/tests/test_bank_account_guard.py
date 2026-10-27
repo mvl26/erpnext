@@ -13,6 +13,7 @@ from erpnext.access import bank_account_guard
 from erpnext.access.tests.helpers import make_user
 
 ENABLED = "erpnext.access.bank_account_guard.is_enabled"
+WORKFLOWS_ON = "erpnext.access.bank_account_guard.workflows_on"
 
 
 def bank_account(bank, state=None):
@@ -47,9 +48,10 @@ class TestBankAccountGuard(FrappeTestCase):
 		cls.au = make_user("Accounts User")
 
 	def setUp(self):
-		patcher = patch(ENABLED, return_value=True)
-		patcher.start()
-		self.addCleanup(patcher.stop)
+		for target in (ENABLED, WORKFLOWS_ON):
+			patcher = patch(target, return_value=True)
+			patcher.start()
+			self.addCleanup(patcher.stop)
 		self.addCleanup(frappe.set_user, "Administrator")
 
 	def run_as(self, user, doc):
@@ -77,6 +79,10 @@ class TestBankAccountGuard(FrappeTestCase):
 
 	def test_gate_off_is_a_no_op(self):
 		with patch(ENABLED, return_value=False):
+			self.run_as(self.au, payment_entry(bank_account=self.pending))
+
+	def test_workflows_off_is_a_no_op(self):  # no WF-BA to approve a Bank Account through
+		with patch(WORKFLOWS_ON, return_value=False):
 			self.run_as(self.au, payment_entry(bank_account=self.pending))
 
 	def test_administrator_and_ignore_permissions_skip(self):

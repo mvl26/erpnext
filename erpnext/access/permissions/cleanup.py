@@ -5,7 +5,8 @@
 
 Removes only what is dead — nothing grants a right through it and no installed app recreates it:
 
-1. ``DEAD_WORKFLOWS`` — test leftovers, while no document carries one of their states;
+1. ``DEAD_WORKFLOWS`` — test leftovers — and, while the matrix's ``workflows_enabled`` is off,
+   every workflow the sync built (``retired_rbac_workflows``). Documents keep their state value and docstatus;
 2. ``DEAD_ROLES`` — roles of apps that are not installed on the site, test leftovers, and the ERPNext
    ``Analytics`` role (created once by ``setup.install.after_install``, used nowhere). Users holding one lose it:
    the role grants nothing, which the link check below proves before anything is deleted;
@@ -30,7 +31,12 @@ from frappe.utils import cint, strip_html
 
 from erpnext.access.permissions.matrix import Matrix, load_matrix
 
-DEAD_WORKFLOWS = ("SO Test Workflow",)  # erpnext test_sales_order, active on Sales Order since 2026-09-08
+DEAD_WORKFLOWS = (
+	"SO Test Workflow",  # erpnext test_sales_order, active on Sales Order since 2026-09-08
+)
+G11_MARKER = (
+	"doc.owner != frappe.session.user"  # workflows.g11_condition — only RBAC-built transitions carry it
+)
 DEAD_ROLES = (
 	# mvl_accounting (parked, not installed)
 	"Kế toán trưởng",
@@ -76,7 +82,7 @@ def run(dry_run: int = 1) -> list[str]:
 	dry = bool(cint(dry_run))
 	m = load_matrix()
 	lines = [
-		*_workflows(dry),
+		*_workflows(dry, m),
 		*_test_users(dry),
 		*_dead_roles(dry, m),
 		*_stale_rbac_roles(dry, m),
@@ -132,21 +138,50 @@ def _delete(dry: bool, doctype: str, name: str, before_delete=None, ignore=froze
 # -- workflows ------------------------------------------------------------------------------------
 
 
-def _workflows(dry: bool) -> list[str]:
-	lines = []
-	for name in DEAD_WORKFLOWS:
-		wf = frappe.db.get_value("Workflow", name, ["document_type", "workflow_state_field"], as_dict=True)
-		if not wf:
-			continue
-		field = wf.workflow_state_field or "workflow_state"
-		if frappe.get_meta(wf.document_type).has_field(field) and frappe.db.exists(
-			wf.document_type, {field: ("is", "set")}
+def retired_rbac_workflows(m: Matrix) -> list[str]:
+	"""The workflows the sync built, once the matrix's ``workflows_enabled`` is off.
+
+	``Cong Tac Approval`` (WF-BT) keeps the name hrms gives it, and hrms re-creates its own version on every
+	migrate when it is missing: it is dropped only when the sync rewrote it — its pending transitions carry G11.
+	"""
+	from erpnext.access.permissions.workflows import FIXED_NAMES, built_workflows, workflows_enabled
+
+	if workflows_enabled(m):
+		return []
+	names = []
+	for name in sorted(built_workflows(m)):
+		if name in FIXED_NAMES.values() and not frappe.db.exists(
+			"Workflow Transition", {"parent": name, "condition": ("like", f"%{G11_MARKER}%")}
 		):
-			lines.append(f"skip: Workflow '{name}' — còn chứng từ {wf.document_type} mang trạng thái của nó")
+			continue
+		names.append(name)
+	return names
+
+
+def _hide_state_column(doctype: str) -> None:
+	"""Undo 9.2.3 — no workflow left, so the ``workflow_state`` list column only shows stale states."""
+	frappe.db.set_value(
+		"Custom Field", {"dt": doctype, "fieldname": "workflow_state", "in_list_view": 1}, "in_list_view", 0
+	)
+	frappe.db.delete(
+		"Property Setter", {"doc_type": doctype, "field_name": "workflow_state", "property": "in_list_view"}
+	)
+	frappe.clear_cache(doctype=doctype)
+
+
+def _workflows(dry: bool, m: Matrix) -> list[str]:
+	"""Delete the dead workflows. A document keeps its ``workflow_state`` value and its docstatus: one waiting in
+	a "Chờ …" state is a plain draft afterwards, submitted by the roles its DocType grants."""
+	lines = []
+	for name in (*DEAD_WORKFLOWS, *retired_rbac_workflows(m)):
+		doctype = frappe.db.get_value("Workflow", name, "document_type")
+		if not doctype:
 			continue
 		lines.append(_delete(dry, "Workflow", name))
 		if not dry and lines[-1].startswith("done:"):
-			frappe.cache.hdel("workflow", wf.document_type)
+			frappe.cache.hdel("workflow", doctype)
+			if not frappe.db.exists("Workflow", {"document_type": doctype, "is_active": 1}):
+				_hide_state_column(doctype)
 	return lines
 
 

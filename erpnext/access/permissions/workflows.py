@@ -48,6 +48,16 @@ def workflow_name(code: str, doctype: str) -> str:
 	return FIXED_NAMES.get(code) or f"{code} {doctype}"
 
 
+def workflows_enabled(m: Matrix) -> bool:
+	"""``rules.workflows_enabled`` — off: no approval workflow is built, and cleanup removes the ones built before."""
+	return bool(m.rules.get("workflows_enabled", True))
+
+
+def built_workflows(m: Matrix) -> dict[str, tuple[str, str]]:
+	"""Workflow name → (code, doctype) of every workflow the sync builds from ``workflows.json``."""
+	return {workflow_name(code, dt): (code, dt) for code, wf in m.workflows.items() for dt in wf["doctypes"]}
+
+
 def _join(parts: list[str]) -> str | None:
 	if not parts:
 		return None

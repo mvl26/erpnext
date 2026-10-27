@@ -1,5 +1,6 @@
 {
 	"rules": {
+		"workflows_enabled": false,
 		"g2_doctypes": [
 			"Purchase Order",
 			"Payment Entry",
