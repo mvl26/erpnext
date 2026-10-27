@@ -5,7 +5,7 @@
 
 Removes only what is dead — nothing grants a right through it and no installed app recreates it:
 
-1. ``DEAD_WORKFLOWS`` — test leftovers — and, while the matrix's ``workflows_enabled`` is off,
+1. ``DEAD_WORKFLOWS`` — test and parked-app leftovers — and, while the matrix's ``workflows_enabled`` is off,
    every workflow the sync built (``retired_rbac_workflows``). Documents keep their state value and docstatus;
 2. ``DEAD_ROLES`` — roles of apps that are not installed on the site, test leftovers, and the ERPNext
    ``Analytics`` role (created once by ``setup.install.after_install``, used nowhere). Users holding one lose it:
@@ -33,6 +33,7 @@ from erpnext.access.permissions.matrix import Matrix, load_matrix
 
 DEAD_WORKFLOWS = (
 	"SO Test Workflow",  # erpnext test_sales_order, active on Sales Order since 2026-09-08
+	"MVL Duyệt thanh toán",  # mvl_accounting fixture (parked app, not installed)
 )
 G11_MARKER = (
 	"doc.owner != frappe.session.user"  # workflows.g11_condition — only RBAC-built transitions carry it
