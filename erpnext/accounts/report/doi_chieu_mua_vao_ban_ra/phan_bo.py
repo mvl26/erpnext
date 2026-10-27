@@ -11,7 +11,7 @@ Hai bất biến báo cáo dựa vào:
   đúng phần tiền còn lại thay vì tự tính tỉ lệ.
 """
 
-from frappe.utils import flt
+from frappe.utils import flt, getdate
 
 _EPS = 1e-9
 _TIEN = ("thanh_tien", "tien_thue")
@@ -57,14 +57,25 @@ def _cat(con, sl):
 	return {**con["goc"], **manh}
 
 
-def ghep(ban, mua):
-	"""Ghép từng dòng bán với các dòng PI cùng `so_detail`, theo thứ tự, tiêu dần số lượng.
+def ghep(ban, mua, du_phong=(), ty_le=None):
+	"""Ghép dòng bán với dòng PI, tiêu dần số lượng. Trả `[{"ban", "mua" | None, "theo_ma"?}]`.
 
-	`ban` đã sắp theo thời gian; dòng `trong_ky=False` (hoá đơn bán kỳ trước) chỉ tiêu
-	số lượng PI chứ không xuất ra. Trả `[{"ban": {...}, "mua": {...} | None}]`.
+	Lượt 1 theo chuỗi: dòng PI cùng `so_detail` (`mua`), theo thứ tự. Lượt 2 lấy phần SL
+	còn thiếu ghép với `du_phong` (dòng PI không thuộc chuỗi nào) cùng `item_code`; mảnh
+	lượt 2 có `theo_ma=True`. Lượt 1 chạy hết mọi dòng bán trước, kẻo dòng ghép theo mã
+	giành mất PI mà một dòng bán sau với tới được qua chuỗi.
+
+	Lượt 2 tính SL theo đơn vị kho (`conversion_factor`), vì NCC có thể xuất theo hộp
+	còn bán theo test; mỗi bên cắt theo ĐVT trên hoá đơn của mình. Dòng PI có tỷ lệ giá
+	(theo đơn vị kho) ngoài `KHOANG_TY_LE_DU_PHONG` lần `ty_le` không được ghép: không
+	có chứng từ nào nối hai bên, chênh gấp chục lần là sai ĐVT chứ không phải lệch giá.
+
+	`ban` đã sắp theo thời gian; dòng `trong_ky=False` (hoá đơn bán kỳ trước, hoặc của
+	khách khác cùng mã hàng) chỉ tiêu số lượng PI chứ không xuất ra.
 	"""
+	ty_le = flt(ty_le) or TY_LE_HOP_DONG
 	hang_doi = {so: [_con_lai(d) for d in ds] for so, ds in mua.items()}
-	kq = []
+	viec = []
 	for b in ban:
 		con = _con_lai(b)
 		manh = []
@@ -75,6 +86,28 @@ def ghep(ban, mua):
 			manh.append({"ban": _cat(con, sl), "mua": _cat(p, sl)})
 			if p["sl"] <= _EPS:
 				doi.pop(0)
+		viec.append((b, con, manh))
+
+	kho = {}
+	for p in du_phong:
+		kho.setdefault(p.get("item_code"), []).append(_con_lai(p))
+	for b, con, manh in viec:
+		if con["sl"] <= _EPS or b.get("is_return") or not b.get("item_code"):
+			continue
+		hs_ban = _he_so(b)
+		ung_vien = [p for p in kho.get(b["item_code"], ()) if _hop_ty_le(b, p["goc"], ty_le)]
+		for p in sorted(ung_vien, key=lambda p: _uu_tien(b, p["goc"], ty_le)):
+			if con["sl"] <= _EPS:
+				break
+			if p["sl"] > _EPS:
+				hs_mua = _he_so(p["goc"])
+				sl_kho = min(con["sl"] * hs_ban, p["sl"] * hs_mua)
+				manh.append(
+					{"ban": _cat(con, sl_kho / hs_ban), "mua": _cat(p, sl_kho / hs_mua), "theo_ma": True}
+				)
+
+	kq = []
+	for b, con, manh in viec:
 		if not manh or abs(con["sl"]) > _EPS:
 			manh.append({"ban": _cat(con, con["sl"]) if manh else {**b}, "mua": None})
 		if b.get("trong_ky", True):
@@ -82,9 +115,58 @@ def ghep(ban, mua):
 	return kq
 
 
+def _he_so(d):
+	return flt(d.get("conversion_factor")) or 1
+
+
+def _don_gia(d):
+	"""Đơn giá theo đơn vị kho."""
+	sl = flt(d.get("sl") or d.get("qty"))
+	gia = flt(d.get("net_rate")) or (flt(d.get("thanh_tien")) / sl if sl else 0)
+	return gia / _he_so(d)
+
+
+def _ty_le(b, p):
+	gia_mua = _don_gia(p)
+	return _don_gia(b) / gia_mua if gia_mua else None
+
+
+def _hop_ty_le(b, p, ty_le):
+	r = _ty_le(b, p)
+	if r is None:
+		return not _don_gia(b)
+	return KHOANG_TY_LE_DU_PHONG[0] <= r / ty_le <= KHOANG_TY_LE_DU_PHONG[1]
+
+
+def _ngay(d):
+	ngay = d.get("bill_date") or d.get("posting_date")
+	return getdate(ngay) if ngay else None
+
+
+def _uu_tien(b, p, ty_le):
+	"""Khoá xếp dòng PI dự phòng cho dòng bán `b`: HĐ mua ngày trước HĐ bán trước, rồi tỷ
+	lệ giá gần `ty_le` nhất (trong dung sai coi như bằng nhau), rồi ngày gần HĐ bán nhất.
+
+	Ngày xếp trên giá: nếu giá đứng trước, một HĐ bán tháng 9 sẽ lấy PI tháng 10 đúng giá
+	thay cho PI tháng 8 lệch giá chút ít, để HĐ bán tháng 10 thiếu đầu vào (dữ liệu prod,
+	mã AH-M53D-DIL). Lệch giá trong khoảng cho phép vẫn ghép và báo "Lệch giá"."""
+	r = _ty_le(b, p)
+	lech = abs(r - ty_le) if r is not None else 0
+	if lech <= DUNG_SAI_TY_LE + _EPS:
+		lech = 0
+	ngay_ban, ngay_mua = _ngay(b), _ngay(p)
+	if ngay_ban and ngay_mua:
+		sau, cach = ngay_mua > ngay_ban, abs((ngay_ban - ngay_mua).days)
+	else:
+		sau, cach = False, 0
+	return (sau, lech, cach, ngay_mua or getdate("1900-01-01"), p.get("parent") or "", p.get("idx") or 0)
+
+
 # Hợp đồng Himedic: giá bán = giá mua x 1,01. Lệch quá dung sai thì gắn cờ.
 TY_LE_HOP_DONG = 1.01
 DUNG_SAI_TY_LE = 0.0005
+# Ghép theo mã hàng chỉ nhận dòng PI có tỷ lệ giá trong khoảng này (x `ty_le`).
+KHOANG_TY_LE_DU_PHONG = (0.5, 2)
 
 KHOP = "Khớp"
 THIEU_DAU_VAO = "Thiếu đầu vào"
@@ -99,8 +181,10 @@ TRANG_THAI = (KHOP, THIEU_DAU_VAO, LECH_GIA, LECH_THUE, LECH_DVT, TRA_HANG)
 def danh_gia(r, ty_le=TY_LE_HOP_DONG):
 	"""Gán `ty_le_gia`, `chenh_lech_pt`, `chenh_lech_tien`, `trang_thai` cho một dòng báo cáo.
 
-	Mảnh đã ghép luôn có SL bán = SL mua (`ghep` cắt theo SL), nên lệch số lượng chỉ
-	còn hiện ra dưới dạng phần "Thiếu đầu vào"; khác ĐVT thì SL và giá không so được.
+	Mảnh đã ghép luôn có SL bán = SL mua theo đơn vị kho, nên lệch số lượng chỉ còn hiện
+	ra dưới dạng phần "Thiếu đầu vào". Hai bên khác ĐVT mà cùng đơn vị kho thì so giá
+	theo đơn vị kho và ghi chú cách quy đổi; khác cả đơn vị kho thì không so được.
+	Hai bên cùng 0 đồng (hàng tặng) không tính là lệch giá.
 	"""
 	if r.get("tra_hang"):
 		r["trang_thai"] = TRA_HANG
@@ -108,19 +192,34 @@ def danh_gia(r, ty_le=TY_LE_HOP_DONG):
 	if not r.get("purchase_invoice"):
 		r["trang_thai"] = THIEU_DAU_VAO
 		return r
-	gia_mua = flt(r.get("don_gia_mua"))
-	r["ty_le_gia"] = flt(flt(r.get("don_gia_ban")) / gia_mua, 6) if gia_mua else None
+	hs_ban, hs_mua = flt(r.get("_he_so_ban")) or 1, flt(r.get("_he_so_mua")) or 1
+	gia_ban, gia_mua = flt(r.get("don_gia_ban")) / hs_ban, flt(r.get("don_gia_mua")) / hs_mua
+	r["ty_le_gia"] = flt(gia_ban / gia_mua, 6) if gia_mua else None
 	r["chenh_lech_pt"] = flt((r["ty_le_gia"] - 1) * 100, 4) if r["ty_le_gia"] else None
 	r["chenh_lech_tien"] = flt(flt(r.get("thanh_tien_ban")) - flt(r.get("thanh_tien_mua")), 0)
 	lech = []
-	if r["ty_le_gia"] is None or abs(r["ty_le_gia"] - flt(ty_le)) > DUNG_SAI_TY_LE + _EPS:
+	if not gia_ban and not gia_mua:
+		r.setdefault("_ghi_chu", []).append("Hàng 0 đồng")
+	elif r["ty_le_gia"] is None or abs(r["ty_le_gia"] - flt(ty_le)) > DUNG_SAI_TY_LE + _EPS:
 		lech.append(LECH_GIA)
 	if flt(r.get("thue_suat_ban")) != flt(r.get("thue_suat_mua")):
 		lech.append(LECH_THUE)
-	if (r.get("dvt_ban") or "") != (r.get("dvt_mua") or ""):
-		lech.append(LECH_DVT)
+	dvt_ban, dvt_mua = r.get("dvt_ban") or "", r.get("dvt_mua") or ""
+	if dvt_ban != dvt_mua:
+		kho_ban, kho_mua = r.get("_dvt_kho_ban"), r.get("_dvt_kho_mua")
+		if kho_ban and kho_ban == kho_mua:
+			r.setdefault("_ghi_chu", []).append(_quy_doi(dvt_ban, hs_ban, dvt_mua, hs_mua, kho_ban))
+		else:
+			lech.append(LECH_DVT)
 	r["trang_thai"] = ", ".join(lech) or KHOP
 	return r
+
+
+def _quy_doi(dvt_ban, hs_ban, dvt_mua, hs_mua, dvt_kho):
+	vd = [
+		f"1 {dvt} = {hs:g} {dvt_kho}" for dvt, hs in ((dvt_mua, hs_mua), (dvt_ban, hs_ban)) if dvt != dvt_kho
+	]
+	return "Quy đổi " + ", ".join(vd)
 
 
 def hop_trang_thai(trang_thai, chon):
@@ -172,6 +271,7 @@ def tong_hop(data):
 			if nhan in dem:
 				dem[nhan] += 1
 	thieu = [r for r in data if r.get("trang_thai") == THIEU_DAU_VAO]
+	theo_ma = [r for r in data if r.get("theo_ma")]
 	tong["tom_tat"] = {
 		"so_dong": len(data),
 		"so_hd_ban": len({r["sales_invoice"] for r in data if r.get("sales_invoice")}),
@@ -180,5 +280,7 @@ def tong_hop(data):
 		"dem": dem,
 		"doanh_thu_co_dau_vao": flt(ban_khop, 0),
 		"doanh_thu_thieu_dau_vao": flt(sum(flt(r.get("thanh_tien_ban")) for r in thieu), 0),
+		"so_dong_theo_ma": len(theo_ma),
+		"doanh_thu_theo_ma": flt(sum(flt(r.get("thanh_tien_ban")) for r in theo_ma), 0),
 	}
 	return tong

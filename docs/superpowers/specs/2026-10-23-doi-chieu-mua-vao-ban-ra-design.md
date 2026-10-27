@@ -144,3 +144,35 @@ Anh chốt: chỉ **cảnh báo** khi thiếu số HĐ NCC, không bắt buộc 
   dòng lệch, số dòng theo trạng thái.
 - **Excel**: thêm khối "ĐỐI CHIẾU" (X:AD), dòng 2 ghi cơ sở kỳ, cố định tới cột Tên hàng
   (F5), phần TÓM TẮT dưới dòng tổng.
+
+## 10. Đợt 3 (26/10/2026): ghép theo mã hàng khi thiếu liên kết
+
+Trên prod, tháng 10 của Himedic có 29 dòng "Thiếu đầu vào". Nguyên nhân không phải thiếu hoá đơn mua mà là đứt chuỗi SO → PO → PI:
+
+- PO lập tay, hoặc dòng PO thêm tay, nên không có `sales_order_item` (khoảng 23 dòng).
+- HĐ bán không đi qua SO, ví dụ lập từ phiếu giao (4 dòng).
+- PI lập theo một PO khác với PO của SO (1 dòng).
+
+Anh đã chốt cách xử lý: ghép dự phòng theo mã hàng, trạng thái tính như bình thường, ghi chú để kế toán biết. Công cụ sửa liên kết dữ liệu để đợt sau.
+
+- **Lượt 1** giữ nguyên ghép theo chuỗi. Lượt này chạy hết cho mọi dòng bán trước lượt 2, để dòng ghép theo mã không giành mất PI mà một dòng bán sau với tới được qua chuỗi.
+- **Lượt 2** lấy phần SL còn thiếu, ghép với dòng PI cùng `item_code` và cùng công ty mà không thuộc chuỗi nào. Một dòng PI thuộc chuỗi chỉ khi dòng PO của nó lập từ một dòng SO **đã có HĐ bán**, xuất ngày nào cũng được. Lấy mọi ngày để khi mở lại kỳ cũ vẫn ra như trước.
+  - Dữ liệu prod cho thấy lý do: các PO hay được lập từ SO `HM-HOASINH-*`, còn HĐ bán lại xuất từ SO `SAL-ORD-*` (SO lập trùng). PI của các SO không bao giờ xuất HĐ vẫn phải dùng được.
+  - **SL so theo đơn vị kho** (`conversion_factor`), vì NCC có thể xuất theo hộp còn bán theo test. Mỗi bên cắt theo ĐVT trên hoá đơn của mình.
+  - **Chặn tỷ lệ vô lý:** chỉ nhận dòng PI có tỷ lệ giá (theo đơn vị kho) trong khoảng 0,5–2 lần `ty_le_hd`. Hai bên không có chứng từ nào nối với nhau, nên chênh gấp chục lần là sai ĐVT chứ không phải lệch giá.
+  - Thứ tự ưu tiên:
+    1. HĐ mua ngày trước HĐ bán;
+    2. tỷ lệ giá gần `ty_le_hd` nhất;
+    3. ngày gần HĐ bán nhất.
+  - Ngày được xếp trên giá. Nếu xếp giá trên, trên prod HĐ bán tháng 9 lấy mất PI tháng 10 của mã AH-M53D-DIL.
+- **Khác ĐVT nhưng cùng đơn vị kho:** so giá theo đơn vị kho, Ghi chú ghi "Quy đổi 1 hộp = 30 Test". Khác cả đơn vị kho thì vẫn báo "Lệch ĐVT". Áp dụng cho cả dòng ghép theo chuỗi.
+- **Hàng 0 đồng** (cả hai bên giá 0) không tính là lệch giá. Ghi chú ghi "Hàng 0 đồng".
+- **Chạy thử trên dữ liệu prod (26/10):**
+  - Tháng 10 Himedic: code cũ ra 29 dòng thiếu, code mới ra 68 Khớp và 4 thiếu.
+  - Cả 4 dòng thiếu thuộc SINV-00028 (Deka). Nguyên nhân là PI-00022 ghi "hộp" với hệ số quy đổi 1, trong khi giá tính theo 10 đĩa. Vì vậy HĐ bán tháng 9 phải lấy PI tháng 10.
+  - Giả lập sửa hệ số này thành 10 thì ra 72/72 Khớp, trong đó 29 dòng ghép theo mã.
+- **Không ghép trùng.** PI dự phòng không gắn với khách nào, nên mọi dòng SI cùng mã hàng đến hết kỳ (mọi khách, cả các kỳ trước) đều chạy qua hai lượt với `trong_ky=False`. Nhờ vậy một PI không được ghép lại ở tháng sau hay cho khách khác.
+- **Hiển thị.**
+  - Ghi chú "Ghép theo mã hàng – thiếu liên kết SO→PO", hoặc "– HĐ bán không qua SO".
+  - Ô tóm tắt và Excel có thêm số dòng và doanh thu ghép theo mã.
+- **Rủi ro đã biết:** nếu cùng mã hàng mua cho nhiều khách mà PO không gắn SO, PI có thể bị ghép cho dòng bán đến trước, không đúng khách. Ghi chú trên dòng là dấu hiệu để kiểm tra lại.

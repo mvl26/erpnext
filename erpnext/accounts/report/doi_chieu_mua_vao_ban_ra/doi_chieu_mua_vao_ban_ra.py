@@ -5,7 +5,8 @@
 Mỗi dòng hàng bán cho khách trong kỳ đặt cạnh dòng hoá đơn mua của NCC đã cấp
 chính hàng đó, ghép theo đơn hàng: dòng SI → dòng SO (`so_detail`) → dòng PO lập
 từ SO (`sales_order_item`) → dòng PI của PO (`po_detail`). Dòng bán chưa ghép được
-vẫn hiện, bên NCC để trống. Chỉ đọc chứng từ đã submit; không ghi gì.
+ghép tiếp theo mã hàng với dòng PI thiếu liên kết (PO lập tay, HĐ bán không qua SO);
+còn thiếu thì vẫn hiện, bên NCC để trống. Chỉ đọc chứng từ đã submit; không ghi gì.
 
 Kỳ lọc theo ngày hoá đơn đầu ra; hoá đơn mua ghép được thì hiện dù ngày ở kỳ khác
 (ghi chú "ngoài kỳ"). Số HĐ là số thật: HĐĐT bên bán, `bill_no` bên mua; chưa có
@@ -134,15 +135,25 @@ def get_data(filters):
 	for d in dong_ban:
 		d["trong_ky"] = True
 	so_details = sorted({d.so_detail for d in dong_ban if d.so_detail and not d.is_return})
-	dong_ban += _dong_ban_ky_truoc(so_details, tu)
+	ma_hang = sorted({d.item_code for d in dong_ban if d.item_code and not d.is_return})
+	du_phong = _dong_mua_du_phong(filters.company, ma_hang, tk_vat)
+	truoc = _dong_ban_ky_truoc(so_details, tu)
+	if du_phong:
+		# PI dự phòng không gắn với khách nào: mọi dòng bán cùng mã đến hết kỳ phải tiêu
+		# trước, kẻo một PI được ghép lại ở tháng sau hay cho khách khác.
+		truoc += _dong_ban_cung_ma(filters.company, ma_hang, den, si_trong_ky)
+	dong_ban += list({d.name: d for d in truoc}.values())
 	dong_ban.sort(key=lambda d: (getdate(d.posting_date), d.parent, d.idx))
 
-	mua = _dong_mua_theo_so_detail(so_details, tk_vat)
+	mua = _dong_mua_theo_so_detail(
+		sorted({d.so_detail for d in dong_ban if d.so_detail and not d.is_return}), tk_vat
+	)
 	tra_cho = {d.return_against for d in dong_ban if d.get("trong_ky") and d.get("return_against")}
 	so_hd_ban = invoice_numbers_for(sorted(set(si_trong_ky) | tra_cho))
 
 	ty_le = flt(filters.get("ty_le_hd")) or TY_LE_HOP_DONG
-	data = [_dong_bao_cao(m, so_hd_ban) for m in ghep([_ban_cho_ghep(d) for d in dong_ban], mua)]
+	ghep_duoc = ghep([_ban_cho_ghep(d) for d in dong_ban], mua, du_phong, ty_le)
+	data = [_dong_bao_cao(m, so_hd_ban) for m in ghep_duoc]
 	# Sắp theo mã chứng từ, không theo số HĐ hiển thị: số HĐĐT có thể trống, khi đó
 	# các hoá đơn cùng ngày xen kẽ nhau và các mảnh của một dòng bán bị tách rời.
 	data.sort(key=lambda r: (getdate(r["ngay_hd_ban"]), r["sales_invoice"], r["_idx"]))
@@ -164,7 +175,7 @@ def get_data(filters):
 			stt, dong_truoc = stt + 1, r["_dong_ban"]
 		r["stt"] = stt
 		r["ghi_chu"] = "; ".join(r.pop("_ghi_chu", []))
-		for k in ("_idx", "_supplier"):
+		for k in ("_idx", "_supplier", "_he_so_ban", "_he_so_mua", "_dvt_kho_ban", "_dvt_kho_mua"):
 			r.pop(k, None)
 	if data:
 		data.append(tong_hop(data))
@@ -213,12 +224,15 @@ def _dong_hoa_don(doctype, ten, tk_vat, them):
 			"name",
 			"parent",
 			"idx",
+			"item_code",
 			"item_name",
 			"uom",
 			"qty",
 			"net_rate",
 			"base_net_amount",
 			"item_tax_rate",
+			"conversion_factor",
+			"stock_uom",
 			*them,
 		],
 		order_by="parent asc, idx asc",
@@ -256,7 +270,7 @@ def _dong_ban_ky_truoc(so_details, tu):
 		frappe.qb.from_(sii)
 		.join(si)
 		.on(si.name == sii.parent)
-		.select(sii.parent, sii.idx, sii.so_detail, sii.qty, sii.base_net_amount, si.posting_date)
+		.select(*_cot_ban_tieu(sii, si))
 		.where(
 			(si.docstatus == 1)
 			& (si.is_return == 0)
@@ -265,9 +279,106 @@ def _dong_ban_ky_truoc(so_details, tu):
 		)
 		.run(as_dict=True)
 	)
+	return _ban_chi_tieu(dong)
+
+
+def _dong_ban_cung_ma(company, ma_hang, den, loai_tru):
+	"""Dòng SI cùng mã hàng đến hết kỳ (mọi khách, trừ các HĐ `loai_tru`) — chỉ để tiêu
+	số lượng PI dự phòng theo đúng thứ tự thời gian."""
+	si = frappe.qb.DocType("Sales Invoice")
+	sii = frappe.qb.DocType("Sales Invoice Item")
+	dong = (
+		frappe.qb.from_(sii)
+		.join(si)
+		.on(si.name == sii.parent)
+		.select(*_cot_ban_tieu(sii, si))
+		.where(
+			(si.docstatus == 1)
+			& (si.is_return == 0)
+			& (si.company == company)
+			& (si.posting_date <= den)
+			& (sii.item_code.isin(ma_hang))
+			& (si.name.notin(loai_tru))
+		)
+		.run(as_dict=True)
+	)
+	return _ban_chi_tieu(dong)
+
+
+def _cot_ban_tieu(sii, si):
+	return (
+		sii.name,
+		sii.parent,
+		sii.idx,
+		sii.item_code,
+		sii.so_detail,
+		sii.qty,
+		sii.conversion_factor,
+		sii.net_rate,
+		sii.base_net_amount,
+		si.posting_date,
+	)
+
+
+def _ban_chi_tieu(dong):
 	for d in dong:
 		d.update({"trong_ky": False, "is_return": 0, "thanh_tien": flt(d.base_net_amount, 0), "tien_thue": 0})
 	return dong
+
+
+def _dong_mua_du_phong(company, ma_hang, tk_vat):
+	"""Dòng PI cùng mã hàng không thuộc chuỗi nào: không qua PO, dòng PO không lập từ SO,
+	hoặc lập từ một dòng SO chưa xuất HĐ bán nào (SO lập trùng, HĐ bán lại xuất từ SO
+	khác). Dòng SO đã có HĐ bán — bất kể ngày nào, để mở lại kỳ cũ vẫn ra như trước —
+	thì PI của nó thuộc chuỗi của dòng SO đó."""
+	if not ma_hang:
+		return []
+	pi = frappe.qb.DocType("Purchase Invoice")
+	pii = frappe.qb.DocType("Purchase Invoice Item")
+	poi = frappe.qb.DocType("Purchase Order Item")
+	dong = (
+		frappe.qb.from_(pii)
+		.join(pi)
+		.on(pi.name == pii.parent)
+		.left_join(poi)
+		.on(poi.name == pii.po_detail)
+		.select(pii.name, pii.parent, poi.sales_order_item)
+		.where(
+			(pi.docstatus == 1)
+			& (pi.is_return == 0)
+			& (pi.company == company)
+			& (pii.item_code.isin(ma_hang))
+		)
+		.run(as_dict=True)
+	)
+	so_items = sorted({d.sales_order_item for d in dong if d.sales_order_item})
+	da_ban = _dong_so_da_ban(so_items)
+	ten = {d.name: d.parent for d in dong if not d.sales_order_item or d.sales_order_item not in da_ban}
+	if not ten:
+		return []
+	dong = [
+		d for d in _dong_hoa_don("Purchase Invoice", sorted(set(ten.values())), tk_vat, []) if d.name in ten
+	]
+	for d in dong:
+		d.sl = flt(d.qty)
+	return dong
+
+
+def _dong_so_da_ban(so_items):
+	"""Các dòng SO trong `so_items` đã có HĐ bán (đã submit, không phải trả hàng)."""
+	if not so_items:
+		return set()
+	si = frappe.qb.DocType("Sales Invoice")
+	sii = frappe.qb.DocType("Sales Invoice Item")
+	return set(
+		frappe.qb.from_(sii)
+		.join(si)
+		.on(si.name == sii.parent)
+		.select(sii.so_detail)
+		.distinct()
+		.where((si.docstatus == 1) & (si.is_return == 0) & (sii.so_detail.isin(so_items)))
+		.run(pluck=True)
+	)
 
 
 def _dong_mua_theo_so_detail(so_details, tk_vat):
@@ -330,6 +441,8 @@ def _dong_bao_cao(m, so_hd_ban):
 		"dvt_ban": b["uom"],
 		"sales_invoice": b["parent"],
 		"tra_hang": 1 if b.get("is_return") else 0,
+		"_he_so_ban": b.get("conversion_factor"),
+		"_dvt_kho_ban": b.get("stock_uom"),
 		**_tien(b, "ban"),
 	}
 	if not r["so_hd_ban"]:
@@ -338,6 +451,13 @@ def _dong_bao_cao(m, so_hd_ban):
 		goc = b.get("return_against")
 		r["tra_cho"] = goc
 		ghi_chu.append(f"Trả lại HĐ {_so_hd(so_hd_ban, goc) or goc}" if goc else "Hàng trả lại")
+	if m.get("theo_ma"):
+		r["theo_ma"] = 1
+		ghi_chu.append(
+			"Ghép theo mã hàng – thiếu liên kết SO→PO"
+			if b.get("so_detail")
+			else "Ghép theo mã hàng – HĐ bán không qua SO"
+		)
 	if p:
 		if not p["bill_no"]:
 			ghi_chu.append("Thiếu số HĐ NCC")
@@ -349,6 +469,8 @@ def _dong_bao_cao(m, so_hd_ban):
 				"ten_hang_mua": p["item_name"],
 				"dvt_mua": p["uom"],
 				"purchase_invoice": p["parent"],
+				"_he_so_mua": p.get("conversion_factor"),
+				"_dvt_kho_mua": p.get("stock_uom"),
 				**_tien(p, "mua"),
 			}
 		)
