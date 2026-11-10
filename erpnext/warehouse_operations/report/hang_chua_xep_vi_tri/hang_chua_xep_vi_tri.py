@@ -19,7 +19,7 @@ def execute(filters=None):
 
 	dong = frappe.db.sql(
 		f"""
-		select lb.o, lb.kho, lb.vat_tu, lb.so_lo, b.expiry_date, lb.so_luong
+		select lb.o, lb.kho, lb.vat_tu, lb.so_lo, ifnull(nullif(b.custom_so_lo, ''), lb.so_lo), b.expiry_date, lb.so_luong
 		from `tabLocation Balance` lb
 		join `tabStorage Location` sl on sl.name = lb.o
 		left join `tabBatch` b on b.name = lb.so_lo
@@ -36,7 +36,17 @@ def _cot():
 		{"label": _("Ô"), "fieldname": "o", "fieldtype": "Link", "options": "Storage Location", "width": 200},
 		{"label": _("Kho"), "fieldname": "kho", "fieldtype": "Link", "options": "Warehouse", "width": 160},
 		{"label": _("Mặt hàng"), "fieldname": "vat_tu", "fieldtype": "Link", "options": "Item", "width": 220},
-		{"label": _("Số lô"), "fieldname": "so_lo", "fieldtype": "Link", "options": "Batch", "width": 170},
+		{
+			"label": _("Mã lô"),
+			"fieldname": "so_lo",
+			"fieldtype": "Link",
+			"options": "Batch",
+			"width": 170,
+			"hidden": 1,
+		},
+		# Spec tách số lô 19/10/2026: cột Link giữ MÃ LÔ để nối/lọc, ẩn đi; người
+		# đọc thấy SỐ LÔ NCC ở cột ngay sau, đúng chỗ cột "Số lô" cũ.
+		{"label": _("Số lô"), "fieldname": "so_lo_hien_thi", "fieldtype": "Data", "width": 170},
 		{"label": _("Hạn dùng"), "fieldname": "expiry_date", "fieldtype": "Date", "width": 110},
 		{"label": _("Số lượng"), "fieldname": "so_luong", "fieldtype": "Float", "width": 110},
 	]

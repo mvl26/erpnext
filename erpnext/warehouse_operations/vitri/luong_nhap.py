@@ -122,6 +122,7 @@ def phieu_nhap_lo_cua_lo(so_lo: str) -> list[str]:
 	kho. Ở đây kiểm quyền trên chính cái họ đang mở: bản ghi `Batch`.
 	"""
 	frappe.has_permission("Batch", "read", so_lo, throw=True)
+	# H6: đã kiểm quyền đọc `Batch` ở trên; bảng con không ai được cấp quyền đọc (xem docstring).
 	phieu = frappe.get_all("Batch Entry Item", filters={"lo_da_tao": so_lo}, pluck="parent")
 	if not phieu:
 		return []

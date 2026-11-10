@@ -123,6 +123,7 @@ def workflow_states(doctype: str) -> list[str]:
 	if not workflow:
 		return []
 
+	# H6: miễn kiểm quyền — tên trạng thái workflow là cấu hình hệ thống, không phải dữ liệu người dùng cuối.
 	return frappe.get_all(
 		"Workflow Document State",
 		filters={"parent": workflow},
@@ -135,6 +136,7 @@ def workflow_states(doctype: str) -> list[str]:
 @frappe.whitelist()
 def suggest_code() -> str:
 	"""Mã kế tiếp theo nếp NTF-nn."""
+	# H6: miễn kiểm quyền — chỉ lấy mã điểm thông báo (cấu hình hệ thống) để đánh số tiếp.
 	codes = frappe.get_all(POINT_DOCTYPE, pluck="name")
 	numbers = [int(code.split("-")[-1]) for code in codes if code.split("-")[-1].isdigit()]
 	return f"NTF-{max(numbers, default=0) + 1:02d}"
@@ -241,6 +243,7 @@ def point_stats(name: str, days: int = 30) -> dict:
 	frappe.has_permission(POINT_DOCTYPE, "read", throw=True)
 
 	since = add_days(getdate(), -int(days))
+	# H6: đã kiểm quyền đọc điểm thông báo ở trên; chỉ trả số đếm gộp, không trả bản ghi.
 	rows = frappe.get_all(
 		dispatch.LOG_DOCTYPE,
 		filters={"point": name, "creation": (">=", since)},
@@ -271,6 +274,7 @@ def doctype_query(doctype, txt, searchfield, start, page_len, filters):
 	"""
 	from erpnext.supply_notification.constants import BLOCKED_DOCTYPES
 
+	# H6: miễn kiểm quyền — liệt kê tên DocType (metadata) cho ô chọn; không đọc dữ liệu chứng từ.
 	rows = frappe.get_all(
 		"DocType",
 		filters=[

@@ -1,0 +1,196 @@
+{
+	"settings": {
+		"System Settings": {
+			"apply_strict_user_permissions": 0,
+			"enable_two_factor_auth": 1
+		},
+		"HR Settings": {
+			"prevent_self_leave_approval": 1,
+			"prevent_self_expense_approval": 1,
+			"leave_approver_mandatory_in_leave_application": 1,
+			"expense_approver_mandatory_in_expense_claim": 1,
+			"restrict_backdated_leave_application": 1,
+			"role_allowed_to_create_backdated_leave_application": "HR Manager"
+		},
+		"Payroll Settings": {
+			"process_payroll_accounting_entry_based_on_employee": 0,
+			"encrypt_salary_slips_in_emails": 1
+		},
+		"Accounts Settings": {
+			"delete_linked_ledger_entries": 0,
+			"role_allowed_to_over_bill": "Accounts Manager",
+			"frozen_accounts_modifier": "Accounts Manager",
+			"role_to_override_stop_action": "Accounts Manager",
+			"credit_controller": "Sales Manager",
+			"check_supplier_invoice_uniqueness": 1
+		},
+		"Stock Settings": {
+			"allow_negative_stock": 0,
+			"role_allowed_to_over_deliver_receive": "Stock Manager",
+			"role_allowed_to_create_edit_back_dated_transactions": "Stock Manager",
+			"stock_auth_role": "Accounts Manager",
+			"item_rename_role": ""
+		},
+		"Stock Reposting Settings": {
+			"notify_reposting_error_to_role": "Accounts Manager"
+		},
+		"Selling Settings": {
+			"maintain_same_sales_rate": 1,
+			"role_to_override_stop_action": "Sales Manager"
+		},
+		"Buying Settings": {
+			"maintain_same_rate": 1,
+			"maintain_same_rate_action": "Warn",
+			"role_to_override_stop_action": "Purchase Manager"
+		},
+		"Company::Miyano": {
+			"exception_budget_approver_role": "Accounts Manager"
+		},
+		"Portal Settings": {
+			"default_role": ""
+		},
+		"LDAP Settings": {
+			"default_role": ""
+		},
+		"Website Settings": {
+			"disable_signup": 1
+		},
+		"guarded": {
+			"Stock Settings.allow_negative_stock": "no_negative_bins",
+			"Selling Settings.maintain_same_sales_rate": "no_open_orders_with_rate_mismatch",
+			"Payroll Settings.encrypt_salary_slips_in_emails": "password_policy_ok"
+		}
+	},
+	"custom_fields": {
+		"fields": {
+			"Sales Order": [
+				{
+					"fieldname": "mvl_dung_gia_hd",
+					"fieldtype": "Check",
+					"label": "Đúng giá HĐ",
+					"insert_after": "per_billed",
+					"read_only": 1,
+					"hidden": 1,
+					"no_copy": 1,
+					"default": "0"
+				}
+			]
+		},
+		"property_setters": [
+			{
+				"doc_type": "Issue",
+				"field_name": "issue_type",
+				"property": "reqd",
+				"value": "1",
+				"property_type": "Check"
+			},
+			{
+				"doc_type": "Employee",
+				"field_name": "create_user_permission",
+				"property": "default",
+				"value": "0",
+				"property_type": "Text"
+			},
+			{
+				"doc_type": "Employee",
+				"field_name": "leave_approver",
+				"property": "reqd",
+				"value": "1",
+				"property_type": "Check"
+			},
+			{
+				"doc_type": "Employee",
+				"field_name": "expense_approver",
+				"property": "reqd",
+				"value": "1",
+				"property_type": "Check"
+			},
+			{
+				"doc_type": "Business Trip",
+				"field_name": "approver_coo",
+				"property": "reqd",
+				"value": "1",
+				"property_type": "Check"
+			}
+		]
+	},
+	"user_permission_rules": {
+		"Warehouse": {
+			"roles": [
+				"STU",
+				"PDA"
+			],
+			"apply_to_all": 0,
+			"applicable_for": [
+				"Stock Entry",
+				"Stock Reconciliation",
+				"Purchase Receipt",
+				"Delivery Note",
+				"Pick List",
+				"Material Request",
+				"Stock Ledger Entry",
+				"Bin",
+				"Batch Entry",
+				"Location Transfer",
+				"Location Balance",
+				"Location Ledger Entry"
+			]
+		},
+		"Stock Entry Type": {
+			"roles": [
+				"PDA"
+			],
+			"apply_to_all": 0,
+			"applicable_for": [
+				"Stock Entry"
+			],
+			"values": [
+				"Material Transfer"
+			]
+		},
+		"Price List": {
+			"roles": [
+				"PU",
+				"SU"
+			],
+			"apply_to_all": 0,
+			"applicable_for": [
+				"Item Price"
+			]
+		},
+		"Customer": {
+			"roles": [
+				"CUS"
+			],
+			"apply_to_all": 1
+		},
+		"Supplier": {
+			"roles": [
+				"SUP"
+			],
+			"apply_to_all": 1
+		},
+		"Issue Type": {
+			"roles": [
+				"ST"
+			],
+			"apply_to_all": 0,
+			"applicable_for": [
+				"Issue"
+			]
+		},
+		"_remove_allow": [
+			"Employee",
+			"Department",
+			"Company"
+		]
+	},
+	"module_profiles": {
+		"MVL PDA": {
+			"allow_modules": [
+				"Stock",
+				"Warehouse Operations"
+			]
+		}
+	}
+}

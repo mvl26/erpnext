@@ -23,6 +23,7 @@ from erpnext.einvoice.constants import (
 	STATUS_CANCELLED,
 	STATUS_DRAFT,
 	STATUS_ISSUED,
+	STATUS_NEEDS_RECONCILE,
 	STATUS_TAX_ACCEPTED,
 )
 from erpnext.einvoice.tests.test_fast_client import configure
@@ -442,7 +443,9 @@ class TestResync(FrappeTestCase):
 
 	def test_resync_from_a_customer_facing_state_counts_as_a_revision(self):
 		"""Đặc tả C2.2 #19: đếm số lần quay về Nháp **từ 02/03/04**."""
-		frappe.db.set_value(FEI, self.fei.name, "status", "03 - Chờ khách duyệt")
+		frappe.db.set_value(
+			FEI, self.fei.name, {"status": "03 - Chờ khách duyệt", "customer_name": "Tên gõ nhầm"}
+		)
 
 		resync_from_source(self.fei.name)
 		self.fei.reload()
@@ -464,7 +467,9 @@ class TestResync(FrappeTestCase):
 		self.assertEqual(self.fei.fast_key, key)
 
 	def test_resync_returns_an_approved_invoice_to_draft(self):
-		frappe.db.set_value(FEI, self.fei.name, "status", "04 - Khách đã duyệt")
+		frappe.db.set_value(
+			FEI, self.fei.name, {"status": "04 - Khách đã duyệt", "customer_name": "Tên gõ nhầm"}
+		)
 		resync_from_source(self.fei.name)
 		self.fei.reload()
 		self.assertEqual(self.fei.status, STATUS_DRAFT)
@@ -476,6 +481,57 @@ class TestResync(FrappeTestCase):
 
 	def test_resync_is_refused_after_the_tax_office_accepted(self):
 		frappe.db.set_value(FEI, self.fei.name, "status", STATUS_TAX_ACCEPTED)
+		with self.assertRaises(frappe.ValidationError):
+			resync_from_source(self.fei.name)
+
+	def test_resync_without_changes_keeps_status(self):
+		"""Q7-2: không có gì đổi thì không đưa về Nháp — khách không phải duyệt lại vô cớ."""
+		frappe.db.set_value(FEI, self.fei.name, "status", "03 - Chờ khách duyệt")
+
+		result = resync_from_source(self.fei.name)
+
+		self.fei.reload()
+		self.assertEqual(result["changed"], [])
+		self.assertIn("đã khớp", result["message"])
+		self.assertEqual(self.fei.status, "03 - Chờ khách duyệt")
+		self.assertEqual(self.fei.revision_count, 0)
+
+	def test_resync_reports_the_changed_email(self):
+		frappe.db.set_value(FEI, self.fei.name, "email_deliver", "nham@bvx.vn")
+
+		result = resync_from_source(self.fei.name)
+
+		self.assertEqual(len(result["changed"]), 1)
+		self.assertIn("Email nhận hóa đơn", result["changed"][0])
+		self.assertIn("nham@bvx.vn", result["changed"][0])
+		self.assertIn("Email nhận hóa đơn", result["message"])
+
+	def test_resync_reports_changed_lines(self):
+		frappe.db.set_value("Fast EInvoice Line", self.fei.lines[0].name, "qty", 1)
+
+		result = resync_from_source(self.fei.name)
+
+		self.assertTrue(any(change.startswith("Dòng hàng") for change in result["changed"]))
+
+	def test_resync_ignores_the_invoice_date(self):
+		"""Ngày hóa đơn luôn về hôm nay — đưa vào danh sách chỉ gây nhiễu."""
+		frappe.db.set_value(FEI, self.fei.name, "invoice_date", "2026-01-01")
+		self.assertEqual(resync_from_source(self.fei.name)["changed"], [])
+
+	def test_resync_saves_even_when_the_source_lost_the_address(self):
+		"""Q7: thiếu trường bắt buộc không chặn đồng bộ — lỗi hiện ở bảng kiểm tra dữ liệu."""
+		from unittest.mock import patch
+
+		with patch("erpnext.einvoice.builder._billing_address", return_value=""):
+			result = resync_from_source(self.fei.name)
+
+		self.fei.reload()
+		self.assertTrue(result["ok"])
+		self.assertEqual(self.fei.address or "", "")
+
+	def test_resync_is_refused_while_reconciling(self):
+		"""Q7-1: ở 98 chưa biết Fast đã ra số chưa — phải truy vấn 370 trước."""
+		frappe.db.set_value(FEI, self.fei.name, "status", STATUS_NEEDS_RECONCILE)
 		with self.assertRaises(frappe.ValidationError):
 			resync_from_source(self.fei.name)
 

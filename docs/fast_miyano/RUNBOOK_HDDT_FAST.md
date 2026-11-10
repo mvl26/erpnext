@@ -46,6 +46,12 @@ Vào **Fast EInvoice Settings** (Single DocType):
    chạy xong 12 kịch bản.
 3. Bật `Kích hoạt tích hợp`.
 4. Chọn hai mẫu email (đã tạo sẵn khi migrate) và điền `Người nhận cảnh báo lỗi`.
+5. Mục **Gửi hóa đơn cho khách**: điền *Người phụ trách gửi hóa đơn*, *Điện thoại đầu
+   mối*, *Email đầu mối* (khách bấm trả lời là về hộp thư này) và *CC kế toán Miyano*
+   (nhiều email cách nhau dấu phẩy — áp dụng cho cả tự gửi và gửi tay).
+   *Trang tra cứu hóa đơn (dự phòng)* chỉ dùng khi không đọc được link trong PDF.
+6. Chỉ bật **Tự gửi hóa đơn cho khách sau phát hành** khi đã điền xong bước 5. Ô này cần
+   *Tự tải PDF sau phát hành* đang bật. Mặc định **tắt**.
 
 Mặc định an toàn: site mới có `Kích hoạt = tắt` và `Chế độ TEST = bật`. Lên
 thật là hành động **cố ý lật hai cờ**, không thể vô tình.
@@ -71,7 +77,8 @@ Sales Invoice đã submit   (lập trong ngày giao hàng)
                                     │  [PHÁT HÀNH HÓA ĐƠN]        ← CẤP 3
                                     ▼
                               06 Đã phát hành
-                                    │  [Tải PDF] → [Gửi hóa đơn]  ← cấp 2
+                                    │  [Tải PDF] → [Gửi hóa đơn] ← cấp 2
+                                    │  (tự gửi thì xem đoạn "Tự gửi" bên dưới)
                                     ▼
                               07 Đã gửi khách
                                     │  job nền 20 phút kiểm tra CQT
@@ -87,11 +94,29 @@ số, không gửi CQT, không tiêu số hóa đơn nào.
 **Chỉ từ trạng thái 06 trở đi hóa đơn mới có giá trị pháp lý.** Bản PDF ở trạng
 thái 01–04 là bản nháp; mẫu email gửi khách đã ghi sẵn dòng cảnh báo này.
 
-**PDF và XML gửi khách.** PDF chính thức **tự tải** khoảng 1 phút sau khi phát hành
-(Fast còn đang ký số; bấm tay sớm hơn 60 giây sẽ bị chặn). PDF để công khai, trường
-*Link xem hóa đơn* là link gửi thẳng cho khách. **XML phải đính tay**: API Fast không
-có lệnh tải XML — tải file XML trên portal Fast rồi đính vào trường *XML hóa đơn*.
-ERP chỉ gửi email hóa đơn khi có **đủ cả PDF và XML**, và email kèm cả hai file.
+**PDF, mã tra cứu và XML.** PDF chính thức **tự tải** khoảng 1 phút sau khi phát hành
+(Fast còn đang ký số; bấm tay sớm hơn 60 giây sẽ bị chặn). Lúc tải, hệ thống đọc
+**mã tra cứu** (dạng `6D A83 217 253 61N 682`) và **trang tra cứu** in trên PDF vào hai
+trường *Mã tra cứu in trên hóa đơn* / *Trang tra cứu*. Đây là mã khách nhập trên trang
+tra cứu của Fast — **không phải** `keySearch` (chuỗi dài, chỉ dùng gọi API). **XML không
+bắt buộc**: khách tự tải XML trên trang tra cứu; kế toán đã đính file vào *XML hóa
+đơn* thì email kèm thêm XML.
+
+**Email hóa đơn chính thức** theo mẫu Miyano (`Mau_Email_Gui_Hoa_Don_Miyano.md`): số,
+ngày, ký hiệu (`1C26TAA`), mã CQT, nút TRA CỨU + mã tra cứu, PDF đính kèm; tự CC kế
+toán Miyano; khách trả lời về email đầu mối. Gửi tay thì người gửi là người đang đăng
+nhập, tự gửi thì là đầu mối trong Settings.
+
+**Tự gửi (nếu bật).** Job mỗi phút: hóa đơn 06/08 đã có PDF và mã tra cứu, chưa gửi lần
+nào, phát hành trong 24 giờ, có *Email nhận hóa đơn* → hỏi CQT (8200) nếu chưa có mã →
+gửi. Thường 1–3 phút sau phát hành. Gửi tay trước thì hệ thống không gửi nữa.
+Tự gửi chỉ chạy khi đã có mã CQT, nên hóa đơn tự gửi nằm ở **08 CQT chấp nhận**, không
+lên 07 — xem *Đã gửi hóa đơn tới* / *Số lần gửi* để biết đã gửi chưa. Nút đổi thành
+**Gửi lại hóa đơn cho khách** và hộp gửi báo lần gửi trước, để không gửi trùng.
+
+**Đồng bộ lại từ chứng từ nguồn** là nút riêng trên thanh nút, chỉ có ở 01–04 và 99:
+bấm là chạy, xong báo các trường đã đổi. Không đổi gì thì giữ nguyên trạng thái; có
+đổi thì hóa đơn về Nháp. Ở 98 phải bấm *Lấy dữ liệu từ Fast (370)* trước.
 
 **Nơi lưu file.** Mọi file của một hóa đơn — bản nháp, PDF chính thức (kể cả bản trên
 hóa đơn bán), PDF chuyển đổi, XML — nằm chung thư mục
@@ -175,6 +200,19 @@ Bản ghi mới đi lại trọn vòng đời từ Nháp. Hóa đơn gốc chỉ
 | Phiếu giao trong hóa đơn bán đã có hóa đơn bản 2.0 | Từ chối tạo, nêu chứng từ cũ | Mở chứng từ cũ, bấm **Gắn hóa đơn bán** |
 | Tổng tiền chứng từ HĐĐT lệch hóa đơn bán (quy tắc 18) | Cảnh báo | Sửa hóa đơn bán hoặc Đồng bộ lại |
 | Hóa đơn bán ghi sổ khác kỳ kê khai với ngày hóa đơn (quy tắc 19) | Cảnh báo | Kế toán trưởng xác nhận trước khi phát hành |
+
+### 4.7 Hệ thống không tự gửi được hóa đơn
+
+Hóa đơn được đánh dấu *thôi tự gửi*, có comment nêu lý do, và người nhận cảnh báo
+lỗi nhận email "[HĐĐT] Cần gửi tay hóa đơn …". Gửi tay bằng **Gửi hóa đơn cho khách**:
+
+| Lý do | Làm gì |
+|---|---|
+| Không đọc được mã tra cứu từ PDF (Fast đổi bố cục PDF) | Mở PDF chính thức, chép *Mã tra cứu hóa đơn* vào trường *Mã tra cứu in trên hóa đơn*, rồi gửi tay. Báo dev nếu lặp lại |
+| Quá 30 phút chưa có mã của Cơ quan Thuế | Bấm *Kiểm tra trạng thái CQT*; có mã rồi mới gửi tay |
+| Tự gửi lỗi 3 lần | Xem *Email Queue* và Error Log; sửa cấu hình email rồi gửi tay |
+
+Thiếu *Email nhận hóa đơn* thì hệ thống chỉ bỏ qua (không cảnh báo): điền email rồi gửi tay.
 
 ---
 

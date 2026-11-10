@@ -799,6 +799,17 @@ class TestDocChoTrang(FrappeTestCase):
 		self.assertEqual([o["o"] for o in d["o_nen_lay"]], [O_GAN])
 		self.assertEqual(d["thieu_trong_lo"], 0.0, "đủ hàng thì không thiếu gì")
 
+	def test_mo_phieu_kem_so_lo_hien_thi(self):
+		"""Spec tách số lô 19/10/2026: `so_lo` vẫn là mã lô (JS gửi ngược lên),
+		màn hiện `so_lo_hien_thi` — số lô NCC."""
+		from erpnext.warehouse_operations.vitri.lay_hang import mo_phieu_giao
+
+		frappe.db.set_value("Batch", LO, "custom_so_lo", "SO-NCC-LAY")
+		d = mo_phieu_giao(self.dn.name)["dong"][0]
+		self.assertEqual((d["so_lo"], d["so_lo_hien_thi"]), (LO, "SO-NCC-LAY"))
+		if d.get("lo_nen_lay"):
+			self.assertIn("lo_nen_lay_hien_thi", d)
+
 	def test_mo_phieu_thieu_hang_khong_nem_loi_va_goi_y_dung_ton_lo(self):
 		"""Bài test BẮT BUỘC (sửa lỗi "mở phiếu bật hộp lỗi"): dòng cần NHIỀU
 		HƠN tồn của (mặt hàng, lô) đang chốt — ca hay gặp nhất của trang (lô

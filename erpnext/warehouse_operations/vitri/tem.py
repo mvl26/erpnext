@@ -1,7 +1,7 @@
 """Chọn danh sách ô để in tem cho một nhánh của cây vị trí.
 
-File này CHỈ quyết định **in những ô nào**. Việc vẽ tem (khổ 45×25mm hoặc
-50×30mm, mã vạch Code 128, cửa sổ in) nằm ở `public/js/warehouse_operations/tem_vi_tri.js`.
+File này CHỈ quyết định **in những ô nào**. Việc vẽ tem (khổ 45x25mm hoặc
+50x30mm, mã vạch Code 128, cửa sổ in) nằm ở `public/js/warehouse_operations/tem_vi_tri.js`.
 
 Vì sao tách đôi: phần chọn ô là chỗ hỏng đắt và im lặng. In THIẾU thì thấy
 ngay — kệ trống tem. In THỪA thì ra một xấp tem của nhánh khác, dán lên kệ,
@@ -12,11 +12,13 @@ và mọi lần quét sau đó đều trỏ sai chỗ mà không có gì báo l�
 import frappe
 from frappe import _
 
+from erpnext.warehouse_operations.vitri import vai_tro as vt
+
 # Cùng nguồn với DocPerm đọc của `Storage Location`: thủ kho (`Stock User`)
 # PHẢI in lại được tem khi tem rách, bẩn, bong — đó là việc hằng ngày, không
 # phải thiết lập. Khác với `bat_kho.py` (sinh ô, bật kho) cố ý chỉ mở cho
 # quản lý, vì những thao tác đó GHI dữ liệu; in tem không ghi gì.
-VAI_TRO_DUOC_IN_TEM = {"System Manager", "Stock Manager", "Stock User"}
+VAI_TRO_DUOC_IN_TEM = {"Stock Manager", "Stock User"}
 
 # Trần số tem một lần in. Bấm nhầm vào nốt gốc mà không có trần thì cả cuộn
 # tem chạy ra máy in trước khi kịp dừng.
@@ -30,7 +32,7 @@ def _kiem_tra_quyen():
 	toàn bộ cách bố trí kho, nên đăng nhập hợp lệ không phải điều kiện đủ —
 	`Website User` (khách hàng cổng) không có vai trò nào ở đây nên bị chặn.
 	"""
-	if not VAI_TRO_DUOC_IN_TEM & set(frappe.get_roles()):
+	if not vt.co_quyen(VAI_TRO_DUOC_IN_TEM):
 		frappe.throw(_("Bạn không có quyền in tem vị trí."), frappe.PermissionError)
 
 

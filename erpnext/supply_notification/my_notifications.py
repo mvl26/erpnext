@@ -74,6 +74,7 @@ def set_subscription(point: str, receive: int | str = 1) -> dict:
 	if not frappe.db.get_value(POINT_DOCTYPE, point, "allow_opt_out"):
 		frappe.throw(_("Điểm {0} là thông báo bắt buộc, không tắt được.").format(point))
 
+	# H6: miễn kiểm quyền — chỉ đọc/ghi dòng opt-out của CHÍNH người gọi (user = session.user).
 	existing = frappe.get_all(OPT_OUT_DOCTYPE, filters={"user": user, "point": point}, pluck="name")
 
 	if receive:

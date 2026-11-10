@@ -31,12 +31,14 @@ def execute(filters=None):
 		f"""
 		select lb.o, ifnull(sl.ma_in_nhan, sl.name) as ma_in_nhan,
 		       lb.vat_tu as vat_tu_dang_co, nullif(lb.so_lo, '') as so_lo,
+		       nullif(ifnull(nullif(b.custom_so_lo, ''), lb.so_lo), '') as so_lo_hien_thi,
 		       lb.so_luong, r.parent as vat_tu_da_gan, r.vi_tri as nut_gan
 		from `tabLocation Balance` lb
 		join `tabStorage Location` sl on sl.name = lb.o
 		join `tabStorage Location` s2 on s2.lft <= sl.lft and s2.rgt >= sl.rgt
 		join `tabItem Location Preference Row` r
 		  on r.vi_tri = s2.name and r.parenttype = 'Item Location Preference'
+		left join `tabBatch` b on b.name = lb.so_lo
 		where {' and '.join(dieu_kien)}
 		  and sl.lft > 0
 		order by sl.lft asc, lb.vat_tu asc
@@ -53,8 +55,10 @@ def _cot():
 		{"label": _("Mã trên nhãn"), "fieldname": "ma_in_nhan", "fieldtype": "Data", "width": 130},
 		{"label": _("Mặt hàng đang nằm"), "fieldname": "vat_tu_dang_co", "fieldtype": "Link",
 		 "options": "Item", "width": 200},
-		{"label": _("Số lô"), "fieldname": "so_lo", "fieldtype": "Link",
-		 "options": "Batch", "width": 150},
+		{"label": _("Mã lô"), "fieldname": "so_lo", "fieldtype": "Link",
+		 "options": "Batch", "width": 150, "hidden": 1},
+		# Spec tách số lô 19/10/2026: người đọc thấy số lô NCC, cột Link ẩn giữ mã.
+		{"label": _("Số lô"), "fieldname": "so_lo_hien_thi", "fieldtype": "Data", "width": 150},
 		{"label": _("Số lượng"), "fieldname": "so_luong", "fieldtype": "Float", "width": 100},
 		{"label": _("Đã gán cho"), "fieldname": "vat_tu_da_gan", "fieldtype": "Link",
 		 "options": "Item", "width": 200},

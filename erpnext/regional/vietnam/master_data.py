@@ -98,6 +98,9 @@ def _seed_default_warehouse(company):
 def master_data_completeness(company=None):
 	"""Report masters missing VN-required fields. Read-only; returns a structured result."""
 	issues = []
+	# H6: get_all không kiểm quyền — phải đọc được cả ba danh mục mới xem được báo cáo thiếu sót.
+	for dt in ("Customer", "Supplier", "Item"):
+		frappe.has_permission(dt, "read", throw=True)
 
 	for c in frappe.get_all("Customer", filters={"disabled": 0}, fields=["name", "tax_id"]):
 		if not c.tax_id:

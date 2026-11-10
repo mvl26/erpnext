@@ -13,7 +13,6 @@ from frappe.custom.doctype.property_setter.property_setter import make_property_
 from frappe.utils import flt, getdate, nowdate
 
 from erpnext.regional.vietnam.constants import CHART_NAME, PL_ACCOUNT_PREFIXES, VN_NAMING_SERIES
-from erpnext.regional.vietnam.role_profiles import VN_ROLE_PROFILES
 from erpnext.regional.vietnam.setup import _acct
 
 # TT99 inventory account prefixes (hàng tồn kho: nguyên vật liệu … hàng gửi bán).
@@ -148,12 +147,14 @@ def validate_opening_balances(company, as_of=None):
 	the 131 / 331 / 15x opening control totals.
 
 	With ``as_of`` (mid-year cutover, e.g. ``"2026-06-30"``) two more gates apply:
-	the opening TB is balance-sheet-only — no account numbered loại 5–9, the H1
+	the opening TB is balance-sheet-only — no account numbered loại 5-9, the H1
 	result belongs in equity (4212) — and every opening entry is posted exactly on
 	``as_of``. Core already blocks report_type="Profit and Loss" accounts in opening
 	entries; the number-prefix gate additionally catches P&L-numbered accounts that
 	were misclassified as Balance Sheet. Without ``as_of`` behavior is unchanged.
 	"""
+	# H6: get_all không kiểm quyền — chỉ người đọc được sổ cái mới xem được số dư đầu kỳ.
+	frappe.has_permission("GL Entry", "read", throw=True)
 	rows = frappe.get_all(
 		"GL Entry",
 		filters={"company": company, "is_opening": "Yes", "is_cancelled": 0},
@@ -166,7 +167,9 @@ def validate_opening_balances(company, as_of=None):
 	total_dr = sum(flt(r.debit) for r in rows)
 	total_cr = sum(flt(r.credit) for r in rows)
 	non_tt99 = sorted({r.account for r in rows if not numbers[r.account]})
-	orphan = sorted({r.account for r in rows if numbers[r.account].startswith(("131", "331")) and not r.party})
+	orphan = sorted(
+		{r.account for r in rows if numbers[r.account].startswith(("131", "331")) and not r.party}
+	)
 
 	def _net(prefixes):
 		return sum(flt(r.debit) - flt(r.credit) for r in rows if numbers[r.account].startswith(prefixes))
@@ -283,8 +286,10 @@ def _check_has_warehouse(company):
 
 
 def _check_role_profiles(company):
-	missing = [name for name in VN_ROLE_PROFILES if not frappe.db.exists("Role Profile", name)]
-	return _check("role_profiles", not missing, "; ".join(missing) or "đủ nhóm quyền VN")
+	from erpnext.access.permissions.matrix import load_matrix
+
+	missing = [name for name in load_matrix().role_profiles if not frappe.db.exists("Role Profile", name)]
+	return _check("role_profiles", not missing, "; ".join(missing) or "đủ nhóm quyền RP-* của ma trận")
 
 
 def _check_no_numberless_accounts(company):

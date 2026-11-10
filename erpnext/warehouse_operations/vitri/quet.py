@@ -1,7 +1,7 @@
 """Tra cứu ngược: quét một mã bất kỳ, trả lại TOÀN BỘ thông tin đã khai cho lô đó.
 
 CHIỀU NGƯỢC của Task 7/9 (`nhap_lo.du_lieu_tem`, `nhap_lo.dat_o_in_tem`): ở đó,
-thủ kho GÕ số lô của NCC rồi hệ IN nhãn 50×30 — mã vạch trên nhãn MÃ HOÁ chính
+thủ kho GÕ số lô của NCC rồi hệ IN nhãn 50x30 — mã vạch trên nhãn MÃ HOÁ chính
 số lô đó. Ở đây, thủ kho QUÉT LẠI đúng mã vạch trên nhãn đã dán (hoặc quét mã
 vật tư, hoặc quét mã kho) và hệ phải trả lại đúng những gì đã khai — yêu cầu
 trực tiếp của chủ đầu tư: "quét mã thì ra toàn bộ thông tin đã nhập".
@@ -22,20 +22,28 @@ hai tầng — bên gọi không phải đoán bằng cách xem khoá nào có m
 Quét NHẦM là chuyện thường ngày (mã trên vỏ thùng carton, tem vận chuyển, bất
 cứ thứ gì có vạch) — `tra_cuu` không bao giờ được ném lỗi ra giữa màn hình
 nhập liệu; mọi nhánh không nhận diện được đều trả `{"loai": None}`, không nổ.
+
+SỐ LÔ TÁCH KHỎI MÃ LÔ (spec 19/10/2026): mã vạch in MÃ LÔ (tên `Batch`), nên khoá
+`so_lo` trong mọi kết quả vẫn mang mã lô — JS gửi nó ngược lên. Chữ cho người đọc
+nằm ở `so_lo_hien_thi`. Gõ tay thì người dùng có thể gõ SỐ LÔ bao bì, mà số lô
+trùng được giữa các mặt hàng: khớp từ hai lô trở lên thì trả `{"loai": "chon_lo",
+"ds": [...]}` cho họ chọn, không đoán hộ.
 """
 
 import frappe
 from frappe import _
 
 from erpnext.stock.utils import scan_barcode
+from erpnext.warehouse_operations.vitri import vai_tro as vt
 from erpnext.warehouse_operations.vitri.nhat_ky_loi import cat_tieu_de
+from erpnext.warehouse_operations.vitri.so_lo import tim_lo
 
 # Cùng bộ vai trò với `xep.py`/`nhap_lo.py` (không import chéo — mỗi file
 # `vitri/*.py` tự giữ một bản hằng số vai trò, đúng tiền lệ đã chọn ở hai file
 # đó, để không cột chặt các module vốn độc lập vào nhau vì một hằng số ba phần
 # tử). `tra_cuu` lộ tồn kho theo Ô của BẤT KỲ lô nào quét trúng, không phải
 # thao tác thiết lập chỉ dành cho quản lý (khác `bat_kho.py`).
-VAI_TRO_DUOC_TRA_CUU = {"System Manager", "Stock Manager", "Stock User"}
+VAI_TRO_DUOC_TRA_CUU = {"Stock Manager", "Stock User", "MVL Kho PDA"}
 
 
 def _kiem_tra_quyen():
@@ -45,7 +53,7 @@ def _kiem_tra_quyen():
 	hợp lệ không phải điều kiện đủ. `Website User` (khách hàng cổng
 	`miyano_portal`) không có vai trò nào ở đây nên bị chặn.
 	"""
-	if not VAI_TRO_DUOC_TRA_CUU & set(frappe.get_roles()):
+	if not vt.co_quyen(VAI_TRO_DUOC_TRA_CUU):
 		frappe.throw(_("Bạn không có quyền tra cứu theo mã vạch."), frappe.PermissionError)
 
 
@@ -61,6 +69,7 @@ def _vi_tri_co_dinh(vat_tu: str) -> str | None:
 
 
 def _dong_gan(vat_tu: str) -> list:
+	# H6: miễn kiểm quyền — chỉ gọi từ `tra_cuu` sau `_kiem_tra_quyen()` (vai trò kho).
 	return frappe.get_all(
 		"Item Location Preference Row",
 		filters={"parent": vat_tu, "parenttype": "Item Location Preference"},
@@ -78,10 +87,11 @@ def _ton_theo_o(so_lo: str) -> list[dict]:
 	"""
 	return frappe.db.sql(
 		"""
-		select o, kho, so_luong
-		from `tabLocation Balance`
-		where so_lo = %(so_lo)s and so_luong != 0
-		order by o asc
+		select lb.o as o, lb.kho as kho, lb.so_luong as so_luong, ifnull(nullif(b.custom_so_lo, ''), lb.so_lo) as so_lo_hien_thi
+		from `tabLocation Balance` lb
+		left join `tabBatch` b on b.name = lb.so_lo
+		where lb.so_lo = %(so_lo)s and lb.so_luong != 0
+		order by lb.o asc
 		""",
 		{"so_lo": so_lo},
 		as_dict=True,
@@ -112,6 +122,7 @@ def _tra_cuu_lo(so_lo: str) -> dict:
 	return {
 		"loai": "lo",
 		"so_lo": lo.name,
+		"so_lo_hien_thi": lo.custom_so_lo or lo.name,
 		"vat_tu": lo.item,
 		"ten_hang": lo.item_name,
 		"don_vi": frappe.db.get_value("Item", lo.item, "stock_uom"),
@@ -146,7 +157,8 @@ def _tra_cuu_vat_tu(vat_tu: str) -> dict:
 	gan = _dong_gan(vat_tu)
 	lo_con_ton = frappe.db.sql(
 		"""
-		select lb.so_lo as so_lo, b.expiry_date as hsd, lb.o as o, lb.kho as kho, lb.so_luong as so_luong
+		select lb.so_lo as so_lo, ifnull(nullif(b.custom_so_lo, ''), lb.so_lo) as so_lo_hien_thi, b.expiry_date as hsd,
+			lb.o as o, lb.kho as kho, lb.so_luong as so_luong
 		from `tabLocation Balance` lb
 		left join `tabBatch` b on b.name = lb.so_lo
 		where lb.vat_tu = %(vat_tu)s and lb.so_luong != 0
@@ -280,7 +292,8 @@ def _tra_cuu_o(ma_o: str) -> dict:
 	ket_qua["hang_trong_o"] = frappe.db.sql(
 		"""
 		select lb.o as o, lb.vat_tu as vat_tu, i.item_name as ten_hang, i.stock_uom as don_vi,
-			lb.so_lo as so_lo, b.expiry_date as hsd, lb.so_luong as so_luong
+			lb.so_lo as so_lo, ifnull(nullif(b.custom_so_lo, ''), lb.so_lo) as so_lo_hien_thi, b.expiry_date as hsd,
+			lb.so_luong as so_luong
 		from `tabLocation Balance` lb
 		join `tabStorage Location` sl on sl.name = lb.o
 		left join `tabItem` i on i.name = lb.vat_tu
@@ -304,6 +317,13 @@ def _tra_cuu_khong_kiem_quyen(ma: str) -> dict:
 	ma = (ma or "").strip()
 	if not ma:
 		return {"loai": None}
+
+	# E3: chuỗi vừa là TÊN một lô (tem cũ) vừa là SỐ LÔ lô khác — kiểm TRƯỚC
+	# `scan_barcode`, vì nhánh `batch_no` của nó chỉ thấy tên và sẽ vào thẳng
+	# một lô trong khi người gõ có thể đang đọc số lô trên bao bì lô kia.
+	lo_khop = tim_lo(ma)
+	if len(lo_khop) >= 2:
+		return {"loai": "chon_lo", "ds": lo_khop}
 
 	# `scan_barcode` đã thử theo thứ tự Item Barcode -> Serial No -> Batch ->
 	# Warehouse và luôn trả `dict` (rỗng nếu không khớp gì) — không bao giờ
@@ -337,6 +357,11 @@ def _tra_cuu_khong_kiem_quyen(ma: str) -> dict:
 
 	if frappe.db.exists("Item", ma):
 		return _tra_cuu_vat_tu(ma)
+
+	# Gõ tay SỐ LÔ bao bì mà chỉ một lô mang nó: vào thẳng lô đó. Đặt CUỐI để
+	# một số lô tình cờ trùng mã ô/mã vật tư không đổi nghĩa mã đó.
+	if lo_khop:
+		return _tra_cuu_lo(lo_khop[0]["ma_lo"])
 
 	return {"loai": None}
 

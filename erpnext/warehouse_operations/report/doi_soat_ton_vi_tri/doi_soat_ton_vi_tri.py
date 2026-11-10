@@ -28,6 +28,7 @@ import frappe
 from frappe import _
 
 from erpnext.warehouse_operations.vitri.doi_soat import doi_soat_kho
+from erpnext.warehouse_operations.vitri.so_lo import so_lo_theo_ma
 
 
 def execute(filters=None):
@@ -37,13 +38,18 @@ def execute(filters=None):
 		frappe.throw(_("Chọn kho để đối soát."))
 
 	kq = doi_soat_kho(kho)
+	so_lo = so_lo_theo_ma(d["so_lo"] for k in ("dong_lech", "o_am", "lech_bo_dem") for d in kq[k])
+
+	def lo(d):
+		return d["so_lo"], so_lo.get(d["so_lo"])
+
 	dong = []
 	for d in kq["dong_lech"]:
-		dong.append([_("Lệch tồn"), None, d["vat_tu"], d["so_lo"], d["ton_vi_tri"], d["ton_kho"], d["lech"]])
+		dong.append([_("Lệch tồn"), None, d["vat_tu"], *lo(d), d["ton_vi_tri"], d["ton_kho"], d["lech"]])
 	for d in kq["o_am"]:
-		dong.append([_("Ô âm"), d["o"], d["vat_tu"], d["so_lo"], d["so_luong"], None, None])
+		dong.append([_("Ô âm"), d["o"], d["vat_tu"], *lo(d), d["so_luong"], None, None])
 	for d in kq["lech_bo_dem"]:
-		dong.append([_("Lệch bộ đệm"), d["o"], d["vat_tu"], d["so_lo"], d["bo_dem"], d["so_sach"], d["lech"]])
+		dong.append([_("Lệch bộ đệm"), d["o"], d["vat_tu"], *lo(d), d["bo_dem"], d["so_sach"], d["lech"]])
 
 	return _cot(), dong
 
@@ -53,7 +59,16 @@ def _cot():
 		{"label": _("Loại lệch"), "fieldname": "loai", "fieldtype": "Data", "width": 110},
 		{"label": _("Ô"), "fieldname": "o", "fieldtype": "Link", "options": "Storage Location", "width": 150},
 		{"label": _("Mặt hàng"), "fieldname": "vat_tu", "fieldtype": "Link", "options": "Item", "width": 220},
-		{"label": _("Số lô"), "fieldname": "so_lo", "fieldtype": "Link", "options": "Batch", "width": 150},
+		{
+			"label": _("Mã lô"),
+			"fieldname": "so_lo",
+			"fieldtype": "Link",
+			"options": "Batch",
+			"width": 150,
+			"hidden": 1,
+		},
+		# Spec tách số lô 19/10/2026: người đọc thấy số lô NCC, cột Link ẩn giữ mã.
+		{"label": _("Số lô"), "fieldname": "so_lo_hien_thi", "fieldtype": "Data", "width": 150},
 		{
 			"label": _("Tồn vị trí / Số lượng / Bộ đệm"),
 			"fieldname": "gia_tri_1",

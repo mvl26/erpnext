@@ -30,7 +30,15 @@
   "notification_section",
   "draft_email_template",
   "issued_email_template",
-  "notify_on_error"
+  "notify_on_error",
+  "invoice_delivery_section",
+  "auto_send_invoice",
+  "lookup_url",
+  "invoice_email_cc",
+  "column_break_invoice_delivery",
+  "invoice_sender_name",
+  "invoice_sender_phone",
+  "invoice_sender_email"
  ],
  "fields": [
   {
@@ -195,12 +203,58 @@
    "fieldtype": "Table MultiSelect",
    "label": "Người nhận cảnh báo lỗi",
    "options": "Fast EInvoice Notify User"
+  },
+  {
+   "fieldname": "invoice_delivery_section",
+   "fieldtype": "Section Break",
+   "label": "Gửi hóa đơn cho khách"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.auto_download_pdf",
+   "description": "Gửi tới Email nhận hóa đơn khoảng 1–3 phút sau phát hành, sau khi Cơ quan Thuế cấp mã.",
+   "fieldname": "auto_send_invoice",
+   "fieldtype": "Check",
+   "label": "Tự gửi hóa đơn cho khách sau phát hành"
+  },
+  {
+   "description": "Dùng khi không đọc được link tra cứu trong PDF.",
+   "fieldname": "lookup_url",
+   "fieldtype": "Data",
+   "label": "Trang tra cứu hóa đơn (dự phòng)",
+   "options": "URL"
+  },
+  {
+   "description": "Nhiều email cách nhau dấu phẩy. Áp dụng cho cả tự gửi và gửi tay.",
+   "fieldname": "invoice_email_cc",
+   "fieldtype": "Small Text",
+   "label": "CC kế toán Miyano"
+  },
+  {
+   "fieldname": "column_break_invoice_delivery",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "invoice_sender_name",
+   "fieldtype": "Data",
+   "label": "Người phụ trách gửi hóa đơn"
+  },
+  {
+   "fieldname": "invoice_sender_phone",
+   "fieldtype": "Data",
+   "label": "Điện thoại đầu mối"
+  },
+  {
+   "fieldname": "invoice_sender_email",
+   "fieldtype": "Data",
+   "label": "Email đầu mối (nhận phản hồi)",
+   "options": "Email"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-14 09:00:00.000000",
+ "modified": "2026-10-21 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Einvoice",
  "name": "Fast EInvoice Settings",

@@ -174,13 +174,17 @@ class TestButtonsFollowTheStateTable(FormStateBase):
 	def test_an_abandoned_issuing_state_is_released_for_reconciliation(self):
 		"""05 mà không còn ai giữ khóa là tiến trình đã chết — không được khóa kế toán mãi.
 
-		Về "Cần đối soát": còn đồng bộ lại từ phiếu giao, xem nháp, truy vấn 370.
+		Về "Cần đối soát": còn truy vấn 370 và xem nháp. Không đồng bộ lại được (Q7-1):
+		chưa biết Fast đã ra số hay chưa thì phải hỏi Fast trước.
 		"""
 		buttons = self.buttons_at(STATUS_ISSUING)
 
 		self.assertEqual(frappe.db.get_value(FEI, self.fei, "status"), STATUS_NEEDS_RECONCILE)
-		self.assertIn("resync", buttons)
+		self.assertNotIn("resync", buttons)
 		self.assertIn("reconcile", buttons)
+
+	def test_reconciling_state_has_no_resync(self):
+		self.assertNotIn("resync", self.buttons_at(STATUS_NEEDS_RECONCILE))
 
 	def test_issued_invoice_offers_pdf_email_and_tax_check(self):
 		buttons = self.buttons_at(STATUS_ISSUED)
@@ -189,6 +193,20 @@ class TestButtonsFollowTheStateTable(FormStateBase):
 		self.assertIn("send_invoice", buttons)
 		self.assertIn("check_tax", buttons)
 		self.assertIn("reconcile", buttons)
+
+	def test_an_already_sent_invoice_says_resend(self):
+		"""Tự gửi để hóa đơn ở 08 chứ không lên 07 — nút phải nói rõ là gửi LẠI, tránh khách nhận hai mail."""
+		frappe.db.set_value(FEI, self.fei, "invoice_send_count", 1)
+		labels = {b["name"]: b["label"] for b in get_form_state(self._at(STATUS_TAX_ACCEPTED))["buttons"]}
+		self.assertEqual(labels["send_invoice"], "Gửi lại hóa đơn cho khách")
+
+	def test_a_never_sent_invoice_says_send(self):
+		labels = {b["name"]: b["label"] for b in get_form_state(self._at(STATUS_ISSUED))["buttons"]}
+		self.assertEqual(labels["send_invoice"], "Gửi hóa đơn cho khách")
+
+	def _at(self, status):
+		frappe.db.set_value(FEI, self.fei, "status", status)
+		return self.fei
 
 	def test_issued_invoice_can_no_longer_be_issued_or_resynced(self):
 		buttons = self.buttons_at(STATUS_ISSUED)
@@ -279,6 +297,10 @@ class TestConfirmationLevels(FormStateBase):
 		cancel = self._button(STATUS_TAX_REJECTED, "cancel")
 		self.assertEqual(cancel["level"], 3)
 		self.assertEqual(cancel["confirm_word"], "HUY")
+
+	def test_resync_runs_without_confirmation(self):
+		"""Q7: bấm là chạy — không hộp xác nhận, không hộp xem trước."""
+		self.assertEqual(self._button(STATUS_DRAFT, "resync")["level"], 0)
 
 	def test_previewing_is_only_a_simple_confirmation(self):
 		self.assertEqual(self._button(STATUS_DRAFT, "preview_draft")["level"], 1)
@@ -445,9 +467,8 @@ class TestLinkSalesInvoiceButton(FormStateBase):
 		names = [b["name"] for b in get_form_state(self.fei)["buttons"]]
 		self.assertNotIn("link_sales_invoice", names)
 
-	def test_the_resync_label_names_the_real_source(self):
-		labels = {b["name"]: b["label"] for b in get_form_state(self.fei)["buttons"]}
-		self.assertIn("hóa đơn bán", labels["resync"])
-		legacy = make_legacy_fei()
-		labels = {b["name"]: b["label"] for b in get_form_state(legacy)["buttons"]}
-		self.assertIn("phiếu giao", labels["resync"])
+	def test_the_resync_label_is_the_same_for_every_source(self):
+		"""Mục 7.2: một nút "Đồng bộ lại từ chứng từ nguồn" cho cả hóa đơn bán lẫn phiếu giao bản 2.0."""
+		for name in (self.fei, make_legacy_fei()):
+			labels = {b["name"]: b["label"] for b in get_form_state(name)["buttons"]}
+			self.assertEqual(labels["resync"], "Đồng bộ lại từ chứng từ nguồn")

@@ -1,0 +1,298 @@
+{
+	"doctypes": {
+		"MVL Approval Limits": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW",
+				"AM": "R"
+			}
+		},
+		"Global Defaults": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW"
+			}
+		},
+		"Item Variant Settings": {
+			"state": "matrix",
+			"perms": {
+				"IM": "RW"
+			}
+		},
+		"Delivery Settings": {
+			"state": "matrix",
+			"perms": {
+				"STM": "R",
+				"AM": "RW"
+			}
+		},
+		"Stock Reposting Settings": {
+			"state": "matrix",
+			"perms": {
+				"STM": "R",
+				"AM": "RW"
+			}
+		},
+		"Rename Tool": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "RW"
+			}
+		},
+		"Email Digest": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW"
+			}
+		},
+		"Code List": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW"
+			}
+		},
+		"Common Code": {
+			"state": "matrix",
+			"perms": {
+				"SYS": "CRW"
+			}
+		},
+		"Bisect Accounting Statements": {
+			"state": "g1_only"
+		},
+		"Bisect Nodes": {
+			"state": "g1_only"
+		},
+		"Cashier Closing": {
+			"state": "g1_only"
+		},
+		"Coupon Code": {
+			"state": "g1_only"
+		},
+		"Dunning": {
+			"state": "g1_only"
+		},
+		"Dunning Type": {
+			"state": "g1_only"
+		},
+		"Invoice Discounting": {
+			"state": "g1_only"
+		},
+		"Ledger Health": {
+			"state": "g1_only"
+		},
+		"Ledger Health Monitor": {
+			"state": "g1_only"
+		},
+		"Loyalty Point Entry": {
+			"state": "g1_only"
+		},
+		"Loyalty Program": {
+			"state": "g1_only"
+		},
+		"Payment Gateway Account": {
+			"state": "g1_only"
+		},
+		"Payment Order": {
+			"state": "g1_only"
+		},
+		"Pegged Currencies": {
+			"state": "g1_only"
+		},
+		"POS Closing Entry": {
+			"state": "g1_only"
+		},
+		"POS Invoice": {
+			"state": "g1_only",
+			"permlevel": {
+				"1": {
+					"fields": [
+						"ignore_pricing_rule"
+					],
+					"read": [],
+					"write": []
+				}
+			}
+		},
+		"POS Invoice Merge Log": {
+			"state": "g1_only"
+		},
+		"POS Opening Entry": {
+			"state": "g1_only"
+		},
+		"POS Profile": {
+			"state": "g1_only"
+		},
+		"POS Settings": {
+			"state": "g1_only"
+		},
+		"Process Deferred Accounting": {
+			"state": "g1_only"
+		},
+		"Process Subscription": {
+			"state": "g1_only"
+		},
+		"Share Transfer": {
+			"state": "g1_only"
+		},
+		"Share Type": {
+			"state": "g1_only"
+		},
+		"Shareholder": {
+			"state": "g1_only"
+		},
+		"Subscription": {
+			"state": "g1_only"
+		},
+		"Subscription Plan": {
+			"state": "g1_only"
+		},
+		"Subscription Settings": {
+			"state": "g1_only"
+		},
+		"Asset Shift Allocation": {
+			"state": "g1_only"
+		},
+		"Asset Shift Factor": {
+			"state": "g1_only"
+		},
+		"BOM": {
+			"state": "g1_only"
+		},
+		"BOM Creator": {
+			"state": "g1_only"
+		},
+		"BOM Update Log": {
+			"state": "g1_only"
+		},
+		"BOM Update Tool": {
+			"state": "g1_only"
+		},
+		"Downtime Entry": {
+			"state": "g1_only"
+		},
+		"Job Card": {
+			"state": "g1_only"
+		},
+		"Manufacturing Settings": {
+			"state": "g1_only"
+		},
+		"Operation": {
+			"state": "g1_only"
+		},
+		"Plant Floor": {
+			"state": "g1_only"
+		},
+		"Production Plan": {
+			"state": "g1_only"
+		},
+		"Routing": {
+			"state": "g1_only"
+		},
+		"Work Order": {
+			"state": "g1_only"
+		},
+		"Workstation": {
+			"state": "g1_only"
+		},
+		"Workstation Type": {
+			"state": "g1_only"
+		},
+		"Subcontracting BOM": {
+			"state": "g1_only"
+		},
+		"Subcontracting Order": {
+			"state": "g1_only"
+		},
+		"Subcontracting Receipt": {
+			"state": "g1_only"
+		},
+		"Maintenance Schedule": {
+			"state": "g1_only"
+		},
+		"Maintenance Visit": {
+			"state": "g1_only"
+		},
+		"Warranty Claim": {
+			"state": "g1_only"
+		},
+		"Authorization Control": {
+			"state": "g1_only"
+		},
+		"Authorization Rule": {
+			"state": "g1_only"
+		},
+		"Transaction Deletion Record": {
+			"state": "g1_only"
+		},
+		"SMS Center": {
+			"state": "g1_only"
+		},
+		"SMS Log": {
+			"state": "g1_only"
+		},
+		"Video": {
+			"state": "g1_only"
+		},
+		"Video Settings": {
+			"state": "g1_only"
+		},
+		"Telephony Call Type": {
+			"state": "g1_only"
+		},
+		"Call Log": {
+			"state": "g1_only"
+		},
+		"Incoming Call Settings": {
+			"state": "g1_only"
+		},
+		"Voice Call Settings": {
+			"state": "g1_only",
+			"permlevel": {
+				"1": {
+					"fields": [
+						"user"
+					],
+					"read": [],
+					"write": []
+				}
+			}
+		},
+		"Communication Medium": {
+			"state": "g1_only"
+		},
+		"Homepage": {
+			"state": "g1_only"
+		},
+		"Homepage Section": {
+			"state": "g1_only"
+		},
+		"Plaid Settings": {
+			"state": "g1_only"
+		},
+		"Bulk Transaction Log": {
+			"state": "g1_only"
+		},
+		"Bulk Transaction Log Detail": {
+			"state": "g1_only"
+		},
+		"Import Supplier Invoice": {
+			"state": "g1_only"
+		},
+		"Lower Deduction Certificate": {
+			"state": "g1_only"
+		},
+		"South Africa VAT Settings": {
+			"state": "g1_only"
+		},
+		"UAE VAT Settings": {
+			"state": "g1_only"
+		},
+		"Incoterm": {
+			"state": "ref_master"
+		},
+		"Quotation Lost Reason": {
+			"state": "ref_master"
+		}
+	}
+}

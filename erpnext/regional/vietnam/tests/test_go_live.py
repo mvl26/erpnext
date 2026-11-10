@@ -63,29 +63,31 @@ class TestVietnamGoLiveConfig(FrappeTestCase):
 
 
 class TestVietnamRoleProfiles(FrappeTestCase):
-	def test_creates_all_profiles(self):
-		from erpnext.regional.vietnam.role_profiles import VN_ROLE_PROFILES, ensure_vn_role_profiles
+	def test_old_vn_profiles_are_no_longer_created(self):
+		from erpnext.regional.vietnam import role_profiles
 
-		ensure_vn_role_profiles()
-		for name in VN_ROLE_PROFILES:
-			self.assertTrue(frappe.db.exists("Role Profile", name), f"missing Role Profile {name}")
+		self.assertFalse(hasattr(role_profiles, "ensure_vn_role_profiles"))
 
-	def test_profiles_have_expected_roles(self):
-		from erpnext.regional.vietnam.role_profiles import ensure_vn_role_profiles
+	def test_check_is_green_when_all_matrix_profiles_exist(self):
+		from erpnext.access.permissions.matrix import load_matrix
+		from erpnext.regional.vietnam.go_live import _check_role_profiles
 
-		ensure_vn_role_profiles()
-		ketoan = [r.role for r in frappe.get_doc("Role Profile", "Kế toán").roles]
-		self.assertIn("Accounts User", ketoan)
-		truong = [r.role for r in frappe.get_doc("Role Profile", "Kế toán trưởng").roles]
-		self.assertIn("Accounts Manager", truong)
+		if not all(frappe.db.exists("Role Profile", p) for p in load_matrix().role_profiles):
+			self.skipTest("site chưa sync RP-* (chạy erpnext.access.permissions.sync.run)")
+		self.assertTrue(_check_role_profiles("any")["ok"])
 
-	def test_is_idempotent(self):
-		from erpnext.regional.vietnam.role_profiles import ensure_vn_role_profiles
+	def test_check_names_the_missing_profiles(self):
+		from types import SimpleNamespace
+		from unittest.mock import patch
 
-		ensure_vn_role_profiles()
-		ensure_vn_role_profiles()
-		roles = [r.role for r in frappe.get_doc("Role Profile", "Kế toán trưởng").roles]
-		self.assertEqual(len(roles), len(set(roles)), "duplicate roles after re-run")
+		from erpnext.regional.vietnam.go_live import _check_role_profiles
+
+		ghost = "RP-ZZ-" + frappe.generate_hash(length=6)
+		fake = SimpleNamespace(role_profiles={ghost: []})
+		with patch("erpnext.access.permissions.matrix.load_matrix", return_value=fake):
+			r = _check_role_profiles("any")
+		self.assertFalse(r["ok"])
+		self.assertIn(ghost, r["detail"])
 
 
 def _make_customer(name, tax_id=None):
@@ -284,16 +286,17 @@ def _check_named(result, name):
 
 class TestVietnamGoLiveReadiness(FrappeTestCase):
 	def test_fully_configured_is_all_green(self):
+		from erpnext.access.permissions.matrix import load_matrix
 		from erpnext.regional.vietnam.go_live import (
 			configure_go_live,
 			go_live_readiness,
 			mark_backup_verified,
 		)
-		from erpnext.regional.vietnam.role_profiles import ensure_vn_role_profiles
 
+		if not all(frappe.db.exists("Role Profile", p) for p in load_matrix().role_profiles):
+			self.skipTest("site chưa sync RP-* (chạy erpnext.access.permissions.sync.run)")
 		company = make_vn_company("_Test VN Ready", "TVRD")
 		configure_go_live(company, fiscal_year=GO_LIVE_YEAR)
-		ensure_vn_role_profiles()
 		mark_backup_verified(company)
 
 		result = go_live_readiness(company)
@@ -301,11 +304,9 @@ class TestVietnamGoLiveReadiness(FrappeTestCase):
 
 	def test_missing_backup_marker_flips_that_check(self):
 		from erpnext.regional.vietnam.go_live import configure_go_live, go_live_readiness
-		from erpnext.regional.vietnam.role_profiles import ensure_vn_role_profiles
 
 		company = make_vn_company("_Test VN Ready NB", "TVN2")
 		configure_go_live(company, fiscal_year=GO_LIVE_YEAR)
-		ensure_vn_role_profiles()
 		# Deliberately no backup marker.
 		result = go_live_readiness(company)
 		self.assertFalse(result["ok"])

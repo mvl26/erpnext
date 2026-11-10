@@ -295,3 +295,47 @@ def minimal_pdf_bytes():
 		f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n" f"startxref\n{xref_position}\n%%EOF\n"
 	).encode()
 	return bytes(out)
+
+
+LOOKUP_CODE = "6D A83 217 253 61N 682"
+LOOKUP_URL = "https://tinvoice.fast.com.vn:8000/"
+
+
+def lookup_pdf_bytes(code=LOOKUP_CODE, url=LOOKUP_URL):
+	"""PDF có in dòng mã tra cứu và dòng trang tra cứu — đúng hai dòng PDF thật của Fast có.
+
+	Chữ không dấu vì font chuẩn Helvetica không có bảng mã tiếng Việt; phần đọc mã
+	chỉ neo vào nhãn tiếng Anh nên vẫn đúng như PDF thật. Một dòng comment ngẫu
+	nhiên làm mỗi file khác nhau: Frappe gộp File theo hash nội dung, hai test dùng
+	chung một bản là đính nhầm file của nhau.
+	"""
+	lines = [f"Ma tra cuu hoa don (Invoice code): {code}", f"Tra cuu tai (Search on): {url}"]
+	text = " 0 -14 Td ".join(f"({_pdf_escape(line)}) Tj" for line in lines)
+	stream = f"BT /F1 10 Tf 50 700 Td {text} ET".encode()
+	objects = [
+		b"<< /Type /Catalog /Pages 2 0 R >>",
+		b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+		b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+		b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+		b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+		f"<< /Length {len(stream)} >>\nstream\n".encode() + stream + b"\nendstream",
+	]
+	out = bytearray(f"%PDF-1.4\n% {frappe.generate_hash(length=12)}\n".encode())
+	offsets = []
+	for index, body in enumerate(objects, start=1):
+		offsets.append(len(out))
+		out += f"{index} 0 obj\n".encode() + body + b"\nendobj\n"
+
+	xref_position = len(out)
+	out += f"xref\n0 {len(objects) + 1}\n".encode()
+	out += b"0000000000 65535 f \n"
+	for offset in offsets:
+		out += f"{offset:010d} 00000 n \n".encode()
+	out += (
+		f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n" f"startxref\n{xref_position}\n%%EOF\n"
+	).encode()
+	return bytes(out)
+
+
+def _pdf_escape(value):
+	return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")

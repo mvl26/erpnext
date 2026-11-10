@@ -105,6 +105,7 @@ def chan_doan_phieu_nhap(phieu_nhap: str) -> dict:
 		"phieu_nhap_lo_nhap": frappe.db.get_value(
 			"Batch Entry", {"phieu_nhap": phieu_nhap, "docstatus": 0}, "name"
 		),
+		# H6: đã `has_permission("Purchase Receipt", "read")` ở trên; chỉ liệt kê phiếu nhập lô của chính phiếu này.
 		"phieu_nhap_lo": frappe.get_all(
 			"Batch Entry", {"phieu_nhap": phieu_nhap, "docstatus": 1}, pluck="name"
 		),
@@ -187,8 +188,7 @@ def chan_lo_go_tay_khi_duyet(doc, method=None):
 	dong_kiem = [
 		d
 		for d in doc.items
-		if kho_co_quan_ly_vi_tri(d.warehouse)
-		and frappe.get_cached_value("Item", d.item_code, "has_batch_no")
+		if kho_co_quan_ly_vi_tri(d.warehouse) and frappe.get_cached_value("Item", d.item_code, "has_batch_no")
 	]
 	if not dong_kiem:
 		return

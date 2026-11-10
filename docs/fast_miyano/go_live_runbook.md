@@ -51,13 +51,11 @@ bán/mua…
 
 ---
 
-## Bước 2 — Phân quyền (`ensure_vn_role_profiles` + tạo người dùng)
+## Bước 2 — Phân quyền (đồng bộ RP-* + tạo người dùng)
 
-Tạo 6 nhóm quyền: **Kế toán, Kế toán trưởng, Thủ kho, Bán hàng, Mua hàng, Quản lý**.
-
-```bash
-bench --site miyano execute erpnext.regional.vietnam.role_profiles.ensure_vn_role_profiles
-```
+Nhóm quyền là các Role Profile `RP-*` của ma trận RBAC. Chúng do bước đồng bộ RBAC tạo ra, nằm trong
+cutover RBAC (điều kiện: bật cờ `mvl_rbac_enabled`; làm theo `docs/rbac/RUNBOOK_GoLive_PhanQuyen.md`).
+Chưa cutover thì chưa có profile `RP-*` và kiểm tra `role_profiles` của go-live báo đỏ.
 
 Sau đó **tạo người dùng thật** (thủ công, cần xác nhận — không tự động hoá):
 User → New → nhập email nhân sự → gán **Role Profile** tương ứng. Kiểm tra lại phạm
@@ -272,7 +270,7 @@ bench --site miyano migrate
 ```
 [ ] 0. Đã bench backup --with-files + xác minh khôi phục  → mark_backup_verified
 [ ] 1. configure_go_live (Fiscal Year <NĂM>, kho liên tục, naming series, VND)
-[ ] 2. ensure_vn_role_profiles + tạo user + gán Role Profile
+[ ] 2. sync RP-* + tạo user + gán Role Profile
 [ ] 3. seed_master_data → import CSV khách/NCC/hàng → master_data_completeness = ok
 [ ] 4. Số dư đầu kỳ: GL (Opening Entry) · 131/331 (Opening Invoice Tool) ·
        tồn kho (Stock Reconciliation) · TSCĐ (Asset)

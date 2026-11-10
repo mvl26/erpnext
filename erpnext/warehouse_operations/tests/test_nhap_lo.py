@@ -6,6 +6,8 @@ trước khi kiểm trùng số lô thì người gõ nhầm một số lô dài
 đi sửa sai chỗ.
 """
 
+import re
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
@@ -24,6 +26,19 @@ def _dong_gan(vi_tri):
 
 
 CONG_TY = "Miyano Việt Nam"
+
+
+def _ma_lo(so_lo: str) -> str:
+	"""Mã lô (tên `Batch`) của lô mang số lô NCC `so_lo`.
+
+	Từ 19/10/2026 tên lô là mã tự sinh `L26-…`, không còn là số lô. Các bài cũ
+	gõ số lô làm tên; helper này đổi về mã. Mỗi bài dùng số lô riêng nên đúng
+	một lô khớp — nhiều hơn là bài dính dữ liệu bài khác, phải báo chứ không lấy bừa.
+	"""
+	ds = frappe.get_all("Batch", filters={"custom_so_lo": so_lo}, pluck="name")
+	if len(ds) != 1:
+		raise AssertionError(f"số lô {so_lo!r} khớp {len(ds)} lô: {ds}")
+	return ds[0]
 
 
 def _phieu_nhap_lo(pr, dong: list[dict]):
@@ -52,23 +67,17 @@ class TestValidate(FrappeTestCase):
 		d.update(ghi_de)
 		return d
 
-	def test_so_lo_co_ky_tu_ngoai_ascii_bi_chan_ngay_o_validate(self):
-		"""Khoá DÂY NỐI giữa `BatchEntry.validate` và `ma_vach.kiem_tra_ky_tu`.
-
-		`test_ma_vach` đã khoá bản thân phép kiểm; bài này khoá việc nó ĐƯỢC GỌI.
-		Nếu dây nối đứt thì phiếu lưu được, và tới lúc in thì JsBarcode ném lỗi,
-		`barcode.js` nuốt lỗi, SVG giữ nguyên nội dung lần vẽ trước — tem của lô
-		này in ra mã vạch của lô LIỀN TRƯỚC trong cùng xấp, không một dấu hiệu
-		nào. Đã tái hiện được trên trình duyệt.
-		"""
+	def test_so_lo_co_dau_tieng_viet_van_luu_duoc(self):
+		"""Spec tách số lô 19/10/2026: số lô NCC không còn vào mã vạch (mã vạch in
+		mã lô tự sinh), nên luật ký tự theo mã vạch bỏ khỏi `Batch Entry`. Thay
+		cho `test_so_lo_co_ky_tu_ngoai_ascii_bi_chan_ngay_o_validate` — cái lỗi
+		bài cũ khoá (JsBarcode nổ trên ký tự lạ, tem in mã vạch của lô liền
+		trước) không còn đường xảy ra vì F10 luôn là mã `L26-…`."""
 		for xau in ("LÔ-2026", "7Fr\u20132026"):
 			with self.subTest(so_lo=xau):
 				be = _phieu_nhap_lo(self.pr, [self._dong(so_lo=xau)])
-				with self.assertRaises(frappe.ValidationError) as ctx:
-					be.insert(ignore_permissions=True)
-				# Câu báo phải nêu đích danh ký tự vi phạm, không phải câu chung
-				# chung — xem docstring `kiem_tra_ky_tu`.
-				self.assertIn("U+", str(ctx.exception))
+				be.insert(ignore_permissions=True)
+				self.assertEqual(be.items[0].so_lo, xau)
 
 	def test_so_lo_ascii_thuan_van_luu_duoc(self):
 		"""Vế còn lại: phép kiểm ký tự KHÔNG được chặn nhầm số lô hợp lệ."""
@@ -135,22 +144,23 @@ class TestValidate(FrappeTestCase):
 		be.insert(ignore_permissions=True)
 		self.assertEqual(be.items[0].so_lo, "LO-TRANG")
 
-	def test_so_lo_qua_dai_thi_chan_truoc_moi_phep_kiem_khac(self):
-		"""Thứ tự: mã vạch trước, trùng lô sau. Xem docstring đầu file."""
+	def test_so_lo_dai_30_ky_tu_van_luu_duoc(self):
+		"""Thay `test_so_lo_qua_dai_thi_chan_truoc_moi_phep_kiem_khac`: giới hạn
+		độ dài là của mã vạch, mà mã vạch giờ in mã lô 10 ký tự. Số lô NCC dài
+		phải nhập ĐÚNG như trên bao bì, không bị ép cắt."""
 		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="A" * 30)])
-		with self.assertRaises(frappe.ValidationError) as ngu_canh:
-			be.insert(ignore_permissions=True)
-		self.assertIn("quá dài", str(ngu_canh.exception))
+		be.insert(ignore_permissions=True)
+		self.assertEqual(be.items[0].so_lo, "A" * 30)
 
-	def test_so_lo_trung_voi_lo_cua_mat_hang_khac_thi_chan(self):
+	def test_so_lo_trung_voi_lo_cua_mat_hang_khac_van_luu_duoc(self):
+		"""Thay `test_so_lo_trung_voi_lo_cua_mat_hang_khac_thi_chan` — đúng cái
+		chặn mà spec 19/10/2026 sinh ra để gỡ."""
 		item2 = _tao_item("_Test NhapLo Co Lo 2", co_lo=1)
 		frappe.get_doc(
 			{"doctype": "Batch", "batch_id": "LO-DUNG-CHUNG", "item": item2}
 		).insert(ignore_permissions=True)
 		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-DUNG-CHUNG")])
-		with self.assertRaises(frappe.ValidationError) as ngu_canh:
-			be.insert(ignore_permissions=True)
-		self.assertIn(item2, str(ngu_canh.exception))
+		be.insert(ignore_permissions=True)
 
 	def test_so_lo_trung_voi_lo_cua_CHINH_mat_hang_nay_thi_cho_qua(self):
 		"""Lô thứ hai về cùng một số lô là chuyện thật (NCC giao làm hai đợt).
@@ -196,7 +206,7 @@ class TestSubmit(FrappeTestCase):
 		)
 		be.insert(ignore_permissions=True)
 		be.submit()
-		lo = frappe.get_doc("Batch", "LO-SUBMIT-1")
+		lo = frappe.get_doc("Batch", _ma_lo("LO-SUBMIT-1"))
 		self.assertEqual(lo.item, self.item)
 		self.assertEqual(str(lo.expiry_date), "2030-01-31")
 		# manufacturing_date (vòng sửa 1, Việc 2): nhánh TẠO MỚI (batch_entry.py,
@@ -214,7 +224,7 @@ class TestSubmit(FrappeTestCase):
 		# được việc ghi đã XUỐNG được CSDL, không chỉ đứng trong RAM.
 		dong = be.items[0].name
 		self.assertEqual(
-			frappe.db.get_value("Batch Entry Item", dong, "lo_da_tao"), "LO-SUBMIT-1"
+			frappe.db.get_value("Batch Entry Item", dong, "lo_da_tao"), _ma_lo("LO-SUBMIT-1")
 		)
 		self.assertEqual(
 			frappe.db.get_value("Batch Entry Item", dong, "so_goi"), lo.custom_so_goi
@@ -226,7 +236,7 @@ class TestSubmit(FrappeTestCase):
 		be.submit()
 		self.assertEqual(
 			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
-			"LO-SUBMIT-2",
+			_ma_lo("LO-SUBMIT-2"),
 		)
 
 	def test_phieu_nhap_submit_sau_do_khong_sinh_lo_may_nao_nua(self):
@@ -273,11 +283,35 @@ class TestSubmit(FrappeTestCase):
 		be2.insert(ignore_permissions=True)
 		be2.submit()
 
-		so_goi_1 = frappe.db.get_value("Batch", "LO-GOI-1", "custom_so_goi")
-		so_goi_2 = frappe.db.get_value("Batch", "LO-GOI-2", "custom_so_goi")
+		so_goi_1 = frappe.db.get_value("Batch", _ma_lo("LO-GOI-1"), "custom_so_goi")
+		so_goi_2 = frappe.db.get_value("Batch", _ma_lo("LO-GOI-2"), "custom_so_goi")
 		self.assertTrue(so_goi_1)
 		self.assertTrue(so_goi_2)
 		self.assertNotEqual(so_goi_1, so_goi_2)
+
+	def test_so_goi_la_so_cuoi_cua_phieu_nhap(self):
+		"""Số gọi = phần số cuối của tên phiếu nhập, GIỮ số 0 đầu
+		(`MAT-PRE-2026-00027` -> `00027`) — chốt 14/10/2026."""
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-GOI-PR-1")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+		mong_doi = re.search(r"(\d+)$", self.pr.name).group(1)
+		self.assertEqual(frappe.db.get_value("Batch", _ma_lo("LO-GOI-PR-1"), "custom_so_goi"), mong_doi)
+		self.assertEqual(
+			frappe.db.get_value("Batch Entry Item", be.items[0].name, "so_goi"), mong_doi
+		)
+
+	def test_so_goi_phieu_nhap_sua_bo_hau_to_sua(self):
+		"""Phiếu sửa `…-00027-1` vẫn gọi là `00027`, không phải `1`. Phiếu
+		không phải phiếu sửa thì KHÔNG cắt gì (số cuối là chính số phiếu)."""
+		from unittest.mock import patch
+
+		from erpnext.warehouse_operations.doctype.batch_entry import batch_entry
+
+		with patch.object(batch_entry.frappe.db, "get_value", return_value="MAT-PRE-2026-00027"):
+			self.assertEqual(batch_entry._so_goi_tu_phieu_nhap("MAT-PRE-2026-00027-1"), "00027")
+		with patch.object(batch_entry.frappe.db, "get_value", return_value=None):
+			self.assertEqual(batch_entry._so_goi_tu_phieu_nhap("MAT-PRE-2026-00027"), "00027")
 
 	def test_dung_lai_lo_da_co_cua_chinh_mat_hang_nay(self):
 		"""NCC giao làm hai đợt cùng một số lô. Không tạo mới, không nổ khoá
@@ -311,9 +345,9 @@ class TestSubmit(FrappeTestCase):
 		be.submit()
 
 		# Đúng MỘT bản ghi Batch tên này tồn tại — không có bản ghi đè lên.
-		self.assertEqual(frappe.db.count("Batch", {"name": "LO-DOT-2B"}), 1)
+		self.assertEqual(frappe.db.count("Batch", {"custom_so_lo": "LO-DOT-2B"}), 1)
 
-		lo = frappe.get_doc("Batch", "LO-DOT-2B")
+		lo = frappe.get_doc("Batch", _ma_lo("LO-DOT-2B"))
 		# Chỗ TRỐNG (expiry_date) được điền từ dòng phiếu nhập.
 		self.assertEqual(str(lo.expiry_date), "2030-01-31")
 		# Chỗ ĐÃ CÓ (manufacturing_date) giữ nguyên — không bị ghi đè bởi
@@ -329,7 +363,7 @@ class TestSubmit(FrappeTestCase):
 		be.submit()
 		self.assertEqual(
 			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
-			"LO-HUY-1",
+			_ma_lo("LO-HUY-1"),
 		)
 
 		be.cancel()
@@ -340,7 +374,7 @@ class TestSubmit(FrappeTestCase):
 		)
 		# Vế 2: bản ghi Batch vẫn CÒN — thiếu vế này thì một cài đặt xoá luôn
 		# `Batch` khi huỷ vẫn làm bài xanh.
-		self.assertTrue(frappe.db.exists("Batch", "LO-HUY-1"))
+		self.assertTrue(frappe.db.exists("Batch", {"custom_so_lo": "LO-HUY-1"}))
 
 	def test_huy_khi_phieu_nhap_da_submit_thi_chan(self):
 		"""Tồn đã ghi theo lô. Gỡ lô khỏi một chứng từ đã submit là việc của
@@ -364,7 +398,7 @@ class TestSubmit(FrappeTestCase):
 		# Chặn phải xảy ra TRƯỚC khi gỡ batch_no — dòng phiếu nhập còn nguyên.
 		self.assertEqual(
 			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
-			"LO-HUY-2",
+			_ma_lo("LO-HUY-2"),
 		)
 
 	def test_huy_ca_pr_lan_be_khong_khoa_chet_nhau(self):
@@ -395,7 +429,39 @@ class TestSubmit(FrappeTestCase):
 		be.reload()
 		be.cancel()
 
-		self.assertTrue(frappe.db.exists("Batch", "LO-KHOA-1"))
+		self.assertTrue(frappe.db.exists("Batch", {"custom_so_lo": "LO-KHOA-1"}))
+
+	def test_huy_pr_qua_nut_cancel_tren_form_khong_khoa_chet(self):
+		"""Hotfix 19/10/2026 — khoá chết thứ hai, đo thật trên PNL-2026-00006.
+		Bấm Cancel trên FORM phiếu nhập không gọi thẳng `pr.cancel()` như bài
+		trên: `form.js::savecancel` hỏi `get_submitted_linked_docs`, thấy BE đã
+		duyệt nên mở hộp "Cancel All", và `cancel_all_linked_docs` huỷ BE
+		TRƯỚC — lúc đó PR vẫn docstatus=1 nên guard `on_cancel` của BE ném
+		"đã duyệt nên không huỷ phiếu nhập lô được". Huỷ BE riêng cũng ra đúng
+		câu đó, nên người dùng thấy hai nút Cancel cùng chặn nhau.
+
+		Bài này đi lại đúng đường của form, với danh sách bỏ qua mà
+		`transaction.js` gửi lên (chỉ "Serial and Batch Bundle")."""
+		from frappe.desk.form.linked_with import cancel_all_linked_docs, get_submitted_linked_docs
+
+		be = _phieu_nhap_lo(self.pr, [self._dong(so_lo="LO-KHOA-2")])
+		be.insert(ignore_permissions=True)
+		be.submit()
+
+		self.pr.reload()
+		self.pr.submit()
+
+		bo_qua = ["Serial and Batch Bundle"]
+		lien_ket = get_submitted_linked_docs("Purchase Receipt", self.pr.name, bo_qua)
+		cancel_all_linked_docs(frappe.as_json(lien_ket["docs"]), frappe.as_json(bo_qua))
+		self.pr.reload()
+		self.pr.cancel()
+
+		# BE ở lại docstatus=1 cho thủ kho huỷ sau — giờ PR đã huỷ nên được.
+		be.reload()
+		self.assertEqual(be.docstatus, 1)
+		be.cancel()
+		self.assertTrue(frappe.db.exists("Batch", {"custom_so_lo": "LO-KHOA-2"}))
 
 	def test_dung_lai_lo_dien_manufacturing_date_dang_trong(self):
 		"""Vòng sửa 1, Việc 2 — mặt lật của `test_dung_lai_lo_da_co_cua_chinh_
@@ -432,7 +498,7 @@ class TestSubmit(FrappeTestCase):
 		be.insert(ignore_permissions=True)
 		be.submit()
 
-		lo = frappe.get_doc("Batch", "LO-DOT-2C")
+		lo = frappe.get_doc("Batch", _ma_lo("LO-DOT-2C"))
 		self.assertEqual(str(lo.manufacturing_date), "2030-01-01")
 		# Chỗ ĐÃ CÓ (expiry_date) vẫn được bảo toàn — kiểm chéo cho chắc.
 		self.assertEqual(str(lo.expiry_date), "2031-12-31")
@@ -500,7 +566,7 @@ class TestSubmit(FrappeTestCase):
 		be2.submit()
 		self.assertEqual(
 			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
-			"LO-PHU-5",
+			_ma_lo("LO-PHU-5"),
 		)
 
 	def test_huy_khong_go_batch_no_neu_da_bi_ghi_de_boi_lo_khac(self):
@@ -516,7 +582,7 @@ class TestSubmit(FrappeTestCase):
 		be.submit()
 		self.assertEqual(
 			frappe.db.get_value("Purchase Receipt Item", self.dong_pr, "batch_no"),
-			"LO-PHU-3",
+			_ma_lo("LO-PHU-3"),
 		)
 
 		frappe.get_doc(
@@ -547,7 +613,7 @@ class TestSubmit(FrappeTestCase):
 		be.insert(ignore_permissions=True)
 		be.submit()
 
-		lo = frappe.get_doc("Batch", "LO-DIEN-NCC")
+		lo = frappe.get_doc("Batch", _ma_lo("LO-DIEN-NCC"))
 		self.assertEqual(lo.supplier, self.ncc)
 		self.assertEqual(lo.reference_doctype, "Purchase Receipt")
 		self.assertEqual(lo.reference_name, self.pr.name)
@@ -745,7 +811,7 @@ class TestApiMayChu(FrappeTestCase):
 		be.insert(ignore_permissions=True)
 		be.submit()
 
-		ket_qua = du_lieu_tem("LO-API-11O")
+		ket_qua = du_lieu_tem(_ma_lo("LO-API-11O"))
 
 		self.assertEqual(len(ket_qua), 1)
 		self.assertEqual(set(ket_qua[0].keys()), {f"F{i}" for i in range(1, 12)})
@@ -787,7 +853,7 @@ class TestApiMayChu(FrappeTestCase):
 		frappe.db.set_value("Purchase Receipt Item", pr.items[0].name, "batch_no", lo.name)
 
 		with patch.object(nhap_lo_mod, "goi_y_o", side_effect=RuntimeError("giả lập lỗi gán")):
-			ket_qua = du_lieu_tem(so_lo_dai)
+			ket_qua = du_lieu_tem(_ma_lo(so_lo_dai))
 
 		self.assertEqual(len(ket_qua), 1)
 		self.assertEqual(ket_qua[0]["F8"], "VT —", "goi_y_o lỗi thì F8 không đoán ô")
@@ -841,7 +907,7 @@ class TestApiMayChu(FrappeTestCase):
 			)
 			be.insert(ignore_permissions=True)
 			be.submit()
-			f3[item] = du_lieu_tem(so_lo)[0]["F3"]
+			f3[item] = du_lieu_tem(_ma_lo(so_lo))[0]["F3"]
 
 		self.assertEqual(f3[item_0], "Nos")
 		self.assertEqual(f3[item_1], "Nos (1/Box)")
@@ -881,10 +947,10 @@ class TestApiMayChu(FrappeTestCase):
 		be.insert(ignore_permissions=True)
 		be.submit()
 
-		lan_1 = dat_o_in_tem("LO-BATBIEN-1")
+		lan_1 = dat_o_in_tem(_ma_lo("LO-BATBIEN-1"))
 		self.assertEqual(lan_1, leaf1)
 		self.assertEqual(
-			frappe.db.get_value("Batch", "LO-BATBIEN-1", "custom_o_in_tem"), leaf1
+			frappe.db.get_value("Batch", _ma_lo("LO-BATBIEN-1"), "custom_o_in_tem"), leaf1
 		)
 
 		# Chiếm `leaf1` bằng một mặt hàng KHÁC — nếu `dat_o_in_tem` TÍNH LẠI
@@ -902,7 +968,7 @@ class TestApiMayChu(FrappeTestCase):
 			}
 		).insert(ignore_permissions=True)
 
-		lan_2 = dat_o_in_tem("LO-BATBIEN-1")
+		lan_2 = dat_o_in_tem(_ma_lo("LO-BATBIEN-1"))
 		self.assertEqual(lan_2, leaf1)
 
 	def test_du_lieu_tem_khong_ghi_du_lieu(self):
@@ -933,13 +999,13 @@ class TestApiMayChu(FrappeTestCase):
 		be.insert(ignore_permissions=True)
 		be.submit()
 
-		ket_qua = du_lieu_tem("LO-KHONGGHI-1")
+		ket_qua = du_lieu_tem(_ma_lo("LO-KHONGGHI-1"))
 
 		# Xem trước PHẢI thấy được gợi ý — không rơi vào "VT —" vô nghĩa, thứ
 		# không thử thách gì việc ghi/không ghi.
 		self.assertNotEqual(ket_qua[0]["F8"], "VT —")
 		# Nhưng KHÔNG được ghi xuống CSDL — xem trước, không phải in.
-		self.assertFalse(frappe.db.get_value("Batch", "LO-KHONGGHI-1", "custom_o_in_tem"))
+		self.assertFalse(frappe.db.get_value("Batch", _ma_lo("LO-KHONGGHI-1"), "custom_o_in_tem"))
 
 	def test_dat_o_in_tem_tra_None_khi_mat_hang_chua_gan(self):
 		"""F8 in 'VT —', KHÔNG đoán, và KHÔNG chặn in."""
@@ -964,11 +1030,11 @@ class TestApiMayChu(FrappeTestCase):
 		be.insert(ignore_permissions=True)
 		be.submit()
 
-		ket_qua = dat_o_in_tem("LO-CHUAGAN-1")
+		ket_qua = dat_o_in_tem(_ma_lo("LO-CHUAGAN-1"))
 
 		self.assertIsNone(ket_qua)
 		# KHÔNG đoán: không có gì được ghi xuống CSDL từ lần gọi này.
-		self.assertFalse(frappe.db.get_value("Batch", "LO-CHUAGAN-1", "custom_o_in_tem"))
+		self.assertFalse(frappe.db.get_value("Batch", _ma_lo("LO-CHUAGAN-1"), "custom_o_in_tem"))
 
 
 class TestQuyenApiMayChu(FrappeTestCase):
@@ -1062,7 +1128,7 @@ class TestDuLieuTemNhanDuBaDangDauVao(FrappeTestCase):
 
 	def test_mot_ten_lo_tran_van_tra_ve_dung_mot_dict(self):
 		"""Dạng cũ nhất, phải không đổi: chuỗi KHÔNG phải JSON là một tên lô."""
-		kq = du_lieu_tem(self.lo[0])
+		kq = du_lieu_tem(_ma_lo(self.lo[0]))
 		self.assertEqual(len(kq), 1)
 		self.assertEqual(kq[0]["F6"], f"Lô {self.lo[0]}")
 
@@ -1073,7 +1139,7 @@ class TestDuLieuTemNhanDuBaDangDauVao(FrappeTestCase):
 		theo thứ tự dòng. Truyền NGƯỢC để một cài đặt lỡ `set()`/`sorted()` thì
 		đỏ ở đây.
 		"""
-		kq = du_lieu_tem([self.lo[1], self.lo[0]])
+		kq = du_lieu_tem([_ma_lo(self.lo[1]), _ma_lo(self.lo[0])])
 		self.assertEqual([d["F6"] for d in kq], [f"Lô {self.lo[1]}", f"Lô {self.lo[0]}"])
 
 	def test_chuoi_json_cua_mang_hai_lo_tra_ve_HAI_dict(self):
@@ -1085,7 +1151,7 @@ class TestDuLieuTemNhanDuBaDangDauVao(FrappeTestCase):
 		"""
 		import json
 
-		kq = du_lieu_tem(json.dumps([self.lo[0], self.lo[1]]))
+		kq = du_lieu_tem(json.dumps([_ma_lo(self.lo[0]), _ma_lo(self.lo[1])]))
 		self.assertEqual(len(kq), 2, "chuỗi JSON của MẢNG phải ra HAI tem, không phải một")
 		self.assertEqual([d["F6"] for d in kq], [f"Lô {self.lo[0]}", f"Lô {self.lo[1]}"])
 
@@ -1099,6 +1165,100 @@ class TestDuLieuTemNhanDuBaDangDauVao(FrappeTestCase):
 		`get_doc` trượt — đúng lớp lỗi vừa vá, chỉ đổi chỗ. Bài này bắt đúng
 		phép rút gọn đó.
 		"""
-		kq = du_lieu_tem(self.lo[2])
+		kq = du_lieu_tem(_ma_lo(self.lo[2]))
 		self.assertEqual(len(kq), 1)
 		self.assertEqual(kq[0]["F6"], f"Lô {self.lo[2]}")
+
+
+class TestSoLoTachMaLo(FrappeTestCase):
+	"""Spec tách số lô 19/10/2026: mã lô tự sinh `L.YY.-.######`, số lô NCC ở
+	`Batch.custom_so_lo`, lô nhận diện theo (mặt hàng, số lô, HSD).
+
+	Số lô mỗi bài có hậu tố ngẫu nhiên: `FrappeTestCase` chỉ rollback cuối lớp,
+	mà giờ lô DÙNG LẠI theo số lô — trùng chữ giữa hai bài là hai bài dính nhau.
+	"""
+
+	MA_LO = r"^L\d{2}-\d{6}$"
+
+	def setUp(self):
+		self.ncc = _ncc_thu()
+		self.a = _tao_item("_Test SoLo Hang A", co_lo=1)
+		self.b = _tao_item("_Test SoLo Hang B", co_lo=1)
+		self.kho = frappe.db.get_value("Warehouse", {"company": CONG_TY, "is_group": 0}, "name")
+		self.hau_to = frappe.generate_hash(length=6).upper()
+
+	def _so(self, goc):
+		return f"{goc}-{self.hau_to}"
+
+	def _nhap(self, item, so_lo, hsd="2030-01-31", so_dong=1):
+		"""Phiếu nhập nháp `so_dong` dòng cùng mặt hàng + BE khai CÙNG (số lô, HSD)
+		cho mọi dòng, đã submit. Trả về danh sách `lo_da_tao` theo dòng."""
+		pr = frappe.get_doc(
+			{
+				"doctype": "Purchase Receipt",
+				"company": CONG_TY,
+				"supplier": self.ncc,
+				"items": [
+					{"item_code": item, "qty": 5, "warehouse": self.kho, "rate": 1000}
+					for _ in range(so_dong)
+				],
+			}
+		).insert(ignore_permissions=True)
+		be = _phieu_nhap_lo(
+			pr,
+			[
+				{
+					"dong_phieu_nhap": d.name,
+					"vat_tu": item,
+					"kho": self.kho,
+					"so_luong": 5,
+					"so_lo": so_lo,
+					"hsd": hsd,
+				}
+				for d in pr.items
+			],
+		)
+		be.insert(ignore_permissions=True)
+		be.submit()
+		be.reload()
+		return [d.lo_da_tao for d in be.items]
+
+	def test_hai_mat_hang_chung_so_lo_duoc_nhap(self):
+		so = self._so("TRUNG")
+		(lo_a,) = self._nhap(self.a, so)
+		(lo_b,) = self._nhap(self.b, so)
+		self.assertNotEqual(lo_a, lo_b)
+		for lo in (lo_a, lo_b):
+			self.assertRegex(lo, self.MA_LO)
+			self.assertEqual(frappe.db.get_value("Batch", lo, "custom_so_lo"), so)
+
+	def test_cung_hang_so_lo_hsd_thi_dung_lai_lo(self):
+		so = self._so("LAI")
+		self.assertEqual(self._nhap(self.a, so), self._nhap(self.a, so))
+
+	def test_khac_hsd_thi_tach_lo_moi(self):
+		so = self._so("LAI2")
+		(lo1,) = self._nhap(self.a, so, hsd="2027-01-31")
+		(lo2,) = self._nhap(self.a, so, hsd="2027-06-30")
+		self.assertNotEqual(lo1, lo2)
+
+	def test_lo_cu_khong_hsd_duoc_dung_lai_va_dien_hsd(self):
+		"""E1: lô cũ (tên = số lô) chưa có HSD không bị tách đôi khi nhập lại."""
+		so = self._so("CU")
+		frappe.get_doc({"doctype": "Batch", "batch_id": so, "item": self.a}).insert(ignore_permissions=True)
+		(lo,) = self._nhap(self.a, so, hsd="2027-01-31")
+		self.assertEqual(lo, so)
+		self.assertEqual(str(frappe.db.get_value("Batch", lo, "expiry_date")), "2027-01-31")
+
+	def test_hai_dong_cung_khoa_trong_mot_phieu_ra_mot_lo(self):
+		lo1, lo2 = self._nhap(self.a, self._so("DOI"), so_dong=2)
+		self.assertEqual(lo1, lo2)
+
+	def test_tem_lo_in_so_lo_ma_vach_in_ma_lo(self):
+		"""F6 người đọc là SỐ LÔ; F10 (mã vạch) và F11 (chữ dưới vạch) là MÃ LÔ."""
+		so = self._so("TEM-SOLO")
+		(lo,) = self._nhap(self.a, so)
+		(t,) = du_lieu_tem(lo)
+		self.assertEqual(t["F6"], f"Lô {so}")
+		self.assertEqual((t["F10"], t["F11"]), (lo, lo))
+		self.assertNotEqual(t["F10"], so)

@@ -11,6 +11,7 @@ import frappe
 from frappe import _
 from frappe.utils import sbool
 
+from erpnext.warehouse_operations.vitri import vai_tro as vt
 from erpnext.warehouse_operations.vitri.fefo import to_tien_tat
 
 
@@ -184,7 +185,7 @@ def doi_ten_theo_mat_hang(doc, method=None, old=None, new=None, merge=False):
 # Cùng bộ vai trò với `tem.py::VAI_TRO_DUOC_IN_TEM` và `xep.py::VAI_TRO_DUOC_XEP`: thủ kho
 # (`Stock User`) phải tự xem được cây để chọn vị trí — đây là việc hằng ngày, không phải thao
 # tác thiết lập chỉ dành cho quản lý.
-VAI_TRO_DUOC_XEM_CAY = {"System Manager", "Stock Manager", "Stock User"}
+VAI_TRO_DUOC_XEM_CAY = {"Stock Manager", "Stock User"}
 
 
 @frappe.whitelist()
@@ -303,7 +304,7 @@ def cay_chon_vi_tri(
 	với `is_root=True`/`None`, `sbool()` bắt `AttributeError` của `.lower()` trên bool/None và trả
 	nguyên giá trị đó) rồi mới ép `bool()`.
 	"""
-	if not VAI_TRO_DUOC_XEM_CAY & set(frappe.get_roles()):
+	if not vt.co_quyen(VAI_TRO_DUOC_XEM_CAY):
 		frappe.throw(_("Bạn không có quyền xem cây vị trí."), frappe.PermissionError)
 
 	# NHIỀU VỊ TRÍ (22/09/2026): `dang_co` là danh sách nút ĐANG nằm trong hộp thoại

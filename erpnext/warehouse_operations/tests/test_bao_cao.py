@@ -371,7 +371,7 @@ class TestBaoCaoDoiSoat(FrappeTestCase):
 		fieldnames = {c["fieldname"] for c in cot}
 		self.assertEqual(
 			fieldnames,
-			{"loai", "o", "vat_tu", "so_lo", "gia_tri_1", "gia_tri_2", "lech"},
+			{"loai", "o", "vat_tu", "so_lo", "so_lo_hien_thi", "gia_tri_1", "gia_tri_2", "lech"},
 			"báo cáo phải chiếu đủ cột của cả ba loại lệch (Critical 1b), gộp một bảng",
 		)
 		self.assertEqual(dong, [], "vừa bật xong (khớp cả ba phép đo) thì báo cáo phải rỗng")
@@ -392,9 +392,10 @@ class TestBaoCaoDoiSoat(FrappeTestCase):
 		# xét, không giả định nó là dòng DUY NHẤT.
 		lech_tong = [d for d in dong if d[2] == item and d[0] == "Lệch tồn"]
 		self.assertEqual(len(lech_tong), 1, f"phải ra đúng 1 dòng 'Lệch tồn' cho item này: {dong}")
-		self.assertEqual(lech_tong[0][4], 3, "gia_tri_1 phải là tồn vị trí (3)")
-		self.assertEqual(lech_tong[0][5], 10, "gia_tri_2 phải là tồn kho ERPNext (10)")
-		self.assertEqual(lech_tong[0][6], -7, "lech = 3 - 10")
+		# Chỉ số +1 từ 19/10/2026: cột `so_lo_hien_thi` chen ngay sau `so_lo`.
+		self.assertEqual(lech_tong[0][5], 3, "gia_tri_1 phải là tồn vị trí (3)")
+		self.assertEqual(lech_tong[0][6], 10, "gia_tri_2 phải là tồn kho ERPNext (10)")
+		self.assertEqual(lech_tong[0][7], -7, "lech = 3 - 10")
 
 	def test_o_am_hien_dung_dong(self):
 		from erpnext.warehouse_operations.report.doi_soat_ton_vi_tri.doi_soat_ton_vi_tri import execute
@@ -433,7 +434,7 @@ class TestBaoCaoDoiSoat(FrappeTestCase):
 		o_am_cua_item = [d for d in dong if d[2] == item and d[0] == "Ô âm"]
 		self.assertEqual(len(o_am_cua_item), 1, f"phải ra đúng 1 dòng 'Ô âm': {dong}")
 		self.assertEqual(o_am_cua_item[0][1], o_chua_xep)
-		self.assertEqual(o_am_cua_item[0][4], -3)
+		self.assertEqual(o_am_cua_item[0][5], -3)
 
 
 class TestHangNamSaiViTri(FrappeTestCase):
@@ -560,3 +561,90 @@ class TestHangNamSaiViTri(FrappeTestCase):
 			"ô chưa hội tụ toạ độ (lft=rgt=0) không được sinh dòng bịa — nếu bài "
 			"này đỏ, `sl.lft > 0` đã bị xoá khỏi hang_nam_sai_vi_tri.py",
 		)
+
+
+class TestSoLoHienThiBaoCao(FrappeTestCase):
+	"""Spec tách số lô 19/10/2026: báo cáo vẫn nối bằng mã lô (cột Link `so_lo`,
+	ẩn), người đọc thấy SỐ LÔ NCC ở cột `so_lo_hien_thi` nhãn "Số lô"."""
+
+	def setUp(self):
+		_don_sach(KHO)
+		bat(KHO)
+		self.item = _tao_item("_Test BC So Lo", co_lo=1)
+		self.so = f"BC-1-{frappe.generate_hash(length=6).upper()}"
+		self.lo = (
+			frappe.get_doc({"doctype": "Batch", "item": self.item, "custom_so_lo": self.so})
+			.insert(ignore_permissions=True)
+			.name
+		)
+		self.chua_xep = frappe.db.get_value("Storage Location", {"kho": KHO, "la_o_chua_xep": 1})
+
+	def tearDown(self):
+		_don_sach(KHO)
+
+	def _ton(self, o, so_luong, vat_tu=None):
+		frappe.get_doc(
+			{
+				"doctype": "Location Balance",
+				"o": o,
+				"kho": KHO,
+				"vat_tu": vat_tu or self.item,
+				"so_lo": self.lo,
+				"so_luong": so_luong,
+			}
+		).insert(ignore_permissions=True)
+
+	def _kiem_cot(self, cot):
+		theo_ten = {c["fieldname"]: c for c in cot}
+		self.assertEqual(theo_ten["so_lo_hien_thi"]["label"], "Số lô")
+		self.assertEqual(theo_ten["so_lo"].get("hidden"), 1)
+		ten = [c["fieldname"] for c in cot]
+		self.assertEqual(ten.index("so_lo_hien_thi"), ten.index("so_lo") + 1)
+		return ten.index("so_lo_hien_thi")
+
+	def _dong_cua_lo(self, cot, dong):
+		"""Dòng của lô test, dạng dict theo fieldname (báo cáo trả list hoặc dict)."""
+		ten = [c["fieldname"] for c in cot]
+		ra = [d if isinstance(d, dict) else dict(zip(ten, d, strict=False)) for d in dong]
+		return [d for d in ra if d.get("so_lo") == self.lo]
+
+	def test_ton_kho_theo_vi_tri(self):
+		from erpnext.warehouse_operations.report.ton_kho_theo_vi_tri.ton_kho_theo_vi_tri import execute
+
+		self._ton(self.chua_xep, 4)
+		cot, dong = execute({"kho": KHO, "vat_tu": self.item})
+		self._kiem_cot(cot)
+		(d,) = self._dong_cua_lo(cot, dong)
+		self.assertEqual(d["so_lo_hien_thi"], self.so)
+
+	def test_hang_chua_xep_vi_tri(self):
+		from erpnext.warehouse_operations.report.hang_chua_xep_vi_tri.hang_chua_xep_vi_tri import execute
+
+		self._ton(self.chua_xep, 4)
+		cot, dong = execute({"kho": KHO})
+		self._kiem_cot(cot)
+		(d,) = self._dong_cua_lo(cot, dong)
+		self.assertEqual(d["so_lo_hien_thi"], self.so)
+
+	def test_doi_soat_ton_vi_tri(self):
+		from erpnext.warehouse_operations.report.doi_soat_ton_vi_tri.doi_soat_ton_vi_tri import execute
+
+		self._ton(self.chua_xep, -2)
+		cot, dong = execute({"kho": KHO})
+		self._kiem_cot(cot)
+		o_am = [d for d in self._dong_cua_lo(cot, dong) if d["loai"] == "Ô âm"]
+		self.assertEqual(len(o_am), 1)
+		self.assertEqual(o_am[0]["so_lo_hien_thi"], self.so)
+
+	def test_hang_nam_sai_vi_tri(self):
+		from erpnext.warehouse_operations.report.hang_nam_sai_vi_tri.hang_nam_sai_vi_tri import execute
+		from erpnext.warehouse_operations.tests.test_gan_vi_tri import _gan, _mat_hang, _o
+
+		chu = _mat_hang("_Test BC So Lo Chu")
+		_o("5H01010101")
+		_gan(chu, "5H010101")
+		self._ton("5H01010101", 3)
+		cot, dong = execute({"kho": KHO})
+		self._kiem_cot(cot)
+		(d,) = self._dong_cua_lo(cot, dong)
+		self.assertEqual(d["so_lo_hien_thi"], self.so)

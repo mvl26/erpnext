@@ -2362,6 +2362,8 @@ def create_gain_loss_journal(
 		journal_account.update(dimensions)
 	journal_entry.append("accounts", journal_account)
 
+	# Miyano RBAC: JE hệ thống, không qua WF-JE — xem erpnext/access/workflow_guard.py
+	journal_entry.flags.ignore_permissions = True
 	journal_entry.save()
 	journal_entry.submit()
 	return journal_entry.name

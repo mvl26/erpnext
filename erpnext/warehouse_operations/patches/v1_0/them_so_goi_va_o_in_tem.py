@@ -24,7 +24,7 @@ def execute():
 			"fieldtype": "Data",
 			"read_only": 1,
 			"insert_after": "reference_name",
-			"description": "Số 4 chữ số in to trên nhãn để gọi nhanh. Chỉ 'Batch Entry' đặt.",
+			"description": "Số phiếu nhập (phần số cuối, VD MAT-PRE-2026-00027 → 00027) in to trên nhãn để gọi nhanh. Chỉ 'Batch Entry' đặt.",
 		},
 	)
 	create_custom_field(

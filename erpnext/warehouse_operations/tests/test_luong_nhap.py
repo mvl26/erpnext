@@ -63,7 +63,12 @@ def _khai_lo(pr, so_lo=LO, qty=10):
 	return be
 
 
-def _xep_len_ke(so_luong, o=O_NHAN, so_lo=LO):
+def _ma_lo(be):
+	"""Mã lô hệ thống sinh cho dòng đầu của `be` — tên bản ghi `Batch`, khác số lô."""
+	return be.items[0].lo_da_tao
+
+
+def _xep_len_ke(so_luong, ma_lo, o=O_NHAN):
 	"""Phiếu xếp từ ô "Chưa xếp vị trí" sang ô thật — bước "Xếp hàng lên kệ"."""
 	chua_xep = frappe.db.get_value("Storage Location", {"kho": KHO, "la_o_chua_xep": 1})
 	lt = frappe.get_doc(
@@ -72,7 +77,7 @@ def _xep_len_ke(so_luong, o=O_NHAN, so_lo=LO):
 			"kho": KHO,
 			"ngay": nowdate(),
 			"items": [
-				{"vat_tu": ITEM, "so_lo": so_lo, "tu_o": chua_xep, "den_o": o, "so_luong": so_luong}
+				{"vat_tu": ITEM, "so_lo": ma_lo, "tu_o": chua_xep, "den_o": o, "so_luong": so_luong}
 			],
 		}
 	)
@@ -118,31 +123,31 @@ class TestTienDoNhapKho(_Nen):
 
 	def test_duyet_xong_thi_cho_xep_dung_so_luong(self):
 		pr = _phieu_nhap(10)
-		_khai_lo(pr, qty=10)
+		be = _khai_lo(pr, qty=10)
 		pr.reload()
 		pr.submit()
 		t = self._tien_do(pr)
 		self.assertEqual(t["trang_thai"], "cho_xep")
 		self.assertEqual(t["tong_chua_xep"], 10)
 		self.assertEqual(t["chua_xep_theo_kho"], {KHO: 10})
-		self.assertEqual([(d["vat_tu"], d["so_lo"]) for d in t["chua_xep"]], [(ITEM, LO)])
+		self.assertEqual([(d["vat_tu"], d["so_lo"]) for d in t["chua_xep"]], [(ITEM, _ma_lo(be))])
 
 	def test_xep_het_len_ke_thi_xong_luong(self):
 		pr = _phieu_nhap(10)
-		_khai_lo(pr, qty=10)
+		be = _khai_lo(pr, qty=10)
 		pr.reload()
 		pr.submit()
-		_xep_len_ke(10)
+		_xep_len_ke(10, _ma_lo(be))
 		t = self._tien_do(pr)
 		self.assertEqual(t["trang_thai"], "da_xep")
 		self.assertEqual((t["tong_chua_xep"], t["chua_xep"]), (0, []))
 
 	def test_xep_mot_phan_thi_van_cho_xep(self):
 		pr = _phieu_nhap(10)
-		_khai_lo(pr, qty=10)
+		be = _khai_lo(pr, qty=10)
 		pr.reload()
 		pr.submit()
-		_xep_len_ke(4)
+		_xep_len_ke(4, _ma_lo(be))
 		self.assertEqual(self._tien_do(pr)["tong_chua_xep"], 6)
 
 	def test_lo_cua_phieu_khac_khong_tinh_vao_phieu_nay(self):
@@ -209,18 +214,18 @@ class TestConnectionsLuongNhap(_Nen):
 
 	def test_phieu_xep_thay_so_vi_tri(self):
 		pr = _phieu_nhap(10)
-		_khai_lo(pr, qty=10)
+		be = _khai_lo(pr, qty=10)
 		pr.reload()
 		pr.submit()
-		lt = _xep_len_ke(10)
+		lt = _xep_len_ke(10, _ma_lo(be))
 		self.assertEqual(self._dem("Location Transfer", lt.name).get("Location Ledger Entry"), 2)
 
 	def test_lo_thay_so_vi_tri(self):
 		pr = _phieu_nhap(10)
-		_khai_lo(pr, qty=10)
+		be = _khai_lo(pr, qty=10)
 		pr.reload()
 		pr.submit()
-		self.assertEqual(self._dem("Batch", LO).get("Location Ledger Entry"), 1)
+		self.assertEqual(self._dem("Batch", _ma_lo(be)).get("Location Ledger Entry"), 1)
 
 
 class TestPhieuNhapLoCuaLo(_Nen):
@@ -234,7 +239,7 @@ class TestPhieuNhapLoCuaLo(_Nen):
 	def test_tra_ve_phieu_da_duyet(self):
 		pr = _phieu_nhap(10)
 		be = _khai_lo(pr, qty=10)
-		self.assertEqual(self._tim(LO), [be.name])
+		self.assertEqual(self._tim(_ma_lo(be)), [be.name])
 
 	def test_lo_khong_qua_phieu_nhap_lo_thi_rong(self):
 		frappe.get_doc({"doctype": "Batch", "batch_id": "9N-LO-99", "item": ITEM}).insert(
