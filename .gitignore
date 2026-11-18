@@ -20,3 +20,6 @@ node_modules/
 # Vùng làm việc tạm của subagent-driven-development (ledger, brief, review package).
 # Git history mới là bản ghi; thư mục này xoá được bất cứ lúc nào.
 .superpowers/
+
+.team/
+docs/team/

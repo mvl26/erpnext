@@ -1,7 +1,4 @@
 {
-  "enabledPlugins": {
-    "agent-skills@addy-agent-skills": true
-  },
   "hooks": {
     "PreToolUse": [
       {
@@ -15,5 +12,10 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "agent-skills@addy-agent-skills": true,
+    "playwright@anthropic-plugin-directory": true,
+    "team@automation-ai": true
   }
 }
