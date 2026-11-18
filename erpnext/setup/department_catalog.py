@@ -179,8 +179,8 @@ def ensure_departments(company: str, keys=None) -> dict[str, str]:
 			if parent:
 				doc.parent_department = parent
 
-			# Chạy trong `after_migrate`: tạo bù phòng ban là tiện ích, không đáng để làm
-			# hỏng cả lần migrate (d778f7d). Savepoint bỏ bản ghi chèn dở — cây nested
+			# Chạy trong patch / lúc tạo công ty: tạo bù phòng ban là tiện ích, không đáng để
+			# làm hỏng cả lần migrate hay việc tạo công ty (d778f7d). Savepoint bỏ bản ghi chèn dở — cây nested
 			# set hỏng thì lỗi ném ra *sau* khi đã chèn.
 			frappe.db.savepoint("department_catalog_insert")
 			try:

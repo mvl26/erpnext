@@ -9,6 +9,11 @@ Chạy được nhiều lần: gọi lại không nhân đôi bản ghi và **kh
 thông báo, mẫu hay cài đặt đã tồn tại — nghiệp vụ có thể đã sửa người nhận hoặc
 câu chữ (NF6).
 
+Quyết định 10/11/2026: chỉ gieo **một lần** — khi tạo công ty đầu tiên của site
+(`Company.on_update`) và từ patch. `after_migrate` không gieo gì nữa: gọi lại mỗi
+lần migrate là tạo bù phòng ban / điểm / mẫu câu mà người dùng đã đổi tên hay xoá
+(đã đẻ phòng `Kho - M` trùng với phòng kho người dùng tự đặt tên).
+
 Quyết định 23/09/2026: hàm này **không** tạo Custom Field trên `Address` và
 **không** gán vai trò *Quản trị thông báo* cho tài khoản nào — việc gán quyền do
 PO tự làm trên Desk.
@@ -26,8 +31,14 @@ SNIPPET_DOCTYPE = "Supply Notification Snippet"
 SETTINGS_DOCTYPE = "Supply Notification Settings"
 
 
+def after_migrate():
+	"""Mỗi lần migrate: chỉ vai trò mà code cần và xoá cache, không tạo bù dữ liệu."""
+	make_admin_role()
+	registry.clear_cache()
+
+
 def setup_supply_notification():
-	"""Điểm vào duy nhất, gọi từ patch và từ `after_migrate`."""
+	"""Gieo dữ liệu mặc định, gọi từ patch và khi tạo công ty đầu tiên — không gọi mỗi lần migrate."""
 	make_admin_role()
 	ensure_settings()
 	seed_snippets()

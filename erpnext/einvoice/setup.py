@@ -6,8 +6,9 @@ Từ bản 3.0 hóa đơn lập từ Sales Invoice. Bảy custom field trên Del
 bản 2.0 vẫn được dựng nhưng **ẩn**: sáu hóa đơn đã phát hành theo bản 2.0 vẫn
 ghi bản sao vào đó, xóa đi là mất dấu.
 
-Chạy được nhiều lần: gọi lại không nhân đôi trường hay quyền. Được gọi từ patch
-(cho site đang chạy) và từ VN company setup (cho công ty mới).
+Chạy được nhiều lần: gọi lại không nhân đôi trường hay quyền. `setup_einvoice` (đủ,
+kể cả mẫu email) được gọi từ patch và từ VN company setup (cho công ty mới);
+`after_migrate` chỉ dựng lại custom field và vai trò.
 """
 
 import hashlib
@@ -104,10 +105,20 @@ _ISSUED_ORIGINAL_FINGERPRINTS = frozenset(
 
 
 def setup_einvoice():
+	"""Dựng đủ, kể cả hai mẫu email — chỉ gọi lúc dựng (công ty VN mới, patch)."""
+	after_migrate()
+	_make_email_templates()
+
+
+def after_migrate():
+	"""Mỗi lần migrate: custom field và vai trò mà code HĐĐT cần.
+
+	Không đụng mẫu email: mẫu chỉ tạo một lần trong `setup_einvoice`; kế toán xoá
+	hay sửa thì giữ nguyên (quyết định 10/11/2026, xem `after_migrate` trong hooks.py).
+	"""
 	_make_sales_invoice_fields()
 	_make_delivery_note_fields()
 	_make_roles()
-	_make_email_templates()
 
 
 def _make_email_templates():

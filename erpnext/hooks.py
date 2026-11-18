@@ -91,11 +91,14 @@ before_install = [
 ]
 after_install = "erpnext.setup.install.after_install"
 
-# Tích hợp HĐĐT Fast dựng lại cấu hình sau mỗi lần migrate. Hàm này chạy lại
-# được nhiều lần, và để ở đây thì thêm trường/mẫu email mới không cần patch mới.
+# after_migrate chỉ giữ CẤU TRÚC mà code cần (custom field, vai trò, cache), KHÔNG tạo
+# bù dữ liệu nghiệp vụ (phòng ban, điểm thông báo, mẫu email, mẫu câu, cài đặt): những
+# thứ đó gieo MỘT lần lúc dựng site/tạo công ty đầu tiên, rồi người dùng sửa thế nào thì
+# giữ nguyên. Quyết định 10/11/2026 — tạo bù mỗi lần migrate đã đẻ phòng `Kho - M` trùng
+# với phòng kho người dùng đã đặt tên riêng. Dữ liệu mặc định MỚI cần một patch.
 after_migrate = [
-	"erpnext.einvoice.setup.setup_einvoice",
-	"erpnext.supply_notification.setup.setup_supply_notification",
+	"erpnext.einvoice.setup.after_migrate",
+	"erpnext.supply_notification.setup.after_migrate",
 	# Dựng lại lft/rgt của Storage Location nếu còn bản ghi thiếu toạ độ và an
 	# toàn để làm (không ô nào đang `disabled`). MẤT DÒNG NÀY: patch
 	# `v15_0.dung_lai_cay_vi_tri` (chạy đúng MỘT LẦN, patches.txt) vẫn còn,

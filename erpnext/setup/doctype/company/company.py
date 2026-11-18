@@ -278,6 +278,13 @@ class Company(NestedSet):
 		if not frappe.db.get_value("Department", {"company": self.name}):
 			self.create_default_departments()
 
+		if self.flags.in_insert and frappe.db.count("Company") == 1:
+			# Miyano: gieo điểm thông báo chuỗi cung ứng đúng một lần, lúc dựng site — cần
+			# công ty và phòng ban vừa tạo ở trên. Không gọi lại ở mỗi lần migrate.
+			from erpnext.supply_notification.setup import setup_supply_notification
+
+			setup_supply_notification()
+
 		if not frappe.local.flags.ignore_chart_of_accounts:
 			self.set_default_accounts()
 			if self.default_cash_account:
