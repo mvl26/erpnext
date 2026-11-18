@@ -10,6 +10,8 @@
  *    (Ctrl+Shift+R đã là "Clear Cache and Reload" của Frappe).
  *  - Esc đóng panel; ẩn trên màn hình < 768px bằng CSS (kể cả khi resize).
  *  - Không tự mở lại Raven khi F5 -> không có request /raven trước khi bấm.
+ *  - Ghi trang Desk đang xem vào localStorage để nút "Về ERP" trên trang Raven
+ *    toàn trang (raven_back_to_erp.js) quay lại đúng chỗ.
  */
 (() => {
 	const WIDTH = 420; // px
@@ -17,6 +19,16 @@
 	const RAVEN_URL = "/raven/channel";
 	// Phải đúng thứ tự frappe.ui.keys.get_key sinh ra: alt+shift+<phím>
 	const SHORTCUT = "alt+shift+c";
+	// Trùng với RETURN_KEY trong raven_back_to_erp.js
+	const RETURN_KEY = "mvl_raven_return_url";
+
+	const remember_page = () => {
+		try {
+			localStorage.setItem(RETURN_KEY, location.pathname + location.search + location.hash);
+		} catch (e) {
+			// localStorage bị chặn -> nút "Về ERP" về trang chủ
+		}
+	};
 
 	function init() {
 		// Không chạy trong chính app Raven hoặc khi bị nhúng trong iframe
@@ -28,6 +40,16 @@
 		// Chỉ hiện cho user dùng được Raven
 		if (!(frappe.user_roles || []).includes("Raven User")) return;
 		if (document.getElementById("mvl-raven-widget")) return;
+
+		// Router đổi URL trước khi phát "change", nên location lúc này là trang mới.
+		// Ghi thêm lúc rời tab/trang: list view đổi query (bộ lọc) bằng replaceState mà
+		// không phát "change", nên chỉ nghe router thì URL ghi lại bị cũ.
+		remember_page();
+		frappe.router.on("change", remember_page);
+		document.addEventListener("visibilitychange", () => {
+			if (document.visibilityState === "hidden") remember_page();
+		});
+		window.addEventListener("pagehide", remember_page);
 
 		const wrap = document.createElement("div");
 		wrap.id = "mvl-raven-widget";
