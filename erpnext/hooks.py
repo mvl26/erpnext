@@ -8,6 +8,9 @@ app_icon = "fa fa-th"
 app_color = "#e74c3c"
 app_email = "info@miyano.com.vn"
 app_license = "Nội bộ — Công ty TNHH Miyano Việt Nam, không phát hành công khai"
+# Logo cố định của Miyano ERP (navbar Desk, trang đăng nhập, nút về ERP trong Raven); chỉ
+# thay bằng Website Settings > App Logo. Frappe tự chọn logo không đáng tin khi có nhiều
+# app khai `app_logo_url` — xem erpnext/utilities/branding.py.
 app_logo_url = "/assets/erpnext/images/miyano-logo.png"
 
 
@@ -122,6 +125,10 @@ additional_print_settings = "erpnext.controllers.print_settings.get_print_settin
 
 on_session_creation = "erpnext.portal.utils.create_customer_or_supplier"
 
+# Chèn nút "Về ERP" vào trang Raven toàn trang (/raven/...): trang Raven không nạp JS
+# của Desk, và chèn ở đây thì không phải sửa/build lại app Raven.
+after_request = ["erpnext.utilities.raven.add_back_to_erp_button"]
+
 treeviews = [
 	"Account",
 	"Cost Center",
@@ -165,6 +172,9 @@ website_context = {
 	"favicon": "/assets/erpnext/images/miyano-favicon.png",
 	"splash_image": "/assets/erpnext/images/miyano-logo.png",
 }
+
+# Logo trang đăng nhập (chạy sau get_context của trang)
+update_website_context = ["erpnext.utilities.branding.set_login_logo"]
 
 # nosemgrep
 website_route_rules = [
@@ -951,6 +961,8 @@ extend_bootinfo = [
 	"erpnext.support.doctype.service_level_agreement.service_level_agreement.add_sla_doctypes",
 	"erpnext.startup.boot.bootinfo",
 	"erpnext.supply_notification.boot.bootinfo",
+	# Logo navbar Desk: phải ở extend_bootinfo, boot_session chạy trước khi Frappe gán logo
+	"erpnext.utilities.branding.set_desk_logo",
 ]
 
 
